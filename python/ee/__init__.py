@@ -72,6 +72,11 @@ class _AlgorithmsContainer(dict):
 Algorithms = _AlgorithmsContainer()
 
 
+def InitializeThread(credentials, opt_url=None):
+  if data.setThreadCredentials(credentials):
+    Initialize(credentials, opt_url)
+
+
 def Initialize(credentials='persistent', opt_url=None):
   """Initialize the EE library.
 
