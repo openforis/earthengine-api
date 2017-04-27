@@ -53,6 +53,7 @@ ASSET_TYPE_IMAGE_COLL = 'ImageCollection'
 
 _LOCAL = local()
 
+_global_data = None
 
 def initialize(credentials=None, api_base_url=None, tile_base_url=None):
   """Initializes the data module, setting credentials and base URLs.
@@ -609,10 +610,16 @@ def setThreadCredentials(credentials):
 
 
 def _instance():
+  threadCredentials = _LOCAL.__dict__.get('credentials', None)
+  if not threadCredentials: # Thread not initialized - use global state
+    global _global_data
+    if not _global_data:
+      _global_data = _Data()
+    return _global_data
+
   if 'data' in _LOCAL.__dict__:
     data = _LOCAL.data
-    threadCredentials = _LOCAL.__dict__.get('credentials', None)
-    if threadCredentials and threadCredentials is not data._credentials:
+    if threadCredentials is not data._credentials:
       data = None  # Don't reuse data object for different credentials
   else:
     data = _Data()
