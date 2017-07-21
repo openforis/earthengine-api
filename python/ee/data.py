@@ -3,17 +3,19 @@
 
 from __future__ import print_function
 
+
+
+# Using lowercase function naming to match the JavaScript names.
+# pylint: disable=g-bad-name
+
 # pylint: disable=g-bad-import-order
 import contextlib
 import json
+import time
 from threading import local
 
 import httplib2
 import six
-import time
-
-# Using lowercase function naming to match the JavaScript names.
-# pylint: disable=g-bad-name
 
 # pylint: disable=g-import-not-at-top
 try:
@@ -50,6 +52,8 @@ DEFAULT_TILE_BASE_URL = 'https://earthengine.googleapis.com'
 # Asset types recognized by create_assets().
 ASSET_TYPE_FOLDER = 'Folder'
 ASSET_TYPE_IMAGE_COLL = 'ImageCollection'
+# Max length of the above type names
+MAX_TYPE_LENGTH = len(ASSET_TYPE_IMAGE_COLL)
 
 _LOCAL = local()
 
@@ -595,10 +599,10 @@ def create_assets(asset_ids, asset_type, mk_parents):
 
 def setThreadCredentials(credentials):
   """Sets the credentials for the current thread.
-  
+
   Args:
     credentials: The credentials to set.
-    
+
   Returns:
     False if the same credentials are already set, otherwise True
   """
@@ -661,10 +665,10 @@ class _Data:
 
   def initialize(self, credentials=None, api_base_url=None, tile_base_url=None):
     """Initializes the data module, setting credentials and base URLs.
-  
+
     If any of the arguments are unspecified, they will keep their old values;
     the defaults if initialize() has never been called before.
-  
+
     Args:
       credentials: The OAuth2 credentials.
       api_base_url: The EarthEngine REST API endpoint.
@@ -695,7 +699,7 @@ class _Data:
 
   def setDeadline(self, milliseconds):
     """Sets the timeout length for API requests.
-  
+
     Args:
       milliseconds: The number of milliseconds to wait for a request
           before considering it timed out. 0 means no limit.
@@ -706,11 +710,11 @@ class _Data:
   def profiling(self, hook):
     # pylint: disable=g-doc-return-or-yield
     """Returns a context manager which enables or disables profiling.
-  
+
     If hook is not None, enables profiling for all API calls in its scope and
     calls the hook function with all resulting profile IDs. If hook is null,
     disables profiling (or leaves it disabled).
-  
+
     Args:
       hook: A function of one argument which is called with each profile
           ID obtained from API calls, just before the API call returns.
@@ -724,10 +728,10 @@ class _Data:
 
   def getInfo(self, asset_id):
     """Load info for an asset, given an asset id.
-  
+
     Args:
       asset_id: The asset to be retrieved.
-  
+
     Returns:
       The value call results.
     """
@@ -735,7 +739,7 @@ class _Data:
 
   def getList(self, params):
     """Get a list of contents for a collection asset.
-  
+
     Args:
       params: An object containing request parameters with the
           following possible values:
@@ -743,7 +747,7 @@ class _Data:
               starttime (number) Start time, in msec since the epoch.
               endtime (number) End time, in msec since the epoch.
               fields (comma-separated strings) Field names to return.
-  
+
     Returns:
       The list call results.
     """
@@ -751,7 +755,7 @@ class _Data:
 
   def getMapId(self, params):
     """Get a Map ID for a given asset.
-  
+
     Args:
       params: An object containing visualization options with the
               following possible values:
@@ -774,7 +778,7 @@ class _Data:
             'FF0000,000000'.
         format (string) Either 'jpg' (does not support transparency) or
             'png' (supports transparency).
-  
+
     Returns:
       A dictionary containing "mapid" and "token" strings, which can
       be combined to retrieve tiles from the /map service.
@@ -784,14 +788,14 @@ class _Data:
 
   def getTileUrl(self, mapid, x, y, z):
     """Generate a URL for map tiles from a Map ID and coordinates.
-  
+
     Args:
       mapid: The Map ID to generate tiles for, a dictionary containing "mapid"
           and "token" strings.
       x: The tile x coordinate.
       y: The tile y coordinate.
       z: The tile zoom level.
-  
+
     Returns:
       The tile URL.
     """
@@ -804,11 +808,11 @@ class _Data:
 
   def getValue(self, params):
     """Retrieve a processed value from the front end.
-  
+
     Args:
       params: A dictionary containing:
           json - (String) A JSON object to be evaluated.
-  
+
     Returns:
       The value call results.
     """
@@ -817,7 +821,7 @@ class _Data:
 
   def getThumbnail(self, params):
     """Get a Thumbnail for a given asset.
-  
+
     Args:
       params: Parameters identical to getMapId, plus:
           size - (a number or pair of numbers in format WIDTHxHEIGHT) Maximum
@@ -827,7 +831,7 @@ class _Data:
           region - (E,S,W,N or GeoJSON) Geospatial region of the image
             to render. By default, the whole image.
           format - (string) Either 'png' (default) or 'jpg'.
-  
+
     Returns:
       A thumbnail image as raw PNG data.
     """
@@ -835,7 +839,7 @@ class _Data:
 
   def getThumbId(self, params):
     """Get a Thumbnail ID for a given asset.
-  
+
     Args:
       params: Parameters identical to getMapId, plus:
           size - (a number or pair of numbers in format WIDTHxHEIGHT) Maximum
@@ -845,7 +849,7 @@ class _Data:
           region - (E,S,W,N or GeoJSON) Geospatial region of the image
             to render. By default, the whole image.
           format - (string) Either 'png' (default) or 'jpg'.
-  
+
     Returns:
       A thumbnail ID.
     """
@@ -858,10 +862,10 @@ class _Data:
 
   def makeThumbUrl(self, thumbId):
     """Create a thumbnail URL from the given thumbid and token.
-  
+
     Args:
       thumbId: An object containing a thumbnail thumbid and token.
-  
+
     Returns:
       A URL from which the thumbnail can be obtained.
     """
@@ -870,7 +874,7 @@ class _Data:
 
   def getDownloadId(self, params):
     """Get a Download ID.
-  
+
     Args:
       params: An object containing visualization options with the following
         possible values:
@@ -896,7 +900,7 @@ class _Data:
               ignored if crs and crs_transform is specified.
           region - a polygon specifying a region to download; ignored if crs
               and crs_transform is specified.
-  
+
     Returns:
       A dict containing a docid and token.
     """
@@ -907,10 +911,10 @@ class _Data:
 
   def makeDownloadUrl(self, downloadId):
     """Create a download URL from the given docid and token.
-  
+
     Args:
       downloadId: An object containing a download docid and token.
-  
+
     Returns:
       A URL from which the download can be obtained.
     """
@@ -919,7 +923,7 @@ class _Data:
 
   def getTableDownloadId(self, params):
     """Get a Download ID.
-  
+
     Args:
       params: An object containing table download options with the following
         possible values:
@@ -927,7 +931,7 @@ class _Data:
           selectors - Comma separated string of selectors that can be used to
               determine which attributes will be downloaded.
           filename - The name of the file that will be downloaded.
-  
+
     Returns:
       A dict containing a docid and token.
     """
@@ -936,10 +940,10 @@ class _Data:
 
   def makeTableDownloadUrl(self, downloadId):
     """Create a table download URL from a docid and token.
-  
+
     Args:
       downloadId: A table download id and token.
-  
+
     Returns:
       A Url from which the download can be obtained.
     """
@@ -948,7 +952,7 @@ class _Data:
 
   def getAlgorithms(self):
     """Get the list of algorithms.
-  
+
     Returns:
       The dictionary of algorithms.  Each algorithm is a dictionary containing
       the following fields:
@@ -966,15 +970,15 @@ class _Data:
 
   def createAsset(self, value, opt_path=None):
     """Creates an asset from a JSON value.
-  
+
     To create an empty image collection or folder, pass in a "value" object
     with a "type" key whose value is "ImageCollection" or "Folder".
-  
+
     Args:
       value: An object describing the asset to create or a JSON string
           with the already-serialized value for the new asset.
       opt_path: An optional desired ID, including full path.
-  
+
     Returns:
       A description of the saved asset, including a generated ID.
     """
@@ -987,7 +991,7 @@ class _Data:
 
   def copyAsset(self, sourceId, destinationId):
     """Copies the asset from sourceId into destinationId.
-  
+
     Args:
       sourceId: The ID of the asset to copy.
       destinationId: The ID of the new asset created by copying.
@@ -999,7 +1003,7 @@ class _Data:
 
   def renameAsset(self, sourceId, destinationId):
     """Renames the asset from sourceId to destinationId.
-  
+
     Args:
       sourceId: The ID of the asset to rename.
       destinationId: The new ID of the asset.
@@ -1011,7 +1015,7 @@ class _Data:
 
   def deleteAsset(self, assetId):
     """Deletes the asset with the given id.
-  
+
     Args:
       assetId: The ID of the asset to delete.
     """
@@ -1019,10 +1023,10 @@ class _Data:
 
   def newTaskId(self, count=1):
     """Generate an ID for a long-running task.
-  
+
     Args:
       count: Optional count of IDs to generate, one by default.
-  
+
     Returns:
       A list containing generated ID strings.
     """
@@ -1031,7 +1035,7 @@ class _Data:
 
   def getTaskList(self):
     """Retrieves a list of the user's tasks.
-  
+
     Returns:
       A list of task status dictionaries, one for each task submitted to EE by
       the current user. These include currently running tasks as well as recently
@@ -1041,10 +1045,10 @@ class _Data:
 
   def getTaskStatus(self, taskId):
     """Retrieve status of one or more long-running tasks.
-  
+
     Args:
       taskId: ID of the task or a list of multiple IDs.
-  
+
     Returns:
       List containing one object for each queried task, in the same order as
       the input array, each object containing the following values:
@@ -1065,7 +1069,7 @@ class _Data:
 
   def startProcessing(self, taskId, params):
     """Create processing task that exports or pre-renders an image.
-  
+
     Args:
       taskId: ID for the task (obtained using newTaskId).
       params: The object that describes the processing task; only fields
@@ -1073,7 +1077,7 @@ class _Data:
           type (string) Either 'EXPORT_IMAGE', 'EXPORT_FEATURES',
             'EXPORT_VIDEO', or 'EXPORT_TILES'.
           json (string) JSON description of the image.
-  
+
     Returns:
       A dict with optional notes about the created task.
     """
@@ -1082,8 +1086,8 @@ class _Data:
     return self.send_('/processingrequest', args)
 
   def startIngestion(self, taskId, params):
-    """Creates an asset import task.
-  
+    """Creates an image asset import task.
+
     Args:
       taskId: ID for the task (obtained using newTaskId).
       params: The object that describes the import task, which can
@@ -1099,19 +1103,41 @@ class _Data:
               object names, e.g. 'gs://bucketname/filename.tif'
             bands (array) An optional list of band names formatted like:
               [{'id': 'R'}, {'id': 'G'}, {'id': 'B'}]
-  
+
     Returns:
       A dict with optional notes about the created task.
     """
     args = {'id': taskId, 'request': json.dumps(params)}
     return self.send_('/ingestionrequest', args)
 
+
+  def startTableIngestion(self, taskId, params):
+    """Creates a table asset import task.
+
+    Args:
+      taskId: ID for the task (obtained using newTaskId).
+      params: The object that describes the import task, which can
+          have these fields:
+            id (string) The destination asset id (e.g. users/foo/bar).
+            sources (array) A list of CNS source file paths with optional
+              character encoding formatted like:
+              "sources": [{ "primaryPath": "states.shp", "charset": "UTF-8" }]
+              Where path values correspond to source files' CNS locations,
+              e.g. 'googlefile://namespace/foobar.shp', and 'charset' refers to
+              the character encoding of the source file.
+    Returns:
+      A dict with optional notes about the created task.
+    """
+    args = {'id': taskId, 'tableRequest': json.dumps(params)}
+    return self.send_('/ingestionrequest', args)
+
+
   def getAssetRoots(self):
     """Returns the list of the root folders the user owns.
-  
+
     Note: The "id" values for roots are two levels deep, e.g. "users/johndoe"
           not "users/johndoe/notaroot".
-  
+
     Returns:
       A list of folder descriptions formatted like:
         [
@@ -1123,15 +1149,15 @@ class _Data:
 
   def getAssetRootQuota(self, rootId):
     """Returns quota usage details for the asset root with the given ID.
-  
+
     Usage notes:
-  
+
       - The id *must* be a root folder like "users/foo" (not "users/foo/bar").
       - The authenticated user must own the asset root to see its quota usage.
-  
+
     Args:
       rootId: The ID of the asset to check.
-  
+
     Returns:
       A dict describing the asset's quota usage. Looks like, with size in bytes:
         {
@@ -1143,10 +1169,10 @@ class _Data:
 
   def getAssetAcl(self, assetId):
     """Returns the access control list of the asset with the given ID.
-  
+
     Args:
       assetId: The ID of the asset to check.
-  
+
     Returns:
       A dict describing the asset's ACL. Looks like:
         {
@@ -1160,11 +1186,11 @@ class _Data:
 
   def setAssetAcl(self, assetId, aclUpdate):
     """Sets the access control list of the asset with the given ID.
-  
+
     The owner ACL cannot be changed, and the final ACL of the asset
     is constructed by merging the OWNER entries of the old ACL with
     the incoming ACL record.
-  
+
     Args:
       assetId: The ID of the asset to set the ACL on.
       aclUpdate: The updated ACL for the asset. Must be formatted like the
@@ -1174,10 +1200,10 @@ class _Data:
 
   def setAssetProperties(self, assetId, properties):
     """Sets metadata properties of the asset with the given ID.
-  
+
     To delete a property, set its value to null.
     The authenticated user must be a writer or owner of the asset.
-  
+
     Args:
       assetId: The ID of the asset to set the ACL on.
       properties: A dictionary of keys and values for the properties to update.
@@ -1186,10 +1212,10 @@ class _Data:
 
   def createAssetHome(self, requestedId):
     """Attempts to create a home root folder for the current user ("users/joe").
-  
+
     Results in an error if the user already has a home root folder or the
     requested ID is unavailable.
-  
+
     Args:
       requestedId: The requested ID of the home folder (e.g. "users/joe").
     """
@@ -1203,17 +1229,17 @@ class _Data:
 
   def send_(self, path, params, opt_method='POST', opt_raw=False):
     """Send an API call.
-  
+
     Args:
       path: The API endpoint to call.
       params: The call parameters.
       opt_method: The HTTPRequest method (GET or POST).
       opt_raw: Whether the data should be returned raw, without attempting
           to decode it as JSON.
-  
+
     Returns:
       The data object returned by the API call.
-  
+
     Raises:
       EEException: For malformed requests or errors from the server.
     """
@@ -1244,16 +1270,16 @@ class _Data:
 
     def send_with_backoff(retries=0):
       """Send an API call with backoff.
-  
+
       Attempts an API call. If the server's response has a 429 status, retry the
       request using an incremental backoff strategy.
-  
+
       Args:
         retries: The number of retries that have already occurred.
-  
+
       Returns:
         A tuple of response, content returned by the API call.
-  
+
       Raises:
         EEException: For errors from the server.
       """

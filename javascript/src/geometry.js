@@ -592,7 +592,7 @@ ee.Geometry.prototype.encode = function(opt_encoder) {
 
 
 /**
- * @return {ee.data.GeoJSONGeometry} A GeoJSON representation of the geometry.
+ * @return {!ee.data.GeoJSONGeometry} A GeoJSON representation of the geometry.
  * @export
  */
 ee.Geometry.prototype.toGeoJSON = function() {
@@ -600,7 +600,7 @@ ee.Geometry.prototype.toGeoJSON = function() {
     throw new Error('Can\'t convert a computed Geometry to GeoJSON. ' +
                     'Use getInfo() instead.');
   }
-  return /** @type {ee.data.GeoJSONGeometry} */(this.encode());
+  return /** @type {!ee.data.GeoJSONGeometry} */ (this.encode());
 };
 
 
@@ -638,6 +638,8 @@ ee.Geometry.prototype.toString = function() {
 ////////////////////////////////////////////////////////////////////////////////
 
 
+// TODO(user): Validation should ensure that a polygon has >2 points.
+// Context at cl/158861478.
 /**
  * Checks if a geometry looks valid.
  * @param {Object} geometry The geometry to validate.
