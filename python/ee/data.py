@@ -3,19 +3,17 @@
 
 from __future__ import print_function
 
-
-
-# Using lowercase function naming to match the JavaScript names.
-# pylint: disable=g-bad-name
-
 # pylint: disable=g-bad-import-order
 import contextlib
 import json
-import time
 from threading import local
 
 import httplib2
 import six
+import time
+
+# Using lowercase function naming to match the JavaScript names.
+# pylint: disable=g-bad-name
 
 # pylint: disable=g-import-not-at-top
 try:
@@ -472,6 +470,26 @@ def startIngestion(taskId, params):
     A dict with optional notes about the created task.
   """
   return _instance().startIngestion(taskId, params)
+
+
+def startTableIngestion(taskId, params):
+  """Creates a table asset import task.
+
+  Args:
+    taskId: ID for the task (obtained using newTaskId).
+    params: The object that describes the import task, which can
+        have these fields:
+          id (string) The destination asset id (e.g. users/foo/bar).
+          sources (array) A list of CNS source file paths with optional
+            character encoding formatted like:
+            "sources": [{ "primaryPath": "states.shp", "charset": "UTF-8" }]
+            Where path values correspond to source files' CNS locations,
+            e.g. 'googlefile://namespace/foobar.shp', and 'charset' refers to
+            the character encoding of the source file.
+  Returns:
+    A dict with optional notes about the created task.
+  """
+  return _instance().startTableIngestion(taskId, params)
 
 
 def getAssetRoots():
@@ -1110,7 +1128,6 @@ class _Data:
     args = {'id': taskId, 'request': json.dumps(params)}
     return self.send_('/ingestionrequest', args)
 
-
   def startTableIngestion(self, taskId, params):
     """Creates a table asset import task.
 
@@ -1130,7 +1147,6 @@ class _Data:
     """
     args = {'id': taskId, 'tableRequest': json.dumps(params)}
     return self.send_('/ingestionrequest', args)
-
 
   def getAssetRoots(self):
     """Returns the list of the root folders the user owns.
