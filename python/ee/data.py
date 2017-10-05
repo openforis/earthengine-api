@@ -339,7 +339,7 @@ def getAlgorithms():
   return _instance().getAlgorithms()
 
 
-def createAsset(value, opt_path=None):
+def createAsset(value, opt_path=None, opt_force=False):
   """Creates an asset from a JSON value.
 
   To create an empty image collection or folder, pass in a "value" object
@@ -349,11 +349,12 @@ def createAsset(value, opt_path=None):
     value: An object describing the asset to create or a JSON string
         with the already-serialized value for the new asset.
     opt_path: An optional desired ID, including full path.
+    opt_force: True if asset overwrite is allowed
 
   Returns:
     A description of the saved asset, including a generated ID.
   """
-  return _instance().createAsset(value, opt_path)
+  return _instance().createAsset(value, opt_path, opt_force)
 
 
 def copyAsset(sourceId, destinationId):
@@ -447,7 +448,7 @@ def startProcessing(taskId, params):
   return _instance().startProcessing(taskId, params)
 
 
-def startIngestion(taskId, params):
+def startIngestion(taskId, params, allow_overwrite=False):
   """Creates an asset import task.
 
   Args:
@@ -465,14 +466,16 @@ def startIngestion(taskId, params):
             object names, e.g. 'gs://bucketname/filename.tif'
           bands (array) An optional list of band names formatted like:
             [{'id': 'R'}, {'id': 'G'}, {'id': 'B'}]
+    allow_overwrite: Whether the ingested image can overwrite an
+        existing version.
 
   Returns:
     A dict with optional notes about the created task.
   """
-  return _instance().startIngestion(taskId, params)
+  return _instance().startIngestion(taskId, params, allow_overwrite)
 
 
-def startTableIngestion(taskId, params):
+def startTableIngestion(taskId, params, allow_overwrite=False):
   """Creates a table asset import task.
 
   Args:
@@ -486,10 +489,12 @@ def startTableIngestion(taskId, params):
             Where path values correspond to source files' CNS locations,
             e.g. 'googlefile://namespace/foobar.shp', and 'charset' refers to
             the character encoding of the source file.
+    allow_overwrite: Whether the ingested image can overwrite an
+        existing version.
   Returns:
     A dict with optional notes about the created task.
   """
-  return _instance().startTableIngestion(taskId, params)
+  return _instance().startTableIngestion(taskId, params, allow_overwrite)
 
 
 def getAssetRoots():
@@ -986,7 +991,7 @@ class _Data:
     """
     return self.send_('/algorithms', {}, 'GET')
 
-  def createAsset(self, value, opt_path=None):
+  def createAsset(self, value, opt_path=None, opt_force=False):
     """Creates an asset from a JSON value.
 
     To create an empty image collection or folder, pass in a "value" object
@@ -996,6 +1001,7 @@ class _Data:
       value: An object describing the asset to create or a JSON string
           with the already-serialized value for the new asset.
       opt_path: An optional desired ID, including full path.
+      opt_force: True if asset overwrite is allowed
 
     Returns:
       A description of the saved asset, including a generated ID.
@@ -1005,6 +1011,7 @@ class _Data:
     args = {'value': value, 'json_format': 'v2'}
     if opt_path is not None:
       args['id'] = opt_path
+    args['force'] = opt_force
     return self.send_('/create', args)
 
   def copyAsset(self, sourceId, destinationId):
@@ -1103,7 +1110,7 @@ class _Data:
     args['id'] = taskId
     return self.send_('/processingrequest', args)
 
-  def startIngestion(self, taskId, params):
+  def startIngestion(self, taskId, params, allow_overwrite=False):
     """Creates an image asset import task.
 
     Args:
@@ -1121,14 +1128,20 @@ class _Data:
               object names, e.g. 'gs://bucketname/filename.tif'
             bands (array) An optional list of band names formatted like:
               [{'id': 'R'}, {'id': 'G'}, {'id': 'B'}]
+      allow_overwrite: Whether the ingested image can overwrite an
+          existing version.
 
     Returns:
       A dict with optional notes about the created task.
     """
-    args = {'id': taskId, 'request': json.dumps(params)}
+    args = {
+      'id': taskId,
+      'request': json.dumps(params),
+      'allowOverwrite': allow_overwrite
+    }
     return self.send_('/ingestionrequest', args)
 
-  def startTableIngestion(self, taskId, params):
+  def startTableIngestion(self, taskId, params, allow_overwrite=False):
     """Creates a table asset import task.
 
     Args:
@@ -1142,10 +1155,16 @@ class _Data:
               Where path values correspond to source files' CNS locations,
               e.g. 'googlefile://namespace/foobar.shp', and 'charset' refers to
               the character encoding of the source file.
+      allow_overwrite: Whether the ingested image can overwrite an
+          existing version.
     Returns:
       A dict with optional notes about the created task.
     """
-    args = {'id': taskId, 'tableRequest': json.dumps(params)}
+    args = {
+      'id': taskId,
+      'tableRequest': json.dumps(params),
+      'allowOverwrite': allow_overwrite
+    }
     return self.send_('/ingestionrequest', args)
 
   def getAssetRoots(self):
