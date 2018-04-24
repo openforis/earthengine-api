@@ -3,8 +3,6 @@
 
 from __future__ import print_function
 
-
-
 # Using lowercase function naming to match the JavaScript names.
 # pylint: disable=g-bad-name
 
@@ -13,13 +11,10 @@ import contextlib
 import json
 import threading
 from threading import local
-import time
 
 import httplib2
 import six
-
-# Using lowercase function naming to match the JavaScript names.
-# pylint: disable=g-bad-name
+import time
 
 # pylint: disable=g-import-not-at-top
 try:
@@ -32,23 +27,6 @@ except ImportError:
   import urllib
 
 from . import ee_exception
-
-# OAuth2 credentials object.  This may be set by ee.Initialize().
-_credentials = None
-
-# The base URL for all data calls.  This is set by ee.initialize().
-_api_base_url = None
-
-# The base URL for map tiles.  This is set by ee.initialize().
-_tile_base_url = None
-
-# Whether the module has been initialized.
-_initialized = False
-
-# Sets the number of milliseconds to wait for a request before considering
-# it timed out. 0 means no limit.
-_deadline_ms = 0
-
 
 class _ThreadLocals(threading.local):
 
@@ -65,6 +43,7 @@ class _ThreadLocals(threading.local):
     # enabling profiling as a wrapper around the entire program (with
     # ee.data.profiling, defined below).
     self.profile_hook = None
+
 
 _thread_locals = _ThreadLocals()
 
@@ -783,13 +762,13 @@ class _Data:
     hook: A function of one argument which is called with each profile
         ID obtained from API calls, just before the API call returns.
   """
-  saved_hook = _thread_locals.profile_hook
-  _thread_locals.profile_hook = hook
-  try:
-    yield
-  finally:
-    _thread_locals.profile_hook = saved_hook
 
+    saved_hook = _thread_locals.profile_hook
+    _thread_locals.profile_hook = hook
+    try:
+      yield
+    finally:
+      _thread_locals.profile_hook = saved_hook
 
   def getInfo(self, asset_id):
     """Load info for an asset, given an asset id.
@@ -1034,32 +1013,32 @@ class _Data:
     return self.send_('/algorithms', {}, 'GET')
 
 
-def createAsset(self, value, opt_path=None, opt_force=False, opt_properties=None):
-  """Creates an asset from a JSON value.
+  def createAsset(self, value, opt_path=None, opt_force=False, opt_properties=None):
+    """Creates an asset from a JSON value.
 
-    To create an empty image collection or folder, pass in a "value" object
-    with a "type" key whose value is "ImageCollection" or "Folder".
+      To create an empty image collection or folder, pass in a "value" object
+      with a "type" key whose value is "ImageCollection" or "Folder".
 
-  Args:
-    value: An object describing the asset to create or a JSON string
-        with the already-serialized value for the new asset.
-    opt_path: An optional desired ID, including full path.
-    opt_force: True if asset overwrite is allowed
-    opt_properties: The keys and values of the properties to set
-        on the created asset.
+    Args:
+      value: An object describing the asset to create or a JSON string
+          with the already-serialized value for the new asset.
+      opt_path: An optional desired ID, including full path.
+      opt_force: True if asset overwrite is allowed
+      opt_properties: The keys and values of the properties to set
+          on the created asset.
 
-  Returns:
-    A description of the saved asset, including a generated ID.
-  """
-  if not isinstance(value, six.string_types):
-    value = json.dumps(value)
-  args = {'value': value, 'json_format': 'v2'}
-  if opt_path is not None:
-    args['id'] = opt_path
-  args['force'] = opt_force
-  if opt_properties is not None:
-    args['properties'] = json.dumps(opt_properties)
-  return self.send_('/create', args)
+    Returns:
+      A description of the saved asset, including a generated ID.
+    """
+    if not isinstance(value, six.string_types):
+      value = json.dumps(value)
+    args = {'value': value, 'json_format': 'v2'}
+    if opt_path is not None:
+      args['id'] = opt_path
+    args['force'] = opt_force
+    if opt_properties is not None:
+      args['properties'] = json.dumps(opt_properties)
+    return self.send_('/create', args)
 
   def copyAsset(self, sourceId, destinationId):
     """Copies the asset from sourceId into destinationId.
@@ -1328,99 +1307,99 @@ def createAsset(self, value, opt_path=None, opt_force=False, opt_properties=None
     # Make sure we never perform API calls before initialization.
     self.initialize()
 
-  if _thread_locals.profile_hook:
-    params = params.copy()
-    params['profiling'] = '1'
+    if _thread_locals.profile_hook:
+      params = params.copy()
+      params['profiling'] = '1'
 
-    url = self._api_base_url + path
-    headers = {}
+      url = self._api_base_url + path
+      headers = {}
 
-    try:
-      payload = urllib.parse.urlencode(params)  # Python 3.x
-    except AttributeError:
-      payload = urllib.urlencode(params)  # Python 2.x
-    http = httplib2.Http(timeout=(self._deadline_ms / 1000.0) or None)
-    http = self.authorizeHttp(http)
-
-    if opt_method == 'GET':
-      url = url + ('&' if '?' in url else '?') + payload
-      payload = None
-    elif opt_method == 'POST':
-      headers['Content-type'] = 'application/x-www-form-urlencoded'
-    else:
-      raise ee_exception.EEException('Unexpected request method: ' + opt_method)
-
-    def send_with_backoff(retries=0):
-      """Send an API call with backoff.
-
-      Attempts an API call. If the server's response has a 429 status, retry the
-      request using an incremental backoff strategy.
-
-      Args:
-        retries: The number of retries that have already occurred.
-
-      Returns:
-        A tuple of response, content returned by the API call.
-
-      Raises:
-        EEException: For errors from the server.
-      """
       try:
-        response, content = http.request(url, method=opt_method, body=payload,
-                                         headers=headers)
-        if response.status == 429:
-          if retries < MAX_RETRIES:
-            time.sleep(min(2 ** retries * BASE_RETRY_WAIT, MAX_RETRY_WAIT) / 1000)
-            response, content = send_with_backoff(retries + 1)
-      except httplib2.HttpLib2Error as e:
-        raise ee_exception.EEException(
-          'Unexpected HTTP error: %s' % e.message)
-      return response, content
+        payload = urllib.parse.urlencode(params)  # Python 3.x
+      except AttributeError:
+        payload = urllib.urlencode(params)  # Python 2.x
+      http = httplib2.Http(timeout=(self._deadline_ms / 1000.0) or None)
+      http = self.authorizeHttp(http)
 
-    response, content = send_with_backoff()
+      if opt_method == 'GET':
+        url = url + ('&' if '?' in url else '?') + payload
+        payload = None
+      elif opt_method == 'POST':
+        headers['Content-type'] = 'application/x-www-form-urlencoded'
+      else:
+        raise ee_exception.EEException('Unexpected request method: ' + opt_method)
 
-  # Call the profile hook if present. Note that this is done before we handle
-  # the content, so that profiles are reported even if the response is an error.
-  if _thread_locals.profile_hook and _PROFILE_HEADER_LOWERCASE in response:
-    _thread_locals.profile_hook(response[_PROFILE_HEADER_LOWERCASE])
+      def send_with_backoff(retries=0):
+        """Send an API call with backoff.
 
-    # Whether or not the response is an error, it may be JSON.
-    content_type = (response['content-type'] or 'application/json').split(';')[0]
-    if content_type in ('application/json', 'text/json') and not opt_raw:
-      try:
+        Attempts an API call. If the server's response has a 429 status, retry the
+        request using an incremental backoff strategy.
+
+        Args:
+          retries: The number of retries that have already occurred.
+
+        Returns:
+          A tuple of response, content returned by the API call.
+
+        Raises:
+          EEException: For errors from the server.
+        """
         try:
-          # Python 3.x
+          response, content = http.request(url, method=opt_method, body=payload,
+                                           headers=headers)
+          if response.status == 429:
+            if retries < MAX_RETRIES:
+              time.sleep(min(2 ** retries * BASE_RETRY_WAIT, MAX_RETRY_WAIT) / 1000)
+              response, content = send_with_backoff(retries + 1)
+        except httplib2.HttpLib2Error as e:
+          raise ee_exception.EEException(
+            'Unexpected HTTP error: %s' % e.message)
+        return response, content
+
+      response, content = send_with_backoff()
+
+    # Call the profile hook if present. Note that this is done before we handle
+    # the content, so that profiles are reported even if the response is an error.
+    if _thread_locals.profile_hook and _PROFILE_HEADER_LOWERCASE in response:
+      _thread_locals.profile_hook(response[_PROFILE_HEADER_LOWERCASE])
+
+      # Whether or not the response is an error, it may be JSON.
+      content_type = (response['content-type'] or 'application/json').split(';')[0]
+      if content_type in ('application/json', 'text/json') and not opt_raw:
+        try:
           try:
-            content = content.decode()
-          except AttributeError:
-            pass
-        except UnicodeDecodeError:
-          # Python 2.x
-          content = content
-        json_content = json.loads(content)
-      except Exception:
-        raise ee_exception.EEException('Invalid JSON: %s' % content)
-      if 'error' in json_content:
-        raise ee_exception.EEException(json_content['error']['message'])
-      if 'data' not in content:
-        raise ee_exception.EEException('Malformed response: ' + str(content))
-    else:
-      json_content = None
+            # Python 3.x
+            try:
+              content = content.decode()
+            except AttributeError:
+              pass
+          except UnicodeDecodeError:
+            # Python 2.x
+            content = content
+          json_content = json.loads(content)
+        except Exception:
+          raise ee_exception.EEException('Invalid JSON: %s' % content)
+        if 'error' in json_content:
+          raise ee_exception.EEException(json_content['error']['message'])
+        if 'data' not in content:
+          raise ee_exception.EEException('Malformed response: ' + str(content))
+      else:
+        json_content = None
 
-    if response.status < 100 or response.status >= 300:
-      # Note if the response is JSON and contains an error value, we raise that
-      # error above rather than this generic one.
-      raise ee_exception.EEException('Server returned HTTP code: %d' %
-                                     response.status)
+      if response.status < 100 or response.status >= 300:
+        # Note if the response is JSON and contains an error value, we raise that
+        # error above rather than this generic one.
+        raise ee_exception.EEException('Server returned HTTP code: %d' %
+                                       response.status)
 
-    # Now known not to be an error response...
-    if opt_raw:
-      return content
-    elif json_content is None:
-      raise ee_exception.EEException(
-        'Response was unexpectedly not JSON, but %s' % response['content-type'])
-    else:
-      return json_content['data']
+      # Now known not to be an error response...
+      if opt_raw:
+        return content
+      elif json_content is None:
+        raise ee_exception.EEException(
+          'Response was unexpectedly not JSON, but %s' % response['content-type'])
+      else:
+        return json_content['data']
 
   def create_assets(self, asset_ids, asset_type, mk_parents):
     """Creates the specified assets if they do not exist."""
