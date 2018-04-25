@@ -1040,16 +1040,18 @@ class _Data:
       args['properties'] = json.dumps(opt_properties)
     return self.send_('/create', args)
 
-  def copyAsset(self, sourceId, destinationId):
+  def copyAsset(self, sourceId, destinationId, allowOverwrite=False):
     """Copies the asset from sourceId into destinationId.
 
     Args:
       sourceId: The ID of the asset to copy.
       destinationId: The ID of the new asset created by copying.
+      allowOverwrite: If True, allows overwriting an existing asset.
     """
     self.send_('/copy', {
       'sourceId': sourceId,
       'destinationId': destinationId,
+      'allowOverwrite': allowOverwrite,
     })
 
   def renameAsset(self, sourceId, destinationId):
@@ -1311,95 +1313,95 @@ class _Data:
       params = params.copy()
       params['profiling'] = '1'
 
-      url = self._api_base_url + path
-      headers = {}
+    url = self._api_base_url + path
+    headers = {}
 
+    try:
+      payload = urllib.parse.urlencode(params)  # Python 3.x
+    except AttributeError:
+      payload = urllib.urlencode(params)  # Python 2.x
+    http = httplib2.Http(timeout=(self._deadline_ms / 1000.0) or None)
+    http = self.authorizeHttp(http)
+
+    if opt_method == 'GET':
+      url = url + ('&' if '?' in url else '?') + payload
+      payload = None
+    elif opt_method == 'POST':
+      headers['Content-type'] = 'application/x-www-form-urlencoded'
+    else:
+      raise ee_exception.EEException('Unexpected request method: ' + opt_method)
+
+    def send_with_backoff(retries=0):
+      """Send an API call with backoff.
+
+      Attempts an API call. If the server's response has a 429 status, retry the
+      request using an incremental backoff strategy.
+
+      Args:
+        retries: The number of retries that have already occurred.
+
+      Returns:
+        A tuple of response, content returned by the API call.
+
+      Raises:
+        EEException: For errors from the server.
+      """
       try:
-        payload = urllib.parse.urlencode(params)  # Python 3.x
-      except AttributeError:
-        payload = urllib.urlencode(params)  # Python 2.x
-      http = httplib2.Http(timeout=(self._deadline_ms / 1000.0) or None)
-      http = self.authorizeHttp(http)
+        response, content = http.request(url, method=opt_method, body=payload,
+                                         headers=headers)
+        if response.status == 429:
+          if retries < MAX_RETRIES:
+            time.sleep(min(2 ** retries * BASE_RETRY_WAIT, MAX_RETRY_WAIT) / 1000)
+            response, content = send_with_backoff(retries + 1)
+      except httplib2.HttpLib2Error as e:
+        raise ee_exception.EEException(
+          'Unexpected HTTP error: %s' % e.message)
+      return response, content
 
-      if opt_method == 'GET':
-        url = url + ('&' if '?' in url else '?') + payload
-        payload = None
-      elif opt_method == 'POST':
-        headers['Content-type'] = 'application/x-www-form-urlencoded'
-      else:
-        raise ee_exception.EEException('Unexpected request method: ' + opt_method)
-
-      def send_with_backoff(retries=0):
-        """Send an API call with backoff.
-
-        Attempts an API call. If the server's response has a 429 status, retry the
-        request using an incremental backoff strategy.
-
-        Args:
-          retries: The number of retries that have already occurred.
-
-        Returns:
-          A tuple of response, content returned by the API call.
-
-        Raises:
-          EEException: For errors from the server.
-        """
-        try:
-          response, content = http.request(url, method=opt_method, body=payload,
-                                           headers=headers)
-          if response.status == 429:
-            if retries < MAX_RETRIES:
-              time.sleep(min(2 ** retries * BASE_RETRY_WAIT, MAX_RETRY_WAIT) / 1000)
-              response, content = send_with_backoff(retries + 1)
-        except httplib2.HttpLib2Error as e:
-          raise ee_exception.EEException(
-            'Unexpected HTTP error: %s' % e.message)
-        return response, content
-
-      response, content = send_with_backoff()
+    response, content = send_with_backoff()
 
     # Call the profile hook if present. Note that this is done before we handle
     # the content, so that profiles are reported even if the response is an error.
     if _thread_locals.profile_hook and _PROFILE_HEADER_LOWERCASE in response:
       _thread_locals.profile_hook(response[_PROFILE_HEADER_LOWERCASE])
 
-      # Whether or not the response is an error, it may be JSON.
-      content_type = (response['content-type'] or 'application/json').split(';')[0]
-      if content_type in ('application/json', 'text/json') and not opt_raw:
+    # Whether or not the response is an error, it may be JSON.
+    content_type = (response['content-type'] or 'application/json').split(';')[0]
+    if content_type in ('application/json', 'text/json') and not opt_raw:
+      try:
         try:
+          # Python 3.x
           try:
-            # Python 3.x
-            try:
-              content = content.decode()
-            except AttributeError:
-              pass
-          except UnicodeDecodeError:
-            # Python 2.x
-            content = content
-          json_content = json.loads(content)
-        except Exception:
-          raise ee_exception.EEException('Invalid JSON: %s' % content)
-        if 'error' in json_content:
-          raise ee_exception.EEException(json_content['error']['message'])
-        if 'data' not in content:
-          raise ee_exception.EEException('Malformed response: ' + str(content))
-      else:
-        json_content = None
+            content = content.decode()
+          except AttributeError:
+            pass
+        except UnicodeDecodeError:
+          # Python 2.x
+          content = content
+        json_content = json.loads(content)
+      except Exception:
+        raise ee_exception.EEException('Invalid JSON: %s' % content)
+      if 'error' in json_content:
+        raise ee_exception.EEException(json_content['error']['message'])
+      if 'data' not in content:
+        raise ee_exception.EEException('Malformed response: ' + str(content))
+    else:
+      json_content = None
 
-      if response.status < 100 or response.status >= 300:
-        # Note if the response is JSON and contains an error value, we raise that
-        # error above rather than this generic one.
-        raise ee_exception.EEException('Server returned HTTP code: %d' %
-                                       response.status)
+    if response.status < 100 or response.status >= 300:
+      # Note if the response is JSON and contains an error value, we raise that
+      # error above rather than this generic one.
+      raise ee_exception.EEException('Server returned HTTP code: %d' %
+                                     response.status)
 
-      # Now known not to be an error response...
-      if opt_raw:
-        return content
-      elif json_content is None:
-        raise ee_exception.EEException(
-          'Response was unexpectedly not JSON, but %s' % response['content-type'])
-      else:
-        return json_content['data']
+    # Now known not to be an error response...
+    if opt_raw:
+      return content
+    elif json_content is None:
+      raise ee_exception.EEException(
+        'Response was unexpectedly not JSON, but %s' % response['content-type'])
+    else:
+      return json_content['data']
 
   def create_assets(self, asset_ids, asset_type, mk_parents):
     """Creates the specified assets if they do not exist."""
