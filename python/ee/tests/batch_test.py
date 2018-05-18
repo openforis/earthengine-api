@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 """Test for the ee.batch module."""
-
-
+import copy
 
 import unittest
 
 import ee
 from ee import apitestcase
-
 
 TASK_STATUS_1 = {
     'description': 'FirstTestTask',
@@ -212,6 +210,55 @@ class BatchTestCase(apitestcase.ApiTestCase):
         },
         task.config)
 
+  def testUnknownFileFormat(self):
+    self.assertRaisesRegexp(ee.EEException, '.*file format.*',
+                            ee.batch.ConvertFormatSpecificParams,
+                            {'fileFormat': 'mp3'})
+
+  def testFormatParamSpecifiedTwice(self):
+    self.assertRaisesRegexp(ee.EEException, '.*at least twice.*',
+                            ee.batch.ConvertFormatSpecificParams, {
+                                'cloudOptimized': False,
+                                'formatOptions': {
+                                    'cloudOptimized': True
+                                }
+                            })
+
+  def testDisallowedFormatPrefix(self):
+    self.assertRaisesRegexp(ee.EEException, '.*prefix \'tiff\' disallowed.*',
+                            ee.batch.ConvertFormatSpecificParams, {
+                                'tiffCloudOptimized': False,
+                                'formatOptions': {
+                                    'cloudOptimized': True
+                                }
+                            })
+
+  def testUnknownFormatOption(self):
+    self.assertRaisesRegexp(ee.EEException, '.*not a valid option.*',
+                            ee.batch.ConvertFormatSpecificParams,
+                            {'formatOptions': {
+                                'garbage': 0
+                            }})
+
+  def testConvertFormat(self):
+    config = {
+        'fieldA': 1,
+        'fieldB': 3,
+        'fileFormat': 'GeoTIFF',
+        'formatOptions': {
+            'cloudOptimized': False
+        }
+    }
+    fixed_config = copy.copy(config)
+    ee.batch.ConvertFormatSpecificParams(fixed_config)
+    self.assertEquals(
+        fixed_config, {
+            'fieldA': 1,
+            'fieldB': 3,
+            'fileFormat': 'GeoTIFF',
+            'tiffCloudOptimized': False
+        })
+
   def testExportImageToGoogleDrive(self):
     """Verifies the Drive destined task created by Export.table.toDrive()."""
     region = ee.Geometry.Rectangle(1, 2, 3, 4)
@@ -314,6 +361,22 @@ class BatchTestCase(apitestcase.ApiTestCase):
             'fileFormat': 'CSV',
         },
         task.config)
+
+  def testExportTableSelectors(self):
+    """Verifies that table export accepts a list or tuple of selectors."""
+    task = ee.batch.Export.table.toCloudStorage(
+        collection=ee.FeatureCollection('foo'),
+        selectors=['ab', 'bb', 'c'])
+    self.assertEquals('ab,bb,c', task.config['selectors'])
+    task = ee.batch.Export.table.toCloudStorage(
+        collection=ee.FeatureCollection('foo'),
+        selectors=('x', 'y'))
+    self.assertEquals('x,y', task.config['selectors'])
+    # Single string should work too.
+    task = ee.batch.Export.table.toCloudStorage(
+        collection=ee.FeatureCollection('foo'),
+        selectors='ab,cd,ef')
+    self.assertEquals('ab,cd,ef', task.config['selectors'])
 
   def testExportTableToCloudStorage(self):
     """Verifies the Cloud Storage task created by Export.table()."""

@@ -519,11 +519,14 @@ class CopyCommand(object):
         'source', help='Full path of the source asset.')
     parser.add_argument(
         'destination', help='Full path of the destination asset.')
+    parser.add_argument(
+        '--force', action='store_true', help=(
+            'Overwrite any existing version of the asset.'))
 
   def run(self, args, config):
     """Runs the asset copy."""
     config.ee_init()
-    ee.data.copyAsset(args.source, args.destination)
+    ee.data.copyAsset(args.source, args.destination, args.force)
 
 
 class CreateCommandBase(object):
@@ -668,8 +671,12 @@ class SizeCommand(object):
         'asset_id',
         nargs='*',
         help='A folder or image collection to be inspected.')
+    parser.add_argument(
+        '--summarize', '-s', action='store_true',
+        help='Display only a total.')
 
   def run(self, args, config):
+    """Runs the du command."""
     config.ee_init()
 
     # Select all available asset roots if no asset ids are given.
@@ -678,14 +685,22 @@ class SizeCommand(object):
     else:
       assets = [ee.data.getInfo(asset) for asset in args.asset_id]
 
+    # If args.summarize is True, list size+name for every leaf child asset,
+    # and show totals for non-leaf children.
+    # If args.summarize is False, print sizes of all children.
     for asset in assets:
-      # List size+name for every leaf asset, and show totals for non-leaves.
-      if asset['type'] == ee.data.ASSET_TYPE_FOLDER:
+      is_parent = asset['type'] in [
+          ee.data.ASSET_TYPE_FOLDER,
+          ee.data.ASSET_TYPE_IMAGE_COLL]
+      if not is_parent or args.summarize:
+        self._print_size(asset)
+      else:
         children = ee.data.getList(asset)
+        if not children:
+          # A leaf asset
+          children = [asset]
         for child in children:
           self._print_size(child)
-      else:
-        self._print_size(asset)
 
   def _print_size(self, asset):
     size = self._get_size(asset)
@@ -694,9 +709,10 @@ class SizeCommand(object):
   def _get_size(self, asset):
     """Returns the size of the given asset in bytes."""
     size_parsers = {
-        'Image': self._get_size_image,
+        'Image': self._get_size_asset,
         'Folder': self._get_size_folder,
-        'ImageCollection': self._get_size_image_collection
+        'ImageCollection': self._get_size_image_collection,
+        'Table': self._get_size_asset,
     }
 
     if asset['type'] not in size_parsers:
@@ -705,7 +721,7 @@ class SizeCommand(object):
 
     return size_parsers[asset['type']](asset)
 
-  def _get_size_image(self, asset):
+  def _get_size_asset(self, asset):
     info = ee.data.getInfo(asset['id'])
 
     return info['properties']['system:asset_size']
@@ -1054,6 +1070,20 @@ class UploadTableCommand(object):
         required=True,
         help='Destination asset ID for the uploaded file.')
     _add_property_flags(parser)
+    parser.add_argument(
+        '--max_error',
+        help='Max allowed error in meters when transforming geometry '
+             'between coordinate systems.',
+        type=int, nargs='?')
+    parser.add_argument(
+        '--max_vertices',
+        help='Max number of vertices per geometry. If set, geometry will be '
+             'subdivided into spatially disjoint pieces each under this limit.',
+        type=int, nargs='?')
+    parser.add_argument(
+        '--max_failed_features',
+        help='The maximum number of failed features to allow during ingestion.',
+        type=int, nargs='?')
 
   def run(self, args, config):
     """Starts the upload task, and waits for completion if requested."""
@@ -1063,9 +1093,16 @@ class UploadTableCommand(object):
     if len(source_files) != 1:
       raise ValueError('Exactly one file must be specified.')
 
+    source = {'primaryPath': source_files[0]}
+    if args.max_error:
+      source['max_error'] = args.max_error
+    if args.max_vertices:
+      source['max_vertices'] = args.max_vertices
+    if args.max_failed_features:
+      source['max_failed_features'] = args.max_failed_features
     request = {
         'id': args.asset_id,
-        'sources': [{'primaryPath': source_files[0]}]
+        'sources': [source]
     }
     _upload(args, request, ee.data.startTableIngestion)
 
@@ -1079,5 +1116,45 @@ class UploadCommand(Dispatcher):
       UploadImageCommand,
       UploadTableCommand,
   ]
+
+
+class _UploadManifestBase(object):
+  """Uploads an asset to Earth Engine using the given manifest file."""
+
+  def __init__(self, parser):
+    _add_wait_arg(parser)
+    _add_overwrite_arg(parser)
+    parser.add_argument(
+        'manifest',
+        help=('Local path to a JSON asset manifest file.'))
+
+  def run(self, args, config, ingestion_function):
+    """Starts the upload task, and waits for completion if requested."""
+    config.ee_init()
+    with open(args.manifest) as fh:
+      manifest = json.loads(fh.read())
+
+    _upload(args, manifest, ingestion_function)
+
+
+class UploadImageManifestCommand(_UploadManifestBase):
+  """Uploads an image to Earth Engine using the given manifest file."""
+
+  name = 'upload_manifest'
+
+  def run(self, args, config):
+    """Starts the upload task, and waits for completion if requested."""
+    super(UploadImageManifestCommand, self).run(
+        args, config, ee.data.startIngestion)
+
+
+class UploadTableManifestCommand(_UploadManifestBase):
+  """Uploads a table to Earth Engine using the given manifest file."""
+
+  name = 'upload_table_manifest'
+
+  def run(self, args, config):
+    super(UploadTableManifestCommand, self).run(
+        args, config, ee.data.startTableIngestion)
 
 

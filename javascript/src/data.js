@@ -188,6 +188,72 @@ ee.data.authenticateViaPopup = function(opt_success, opt_error) {
 };
 
 
+/**
+ * Configures server-side authentication of EE API calls through the
+ * Google APIs Node.js Client. Private key authentication is strictly for
+ * server-side API calls: for browser-based applications, use
+ * ee.data.authenticateViaOauth(). No user interaction (e.g. authentication
+ * popup) is necessary when using server-side authentication.
+ *
+ * This or another authentication method should be called before
+ * ee.initialize().
+ *
+ * The auth token will be refreshed automatically when possible. You can safely
+ * assume that all async calls will be sent with the appropriate credentials.
+ * For synchronous calls, however, you should check for an auth token with
+ * ee.data.getAuthToken() and call ee.data.refreshAuthToken() manually if there
+ * is none. The token refresh operation is asynchronous and cannot be performed
+ * behind-the-scenes, on demand, prior to synchronous calls.
+ *
+ * @param {!ee.data.AuthPrivateKey} privateKey JSON content of private key.
+ * @param {function()=} opt_success The function to call if authentication
+ *     succeeded.
+ * @param {function(string)=} opt_error The function to call if authentication
+ *     failed, passed the error message.
+ * @param {!Array<string>=} opt_extraScopes Extra OAuth scopes to request.
+ * @export
+ */
+ee.data.authenticateViaPrivateKey = function(
+    privateKey, opt_success, opt_error, opt_extraScopes) {
+
+  // Verify that the Node.js global object exists, to ensure this process is not
+  // running in the browser.
+  if (typeof process === 'undefined') {
+    throw new Error(
+        'Use of private key authentication in the browser is insecure. ' +
+        'Consider using OAuth, instead.');
+  }
+
+  var scopes = [ee.data.AUTH_SCOPE_, ee.data.STORAGE_SCOPE_];
+  if (opt_extraScopes) {
+    goog.array.extend(scopes, opt_extraScopes);
+    goog.array.removeDuplicates(scopes);
+  }
+  ee.data.authClientId_ = privateKey.client_email;
+  ee.data.authScopes_ = scopes;
+
+  // Initialize JWT client to authorize as service account.
+  var jwtClient = new googleapis.auth.JWT(
+      privateKey.client_email, null, privateKey.private_key, scopes, null);
+
+  // Configure authentication refresher to use JWT client.
+  ee.data.setAuthTokenRefresher(function(authArgs, callback) {
+    jwtClient.authorize(function(error, token) {
+      if (error) {
+        callback({'error': error});
+      } else {
+        callback({
+          'access_token': token.access_token,
+          'token_type': token.token_type,
+          'expires_in': (token.expiry_date - Date.now()) / 1000,
+        });
+      }
+    });
+  });
+
+  ee.data.refreshAuthToken(opt_success, opt_error);
+};
+
 
 
 /**
@@ -753,20 +819,99 @@ goog.exportSymbol('ee.data.getTaskStatus', ee.data.getTaskStatus);
 
 
 /**
+ * The maximum number of tasks to retrieve in each request to "/tasklist".
+ * @private @const {number}
+ */
+ee.data.TASKLIST_PAGE_SIZE_ = 500;
+
+
+/**
  * Retrieve a list of the users tasks.
  *
- * @param {function(ee.data.TaskListResponse, string=)=} opt_callback
+ * @param {?function(!ee.data.TaskListResponse, string=)=} opt_callback
  *     An optional callback. If not supplied, the call is
  *     made synchronously.
- * @return {ee.data.TaskListResponse} An array of existing tasks,
+ * @return {?ee.data.TaskListResponse} An array of existing tasks,
  *     or null if a callback is specified.
  */
 ee.data.getTaskList = function(opt_callback) {
-  var url = '/tasklist';
-  return /** @type {ee.data.TaskListResponse} */ (
-      ee.data.send_(url, null, opt_callback, 'GET'));
+  return ee.data.getTaskListWithLimit(undefined, opt_callback);
 };
 goog.exportSymbol('ee.data.getTaskList', ee.data.getTaskList);
+
+
+/**
+ * Retrieve a list of the users tasks.
+ *
+ * @param {number=} opt_limit An optional limit to the number of tasks returned.
+ *     If not supplied, all tasks are returned.
+ * @param {?function(!ee.data.TaskListResponse, string=)=} opt_callback
+ *     An optional callback. If not supplied, the call is
+ *     made synchronously.
+ * @return {?ee.data.TaskListResponse} An array of existing tasks,
+ *     or null if a callback is specified.
+ */
+ee.data.getTaskListWithLimit = function(opt_limit, opt_callback) {
+  var url = '/tasklist';
+  var taskListResponse = {'tasks': []};
+
+  // buildParams returns a configured params object.
+  function buildParams(pageToken) {
+    const params = {'pagesize': ee.data.TASKLIST_PAGE_SIZE_};
+    if (opt_limit) {
+      // pagesize is the lesser of TASKLIST_PAGE_SIZE_ and the number of
+      // remaining tasks to retrieve.
+      params['pagesize'] = Math.min(
+          params['pagesize'], opt_limit - taskListResponse.tasks.length);
+    }
+    if (pageToken) {
+      params['pagetoken'] = pageToken;
+    }
+    return params;
+  }
+
+  // inner retrieves the task list asynchronously and calls callback with a
+  // response/error when done.
+  function inner(callback, opt_pageToken) {
+    const params = buildParams(opt_pageToken);
+    ee.data.send_(url, ee.data.makeRequest_(params), function(resp, err) {
+      if (err) {
+        callback(taskListResponse, err);
+        return;
+      }
+      goog.array.extend(taskListResponse.tasks, resp.tasks);
+      if (!resp.next_page_token ||
+          (opt_limit && taskListResponse.tasks.length >= opt_limit)) {
+        callback(taskListResponse);
+      } else {
+        inner(callback, resp.next_page_token);
+      }
+    }, 'GET');
+  }
+
+  if (opt_callback) {
+    // Handle the asynchronous case.
+    inner(opt_callback);
+    return null;
+  } else {
+    // Handle the synchronous case.
+    let nextPageToken = '';
+    while (true) {
+      const params = buildParams(nextPageToken);
+      const resp =
+          ee.data.send_(url, ee.data.makeRequest_(params), undefined, 'GET');
+      goog.array.extend(taskListResponse.tasks, resp.tasks);
+      nextPageToken = resp.next_page_token;
+
+      if (!resp.next_page_token ||
+          (opt_limit && taskListResponse.tasks.length >= opt_limit)) {
+        break;
+      }
+    }
+  }
+  return /** @type {?ee.data.TaskListResponse} */ (taskListResponse);
+};
+goog.exportSymbol('ee.data.getTaskListWithLimit', ee.data.getTaskListWithLimit);
 
 
 /**
@@ -2025,6 +2170,36 @@ ee.data.MapZoomRange = {
  */
 ee.data.AbstractTaskConfig;
 
+/**
+ * An object for specifying configuration of a task to export an image
+ * substuting a format options dictionary for format-specific options.
+ *
+ * @typedef {{
+ *   id: string,
+ *   type: string,
+ *   json: string,
+ *   description: (undefined|string),
+ *   sourceURL: (undefined|string),
+ *   crs: (undefined|string),
+ *   crs_transform: (undefined|string),
+ *   dimensions: (undefined|string),
+ *   scale: (undefined|number),
+ *   region: (undefined|string),
+ *   maxPixels: (undefined|number),
+ *   shardSize: (undefined|number),
+ *   fileDimensions: (undefined|string|number|?Array<number>),
+ *   skipEmptyTiles: (undefined|boolean),
+ *   fileFormat: (undefined|string),
+ *   formatOptions: (undefined|!ee.data.ImageExportFormatConfig),
+ *   driveFolder: (undefined|string),
+ *   driveFileNamePrefix: (undefined|string),
+ *   outputBucket: (undefined|string),
+ *   outputPrefix: (undefined|string),
+ *   assetId: (undefined|string),
+ *   pyramidingPolicy: (undefined|string)
+ * }}
+ */
+ee.data.ImageTaskConfigUnformatted;
 
 /**
  * An object for specifying configuration of a task to export an image.
@@ -2045,6 +2220,8 @@ ee.data.AbstractTaskConfig;
  *   shardSize: (undefined|number),
  *   fileDimensions: (undefined|string|number|Array<number>),
  *   skipEmptyTiles: (undefined|boolean),
+ *   fileFormat: (undefined|string),
+ *   tiffCloudOptimized: (undefined|boolean),
  *   driveFolder: (undefined|string),
  *   driveFileNamePrefix: (undefined|string),
  *   outputBucket: (undefined|string),
@@ -2054,6 +2231,16 @@ ee.data.AbstractTaskConfig;
  * }}
  */
 ee.data.ImageTaskConfig;
+
+
+/**
+ * An object for specifying format specific image export options.
+ *
+ * @typedef {{
+ *   cloudOptimized: (undefined|boolean)
+ * }}
+ */
+ee.data.ImageExportFormatConfig;
 
 
 /**
@@ -2074,7 +2261,8 @@ ee.data.ImageTaskConfig;
  *   skipEmptyTiles: (undefined|boolean),
  *   writePublicTiles: (undefined|boolean),
  *   outputBucket: (undefined|string),
- *   outputPrefix: (undefined|string)
+ *   outputPrefix: (undefined|string),
+ *   generateEarthHtml: (undefined|boolean)
  * }}
  */
 ee.data.MapTaskConfig;
@@ -2228,6 +2416,11 @@ ee.data.TaskListResponse = class {
      * @export {!Array<!ee.data.TaskStatus>}
      */
     this.tasks;
+
+    /**
+     * @export {string|undefined}
+     */
+    this.next_page_token;
   }
 };
 
@@ -2513,6 +2706,23 @@ ee.data.AuthResponse = class {
 };
 
 
+/**
+ * Private key JSON object, provided by Google Cloud Console.
+ * @record @struct
+ */
+ee.data.AuthPrivateKey = class {
+  constructor() {
+    /**
+     * @export {string}
+     */
+    this.private_key;
+
+    /**
+     * @export {string}
+     */
+    this.client_email;
+  }
+};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2522,7 +2732,6 @@ ee.data.AuthResponse = class {
 
 /**
  * Sends an API call.
- *
  * @param {string} path The API endpoint to call.
  * @param {?goog.Uri.QueryData} params The call parameters.
  * @param {function(?, string=)=} opt_callback An optional callback.
@@ -2531,7 +2740,6 @@ ee.data.AuthResponse = class {
  *     may be queued to avoid exceeding server queries-per-seconds quota.
  * @param {string=} opt_method The HTTPRequest method (GET or POST), default
  *     is POST.
- *
  * @return {?Object} The data object returned by the API call, or null if a
  *     callback was specified.
  * @private
@@ -2571,6 +2779,7 @@ ee.data.send_ = function(path, params, opt_callback, opt_method) {
   if (profileHookAtCallTime) {
     params.add('profiling', '1');  // Request profiling results.
   }
+
   params = ee.data.paramAugmenter_(params, path);  // Apply custom augmentation.
 
   // XSRF protection for a server-side API proxy.
@@ -2648,7 +2857,7 @@ ee.data.send_ = function(path, params, opt_callback, opt_method) {
  * The callback is wrapped so that exponential backoff is used in response to
  * 429 errors.
  * @param {string} url The request's URL.
- * @param {!function(?, string=)} callback The callback to execute when the
+ * @param {function(?, string=)} callback The callback to execute when the
  *     request gets a response.
  * @param {string} method The request's HTTP method.
  * @param {?string} content The content of the request.
@@ -3003,7 +3212,7 @@ ee.data.NetworkRequest_ = class {
     this.url;
 
     /**
-     * @type {!function(?, string=)}
+     * @type {function(?, string=)}
      */
     this.callback;
 
@@ -3143,6 +3352,7 @@ ee.data.AUTH_LIBRARY_URL_ = goog.string.Const.from(
  */
 ee.data.STORAGE_SCOPE_ =
     'https://www.googleapis.com/auth/devstorage.read_write';
+
 
 /**
  * Whether the library has been initialized.

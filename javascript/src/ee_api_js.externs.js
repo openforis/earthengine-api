@@ -258,11 +258,12 @@ ee.FeatureCollection.prototype.getInfo = function(opt_callback) {
 ee.FeatureCollection.prototype.getMap = function(opt_visParams, opt_callback) {
 };
 /**
- * @param {(Array<string>|null)} selectors
- * @param {(Array<string>|null)=} opt_names
- * @return {(ee.FeatureCollection|null)}
+ * @param {!Array<string>} propertySelectors
+ * @param {!Array<string>=} opt_newProperties
+ * @param {boolean=} opt_retainGeometry
+ * @return {!ee.FeatureCollection}
  */
-ee.FeatureCollection.prototype.select = function(selectors, opt_names) {
+ee.FeatureCollection.prototype.select = function(propertySelectors, opt_newProperties, opt_retainGeometry) {
 };
 /**
  * @param {(Object|null)=} opt_filter
@@ -891,10 +892,17 @@ ee.data.getMapId = function(params, opt_callback) {
 ee.data.getTableDownloadId = function(params, opt_callback) {
 };
 /**
- * @param {function((ee.data.TaskListResponse|null), string=): ?=} opt_callback
+ * @param {(function(!ee.data.TaskListResponse, string=): ?|null)=} opt_callback
  * @return {(ee.data.TaskListResponse|null)}
  */
 ee.data.getTaskList = function(opt_callback) {
+};
+/**
+ * @param {number=} opt_limit
+ * @param {(function(!ee.data.TaskListResponse, string=): ?|null)=} opt_callback
+ * @return {(ee.data.TaskListResponse|null)}
+ */
+ee.data.getTaskListWithLimit = function(opt_limit, opt_callback) {
 };
 /**
  * @param {(Array<string>|string)} taskId
@@ -968,6 +976,12 @@ ee.data.newTaskId = function(opt_count, opt_callback) {
  * @return {undefined}
  */
 ee.data.renameAsset = function(sourceId, destinationId, opt_callback) {
+};
+/**
+ * @param {string} apiKey
+ * @return {undefined}
+ */
+ee.data.setApiKey = function(apiKey) {
 };
 /**
  * @param {string} assetId

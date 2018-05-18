@@ -73,6 +73,9 @@ ASSET_TYPE_IMAGE_COLL = 'ImageCollection'
 # Max length of the above type names
 MAX_TYPE_LENGTH = len(ASSET_TYPE_IMAGE_COLL)
 
+# The maximum number of tasks to retrieve in each request to "/tasklist".
+_TASKLIST_PAGE_SIZE = 500
+
 _LOCAL = local()
 
 _global_data = None
@@ -377,14 +380,15 @@ def createAsset(value, opt_path=None, opt_force=False):
   return _instance().createAsset(value, opt_path, opt_force)
 
 
-def copyAsset(sourceId, destinationId):
+def copyAsset(sourceId, destinationId, allowOverwrite=False):
   """Copies the asset from sourceId into destinationId.
 
   Args:
     sourceId: The ID of the asset to copy.
     destinationId: The ID of the new asset created by copying.
+    allowOverwrite: If True, allows overwriting an existing asset.
   """
-  return _instance().copyAsset(sourceId, destinationId)
+  return _instance().copyAsset(sourceId, destinationId, allowOverwrite)
 
 
 def renameAsset(sourceId, destinationId):
@@ -1094,7 +1098,16 @@ class _Data:
       the current user. These include currently running tasks as well as recently
       canceled or failed tasks.
     """
-    return self.send_('/tasklist', {}, 'GET')['tasks']
+    params = {'pagesize': _TASKLIST_PAGE_SIZE}
+    tasks = []
+    while True:
+      r = self.send_('/tasklist', params, 'GET')
+      tasks.extend(r['tasks'])
+      next_page_token = r.get('next_page_token', '')
+      if not next_page_token:
+        break
+      params['pagetoken'] = next_page_token
+    return tasks
 
   def getTaskStatus(self, taskId):
     """Retrieve status of one or more long-running tasks.

@@ -170,7 +170,7 @@ class Export(object):
               single positive integer as the maximum dimension or
               "WIDTHxHEIGHT" where WIDTH and HEIGHT are each positive integers.
             - skipEmptyTiles: If true, skip writing empty (i.e. fully-masked)
-              image tiles.
+              image tiles. Defaults to false.
             If exporting to Google Drive (default):
             - driveFolder: The name of a unique folder in your Drive account to
               export into. Defaults to the root of the drive.
@@ -259,7 +259,8 @@ class Export(object):
                        dimensions=None, region=None, scale=None,
                        crs=None, crsTransform=None, maxPixels=None,
                        shardSize=None, fileDimensions=None,
-                       skipEmptyTiles=None, **kwargs):
+                       skipEmptyTiles=None, fileFormat=None, formatOptions=None,
+                       **kwargs):
       """Creates a task to export an EE Image to Google Cloud Storage.
 
       Args:
@@ -297,7 +298,12 @@ class Export(object):
             still be clipped to the overall image dimensions. Must be a
             multiple of shardSize.
         skipEmptyTiles: If true, skip writing empty (i.e. fully-masked)
-              image tiles.
+            image tiles. Defaults to false.
+        fileFormat: The string file format to which the image is exported.
+            Currently only 'GeoTIFF' is supported, defaults to 'GeoTIFF'.
+        formatOptions: A dictionary of string keys to format specific options.
+            Currently optional: only boolean entry 'cloudOptimized' specific to
+            GeoTIFF is supported.
         **kwargs: Holds other keyword arguments that may have been deprecated
             such as 'crs_transform'.
 
@@ -309,6 +315,7 @@ class Export(object):
       config = _CopyDictFilterNone(locals())
 
       _ConvertToServerParams(config, 'image', Task.ExportDestination.GCS)
+      ConvertFormatSpecificParams(config)
 
       if 'region' in config:
         # Convert the region to a serialized form, if necessary.
@@ -322,7 +329,8 @@ class Export(object):
                 fileNamePrefix=None, dimensions=None, region=None,
                 scale=None, crs=None, crsTransform=None,
                 maxPixels=None, shardSize=None, fileDimensions=None,
-                skipEmptyTiles=None, **kwargs):
+                skipEmptyTiles=None, fileFormat=None, formatOptions=None,
+                **kwargs):
       """Creates a task to export an EE Image to Drive.
 
       Args:
@@ -361,7 +369,12 @@ class Export(object):
             still be clipped to the overall image dimensions. Must be a
             multiple of shardSize.
         skipEmptyTiles: If true, skip writing empty (i.e. fully-masked)
-              image tiles.
+            image tiles. Defaults to false.
+        fileFormat: The string file format to which the image is exported.
+            Currently only 'GeoTIFF' is supported, defaults to 'GeoTIFF'.
+        formatOptions: A dictionary of string keys to format specific options.
+            Currently optional: only boolean entry 'cloudOptimized' specific to
+            GeoTIFF is supported.
         **kwargs: Holds other keyword arguments that may have been deprecated
             such as 'crs_transform', 'driveFolder', and 'driveFileNamePrefix'.
 
@@ -377,6 +390,7 @@ class Export(object):
         config['fileNamePrefix'] = description
 
       _ConvertToServerParams(config, 'image', Task.ExportDestination.DRIVE)
+      ConvertFormatSpecificParams(config)
 
       if 'region' in config:
         # Convert the region to a serialized form, if necessary.
@@ -430,7 +444,7 @@ class Export(object):
             produced in the rectangular region containing this geometry.
             Defaults to the image's region.
         skipEmptyTiles: If true, skip writing empty (i.e. fully-transparent)
-            map tiles.
+            map tiles. Defaults to false.
         **kwargs: Holds other keyword arguments that may have been deprecated
             such as 'crs_transform'.
 
@@ -505,7 +519,7 @@ class Export(object):
     @staticmethod
     def toCloudStorage(collection, description='myExportTableTask',
                        bucket=None, fileNamePrefix=None,
-                       fileFormat=None, **kwargs):
+                       fileFormat=None, selectors=None, **kwargs):
       """Creates a task to export a FeatureCollection to Google Cloud Storage.
 
       Args:
@@ -516,6 +530,9 @@ class Export(object):
             Defaults to the name of the task.
         fileFormat: The output format: "CSV" (default), "GeoJSON", "KML",
             or "KMZ".
+        selectors: The list of properties to include in the output, as a list
+            of strings or a comma-separated string. By default, all properties
+            are included.
         **kwargs: Holds other keyword arguments that may have been deprecated
             such as 'outputBucket'.
 
@@ -537,7 +554,8 @@ class Export(object):
 
     @staticmethod
     def toDrive(collection, description='myExportTableTask',
-                folder=None, fileNamePrefix=None, fileFormat=None, **kwargs):
+                folder=None, fileNamePrefix=None, fileFormat=None,
+                selectors=None, **kwargs):
       """Creates a task to export a FeatureCollection to Google Cloud Storage.
 
       Args:
@@ -549,6 +567,9 @@ class Export(object):
             Defaults to the name of the task.
         fileFormat: The output format: "CSV" (default), "GeoJSON", "KML",
             or "KMZ".
+        selectors: The list of properties to include in the output, as a list
+            of strings or a comma-separated string. By default, all properties
+            are included.
         **kwargs: Holds other keyword arguments that may have been deprecated
             such as 'driveFolder' and 'driveFileNamePrefix'.
 
@@ -760,6 +781,83 @@ class Export(object):
     # pylint: enable=unused-argument
 
 
+def _CheckConfigDisallowedPrefixes(config, prefix):
+  for key in config:
+    if key.startswith(prefix):
+      raise ee_exception.EEException(
+          'Export config parameter prefix \'{}\' disallowed, found \'{}\''.
+          format(prefix, key))
+
+
+def _GetFormatSpecificPrefix(formatString):  # pylint: disable=unused-argument
+  # TODO(user): Support formats other than GeoTIFF
+  return 'tiff'
+
+
+# Configuration field specifying file format for image exports.
+IMAGE_FORMAT_FIELD = 'fileFormat'
+
+# Image format specific options dictionary config field.
+IMAGE_FORMAT_OPTIONS_FIELD = 'formatOptions'
+
+# Format specific options permitted in formatOptions config parameter.
+PERMISSABLE_FORMAT_OPTIONS = {'tiffCloudOptimized'}
+
+
+# TODO(user): This method and its uses are very hack-y, and once we're using One
+# Platform API we should stop sending arbitrary parameters from "options".
+def ConvertFormatSpecificParams(config):
+  """Mutates config into server params by extracting format specific options.
+
+    For example:
+      {'fileFormat': 'GeoTIFF', 'formatOptions': {'cloudOptimized': true}}
+    becomes:
+      {'fileFormat': 'GeoTIFF', 'tiffCloudOptimized': true}
+
+    Also performs checks to make sure any specified options are valid and/or
+    won't collide with top level arguments when converted to server-friendly
+    parameters.
+
+  Args:
+    config: A task config dict from _ConvertToServerParams
+  Raises:
+    EEException: We were unable to create format specific parameters for the
+    server.
+  """
+
+  formatString = 'GeoTIFF'
+  if IMAGE_FORMAT_FIELD in config:
+    formatString = config[IMAGE_FORMAT_FIELD]
+
+  # TODO(user): Support formats other than GeoTIFF
+  if formatString != 'GeoTIFF':
+    raise ee_exception.EEException(
+        'Invalid file format. Currently only \'GeoTIFF\' is supported.')
+
+  if IMAGE_FORMAT_OPTIONS_FIELD in config:
+    options = config[IMAGE_FORMAT_OPTIONS_FIELD]
+    del config[IMAGE_FORMAT_OPTIONS_FIELD]
+
+    if set(options) & set(config):
+      raise ee_exception.EEException(
+          'Parameter specified at least twice: once in config, '
+          'and once in format options.')
+
+    prefix = _GetFormatSpecificPrefix(formatString)
+    _CheckConfigDisallowedPrefixes(config, prefix)
+
+    prefixedOptions = {}
+    for key, value in options.items():
+      prefixedKey = prefix + key[:1].upper() + key[1:]
+      if prefixedKey not in PERMISSABLE_FORMAT_OPTIONS:
+        raise ee_exception.EEException(
+            '\'{}\' is not a valid option for \'{}\'.'.format(
+                key, formatString))
+      prefixedOptions[prefixedKey] = value
+
+    config.update(prefixedOptions)
+
+
 def _CreateTask(task_type, ee_object, description, config):
   """Creates an export task.
 
@@ -833,6 +931,11 @@ def _ConvertToServerParams(configDict, eeElementKey, destination):
     except TypeError:
       # We pass numbers straight through.
       pass
+
+  if 'selectors' in configDict:
+    selectors = configDict['selectors']
+    if isinstance(selectors, (tuple, list)):
+      configDict['selectors'] = ','.join([str(i) for i in selectors])
 
   if destination is Task.ExportDestination.GCS:
     if 'bucket' in configDict:
