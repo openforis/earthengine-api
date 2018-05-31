@@ -1,5 +1,5 @@
 {
   "name": "earthengine-api",
   "version": "0.1.138",
-  "main": "javascript/build/ee_api_js_npm.js"
+  "main": "javascript/build/browser.js"
 }
