@@ -134,6 +134,24 @@ class BatchTestCase(apitestcase.ApiTestCase):
     self.assertEquals(
         '<Task "foo">', str(ee.batch.Task('foo')))
 
+  def testExportImageTrivialRegion(self):
+    """Verifies the task created by Export.image() with a trivial region."""
+    task = ee.batch.Export.image.toAsset(
+        ee.Image(42),
+        assetId='user/foo/bar',
+        region=[0, 0, 1, 0, 1, 1],
+        scale=1000)
+    self.assertEquals('TESTTASKID', task.id)
+    self.assertEquals({
+        'assetId': 'user/foo/bar',
+        'description': 'myExportImageTask',
+        'json': ee.Image(42).serialize(),
+        'region': '[0, 0, 1, 0, 1, 1]',
+        'scale': 1000,
+        'state': 'UNSUBMITTED',
+        'type': 'EXPORT_IMAGE'
+    }, task.config)
+
   def testExportImage(self):
     """Verifies the task created by Export.image()."""
     region = ee.Geometry.Rectangle(1, 2, 3, 4)
@@ -244,7 +262,7 @@ class BatchTestCase(apitestcase.ApiTestCase):
     config = {
         'fieldA': 1,
         'fieldB': 3,
-        'fileFormat': 'GeoTIFF',
+        'fileFormat': 'GEoTIFF',
         'formatOptions': {
             'cloudOptimized': False
         }
@@ -255,8 +273,25 @@ class BatchTestCase(apitestcase.ApiTestCase):
         fixed_config, {
             'fieldA': 1,
             'fieldB': 3,
-            'fileFormat': 'GeoTIFF',
+            'fileFormat': 'GEoTIFF',
             'tiffCloudOptimized': False
+        })
+
+  def testConvertFormatTfRecord(self):
+    config = {
+        'fileFormat': 'tfrecord',
+        'formatOptions': {
+            'patchDimensions': [10, 10],
+            'compressed': True
+        }
+    }
+    fixed_config = copy.copy(config)
+    ee.batch.ConvertFormatSpecificParams(fixed_config)
+    self.assertEquals(
+        fixed_config, {
+            'fileFormat': 'tfrecord',
+            'tfrecordPatchDimensions': '10,10',
+            'tfrecordCompressed': True
         })
 
   def testExportImageToGoogleDrive(self):
@@ -436,6 +471,21 @@ class BatchTestCase(apitestcase.ApiTestCase):
         fileNamePrefix='fooDriveFileNamePrefix')
     self.assertEquals(expected_config, task_new_keys.config)
 
+  def testExportTableToAsset(self):
+    """Verifies the export task created by Export.table.toAsset()."""
+    task = ee.batch.Export.table.toAsset(
+        collection=ee.FeatureCollection('foo'), assetId='users/foo/bar')
+    self.assertEquals('TESTTASKID', task.id)
+    self.assertEquals(
+        {
+            'type': 'EXPORT_FEATURES',
+            'state': 'UNSUBMITTED',
+            'json': ee.FeatureCollection('foo').serialize(),
+            'description': 'myExportTableTask',
+            'assetId': 'users/foo/bar'
+        },
+        task.config)
+
   def testExportVideo(self):
     """Verifies the task created by Export.video()."""
     region = ee.Geometry.Rectangle(1, 2, 3, 4)
@@ -540,6 +590,8 @@ class BatchTestCase(apitestcase.ApiTestCase):
         collection, 'TestVideoName', 'test-folder', None, None, 16,
         region['coordinates'], None, 'SR-ORG:6627', 'bar')
     self.assertEquals(expected_config, task_ordered.config)
+
+
 
 if __name__ == '__main__':
   unittest.main()

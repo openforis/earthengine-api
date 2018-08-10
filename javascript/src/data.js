@@ -21,6 +21,8 @@ goog.provide('ee.data.AuthResponse');
 goog.provide('ee.data.Band');
 goog.provide('ee.data.BandDescription');
 goog.provide('ee.data.DownloadId');
+goog.provide('ee.data.ExportDestination');
+goog.provide('ee.data.ExportState');
 goog.provide('ee.data.ExportType');
 goog.provide('ee.data.FeatureCollectionDescription');
 goog.provide('ee.data.FeatureVisualizationParameters');
@@ -973,7 +975,7 @@ goog.exportSymbol('ee.data.updateTask', ee.data.updateTask);
  * @param {Object} params The object that describes the processing task;
  *    only fields that are common for all processing types are documented here.
  *      type (string) Either 'EXPORT_IMAGE', 'EXPORT_FEATURES',
- *      'EXPORT_VIDEO', or 'EXPORT_TILES'.
+ *      'EXPORT_VIDEO', 'EXPORT_VIDEO_MAP' or 'EXPORT_TILES'.
  *      json (string) JSON description of the image.
  * @param {function(ee.data.ProcessingResponse, string=)=} opt_callback An
  *     optional callback. If not supplied, the call is made synchronously.
@@ -1321,7 +1323,26 @@ ee.data.ExportType = {
   IMAGE: 'EXPORT_IMAGE',
   MAP: 'EXPORT_TILES',
   TABLE: 'EXPORT_FEATURES',
-  VIDEO: 'EXPORT_VIDEO'
+  VIDEO: 'EXPORT_VIDEO',
+  VIDEO_MAP: 'EXPORT_VIDEO_MAP'
+};
+
+/** @enum {string} The status of the export. */
+ee.data.ExportState = {
+  UNSUBMITTED: 'UNSUBMITTED',
+  READY: 'READY',
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  CANCEL_REQUESTED: 'CANCEL_REQUESTED',
+  CANCELLED: 'CANCELLED',
+};
+
+/** @enum {string} The destination of the export. */
+ee.data.ExportDestination = {
+  DRIVE: 'DRIVE',
+  GCS: 'GOOGLE_CLOUD_STORAGE',
+  ASSET: 'ASSET',
 };
 
 
@@ -2222,6 +2243,16 @@ ee.data.ImageTaskConfigUnformatted;
  *   skipEmptyTiles: (undefined|boolean),
  *   fileFormat: (undefined|string),
  *   tiffCloudOptimized: (undefined|boolean),
+ *   tiffFileDimensions: (undefined|string),
+ *   tfrecordPatchDimensions: (undefined|string),
+ *   tfrecordKernelSize: (undefined|string),
+ *   tfrecordCompressed: (undefined|boolean),
+ *   tfrecordMaxFileSize: (undefined|number),
+ *   tfrecordDefaultValue: (undefined|number),
+ *   tfrecordTensorDepths: (undefined|string),
+ *   tfrecordSequenceData: (undefined|boolean),
+ *   tfrecordCollapseBands: (undefined|boolean),
+ *   tfrecordMaskedThreshold: (undefined|number),
  *   driveFolder: (undefined|string),
  *   driveFileNamePrefix: (undefined|string),
  *   outputBucket: (undefined|string),
@@ -2237,7 +2268,17 @@ ee.data.ImageTaskConfig;
  * An object for specifying format specific image export options.
  *
  * @typedef {{
- *   cloudOptimized: (undefined|boolean)
+ *   cloudOptimized: (undefined|boolean),
+ *   fileDimensions: (undefined|!Array<number>),
+ *   patchDimensions: (undefined|!Array<number>),
+ *   kernelSize: (undefined|!Array<number>),
+ *   compressed: (undefined|boolean),
+ *   maxFileSize: (undefined|number),
+ *   defaultValue: (undefined|number),
+ *   tensorDepths: (undefined|!Array<number>),
+ *   sequenceData: (undefined|boolean),
+ *   collapseBands: (undefined|boolean),
+ *   maskedThreshold: (undefined|number)
  * }}
  */
 ee.data.ImageExportFormatConfig;
