@@ -32,8 +32,12 @@ def _GetPersistentCredentials():
   """
   try:
     tokens = json.load(open(oauth.get_credentials_path()))
-    refresh_token = tokens['refresh_token']
-    return oauth2client.client.OAuth2Credentials(
+    access_token = tokens.get('access_token')
+    refresh_token = tokens.get('refresh_token')
+    if access_token:
+      return AccessTokenCredentials()
+    else:
+      return oauth2client.client.OAuth2Credentials(
         None, oauth.CLIENT_ID, oauth.CLIENT_SECRET, refresh_token,
         None, 'https://accounts.google.com/o/oauth2/token', None)
   except IOError:
@@ -66,17 +70,17 @@ def ServiceAccountCredentials(email, key_file=None, key_data=None):
   except ValueError:
     # oauth2client v2+ and PEM key
     raise NotImplementedError(
-        'When using oauth2client version 2 or later, you must use a JSON '
-        'formatted key file (instead of a p12 or PEM formatted file). See the '
-        'following page for information on creating a JSON formatted file:\n'
-        'https://developers.google.com/api-client-library/python/auth/web-app')
+      'When using oauth2client version 2 or later, you must use a JSON '
+      'formatted key file (instead of a p12 or PEM formatted file). See the '
+      'following page for information on creating a JSON formatted file:\n'
+      'https://developers.google.com/api-client-library/python/auth/web-app')
   except AttributeError:
     # oauth2client v1 (i.e. does not have a ServiceAccountCredentials)
     if key_file:
       with open(key_file, 'rb') as key_file:
         key_data = key_file.read()
     credentials = oauth2client.client.SignedJwtAssertionCredentials(
-        email, key_data, oauth.SCOPE)
+      email, key_data, oauth.SCOPE)
   return credentials
 
 
@@ -145,3 +149,17 @@ def profilePrinting(destination=sys.stderr):
   finally:
     profile_text = getProfiles.call(ids=profile_ids).getInfo()
     destination.write(profile_text)
+
+
+class AccessTokenCredentials(oauth2client.client.OAuth2Credentials):
+  def __init__(self):
+    super(AccessTokenCredentials, self).__init__(self._read_access_token(), None, None, None, None, None, None)
+
+  def _read_access_token(self):
+    return json.load(open(oauth.get_credentials_path())).get('access_token')
+
+  def _refresh(self, http):
+    self.access_token = self._read_access_token()
+
+  def __str__(self):
+    return 'AccessTokenCredentials()'
