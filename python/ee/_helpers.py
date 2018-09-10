@@ -32,14 +32,10 @@ def _GetPersistentCredentials():
   """
   try:
     tokens = json.load(open(oauth.get_credentials_path()))
-    access_token = tokens.get('access_token')
-    refresh_token = tokens.get('refresh_token')
-    if access_token:
-      return AccessTokenCredentials()
-    else:
-      return oauth2client.client.OAuth2Credentials(
-          None, oauth.CLIENT_ID, oauth.CLIENT_SECRET, refresh_token,
-          None, 'https://accounts.google.com/o/oauth2/token', None)
+    refresh_token = tokens['refresh_token']
+    return oauth2client.client.OAuth2Credentials(
+        None, oauth.CLIENT_ID, oauth.CLIENT_SECRET, refresh_token,
+        None, 'https://accounts.google.com/o/oauth2/token', None)
   except IOError:
     raise EEException('Please authorize access to your Earth Engine account '
                       'by running\n\nearthengine authenticate\n\nin your '
@@ -149,17 +145,3 @@ def profilePrinting(destination=sys.stderr):
   finally:
     profile_text = getProfiles.call(ids=profile_ids).getInfo()
     destination.write(profile_text)
-
-
-class AccessTokenCredentials(oauth2client.client.OAuth2Credentials):
-  def __init__(self):
-    super(AccessTokenCredentials, self).__init__(self._read_access_token(), None, None, None, None, None, None)
-
-  def _read_access_token(self):
-    return json.load(open(oauth.get_credentials_path())).get('access_token')
-
-  def _refresh(self, http):
-    self.access_token = self._read_access_token()
-
-  def __str__(self):
-    return 'AccessTokenCredentials()'

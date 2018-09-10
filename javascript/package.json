@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "browserify": "^14.3.0",
-    "grunt": "^1.0.2",
+    "grunt": "^1.0.1",
     "grunt-contrib-concat": "^1.0.1",
     "jasmine": "^2.6.0",
     "jasmine-core": "^2.6.2",
