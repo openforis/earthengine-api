@@ -10,6 +10,7 @@ from __future__ import print_function
 
 # pylint: disable=g-bad-import-order
 from six.moves import input  # pylint: disable=redefined-builtin
+from six.moves import xrange
 import argparse
 import calendar
 from collections import Counter
@@ -77,8 +78,8 @@ def _add_overwrite_arg(parser):
 def _upload(args, request, ingestion_function):
   if 0 <= args.wait < 10:
     raise ee.EEException('Wait time should be at least 10 seconds.')
-  task_id = ee.data.newTaskId()[0]
-  ingestion_function(task_id, request, args.force)
+  request_id = ee.data.newTaskId()[0]
+  task_id = ingestion_function(request_id, request, args.force)['id']
   print('Started upload task with ID: %s' % task_id)
   if args.wait >= 0:
     print('Waiting for the upload task to complete...')
@@ -122,9 +123,10 @@ def _comma_separated_pyramiding_policies(string):
     raise argparse.ArgumentTypeError(error_msg.format(string))
   redvalues = []
   for value in values:
-    if value.lower() not in {'mean', 'sample', 'min', 'max', 'mode'}:
+    value = value.upper()
+    if value not in {'MEAN', 'SAMPLE', 'MIN', 'MAX', 'MODE'}:
       raise argparse.ArgumentTypeError(error_msg.format(string))
-    redvalues.append(value.lower())
+    redvalues.append(value)
   return redvalues
 
 
@@ -145,7 +147,20 @@ def _timestamp_ms_for_datetime(datetime_obj):
 
 
 def _decode_date(string):
-  """Decodes a date from a command line argument, as msec since the epoch."""
+  """Decodes a date from a command line argument, returning msec since epoch".
+
+  Args:
+    string: See AssetSetCommand class comment for the allowable
+      date formats.
+
+  Returns:
+    long, ms since epoch
+
+  Raises:
+    argparse.ArgumentTypeError: if string does not conform to a legal
+      date format.
+  """
+
   try:
     return int(string)
   except ValueError:
@@ -163,13 +178,30 @@ def _decode_date(string):
 
 
 def _decode_property(string):
-  """Decodes a general key-value property from a command line argument."""
+  """Decodes a general key-value property from a command-line argument.
+
+  Args:
+    string: The string must have the form name=value or (type)name=value, where
+      type is one of 'number', 'string', or 'date'. The value format for dates
+      is YYYY-MM-DD[THH:MM:SS[.MS]].  The value 'null' is special: it evaluates
+      to None unless it is cast to a string of 'null'.
+
+  Returns:
+    a tuple representing the property in the format (name, value)
+
+  Raises:
+    argparse.ArgumentTypeError: if the flag value could not be decoded or if
+    the type is not recognized
+  """
+
   m = PROPERTY_RE.match(string)
   if not m:
     raise argparse.ArgumentTypeError(
         'Invalid property: "%s". Must have the form "name=value" or '
         '"(type)name=value".', string)
   _, type_str, name, value_str = m.groups()
+  if value_str == 'null' and type_str != TYPE_STRING:
+    return (name, None)
   if type_str is None:
     # Guess numeric types automatically.
     try:
@@ -185,7 +217,7 @@ def _decode_property(string):
   else:
     raise argparse.ArgumentTypeError(
         'Unrecognized property type name: "%s". Expected one of "string", '
-        '"number", "date", or a prefix.' % type_str)
+        '"number", or "date".' % type_str)
   return (name, value)
 
 
@@ -480,6 +512,11 @@ class AssetSetCommand(object):
   be specified in the form YYYY-MM-DD[Thh:mm:ss[.ff]] in UTC and are
   stored as numbers representing the number of milliseconds since the
   Unix epoch (00:00:00 UTC on 1 January 1970).
+
+  To delete a property, set it to null without a type:
+     prop=null.
+  To set a property to the string value 'null', use the assignment
+     (string)prop4=null.
   """
 
   name = 'set'
@@ -526,7 +563,11 @@ class CopyCommand(object):
   def run(self, args, config):
     """Runs the asset copy."""
     config.ee_init()
-    ee.data.copyAsset(args.source, args.destination, args.force)
+    ee.data.copyAsset(
+        args.source,
+        args.destination,
+        args.force
+    )
 
 
 class CreateCommandBase(object):
@@ -695,7 +736,7 @@ class SizeCommand(object):
       if not is_parent or args.summarize:
         self._print_size(asset)
       else:
-        children = ee.data.getList(asset)
+        children = ee.data.getList({'id': asset['id']})
         if not children:
           # A leaf asset
           children = [asset]
@@ -727,7 +768,7 @@ class SizeCommand(object):
     return info['properties']['system:asset_size']
 
   def _get_size_folder(self, asset):
-    children = ee.data.getList(asset)
+    children = ee.data.getList({'id': asset['id']})
     sizes = [self._get_size(child) for child in children]
 
     return sum(sizes)
@@ -989,15 +1030,16 @@ class UploadImageCommand(object):
              'EPSG:4326) or a WKT string.')
     _add_property_flags(parser)
 
-  def _check_num_bands(self, request, num_bands, flag_name):
+  def _check_num_bands(self, bands, num_bands, flag_name):
     """Checks the number of bands, creating them if there are none yet."""
-    if 'bands' in request:
-      if len(request['bands']) != num_bands:
+    if bands:
+      if len(bands) != num_bands:
         raise ValueError(
             'Inconsistent number of bands in --{}: expected {} but found {}.'
-            .format(flag_name, len(request['bands']), num_bands))
+            .format(flag_name, len(bands), num_bands))
     else:
-      request['bands'] = [{'id': 'b%d' % (i + 1)} for i in xrange(num_bands)]
+      bands = ['b%d' % (i + 1) for i in xrange(num_bands)]
+    return bands
 
   def run(self, args, config):
     """Starts the upload task, and waits for completion if requested."""
@@ -1009,36 +1051,40 @@ class UploadImageCommand(object):
           'last_band_alpha and nodata_value are mutually exclusive.')
 
     properties = _decode_property_flags(args)
+    source_files = utils.expand_gcs_wildcards(args.src_files)
+    bands = args.bands
+    if args.pyramiding_policy and len(args.pyramiding_policy) != 1:
+      bands = self._check_num_bands(bands, len(args.pyramiding_policy),
+                                    'pyramiding_policy')
+    if args.nodata_value and len(args.nodata_value) != 1:
+      bands = self._check_num_bands(bands, len(args.nodata_value),
+                                    'nodata_value')
 
     request = {
         'id': args.asset_id,
         'properties': properties
     }
 
-    source_files = utils.expand_gcs_wildcards(args.src_files)
     sources = [{'primaryPath': source} for source in source_files]
     tileset = {'sources': sources}
     if args.last_band_alpha:
       tileset['fileBands'] = [{'fileBandIndex': -1, 'maskForAllBands': True}]
     request['tilesets'] = [tileset]
 
-    if args.bands:
-      request['bands'] = [{'id': name} for name in args.bands]
+    if bands:
+      request['bands'] = [{'id': name} for name in bands]
 
     if args.pyramiding_policy:
       if len(args.pyramiding_policy) == 1:
-        request['pyramidingPolicy'] = args.pyramiding_policy[0].upper()
+        request['pyramidingPolicy'] = args.pyramiding_policy[0]
       else:
-        self._check_num_bands(request, len(args.pyramiding_policy),
-                              'pyramiding_policy')
         for index, policy in enumerate(args.pyramiding_policy):
-          request['bands'][index]['pyramidingPolicy'] = policy.upper()
+          request['bands'][index]['pyramidingPolicy'] = policy
 
     if args.nodata_value:
       if len(args.nodata_value) == 1:
         request['missingData'] = {'value': args.nodata_value[0]}
       else:
-        self._check_num_bands(request, len(args.nodata_value), 'nodata_value')
         for index, nodata in enumerate(args.nodata_value):
           request['bands'][index]['missingData'] = {'value': nodata}
 
@@ -1092,6 +1138,7 @@ class UploadTableCommand(object):
     source_files = list(utils.expand_gcs_wildcards(args.src_file))
     if len(source_files) != 1:
       raise ValueError('Exactly one file must be specified.')
+
 
     source = {'primaryPath': source_files[0]}
     if args.max_error:
