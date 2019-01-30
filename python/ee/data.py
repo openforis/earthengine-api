@@ -18,6 +18,11 @@ import uuid
 import httplib2
 import six
 
+from . import _cloud_api_utils
+from . import deprecation
+from . import encodable
+from . import serializer
+import apiclient
 
 # pylint: disable=g-import-not-at-top
 try:
@@ -40,6 +45,17 @@ _api_base_url = None
 # The base URL for map tiles.  This is set by ee.Initialize().
 _tile_base_url = None
 
+# The base URL for all Cloud API calls.  This is set by ee.Initialize().
+_cloud_api_base_url = None
+
+# Google Cloud API key.  This may be set by ee.Initialize().
+_cloud_api_key = None
+
+# Whether to use Cloud API when possible.
+_use_cloud_api = False
+
+# A resource object for making Cloud API calls.
+_cloud_api_resource = None
 
 # Whether the module has been initialized.
 _initialized = False
@@ -89,12 +105,17 @@ DEFAULT_API_BASE_URL = 'https://earthengine.googleapis.com/api'
 # The default base URL for media/tile calls.
 DEFAULT_TILE_BASE_URL = 'https://earthengine.googleapis.com'
 
+# The default base URL for Cloud API calls.
+DEFAULT_CLOUD_API_BASE_URL = 'https://earthengine.googleapis.com'
 
 # Asset types recognized by create_assets().
 ASSET_TYPE_FOLDER = 'Folder'
 ASSET_TYPE_IMAGE_COLL = 'ImageCollection'
+# Cloud API versions of the asset types.
+ASSET_TYPE_FOLDER_CLOUD = 'FOLDER'
+ASSET_TYPE_IMAGE_COLL_CLOUD = 'IMAGE_COLLECTION'
 # Max length of the above type names
-MAX_TYPE_LENGTH = len(ASSET_TYPE_IMAGE_COLL)
+MAX_TYPE_LENGTH = len(ASSET_TYPE_IMAGE_COLL_CLOUD)
 
 # The maximum number of tasks to retrieve in each request to "/tasklist".
 _TASKLIST_PAGE_SIZE = 500
@@ -103,19 +124,31 @@ _TASKLIST_PAGE_SIZE = 500
 def initialize(
     credentials=None,
     api_base_url=None,
-    tile_base_url=None
-):
+    tile_base_url=None,
+    use_cloud_api=None,
+    cloud_api_base_url=None,
+    cloud_api_key=None):
   """Initializes the data module, setting credentials and base URLs.
 
   If any of the arguments are unspecified, they will keep their old values;
   the defaults if initialize() has never been called before.
 
+  At least one of "credentials" and "cloud_api_key" must be provided. If both
+  are provided, both will be used; in this case, the API key's project must
+  match the credentials' project.
+
   Args:
     credentials: The OAuth2 credentials.
     api_base_url: The EarthEngine REST API endpoint.
     tile_base_url: The EarthEngine REST tile endpoint.
+    use_cloud_api: Whether to use the EarthEngine Cloud API rather than the
+      older REST API.
+    cloud_api_base_url: The EarthEngine Cloud API endpoint.
+    cloud_api_key: The API key to use with the Cloud API.
   """
   global _api_base_url, _tile_base_url, _credentials, _initialized
+  global _cloud_api_base_url, _use_cloud_api
+  global _cloud_api_resource, _cloud_api_key
 
   # If already initialized, only replace the explicitly specified parts.
 
@@ -132,6 +165,19 @@ def initialize(
   elif not _initialized:
     _tile_base_url = DEFAULT_TILE_BASE_URL
 
+  if cloud_api_key is not None:
+    _cloud_api_key = cloud_api_key
+
+  if cloud_api_base_url is not None:
+    _cloud_api_base_url = cloud_api_base_url
+  elif not _initialized:
+    _cloud_api_base_url = DEFAULT_CLOUD_API_BASE_URL
+
+  if use_cloud_api is not None:
+    _use_cloud_api = use_cloud_api
+
+  if _cloud_api_resource is None:
+    _install_cloud_api_resource()
 
   _initialized = True
 
@@ -139,12 +185,90 @@ def initialize(
 def reset():
   """Resets the data module, clearing credentials and custom base URLs."""
   global _api_base_url, _tile_base_url, _credentials, _initialized
+  global _cloud_api_base_url, _use_cloud_api
+  global _cloud_api_resource, _cloud_api_key
   _credentials = None
   _api_base_url = None
   _tile_base_url = None
+  _cloud_api_base_url = None
+  _use_cloud_api = False
+  _cloud_api_key = None
+  _cloud_api_resource = None
   _initialized = False
 
 
+def _install_cloud_api_resource():
+  """Builds or rebuilds the Cloud API resource object, if needed."""
+  global _cloud_api_resource
+  if not _use_cloud_api:
+    return
+
+  timeout = (_deadline_ms / 1000.0) or None
+  _cloud_api_resource = _cloud_api_utils.build_cloud_resource(
+      _cloud_api_base_url,
+      credentials=_credentials,
+      api_key=_cloud_api_key,
+      timeout=timeout,
+      headers_supplier=_make_profiling_headers,
+      response_inspector=_handle_profiling_response)
+
+
+def _make_profiling_headers():
+  """Adds a header requesting profiling, if profiling is enabled."""
+  if _thread_locals.profile_hook:
+    return {_PROFILE_REQUEST_HEADER: '1'}
+  else:
+    return None
+
+
+def _handle_profiling_response(response):
+  """Handles profiling annotations on Cloud API responses."""
+  # Call the profile hook if present. Note that this is done before we handle
+  # the content, so that profiles are reported even if the response is an error.
+  if (_thread_locals.profile_hook and
+      _PROFILE_RESPONSE_HEADER_LOWERCASE in response):
+    _thread_locals.profile_hook(response[_PROFILE_RESPONSE_HEADER_LOWERCASE])
+
+
+def _execute_cloud_call(call, num_retries=MAX_RETRIES):
+  """Executes a Cloud API call and translates errors to EEExceptions.
+
+  Args:
+    call: The Cloud API call, with all parameters set, ready to have execute()
+      called on it.
+    num_retries: How many times retryable failures should be retried.
+
+  Returns:
+    The value returned by executing that call.
+
+  Raises:
+    EEException if the call fails.
+  """
+  try:
+    return call.execute(num_retries=num_retries)
+  except apiclient.errors.HttpError as e:
+    raise _translate_cloud_exception(e)
+
+
+def _translate_cloud_exception(http_error):
+  """Translates a Cloud API exception into an EEException.
+
+  Args:
+    http_error: An apiclient.errors.HttpError.
+
+  Returns:
+    An EEException bearing the error message from http_error.
+  """
+  # The only sane way to get a message out of an HttpError is to use a protected
+  # method.
+  return ee_exception.EEException(http_error._get_reason())  # pylint: disable=protected-access
+
+
+def setCloudApiKey(cloud_api_key):
+  """Sets the Cloud API key parameter ("api_key") for all requests."""
+  global _cloud_api_key
+  _cloud_api_key = cloud_api_key
+  _install_cloud_api_resource()
 
 
 def setDeadline(milliseconds):
@@ -156,6 +280,7 @@ def setDeadline(milliseconds):
   """
   global _deadline_ms
   _deadline_ms = milliseconds
+  _install_cloud_api_resource()
 
 
 @contextlib.contextmanager
@@ -188,7 +313,7 @@ def getInfo(asset_id):
     asset_id: The asset to be retrieved.
 
   Returns:
-    The value call results.
+    The value call results, or None if the asset does not exist.
   """
   return send_('/info', {'id': asset_id})
 
@@ -385,7 +510,8 @@ def getThumbId(params):
         format - (string) Either 'png' (default) or 'jpg'.
 
   Returns:
-    A thumbnail ID.
+    A dictionary containing "thumbid" and "token" strings, which identify the
+    thumbnail.
   """
   request = params.copy()
   request['getid'] = '1'
@@ -516,6 +642,7 @@ def createAsset(value, opt_path=None, opt_force=False, opt_properties=None):
 
   To create an empty image collection or folder, pass in a "value" object
   with a "type" key whose value is "ImageCollection" or "Folder".
+  If you are using the Cloud API, use "IMAGE_COLLECTION" or "FOLDER".
 
   Args:
     value: An object describing the asset to create or a JSON string
@@ -663,11 +790,79 @@ def startProcessing(taskId, params):
   return send_('/processingrequest', args)
 
 
+def exportImage(request_id, params):
+  """Starts an image export task running.
+
+  Args:
+    request_id (string): A unique ID for the task, from newTaskId.
+    params: The object that describes the export task.
+
+  Returns:
+    A dict with information about the created task.
+  """
+  params = params.copy()
+  params['type'] = 'EXPORT_IMAGE'
+  return startProcessing(request_id, params)
+
+
+def exportTable(request_id, params):
+  """Starts a table export task running.
+
+  Args:
+    request_id (string): A unique ID for the task, from newTaskId.
+    params: The object that describes the export task.
+
+  Returns:
+    A dict with information about the created task.
+  """
+  params = params.copy()
+  params['type'] = 'EXPORT_FEATURES'
+  return startProcessing(request_id, params)
+
+
+def exportVideo(request_id, params):
+  """Starts a video export task running.
+
+  Args:
+    request_id (string): A unique ID for the task, from newTaskId.
+    params: The object that describes the export task.
+
+  Returns:
+    A dict with information about the created task.
+  """
+  params = params.copy()
+  params['type'] = 'EXPORT_VIDEO'
+  return startProcessing(request_id, params)
+
+
+def exportMap(request_id, params):
+  """Starts a map export task running.
+
+  Args:
+    request_id (string): A unique ID for the task, from newTaskId.
+    params: The object that describes the export task.
+
+  Returns:
+    A dict with information about the created task.
+  """
+  params = params.copy()
+  params['type'] = 'EXPORT_TILES'
+  return startProcessing(request_id, params)
+
+
+
+
+
+
 def startIngestion(request_id, params, allow_overwrite=False):
   """Creates an image asset import task.
 
   Args:
     request_id (string): A unique ID for the ingestion, from newTaskId.
+      If you are using the Cloud API, this does not need to be from newTaskId,
+      (though that's a good idea, as it's a good source of unique strings).
+      It can also be empty, but in that case the request is more likely to
+      fail as it cannot be safely retried.
     params: The object that describes the import task, which can
         have these fields:
           id (string) The destination asset id (e.g. users/foo/bar).
@@ -681,6 +876,8 @@ def startIngestion(request_id, params, allow_overwrite=False):
             object names, e.g. 'gs://bucketname/filename.tif'
           bands (array) An optional list of band names formatted like:
             [{'id': 'R'}, {'id': 'G'}, {'id': 'B'}]
+        If you are using the Cloud API, this object must instead be a dict
+        representation of an ImageManifest.
     allow_overwrite: Whether the ingested image can overwrite an
         existing version.
 
@@ -688,6 +885,23 @@ def startIngestion(request_id, params, allow_overwrite=False):
     A dict with notes about the created task. This will include the ID for the
     import task (under 'id'), which may be different from request_id.
   """
+  if _use_cloud_api:
+    request = {
+        'imageManifest': params,
+        'requestId': request_id,
+        'overwrite': allow_overwrite
+    }
+    # It's only safe to retry the request if there's a unique ID to make it
+    # idempotent.
+    num_retries = MAX_RETRIES if request_id else 0
+    operation = _execute_cloud_call(
+        _cloud_api_resource.v1().ingestImage(body=request),
+        num_retries=num_retries)
+    return {
+        'id':
+            _cloud_api_utils.convert_operation_name_to_task_id(
+                operation['name'])
+    }
   args = {
       'id': request_id,
       'request': json.dumps(params),
@@ -703,6 +917,10 @@ def startTableIngestion(request_id, params, allow_overwrite=False):
 
   Args:
     request_id (string): A unique ID for the ingestion, from newTaskId.
+      If you are using the Cloud API, this does not need to be from newTaskId,
+      (though that's a good idea, as it's a good source of unique strings).
+      It can also be empty, but in that case the request is more likely to
+      fail as it cannot be safely retried.
     params: The object that describes the import task, which can
         have these fields:
           id (string) The destination asset id (e.g. users/foo/bar).
@@ -712,12 +930,31 @@ def startTableIngestion(request_id, params, allow_overwrite=False):
             Where path values correspond to source files' CNS locations,
             e.g. 'googlefile://namespace/foobar.shp', and 'charset' refers to
             the character encoding of the source file.
+        If you are using the Cloud API, this object must instead be a dict
+        representation of a TableManifest.
     allow_overwrite: Whether the ingested image can overwrite an
         existing version.
   Returns:
     A dict with notes about the created task. This will include the ID for the
     import task (under 'id'), which may be different from request_id.
   """
+  if _use_cloud_api:
+    request = {
+        'tableManifest': params,
+        'requestId': request_id,
+        'overwrite': allow_overwrite
+    }
+    # It's only safe to retry the request if there's a unique ID to make it
+    # idempotent.
+    num_retries = MAX_RETRIES if request_id else 0
+    operation = _execute_cloud_call(
+        _cloud_api_resource.v1().ingestTable(body=request),
+        num_retries=num_retries)
+    return {
+        'id':
+            _cloud_api_utils.convert_operation_name_to_task_id(
+                operation['name'])
+    }
   args = {
       'id': request_id,
       'tableRequest': json.dumps(params),
@@ -800,10 +1037,12 @@ def setAssetAcl(assetId, aclUpdate):
   send_('/setacl', {'id': assetId, 'value': aclUpdate})
 
 
+
+
 def setAssetProperties(assetId, properties):
   """Sets metadata properties of the asset with the given ID.
 
-  To delete a property, set its value to null.
+  To delete a property, set its value to None.
   The authenticated user must be a writer or owner of the asset.
 
   Args:
@@ -811,6 +1050,8 @@ def setAssetProperties(assetId, properties):
     properties: A dictionary of keys and values for the properties to update.
   """
   send_('/setproperties', {'id': assetId, 'properties': json.dumps(properties)})
+
+
 
 
 def createAssetHome(requestedId):
@@ -955,7 +1196,7 @@ def create_assets(asset_ids, asset_type, mk_parents):
   """Creates the specified assets if they do not exist."""
   for asset_id in asset_ids:
     if getInfo(asset_id):
-      print('Asset %s already exists' % asset_id)
+      print('Asset %s already exists.' % asset_id)
       continue
     if mk_parents:
       parts = asset_id.split('/')
@@ -965,6 +1206,24 @@ def create_assets(asset_ids, asset_type, mk_parents):
       for part in parts[1:-1]:
         path += part
         if getInfo(path) is None:
-          createAsset({'type': ASSET_TYPE_FOLDER}, path)
+          if _use_cloud_api:
+            createAsset({'type': ASSET_TYPE_FOLDER_CLOUD}, path)
+          else:
+            createAsset({'type': ASSET_TYPE_FOLDER}, path)
         path += '/'
     createAsset({'type': asset_type}, asset_id)
+
+
+def convert_asset_id_to_asset_name(asset_id):
+  """Converts an internal asset ID to a Cloud API asset name.
+
+  If asset_id already matches the format 'projects/*/assets/**', it is returned
+  as-is.
+
+  Args:
+    asset_id: The asset ID to convert.
+
+  Returns:
+    An asset name string in the format 'projects/*/assets/**'.
+  """
+  return _cloud_api_utils.convert_asset_id_to_asset_name(asset_id)

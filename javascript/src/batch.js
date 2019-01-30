@@ -6,7 +6,10 @@ goog.provide('ee.batch.ExportTask');
 
 goog.require('ee.ComputedObject');
 goog.require('ee.Element');
+goog.require('ee.FeatureCollection');
 goog.require('ee.Geometry');
+goog.require('ee.Image');
+goog.require('ee.ImageCollection');
 goog.require('ee.arguments');
 goog.require('ee.data');
 goog.require('ee.data.ExportDestination');
@@ -247,13 +250,14 @@ ee.batch.Export.image.toDrive = function(
  * @param {number=} opt_minZoom
  * @param {?ee.Geometry.LinearRing|?ee.Geometry.Polygon|string=} opt_region
  * @param {boolean=} opt_skipEmptyTiles
+ * @param {string=} opt_mapsApiKey
  * @return {!ee.batch.ExportTask}
  * @export
  */
 ee.batch.Export.map.toCloudStorage = function(
     image, opt_description, opt_bucket, opt_fileFormat, opt_path,
     opt_writePublicTiles, opt_scale, opt_maxZoom, opt_minZoom, opt_region,
-    opt_skipEmptyTiles) {
+    opt_skipEmptyTiles, opt_mapsApiKey) {
   const clientConfig = ee.arguments.extractFromFunction(
       ee.batch.Export.map.toCloudStorage, arguments);
   const serverConfig = ee.batch.Export.convertToServerParams(
@@ -538,6 +542,7 @@ ee.batch.Export.convertToServerParams = function(originalArgs, destination) {
 };
 
 
+/** @type {!Array<string>} */
 const PERMISSABLE_FORMAT_OPTIONS = [
   'tiffCloudOptimized', 'tiffFileDimensions', 'tfrecordPatchDimensions',
   'tfrecordKernelSize', 'tfrecordCompressed', 'tfrecordMaxFileSize',
@@ -545,6 +550,7 @@ const PERMISSABLE_FORMAT_OPTIONS = [
   'tfrecordCollapseBands', 'tfrecordMaskedThreshold'
 ];
 
+/** @type {!Object<string,string>} */
 const FORMAT_PREFIX_MAP = {
   'GEOTIFF': 'tiff',
   'TFRECORD': 'tfrecord'

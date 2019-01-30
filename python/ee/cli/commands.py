@@ -18,6 +18,7 @@ import datetime
 import json
 import os
 import re
+import six
 import sys
 import webbrowser
 
@@ -33,7 +34,7 @@ import ee
 from ee.cli import utils
 
 # Constants used in ACLs.
-ALL_USERS = 'AllUsers'
+ALL_USERS = 'allUsers'
 ALL_USERS_CAN_READ = 'all_users_can_read'
 READERS = 'readers'
 WRITERS = 'writers'
@@ -146,6 +147,8 @@ def _timestamp_ms_for_datetime(datetime_obj):
       datetime_obj.microsecond / 1000)
 
 
+
+
 def _decode_date(string):
   """Decodes a date from a command line argument, returning msec since epoch".
 
@@ -154,12 +157,14 @@ def _decode_date(string):
       date formats.
 
   Returns:
-    long, ms since epoch
+    long, ms since epoch, or '' if the input is empty.
 
   Raises:
     argparse.ArgumentTypeError: if string does not conform to a legal
       date format.
   """
+  if not string:
+    return ''
 
   try:
     return int(string)
@@ -241,17 +246,23 @@ def _add_property_flags(parser):
 
 
 def _decode_property_flags(args):
-  """Decodes metadata properties from args as a list of (name,value) pairs."""
+  """Decodes metadata properties from args as a name->value dict."""
   property_list = list(args.property or [])
-  if args.time_start:
-    property_list.append((SYSTEM_TIME_START, args.time_start))
-  if args.time_end:
-    property_list.append((SYSTEM_TIME_END, args.time_end))
   names = [name for name, _ in property_list]
   duplicates = [name for name, count in Counter(names).items() if count > 1]
   if duplicates:
     raise ee.EEException('Duplicate property name(s): %s.' % duplicates)
   return dict(property_list)
+
+
+def _decode_timestamp_flags(args):
+  """Decodes timestamp properties from args as a name->value dict."""
+  result = {}
+  if args.time_start is not None:
+    result[SYSTEM_TIME_START] = args.time_start
+  if args.time_end is not None:
+    result[SYSTEM_TIME_END] = args.time_end
+  return result
 
 
 def _check_valid_files(filenames):
@@ -345,7 +356,7 @@ class AclChCommand(object):
   Each change specifies the email address of a user or group and,
   for additions, one of R or W corresponding to the read or write
   permissions to be granted, as in "user@domain.com:R". Use the
-  special name "AllUsers" to change whether all users can read the
+  special name "allUsers" to change whether all users can read the
   asset.
   """
 
@@ -359,14 +370,16 @@ class AclChCommand(object):
     parser.add_argument('asset_id', help='ID of the asset.')
 
   def run(self, args, config):
+    """Performs an ACL update."""
     config.ee_init()
     permissions = self._parse_permissions(args)
     acl = ee.data.getAssetAcl(args.asset_id)
     self._apply_permissions(acl, permissions)
-    # The original permissions will contain an 'owners' stanza, but EE
-    # does not currently allow setting the owner ACL so we have to
-    # remove it even though it has not changed.
-    del acl['owners']
+    if not config.use_cloud_api:
+      # The original permissions will contain an 'owners' stanza, but the
+      # non-Cloud EE API does not allow setting the owner ACL so we have to
+      # remove it even though it has not changed.
+      del acl['owners']
     ee.data.setAssetAcl(args.asset_id, json.dumps(acl))
 
   def _parse_permissions(self, args):
@@ -375,14 +388,14 @@ class AclChCommand(object):
     permissions = {}
     if args.u:
       for grant in args.u:
-        parts = grant.split(':')
+        parts = grant.rsplit(':', 1)
         if len(parts) != 2 or parts[1] not in ['R', 'W']:
           raise ee.EEException('Invalid permission "%s".' % grant)
         user, role = parts
         if user in permissions:
           raise ee.EEException('Multiple permission settings for "%s".' % user)
-        if user == ALL_USERS and role == 'W':
-          raise ee.EEException('Cannot grant write permissions to AllUsers.')
+        if self._is_all_users(user) and role == 'W':
+          raise ee.EEException('Cannot grant write permissions to all users.')
         permissions[user] = role
     if args.d:
       for user in args.d:
@@ -393,8 +406,8 @@ class AclChCommand(object):
 
   def _apply_permissions(self, acl, permissions):
     """Applies the given permission edits to the given acl."""
-    for user, role in permissions.iteritems():
-      if user == ALL_USERS:
+    for user, role in six.iteritems(permissions):
+      if self._is_all_users(user):
         acl[ALL_USERS_CAN_READ] = (role == 'R')
       elif role == 'R':
         if user not in acl[READERS]:
@@ -411,6 +424,14 @@ class AclChCommand(object):
           acl[READERS].remove(user)
         if user in acl[WRITERS]:
           acl[WRITERS].remove(user)
+
+  def _is_all_users(self, user):
+    """Determines if a user name represents the special "all users" entity."""
+    # We previously used "AllUsers" as the magic string to denote that we wanted
+    # to apply some permission to everyone. However, Google Cloud convention for
+    # this concept is "allUsers". Because some people might be using one and
+    # some the other, we do a case-insentive comparison.
+    return user.lower() == ALL_USERS.lower()
 
 
 class AclGetCommand(object):
@@ -466,10 +487,10 @@ class AclSetCommand(object):
     else:
       acl = json.load(open(args.file_or_acl_name))
       # In the expected usage the ACL file will have come from a previous
-      # invocation of 'acl get', which means it will include an 'owners'
-      # stanza, but EE does not currently allow setting the owner ACL,
-      # so we have to remove it.
-      if 'owners' in acl:
+      # invocation of 'acl get', which means it will include an 'owners' stanza,
+      # but the non-Cloud EE API does not allow setting the owner ACL, so we
+      # have to remove it.
+      if 'owners' in acl and not config.use_cloud_api:
         print('Warning: Not updating the owner ACL.')
         del acl['owners']
     ee.data.setAssetAcl(args.asset_id, json.dumps(acl))
@@ -526,10 +547,12 @@ class AssetSetCommand(object):
     _add_property_flags(parser)
 
   def run(self, args, config):
-    properties = _decode_property_flags(args)
+    """Runs the asset update."""
     config.ee_init()
-    if not properties:
+    properties = _decode_property_flags(args)
+    if not properties and args.time_start is None and args.time_end is None:
       raise ee.EEException('No properties specified.')
+    properties.update(_decode_timestamp_flags(args))
     ee.data.setAssetProperties(args.asset_id, properties)
 
 
@@ -681,7 +704,8 @@ class ListCommand(object):
       else:
         print(asset['id'])
 
-      if recursive and asset['type'] == ee.data.ASSET_TYPE_FOLDER:
+      if recursive and asset['type'] in (ee.data.ASSET_TYPE_FOLDER,
+                                         ee.data.ASSET_TYPE_FOLDER_CLOUD):
         list_req = {'id': asset['id']}
         children = ee.data.getList(list_req)
         self._print_assets(children, max_items, indent, long_format, recursive)
@@ -730,9 +754,12 @@ class SizeCommand(object):
     # and show totals for non-leaf children.
     # If args.summarize is False, print sizes of all children.
     for asset in assets:
-      is_parent = asset['type'] in [
+      is_parent = asset['type'] in (
           ee.data.ASSET_TYPE_FOLDER,
-          ee.data.ASSET_TYPE_IMAGE_COLL]
+          ee.data.ASSET_TYPE_IMAGE_COLL,
+          ee.data.ASSET_TYPE_FOLDER_CLOUD,
+          ee.data.ASSET_TYPE_IMAGE_COLL_CLOUD,
+      )
       if not is_parent or args.summarize:
         self._print_size(asset)
       else:
@@ -754,6 +781,10 @@ class SizeCommand(object):
         'Folder': self._get_size_folder,
         'ImageCollection': self._get_size_image_collection,
         'Table': self._get_size_asset,
+        'IMAGE': self._get_size_asset,
+        'FOLDER': self._get_size_folder,
+        'IMAGE_COLLECTION': self._get_size_image_collection,
+        'TABLE': self._get_size_asset,
     }
 
     if asset['type'] not in size_parsers:
@@ -828,7 +859,9 @@ class RmCommand(object):
       return
     if recursive:
       if info['type'] in (ee.data.ASSET_TYPE_FOLDER,
-                          ee.data.ASSET_TYPE_IMAGE_COLL):
+                          ee.data.ASSET_TYPE_IMAGE_COLL,
+                          ee.data.ASSET_TYPE_FOLDER_CLOUD,
+                          ee.data.ASSET_TYPE_IMAGE_COLL_CLOUD):
         children = ee.data.getList({'id': asset_id})
         for child in children:
           self._delete_asset(child['id'], True, verbose, dry_run)
@@ -1000,10 +1033,9 @@ class UploadImageCommand(object):
         'src_files',
         help=('Cloud Storage URL(s) of the file(s) to upload. '
         'Must have the prefix \'gs://\'.'),
-        nargs='+')
+        nargs='*')
     parser.add_argument(
         '--asset_id',
-        required=True,
         help='Destination asset ID for the uploaded file.')
     parser.add_argument(
         '--last_band_alpha',
@@ -1028,6 +1060,10 @@ class UploadImageCommand(object):
         help='The coordinate reference system, to override the map projection '
              'of the image. May be either a well-known authority code (e.g. '
              'EPSG:4326) or a WKT string.')
+    parser.add_argument(
+        '--manifest',
+        help='Local path to a JSON asset manifest file. No other flags are '
+        'used if this flag is set.')
     _add_property_flags(parser)
 
   def _check_num_bands(self, bands, num_bands, flag_name):
@@ -1043,15 +1079,30 @@ class UploadImageCommand(object):
 
   def run(self, args, config):
     """Starts the upload task, and waits for completion if requested."""
-    _check_valid_files(args.src_files)
     config.ee_init()
+    manifest = self.manifest_from_args(args, config)
+    _upload(args, manifest, ee.data.startIngestion)
 
+  def manifest_from_args(self, args, config):
+    """Constructs an upload manifest from the command-line flags."""
+
+    if args.manifest:
+      with open(args.manifest) as fh:
+        return json.loads(fh.read())
+
+    if not args.asset_id:
+      raise ValueError('Flag --asset_id must be set.')
+
+    _check_valid_files(args.src_files)
     if args.last_band_alpha and args.nodata_value:
       raise ValueError(
           'last_band_alpha and nodata_value are mutually exclusive.')
 
     properties = _decode_property_flags(args)
     source_files = utils.expand_gcs_wildcards(args.src_files)
+    if not source_files:
+      raise ValueError('At least one file must be specified.')
+
     bands = args.bands
     if args.pyramiding_policy and len(args.pyramiding_policy) != 1:
       bands = self._check_num_bands(bands, len(args.pyramiding_policy),
@@ -1060,7 +1111,57 @@ class UploadImageCommand(object):
       bands = self._check_num_bands(bands, len(args.nodata_value),
                                     'nodata_value')
 
-    request = {
+    if config.use_cloud_api:
+      args.asset_id = ee.data.convert_asset_id_to_asset_name(args.asset_id)
+      tileset = {
+          'id': 'ts',
+          'sources': [{'uris': [source]} for source in source_files]
+      }
+      manifest = {
+          'name': args.asset_id,
+          'properties': properties,
+          'tilesets': [tileset]
+      }
+      # pylint:disable=g-explicit-bool-comparison
+      if args.time_start is not None and args.time_start != '':
+        manifest['start_time'] = _cloud_timestamp_for_timestamp_ms(
+            args.time_start)
+      if args.time_end is not None and args.time_end != '':
+        manifest['end_time'] = _cloud_timestamp_for_timestamp_ms(args.time_end)
+      # pylint:enable=g-explicit-bool-comparison
+
+      if bands:
+        file_bands = []
+        for i, band in enumerate(bands):
+          file_bands.append({
+              'id': band,
+              'tilesetId': tileset['id'],
+              'tilesetBandIndex': i
+          })
+        manifest['bands'] = file_bands
+
+      if args.pyramiding_policy:
+        if len(args.pyramiding_policy) == 1:
+          manifest['pyramidingPolicy'] = args.pyramiding_policy[0]
+        else:
+          for index, policy in enumerate(args.pyramiding_policy):
+            file_bands[index]['pyramidingPolicy'] = policy
+
+      if args.nodata_value:
+        if len(args.nodata_value) == 1:
+          manifest['missingData'] = {'values': [args.nodata_value[0]]}
+        else:
+          for index, value in enumerate(args.nodata_value):
+            file_bands[index]['missingData'] = {'values': [value]}
+
+      if args.last_band_alpha:
+        manifest['maskBands'] = {'tilesetId': tileset['id']}
+
+      return manifest
+
+    # non-cloud API section
+    properties.update(_decode_timestamp_flags(args))
+    manifest = {
         'id': args.asset_id,
         'properties': properties
     }
@@ -1069,29 +1170,29 @@ class UploadImageCommand(object):
     tileset = {'sources': sources}
     if args.last_band_alpha:
       tileset['fileBands'] = [{'fileBandIndex': -1, 'maskForAllBands': True}]
-    request['tilesets'] = [tileset]
+    manifest['tilesets'] = [tileset]
 
     if bands:
-      request['bands'] = [{'id': name} for name in bands]
+      manifest['bands'] = [{'id': name} for name in bands]
 
     if args.pyramiding_policy:
       if len(args.pyramiding_policy) == 1:
-        request['pyramidingPolicy'] = args.pyramiding_policy[0]
+        manifest['pyramidingPolicy'] = args.pyramiding_policy[0]
       else:
         for index, policy in enumerate(args.pyramiding_policy):
-          request['bands'][index]['pyramidingPolicy'] = policy
+          manifest['bands'][index]['pyramidingPolicy'] = policy
 
     if args.nodata_value:
       if len(args.nodata_value) == 1:
-        request['missingData'] = {'value': args.nodata_value[0]}
+        manifest['missingData'] = {'value': args.nodata_value[0]}
       else:
         for index, nodata in enumerate(args.nodata_value):
-          request['bands'][index]['missingData'] = {'value': nodata}
+          manifest['bands'][index]['missingData'] = {'value': nodata}
 
     if args.crs:
-      request['crs'] = args.crs
+      manifest['crs'] = args.crs
 
-    _upload(args, request, ee.data.startIngestion)
+    return manifest
 
 
 # TODO(user): update src_files help string when secondary files
@@ -1110,10 +1211,9 @@ class UploadTableCommand(object):
         'to upload. Must have the prefix \'gs://\'. For .shp '
         'files, related .dbf, .shx, and .prj files must be '
         'present in the same location.'),
-        nargs=1)
+        nargs='*')
     parser.add_argument(
         '--asset_id',
-        required=True,
         help='Destination asset ID for the uploaded file.')
     _add_property_flags(parser)
     parser.add_argument(
@@ -1130,16 +1230,119 @@ class UploadTableCommand(object):
         '--max_failed_features',
         help='The maximum number of failed features to allow during ingestion.',
         type=int, nargs='?')
+    parser.add_argument(
+        '--crs',
+        help='The default CRS code or WKT string specifying the coordinate '
+             'reference system of any geometry without one. If unspecified, '
+             'the default will be EPSG:4326 (https://epsg.io/4326). For '
+             'CSV/TFRecord only.')
+    parser.add_argument(
+        '--geodesic',
+        help='The default strategy for interpreting edges in geometries that '
+             'do not have one specified. If false, edges are '
+             'straight in the projection. If true, edges are curved to follow '
+             'the shortest path on the surface of the Earth. When '
+             'unspecified, defaults to false if \'crs\' is a projected '
+             'coordinate system. For CSV/TFRecord only.',
+        action='store_true')
+    parser.add_argument(
+        '--primary_geometry_column',
+        help='The geometry column to use as a row\'s primary geometry when '
+             'there is more than one geometry column. If unspecified and more '
+             'than one geometry column exists, the first geometry column '
+             'is used. For CSV/TFRecord only.')
+    parser.add_argument(
+        '--x_column',
+        help='The name of the numeric x coordinate column for constructing '
+             'point geometries. If the y_column is also specified, and both '
+             'columns contain numerical values, then a point geometry column '
+             'will be constructed with x,y values in the coordinate system '
+             'given in \'--crs\'. If unspecified and \'--crs\' does _not_ '
+             'specify a projected coordinate system, defaults to "longitude". '
+             'If unspecified and \'--crs\' _does_ specify a projected '
+             'coordinate system, defaults to "" and no point geometry is '
+             'generated. A generated point geometry column will be named '
+             '{x_column}_{y_column}_N where N might be appended to '
+             'disambiguate the column name. For CSV/TFRecord only.')
+    parser.add_argument(
+        '--y_column',
+        help='The name of the numeric y coordinate column for constructing '
+             'point geometries. If the x_column is also specified, and both '
+             'columns contain numerical values, then a point geometry column '
+             'will be constructed with x,y values in the coordinate system '
+             'given in \'--crs\'. If unspecified and \'--crs\' does _not_ '
+             'specify a projected coordinate system, defaults to "latitude". '
+             'If unspecified and \'--crs\' _does_ specify a projected '
+             'coordinate system, defaults to "" and no point geometry is '
+             'generated. A generated point geometry column will be named '
+             '{x_column}_{y_column}_N where N might be appended to '
+             'disambiguate the column name. For CSV/TFRecord only.')
+    parser.add_argument(
+        '--date_format',
+        help='A format used to parse dates. The format pattern must follow '
+             'http://joda-time.sourceforge.net/apidocs/org/joda/time/format/DateTimeFormat.html. '
+             'If unspecified, dates will be imported as strings. For '
+             'CSV/TFRecord only.')
+    parser.add_argument(
+        '--csv_delimiter',
+        help='A single character used as a delimiter between column values '
+             'in a row. If unspecified, defaults to \',\'. For CSV only.')
+    parser.add_argument(
+        '--csv_qualifier',
+        help='A character that surrounds column values (a.k.a. '
+             '\"quote character"). If unspecified, defaults to \'\"\'.')
+    parser.add_argument(
+        '--manifest',
+        help='Local path to a JSON asset manifest file. No other flags are '
+        'used if this flag is set.')
 
   def run(self, args, config):
     """Starts the upload task, and waits for completion if requested."""
-    _check_valid_files(args.src_file)
     config.ee_init()
+    manifest = self.manifest_from_args(args, config)
+    _upload(args, manifest, ee.data.startTableIngestion)
+
+  def manifest_from_args(self, args, config):
+    """Constructs an upload manifest from the command-line flags."""
+
+    if args.manifest:
+      with open(args.manifest) as fh:
+        return json.loads(fh.read())
+
+    if not args.asset_id:
+      raise ValueError('Flag --asset_id must be set.')
+
+    _check_valid_files(args.src_file)
     source_files = list(utils.expand_gcs_wildcards(args.src_file))
     if len(source_files) != 1:
       raise ValueError('Exactly one file must be specified.')
 
+    if config.use_cloud_api:
+      properties = _decode_property_flags(args)
+      args.asset_id = ee.data.convert_asset_id_to_asset_name(args.asset_id)
+      source = {'uris': source_files}
+      if args.max_error:
+        source['maxErrorMeters'] = args.max_error
+      if args.max_vertices:
+        source['maxVertices'] = args.max_vertices
+      if args.max_failed_features:
+        raise ee.EEException(
+            '--max_failed_features is not supported with the Cloud API')
+      manifest = {
+          'name': args.asset_id,
+          'sources': [source],
+          'properties': properties
+      }
+      # pylint:disable=g-explicit-bool-comparison
+      if args.time_start is not None and args.time_start != '':
+        manifest['start_time'] = _cloud_timestamp_for_timestamp_ms(
+            args.time_start)
+      if args.time_end is not None and args.time_end != '':
+        manifest['end_time'] = _cloud_timestamp_for_timestamp_ms(args.time_end)
+      # pylint:enable=g-explicit-bool-comparison
+      return manifest
 
+    # non-cloud API section
     source = {'primaryPath': source_files[0]}
     if args.max_error:
       source['max_error'] = args.max_error
@@ -1147,11 +1350,27 @@ class UploadTableCommand(object):
       source['max_vertices'] = args.max_vertices
     if args.max_failed_features:
       source['max_failed_features'] = args.max_failed_features
-    request = {
+    if args.crs:
+      source['crs'] = args.crs
+    if args.geodesic:
+      source['geodesic'] = args.geodesic
+    if args.primary_geometry_column:
+      source['primary_geometry_column'] = args.primary_geometry_column
+    if args.x_column:
+      source['x_column'] = args.x_column
+    if args.y_column:
+      source['y_column'] = args.y_column
+    if args.date_format:
+      source['date_format'] = args.date_format
+    if args.csv_delimiter:
+      source['csv_delimiter'] = args.csv_delimiter
+    if args.csv_qualifier:
+      source['csv_qualifier'] = args.csv_qualifier
+
+    return {
         'id': args.asset_id,
         'sources': [source]
     }
-    _upload(args, request, ee.data.startTableIngestion)
 
 
 class UploadCommand(Dispatcher):
@@ -1191,6 +1410,10 @@ class UploadImageManifestCommand(_UploadManifestBase):
 
   def run(self, args, config):
     """Starts the upload task, and waits for completion if requested."""
+    print (
+        'This command is deprecated. '
+        'Use "earthengine upload image --manifest".'
+    )
     super(UploadImageManifestCommand, self).run(
         args, config, ee.data.startIngestion)
 
@@ -1201,6 +1424,10 @@ class UploadTableManifestCommand(_UploadManifestBase):
   name = 'upload_table_manifest'
 
   def run(self, args, config):
+    print (
+        'This command is deprecated. '
+        'Use "earthengine upload table --manifest".'
+    )
     super(UploadTableManifestCommand, self).run(
         args, config, ee.data.startTableIngestion)
 

@@ -33,21 +33,21 @@ ee.ApiFunction = function(name, opt_signature) {
 };
 /**
  * @param {string} name
- * @param {(Object|null)} namedArgs
- * @return {(ee.ComputedObject|null)}
+ * @param {!Object} namedArgs
+ * @return {!ee.ComputedObject}
  */
 ee.ApiFunction._apply = function(name, namedArgs) {
 };
 /**
  * @param {string} name
  * @param {...*} var_args
- * @return {(ee.ComputedObject|null)}
+ * @return {!ee.ComputedObject}
  */
 ee.ApiFunction._call = function(name, var_args) {
 };
 /**
  * @param {string} name
- * @return {(ee.ApiFunction|null)}
+ * @return {!ee.ApiFunction}
  */
 ee.ApiFunction.lookup = function(name) {
 };
@@ -383,13 +383,13 @@ ee.Function = function() {
 };
 /**
  * @param {(Object|null)} namedArgs
- * @return {(ee.ComputedObject|null)}
+ * @return {!ee.ComputedObject}
  */
 ee.Function.prototype.apply = function(namedArgs) {
 };
 /**
  * @param {...*} var_args
- * @return {(ee.ComputedObject|null)}
+ * @return {!ee.ComputedObject}
  */
 ee.Function.prototype.call = function(var_args) {
 };
@@ -553,7 +553,7 @@ ee.Image.prototype.getInfo = function(opt_callback) {
 ee.Image.prototype.getMap = function(opt_visParams, opt_callback) {
 };
 /**
- * @param {(Object|null)} params
+ * @param {!Object} params
  * @param {function(string, string=): ?=} opt_callback
  * @return {(string|undefined)}
  */
@@ -593,8 +593,8 @@ ee.ImageCollection = function(args) {
 ee.ImageCollection.prototype.first = function() {
 };
 /**
- * @param {function((ee.data.ImageCollectionDescription|null), string=): ?=} opt_callback
- * @return {(ee.data.ImageCollectionDescription|null)}
+ * @param {function(!ee.data.ImageCollectionDescription, string=): ?=} opt_callback
+ * @return {!ee.data.ImageCollectionDescription}
  */
 ee.ImageCollection.prototype.getInfo = function(opt_callback) {
 };
@@ -606,9 +606,9 @@ ee.ImageCollection.prototype.getInfo = function(opt_callback) {
 ee.ImageCollection.prototype.getMap = function(opt_visParams, opt_callback) {
 };
 /**
- * @param {(Array<(number|string)>|null)} selectors
- * @param {(Array<string>|null)=} opt_names
- * @return {(ee.ImageCollection|null)}
+ * @param {!Array<(number|string)>} selectors
+ * @param {!Array<string>=} opt_names
+ * @return {!ee.ImageCollection}
  */
 ee.ImageCollection.prototype.select = function(selectors, opt_names) {
 };
@@ -704,9 +704,27 @@ ee.Serializer.encode = function(obj, opt_isCompound) {
 };
 /**
  * @param {*} obj
+ * @return {{result: (null|string), values: (Object<string,{argumentReference: (null|string), arrayValue: (null|{values: (Array<?>|null)}), bytesValue: (null|string), constantValue: *, dictionaryValue: (null|{values: (Object<string,?>|null)}), functionDefinitionValue: (null|{argumentNames: (Array<string>|null), body: (null|string)}), functionInvocationValue: (null|{arguments: (Object<string,?>|null), functionName: (null|string), functionReference: (null|string)}), integerValue: (null|string), valueReference: (null|string)}>|null)}}
+ */
+ee.Serializer.encodeCloudApi = function(obj) {
+};
+/**
+ * @param {*} obj
+ * @return {*}
+ */
+ee.Serializer.encodeCloudApiPretty = function(obj) {
+};
+/**
+ * @param {*} obj
  * @return {string}
  */
 ee.Serializer.toJSON = function(obj) {
+};
+/**
+ * @param {*} obj
+ * @return {string}
+ */
+ee.Serializer.toReadableCloudApiJSON = function(obj) {
 };
 /**
  * @param {*} obj
@@ -716,7 +734,7 @@ ee.Serializer.toReadableJSON = function(obj) {
 };
 ee.String;
 ee.TILE_SIZE;
-/** @type {{initialize: function(): undefined, initialized_: boolean, reset: function(): undefined}} */
+/** @type {{}} */
 ee.Terrain = {};
 /**
  * @param {(ee.Function|null|string)} func
@@ -796,9 +814,10 @@ ee.batch.Export.map;
  * @param {number=} opt_minZoom
  * @param {(ee.Geometry.LinearRing|ee.Geometry.Polygon|null|string)=} opt_region
  * @param {boolean=} opt_skipEmptyTiles
+ * @param {string=} opt_mapsApiKey
  * @return {!ee.batch.ExportTask}
  */
-ee.batch.Export.map.toCloudStorage = function(image, opt_description, opt_bucket, opt_fileFormat, opt_path, opt_writePublicTiles, opt_scale, opt_maxZoom, opt_minZoom, opt_region, opt_skipEmptyTiles) {
+ee.batch.Export.map.toCloudStorage = function(image, opt_description, opt_bucket, opt_fileFormat, opt_path, opt_writePublicTiles, opt_scale, opt_maxZoom, opt_minZoom, opt_region, opt_skipEmptyTiles, opt_mapsApiKey) {
 };
 ee.batch.Export.table;
 /**
@@ -1029,6 +1048,11 @@ ee.data.getAuthScopes = function() {
 ee.data.getAuthToken = function() {
 };
 /**
+ * @return {boolean}
+ */
+ee.data.getCloudApiEnabled = function() {
+};
+/**
  * @param {(Object|null)} params
  * @param {function((ee.data.DownloadId|null), string=): ?=} opt_callback
  * @return {(ee.data.DownloadId|null)}
@@ -1050,8 +1074,8 @@ ee.data.getInfo = function(id, opt_callback) {
 ee.data.getList = function(params, opt_callback) {
 };
 /**
- * @param {(ee.data.ImageVisualizationParameters|null)} params
- * @param {function((ee.data.RawMapId|null), string=): ?=} opt_callback
+ * @param {!ee.data.ImageVisualizationParameters} params
+ * @param {function(!ee.data.RawMapId, string=): ?=} opt_callback
  * @return {(ee.data.RawMapId|null)}
  */
 ee.data.getMapId = function(params, opt_callback) {
@@ -1084,8 +1108,8 @@ ee.data.getTaskListWithLimit = function(opt_limit, opt_callback) {
 ee.data.getTaskStatus = function(taskId, opt_callback) {
 };
 /**
- * @param {(Object|null)} params
- * @param {function((ee.data.ThumbnailId|null), string=): ?=} opt_callback
+ * @param {!ee.data.ThumbnailOptions} params
+ * @param {function(!ee.data.ThumbnailId, string=): ?=} opt_callback
  * @return {(ee.data.ThumbnailId|null)}
  */
 ee.data.getThumbId = function(params, opt_callback) {
@@ -1096,7 +1120,7 @@ ee.data.getThumbId = function(params, opt_callback) {
 ee.data.getTileBaseUrl = function() {
 };
 /**
- * @param {(ee.data.RawMapId|null)} mapid
+ * @param {!ee.data.RawMapId} mapid
  * @param {number} x
  * @param {number} y
  * @param {number} z
@@ -1129,7 +1153,7 @@ ee.data.makeDownloadUrl = function(id) {
 ee.data.makeTableDownloadUrl = function(id) {
 };
 /**
- * @param {(ee.data.ThumbnailId|null)} id
+ * @param {!ee.data.ThumbnailId} id
  * @return {string}
  */
 ee.data.makeThumbUrl = function(id) {
@@ -1188,6 +1212,12 @@ ee.data.setAuthToken = function(clientId, tokenType, accessToken, expiresIn, opt
  * @return {undefined}
  */
 ee.data.setAuthTokenRefresher = function(refresher) {
+};
+/**
+ * @param {boolean} enable
+ * @return {undefined}
+ */
+ee.data.setCloudApiEnabled = function(enable) {
 };
 /**
  * @param {number} milliseconds
@@ -1302,15 +1332,13 @@ ee.layers.BinaryOverlay = function(tileSource, opt_options) {
 ee.layers.CloudStorageTileSource = function(bucket, path, maxZoom, opt_suffix) {
 };
 /**
- * @param {string} url
- * @param {string} mapId
- * @param {string} token
+ * @param {!ee.data.RawMapId} mapId
  * @param {(ee.data.Profiler|null)=} opt_profiler
  * @extends {ee.layers.AbstractTileSource}
  * @implements {goog.disposable.IDisposable}
  * @constructor
  */
-ee.layers.EarthEngineTileSource = function(url, mapId, token, opt_profiler) {
+ee.layers.EarthEngineTileSource = function(mapId, opt_profiler) {
 };
 /**
  * @param {!ee.layers.AbstractTileSource} tileSource
