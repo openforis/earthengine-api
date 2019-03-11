@@ -1132,10 +1132,10 @@ def send_(path, params, opt_method='POST', opt_raw=False):
   else:
     raise ee_exception.EEException('Unexpected request method: ' + opt_method)
 
-  def send_with_backoff(retries=0):
+  def send_with_backoff(retries=5):
     """Send an API call with backoff.
 
-    Attempts an API call. If the server's response has a 429 status, retry the
+    Attempts an API call. If the server's response has a 429 status or fails, retry the
     request using an incremental backoff strategy.
 
     Args:
@@ -1155,7 +1155,11 @@ def send_(path, params, opt_method='POST', opt_raw=False):
           time.sleep(min(2**retries * BASE_RETRY_WAIT, MAX_RETRY_WAIT) / 1000)
           response, content = send_with_backoff(retries + 1)
     except httplib2.HttpLib2Error as e:
-      raise ee_exception.EEException('Unexpected HTTP error: %s' % e.message)
+      if retries < MAX_RETRIES:
+        time.sleep(min(2**retries * BASE_RETRY_WAIT, MAX_RETRY_WAIT) / 1000)
+        response, content = send_with_backoff(retries + 1)
+      else:
+        raise ee_exception.EEException('Unexpected HTTP error: %s' % e.message)
     return response, content
 
   response, content = send_with_backoff()
