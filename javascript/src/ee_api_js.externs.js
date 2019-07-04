@@ -3,8 +3,8 @@
  * @externs
  */
 /**
- @const
- @suppress {const,duplicate}
+ * @const
+ * @suppress {const,duplicate}
  */
 var ee = {};
 /**
@@ -607,7 +607,7 @@ ee.ImageCollection.prototype.first = function() {
  * @param {function(string, string=): ?=} opt_callback
  * @return {(string|undefined)}
  */
-ee.ImageCollection.prototype.getAnimatedThumbURL = function(params, opt_callback) {
+ee.ImageCollection.prototype.getFilmstripThumbURL = function(params, opt_callback) {
 };
 /**
  * @param {function(!ee.data.ImageCollectionDescription, string=): ?=} opt_callback
@@ -627,7 +627,7 @@ ee.ImageCollection.prototype.getMap = function(opt_visParams, opt_callback) {
  * @param {function(string, string=): ?=} opt_callback
  * @return {(string|undefined)}
  */
-ee.ImageCollection.prototype.getTiledThumbURL = function(params, opt_callback) {
+ee.ImageCollection.prototype.getVideoThumbURL = function(params, opt_callback) {
 };
 /**
  * @param {!Array<(number|string)>} selectors
@@ -1015,10 +1015,11 @@ ee.data.clearAuthToken = function() {
 /**
  * @param {string} sourceId
  * @param {string} destinationId
+ * @param {boolean=} opt_overwrite
  * @param {function((Object|null), string=): ?=} opt_callback
  * @return {undefined}
  */
-ee.data.copyAsset = function(sourceId, destinationId, opt_callback) {
+ee.data.copyAsset = function(sourceId, destinationId, opt_overwrite, opt_callback) {
 };
 /**
  * @param {(Object|string)} value
@@ -1111,6 +1112,13 @@ ee.data.getCloudApiEnabled = function() {
  */
 ee.data.getDownloadId = function(params, opt_callback) {
 };
+/**
+ * @param {!ee.data.FilmstripThumbnailOptions} params
+ * @param {function(!ee.data.ThumbnailId, string=): ?=} opt_callback
+ * @return {(ee.data.ThumbnailId|null)}
+ */
+ee.data.getFilmstripThumbId = function(params, opt_callback) {
+};
 ee.data.getInfo;
 /**
  * @param {!Object} params
@@ -1189,27 +1197,34 @@ ee.data.getTileUrl = function(mapid, x, y, z) {
 ee.data.getValue = function(params, opt_callback) {
 };
 /**
+ * @param {!ee.data.VideoThumbnailOptions} params
+ * @param {function(!ee.data.ThumbnailId, string=): ?=} opt_callback
+ * @return {(ee.data.ThumbnailId|null)}
+ */
+ee.data.getVideoThumbId = function(params, opt_callback) {
+};
+/**
  * @return {(null|string)}
  */
 ee.data.getXsrfToken = function() {
 };
 /**
  * @param {!ee.rpc_proto.ListAssetsRequest} body
- * @param {function({assets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), path: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), time: (null|string), type: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)}, string=): ?=} opt_callback
- * @return {(null|{assets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), path: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), time: (null|string), type: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)})}
+ * @param {function({assets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), description: (null|string), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), title: (null|string), type: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)}, string=): ?=} opt_callback
+ * @return {(null|{assets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), description: (null|string), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), title: (null|string), type: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)})}
  */
 ee.data.listAssets = function(body, opt_callback) {
 };
 /**
- * @param {function({buckets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), path: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), time: (null|string), type: (null|string), updateTime: (null|string)}>|null)}, string=): ?=} opt_callback
- * @return {(null|{buckets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), path: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), time: (null|string), type: (null|string), updateTime: (null|string)}>|null)})}
+ * @param {function({assets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), description: (null|string), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), title: (null|string), type: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)}, string=): ?=} opt_callback
+ * @return {(null|{assets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), description: (null|string), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), title: (null|string), type: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)})}
  */
 ee.data.listBuckets = function(opt_callback) {
 };
 /**
  * @param {!ee.rpc_proto.ListImagesRequest} body
- * @param {function({assets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), path: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), time: (null|string), type: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)}, string=): ?=} opt_callback
- * @return {(null|{assets: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), path: (null|string), properties: (Object<string,*>|null), quota: (null|{assetCount: (null|string), maxAssetCount: (null|string), maxSizeBytes: (null|string), sizeBytes: (null|string)}), sizeBytes: (null|string), startTime: (null|string), tilestoreEntry: (null|{pathPrefix: (null|string), sources: (Array<{headerSizeBytes: (null|number), pathSuffix: (null|string)}>|null)}), time: (null|string), type: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)})}
+ * @param {function({images: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), description: (null|string), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), properties: (Object<string,*>|null), sizeBytes: (null|string), startTime: (null|string), title: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)}, string=): ?=} opt_callback
+ * @return {(null|{images: (Array<{bands: (Array<{dataType: (null|{dimensionsCount: (null|number), precision: (null|string), range: (null|{max: (null|number), min: (null|number)})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), id: (null|string), missingData: (null|{values: (Array<number>|null)}), pyramidingPolicy: (null|string), tilesets: (Array<{fileIndexes: (Array<number>|null), firstTileIndex: (null|number), tilesPerFile: (null|number)}>|null)}>|null), description: (null|string), endTime: (null|string), geometry: (Object<string,*>|null), id: (null|string), name: (null|string), properties: (Object<string,*>|null), sizeBytes: (null|string), startTime: (null|string), title: (null|string), updateTime: (null|string)}>|null), nextPageToken: (null|string)})}
  */
 ee.data.listImages = function(body, opt_callback) {
 };
@@ -1299,6 +1314,12 @@ ee.data.setCloudApiEnabled = function(enable) {
 ee.data.setDeadline = function(milliseconds) {
 };
 /**
+ * @param {(function({result: (null|string), values: (Object<string,{argumentReference: (null|string), arrayValue: (null|{values: (Array<?>|null)}), bytesValue: (null|string), constantValue: *, dictionaryValue: (null|{values: (Object<string,?>|null)}), functionDefinitionValue: (null|{argumentNames: (Array<string>|null), body: (null|string)}), functionInvocationValue: (null|{arguments: (Object<string,?>|null), functionName: (null|string), functionReference: (null|string)}), integerValue: (null|string), valueReference: (null|string)}>|null)}, !Object=): {result: (null|string), values: (Object<string,{argumentReference: (null|string), arrayValue: (null|{values: (Array<?>|null)}), bytesValue: (null|string), constantValue: *, dictionaryValue: (null|{values: (Object<string,?>|null)}), functionDefinitionValue: (null|{argumentNames: (Array<string>|null), body: (null|string)}), functionInvocationValue: (null|{arguments: (Object<string,?>|null), functionName: (null|string), functionReference: (null|string)}), integerValue: (null|string), valueReference: (null|string)}>|null)}|null)} augmenter
+ * @return {undefined}
+ */
+ee.data.setExpressionAugmenter = function(augmenter) {
+};
+/**
  * @param {(function(!goog.Uri.QueryData, string): !goog.Uri.QueryData|null)} augmenter
  * @return {undefined}
  */
@@ -1370,8 +1391,8 @@ ee.data.withProfiling = function(hook, body, opt_this) {
 ee.initialize = function(opt_baseurl, opt_tileurl, opt_successCallback, opt_errorCallback, opt_xsrfToken) {
 };
 /**
- @const
- @suppress {const,duplicate}
+ * @const
+ * @suppress {const,duplicate}
  */
 ee.layers = {};
 /**
@@ -1443,35 +1464,4 @@ ee.layers.ImageOverlay = function(tileSource, opt_options) {
  * @return {undefined}
  */
 ee.reset = function() {
-};
-ee.rpc_convert_batch;
-/**
- * @param {!Object} params
- * @return {{assetExportOptions: (null|{destination: (null|{name: (null|string)}), pyramidingPolicy: (null|string), pyramidingPolicyOverrides: (Object<string,string>|null)}), description: (null|string), expression: (null|{result: (null|string), values: (Object<string,{argumentReference: (null|string), arrayValue: (null|{values: (Array<?>|null)}), bytesValue: (null|string), constantValue: *, dictionaryValue: (null|{values: (Object<string,?>|null)}), functionDefinitionValue: (null|{argumentNames: (Array<string>|null), body: (null|string)}), functionInvocationValue: (null|{arguments: (Object<string,?>|null), functionName: (null|string), functionReference: (null|string)}), integerValue: (null|string), valueReference: (null|string)}>|null)}), fileExportOptions: (null|{cloudStorageDestination: (null|{bucket: (null|string), bucketCorsUris: (Array<string>|null), filenamePrefix: (null|string), permissions: (null|string)}), driveDestination: (null|{filenamePrefix: (null|string), folder: (null|string)}), fileFormat: (null|string), geoTiffOptions: (null|{cloudOptimized: (boolean|null), skipEmptyFiles: (boolean|null), tileDimensions: (null|{height: (null|number), width: (null|number)})}), tfRecordOptions: (null|{collapseBands: (boolean|null), compress: (boolean|null), defaultValue: (null|number), marginDimensions: (null|{height: (null|number), width: (null|number)}), maxMaskedRatio: (null|number), maxSizeBytes: (null|string), sequenceData: (boolean|null), tensorDepths: (Object<string,number>|null), tileDimensions: (null|{height: (null|number), width: (null|number)})})}), grid: (null|{affineTransform: (null|{scaleX: (null|number), scaleY: (null|number), shearX: (null|number), shearY: (null|number), translateX: (null|number), translateY: (null|number)}), crsCode: (null|string), crsWkt: (null|string), dimensions: (null|{height: (null|number), width: (null|number)})}), maxPixels: (null|string), requestId: (null|string)}}
- */
-ee.rpc_convert_batch.taskToExportImageRequest = function(params) {
-};
-/**
- * @param {!Object} params
- * @return {{description: (null|string), expression: (null|{result: (null|string), values: (Object<string,{argumentReference: (null|string), arrayValue: (null|{values: (Array<?>|null)}), bytesValue: (null|string), constantValue: *, dictionaryValue: (null|{values: (Object<string,?>|null)}), functionDefinitionValue: (null|{argumentNames: (Array<string>|null), body: (null|string)}), functionInvocationValue: (null|{arguments: (Object<string,?>|null), functionName: (null|string), functionReference: (null|string)}), integerValue: (null|string), valueReference: (null|string)}>|null)}), requestId: (null|string), tileExportOptions: (null|{cloudStorageDestination: (null|{bucket: (null|string), bucketCorsUris: (Array<string>|null), filenamePrefix: (null|string), permissions: (null|string)}), driveDestination: (null|{filenamePrefix: (null|string), folder: (null|string)}), fileFormat: (null|string), geoTiffOptions: (null|{cloudOptimized: (boolean|null), skipEmptyFiles: (boolean|null), tileDimensions: (null|{height: (null|number), width: (null|number)})}), tfRecordOptions: (null|{collapseBands: (boolean|null), compress: (boolean|null), defaultValue: (null|number), marginDimensions: (null|{height: (null|number), width: (null|number)}), maxMaskedRatio: (null|number), maxSizeBytes: (null|string), sequenceData: (boolean|null), tensorDepths: (Object<string,number>|null), tileDimensions: (null|{height: (null|number), width: (null|number)})})}), tileOptions: (null|{mapsApiKey: (null|string), maxZoom: (null|number), minZoom: (null|number), scale: (null|number), skipEmptyTiles: (boolean|null), tileDimensions: (null|{height: (null|number), width: (null|number)})})}}
- */
-ee.rpc_convert_batch.taskToExportMapRequest = function(params) {
-};
-/**
- * @param {!Object} params
- * @return {{assetExportOptions: (null|{destination: (null|{name: (null|string)})}), description: (null|string), expression: (null|{result: (null|string), values: (Object<string,{argumentReference: (null|string), arrayValue: (null|{values: (Array<?>|null)}), bytesValue: (null|string), constantValue: *, dictionaryValue: (null|{values: (Object<string,?>|null)}), functionDefinitionValue: (null|{argumentNames: (Array<string>|null), body: (null|string)}), functionInvocationValue: (null|{arguments: (Object<string,?>|null), functionName: (null|string), functionReference: (null|string)}), integerValue: (null|string), valueReference: (null|string)}>|null)}), fileExportOptions: (null|{cloudStorageDestination: (null|{bucket: (null|string), bucketCorsUris: (Array<string>|null), filenamePrefix: (null|string), permissions: (null|string)}), driveDestination: (null|{filenamePrefix: (null|string), folder: (null|string)}), fileFormat: (null|string)}), requestId: (null|string), selectors: (Array<string>|null)}}
- */
-ee.rpc_convert_batch.taskToExportTableRequest = function(params) {
-};
-/**
- * @param {!Object} params
- * @return {{description: (null|string), expression: (null|{result: (null|string), values: (Object<string,{argumentReference: (null|string), arrayValue: (null|{values: (Array<?>|null)}), bytesValue: (null|string), constantValue: *, dictionaryValue: (null|{values: (Object<string,?>|null)}), functionDefinitionValue: (null|{argumentNames: (Array<string>|null), body: (null|string)}), functionInvocationValue: (null|{arguments: (Object<string,?>|null), functionName: (null|string), functionReference: (null|string)}), integerValue: (null|string), valueReference: (null|string)}>|null)}), requestId: (null|string), tileExportOptions: (null|{cloudStorageDestination: (null|{bucket: (null|string), bucketCorsUris: (Array<string>|null), filenamePrefix: (null|string), permissions: (null|string)}), driveDestination: (null|{filenamePrefix: (null|string), folder: (null|string)}), fileFormat: (null|string)}), tileOptions: (null|{mapsApiKey: (null|string), maxZoom: (null|number), minZoom: (null|number), scale: (null|number), skipEmptyTiles: (boolean|null), tileDimensions: (null|{height: (null|number), width: (null|number)})}), videoOptions: (null|{framesPerSecond: (null|number), maxFrames: (null|number), maxPixelsPerFrame: (null|string)})}}
- */
-ee.rpc_convert_batch.taskToExportVideoMapRequest = function(params) {
-};
-/**
- * @param {!Object} params
- * @return {{description: (null|string), expression: (null|{result: (null|string), values: (Object<string,{argumentReference: (null|string), arrayValue: (null|{values: (Array<?>|null)}), bytesValue: (null|string), constantValue: *, dictionaryValue: (null|{values: (Object<string,?>|null)}), functionDefinitionValue: (null|{argumentNames: (Array<string>|null), body: (null|string)}), functionInvocationValue: (null|{arguments: (Object<string,?>|null), functionName: (null|string), functionReference: (null|string)}), integerValue: (null|string), valueReference: (null|string)}>|null)}), fileExportOptions: (null|{cloudStorageDestination: (null|{bucket: (null|string), bucketCorsUris: (Array<string>|null), filenamePrefix: (null|string), permissions: (null|string)}), driveDestination: (null|{filenamePrefix: (null|string), folder: (null|string)}), fileFormat: (null|string)}), requestId: (null|string), videoOptions: (null|{framesPerSecond: (null|number), maxFrames: (null|number), maxPixelsPerFrame: (null|string)})}}
- */
-ee.rpc_convert_batch.taskToExportVideoRequest = function(params) {
 };

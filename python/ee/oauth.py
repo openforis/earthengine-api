@@ -14,41 +14,34 @@ import datetime
 import errno
 import json
 import os
+from google.oauth2.credentials import Credentials
+from six.moves.urllib import parse
+from six.moves.urllib import request
+from six.moves.urllib.error import HTTPError
 
-# pylint: disable=g-import-not-at-top
-try:
-  # Python 3.x
-  import urllib
-  from urllib.parse import urlencode
-  from urllib.error import HTTPError
-except ImportError:
-  # Python 2.x
-  import urllib
-  from urllib import urlencode
-  import urllib2
-  from urllib2 import HTTPError
 
 CLIENT_ID = ('517222506229-vsmmajv00ul0bs7p89v5m89qs8eb9359.'
              'apps.googleusercontent.com')
 CLIENT_SECRET = 'RUP0RZ6e0pPhDzsqIJ7KlNd1'
+SCOPES = [
+    'https://www.googleapis.com/auth/earthengine',
+    'https://www.googleapis.com/auth/devstorage.full_control'
+]
 REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'  # Prompts user to copy-paste code
-SCOPE = ('https://www.googleapis.com/auth/earthengine'
-         ' https://www.googleapis.com/auth/devstorage.full_control')
-TOKEN_REQ_URL = 'https://accounts.google.com/o/oauth2/token'
+TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
 
 
 def get_credentials_path():
-  return os.path.expanduser('~/.config/earthengine/credentials')
-
-
+  cred_path = os.path.expanduser('~/.config/earthengine/credentials')
+  return cred_path
 
 
 def get_authorization_url():
   """Returns a URL to generate an auth code."""
 
-  return 'https://accounts.google.com/o/oauth2/auth?' + urlencode({
+  return 'https://accounts.google.com/o/oauth2/auth?' + parse.urlencode({
       'client_id': CLIENT_ID,
-      'scope': SCOPE,
+      'scope': ' '.join(SCOPES),
       'redirect_uri': REDIRECT_URI,
       'response_type': 'code',
   })
@@ -68,16 +61,9 @@ def request_token(auth_code):
   refresh_token = None
 
   try:
-    try:
-      # Python 2.x
-      response = urllib2.urlopen(TOKEN_REQ_URL,
-                                 urllib.urlencode(request_args).encode()
-                                ).read().decode()
-    except NameError:
-      # Python 3.x
-      response = urllib.request.urlopen(TOKEN_REQ_URL,
-                                        urlencode(request_args).encode()
-                                       ).read().decode()
+    response = request.urlopen(
+        TOKEN_URI,
+        parse.urlencode(request_args).encode()).read().decode()
     refresh_token = json.loads(response)['refresh_token']
   except HTTPError as e:
     raise Exception('Problem requesting tokens. Please try again.  %s %s' %
@@ -98,3 +84,26 @@ def write_token(refresh_token):
       raise Exception('Error creating directory %s: %s' % (dirname, e))
 
   json.dump({'refresh_token': refresh_token}, open(credentials_path, 'w'))
+
+
+class AccessTokenCredentials(Credentials):
+    def __init__(self, credentials_path=get_credentials_path()):
+        self.credentials_path = credentials_path
+        super(AccessTokenCredentials, self).__init__(self._read_access_token(credentials_path))
+
+    @staticmethod
+    def create(credentials_path=get_credentials_path()):
+        if os.path.exists(credentials_path) and AccessTokenCredentials._read_access_token(credentials_path):
+            return AccessTokenCredentials(credentials_path)
+        else:
+            return None
+
+    @staticmethod
+    def _read_access_token(credentials_path):
+        return json.load(open(credentials_path)).get('access_token')
+
+    def refresh(self, request):
+        self.token = self._read_access_token(self.credentials_path)
+
+    def __str__(self):
+        return 'AccessTokenCredentials({})'.format(get_credentials_path())

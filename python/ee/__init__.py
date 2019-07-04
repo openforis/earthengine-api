@@ -2,7 +2,7 @@
 """The EE Python library."""
 
 
-__version__ = '0.1.171.1'
+__version__ = '0.1.182'
 
 # Using lowercase function naming to match the JavaScript names.
 # pylint: disable=g-bad-name
@@ -74,21 +74,33 @@ Algorithms = _AlgorithmsContainer()
 
 _local_credentials = None
 
+
+def Credentials():
+    credentials = None
+    if _local_credentials:
+        credentials = _local_credentials.get()
+    if not credentials:
+        credentials = data._credentials
+    return credentials
+
+
 def InitializeThread(credentials, opt_url=None):
     global _local_credentials
     if not _local_credentials:
         _local_credentials = ThreadLocalCredentials()
-        _local_credentials.add(credentials)
+        _local_credentials.set(credentials)
         Initialize(_local_credentials, opt_url)
     else:
-        _local_credentials.add(credentials)
+        _local_credentials.set(credentials)
 
 
 def Initialize(
     credentials='persistent',
     opt_url=None,
     use_cloud_api=False,
-    cloud_api_key=None):
+    cloud_api_key=None,
+    http_transport=None,
+    project=None):
   """Initialize the EE library.
 
   If this hasn't been called by the time any object constructor is used,
@@ -103,6 +115,8 @@ def Initialize(
     opt_url: The base url for the EarthEngine REST API to connect to.
     use_cloud_api: Whether the Cloud API should be used.
     cloud_api_key: An optional API key to use the Cloud API.
+    http_transport: The http transport method to use when making requests.
+    project: The project-id or number to use when making api calls.
   """
   if credentials == 'persistent':
     credentials = _GetPersistentCredentials()
@@ -112,7 +126,9 @@ def Initialize(
       tile_base_url=opt_url,
       use_cloud_api=use_cloud_api,
       cloud_api_base_url=opt_url,
-      cloud_api_key=cloud_api_key)
+      cloud_api_key=cloud_api_key,
+      project=project,
+      http_transport=http_transport)
   # Initialize the dynamically loaded functions on the objects that want them.
   ApiFunction.initialize()
   Element.initialize()

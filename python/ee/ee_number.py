@@ -5,6 +5,7 @@
 
 import numbers
 
+from . import _cloud_api_utils
 from . import apifunction
 from . import computedobject
 from . import ee_exception
@@ -63,3 +64,8 @@ class Number(computedobject.ComputedObject):
     else:
       return super(Number, self).encode(opt_encoder)
 
+  def encode_cloud_value(self, opt_encoder=None):
+    if isinstance(self._number, numbers.Number):
+      return _cloud_api_utils.encode_number_as_cloud_value(self._number)
+    else:
+      return super(Number, self).encode_cloud_value(opt_encoder)

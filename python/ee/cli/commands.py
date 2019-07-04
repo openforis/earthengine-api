@@ -58,6 +58,8 @@ TASK_TYPES = {
     'EXPORT_TILES': 'Export.map',
     'EXPORT_VIDEO': 'Export.video',
     'INGEST': 'Upload',
+    'INGEST_IMAGE': 'Upload',
+    'INGEST_TABLE': 'Upload',
 }
 
 
@@ -147,6 +149,11 @@ def _timestamp_ms_for_datetime(datetime_obj):
       datetime_obj.microsecond / 1000)
 
 
+def _cloud_timestamp_for_timestamp_ms(timestamp_ms):
+  """Returns a Cloud-formatted date for the given millisecond timestamp."""
+  # Desired format is like '2003-09-07T19:30:12.345Z'
+  return datetime.datetime.utcfromtimestamp(
+      timestamp_ms / 1000.0).isoformat() + 'Z'
 
 
 def _decode_date(string):
@@ -348,6 +355,47 @@ class AuthenticateCommand(object):
 
       auth_code = input('Please enter authorization code: ').strip()
       write_token(auth_code)
+
+
+class SetProjectCommand(object):
+  """Sets the default user project to be used for all API calls."""
+
+  name = 'set_project'
+
+  def __init__(self, parser):
+    parser.add_argument('project', help='project id or number to use.')
+
+  def run(self, args, config):
+    """Saves the project to the config file."""
+
+    config_path = config.config_file
+    with open(config_path) as config_file_json:
+      config = json.load(config_file_json)
+
+    config['project'] = args.project
+    json.dump(config, open(config_path, 'w'))
+    print('Successfully saved project id')
+
+
+class UnSetProjectCommand(object):
+  """UnSets the default user project to be used for all API calls."""
+
+  name = 'unset_project'
+
+  def __init__(self, unused_parser):
+    pass
+
+  def run(self, unused_args, config):
+    """Saves the project to the config file."""
+
+    config_path = config.config_file
+    with open(config_path) as config_file_json:
+      config = json.load(config_file_json)
+
+    if 'project' in config:
+      del config['project']
+    json.dump(config, open(config_path, 'w'))
+    print('Successfully unset project id')
 
 
 class AclChCommand(object):
@@ -552,6 +600,33 @@ class AssetSetCommand(object):
     properties = _decode_property_flags(args)
     if not properties and args.time_start is None and args.time_end is None:
       raise ee.EEException('No properties specified.')
+    if config.use_cloud_api:
+      update_mask = [
+          'properties.' + property_name for property_name in properties
+      ]
+      asset = {}
+      if properties:
+        asset['properties'] = {
+            k: v for k, v in six.iteritems(properties) if v is not None
+        }
+      # args.time_start and .time_end could have any of three falsy values, with
+      # different meanings:
+      # None: the --time_start flag was not provided at all
+      # '': the --time_start flag was explicitly set to the empty string
+      # 0: the --time_start flag was explicitly set to midnight 1 Jan 1970.
+      # pylint:disable=g-explicit-bool-comparison
+      if args.time_start is not None:
+        update_mask.append('start_time')
+        if args.time_start != '':
+          asset['start_time'] = _cloud_timestamp_for_timestamp_ms(
+              args.time_start)
+      if args.time_end is not None:
+        update_mask.append('end_time')
+        if args.time_end != '':
+          asset['end_time'] = _cloud_timestamp_for_timestamp_ms(args.time_end)
+      # pylint:enable=g-explicit-bool-comparison
+      ee.data.updateAsset(args.asset_id, asset, update_mask)
+      return
     properties.update(_decode_timestamp_flags(args))
     ee.data.setAssetProperties(args.asset_id, properties)
 
@@ -579,9 +654,7 @@ class CopyCommand(object):
         'source', help='Full path of the source asset.')
     parser.add_argument(
         'destination', help='Full path of the destination asset.')
-    parser.add_argument(
-        '--force', action='store_true', help=(
-            'Overwrite any existing version of the asset.'))
+    _add_overwrite_arg(parser)
 
   def run(self, args, config):
     """Runs the asset copy."""
@@ -796,6 +869,8 @@ class SizeCommand(object):
   def _get_size_asset(self, asset):
     info = ee.data.getInfo(asset['id'])
 
+    if 'sizeBytes' in info:
+      return int(info['sizeBytes'])
     return info['properties']['system:asset_size']
 
   def _get_size_folder(self, asset):
@@ -934,6 +1009,8 @@ class TaskInfoCommand(object):
               % self._format_time(status['update_timestamp_ms']))
       if 'error_message' in status:
         print('  Error: %s' % status['error_message'])
+      if 'destination_uris' in status:
+        print('  Destination URIs: %s' % ', '.join(status['destination_uris']))
 
   def _format_time(self, millis):
     return datetime.datetime.fromtimestamp(millis / 1000)
@@ -1207,9 +1284,9 @@ class UploadTableCommand(object):
     _add_overwrite_arg(parser)
     parser.add_argument(
         'src_file',
-        help=('Cloud Storage URL of the .zip or .shp file '
-        'to upload. Must have the prefix \'gs://\'. For .shp '
-        'files, related .dbf, .shx, and .prj files must be '
+        help=('Cloud Storage URL of the .csv, .tfrecord, .shp, or '
+        '.zip file to upload. Must have the prefix \'gs://\'. For '
+        '.shp files, related .dbf, .shx, and .prj files must be '
         'present in the same location.'),
         nargs='*')
     parser.add_argument(
@@ -1290,7 +1367,9 @@ class UploadTableCommand(object):
     parser.add_argument(
         '--csv_qualifier',
         help='A character that surrounds column values (a.k.a. '
-             '\"quote character"). If unspecified, defaults to \'\"\'.')
+             '\'quote character\'). If unspecified, defaults to \'"\'. A '
+             'column value may include the qualifier as a literal character by '
+             'having 2 consecutive qualifier characters. For CSV only.')
     parser.add_argument(
         '--manifest',
         help='Local path to a JSON asset manifest file. No other flags are '
@@ -1328,11 +1407,29 @@ class UploadTableCommand(object):
       if args.max_failed_features:
         raise ee.EEException(
             '--max_failed_features is not supported with the Cloud API')
+      if args.crs:
+        source['crs'] = args.crs
+      if args.geodesic:
+        source['geodesic'] = args.geodesic
+      if args.primary_geometry_column:
+        source['primary_geometry_column'] = args.primary_geometry_column
+      if args.x_column:
+        source['x_column'] = args.x_column
+      if args.y_column:
+        source['y_column'] = args.y_column
+      if args.date_format:
+        source['date_format'] = args.date_format
+      if args.csv_delimiter:
+        source['csv_delimiter'] = args.csv_delimiter
+      if args.csv_qualifier:
+        source['csv_qualifier'] = args.csv_qualifier
+
       manifest = {
           'name': args.asset_id,
           'sources': [source],
           'properties': properties
       }
+
       # pylint:disable=g-explicit-bool-comparison
       if args.time_start is not None and args.time_start != '':
         manifest['start_time'] = _cloud_timestamp_for_timestamp_ms(
@@ -1432,3 +1529,21 @@ class UploadTableManifestCommand(_UploadManifestBase):
         args, config, ee.data.startTableIngestion)
 
 
+
+EXTERNAL_COMMANDS = [
+    AuthenticateCommand,
+    AclCommand,
+    AssetCommand,
+    CopyCommand,
+    CreateCommand,
+    ListCommand,
+    SizeCommand,
+    MoveCommand,
+    RmCommand,
+    SetProjectCommand,
+    TaskCommand,
+    UnSetProjectCommand,
+    UploadCommand,
+    UploadImageManifestCommand,
+    UploadTableManifestCommand,
+]

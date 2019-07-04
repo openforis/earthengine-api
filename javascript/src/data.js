@@ -68,6 +68,7 @@ goog.require('goog.string');
 goog.require('goog.string.Const');
 goog.forwardDeclare('ee.Element');
 goog.forwardDeclare('ee.Image');
+goog.forwardDeclare('ee.Collection');
 
 
 
@@ -218,9 +219,8 @@ ee.data.authenticateViaPopup = function(opt_success, opt_error) {
 ee.data.authenticateViaPrivateKey = function(
     privateKey, opt_success, opt_error, opt_extraScopes) {
 
-  // Verify that the Node.js global object exists, to ensure this process is not
-  // running in the browser.
-  if (typeof process === 'undefined') {
+  // Verify that the context is Node.js, not a web browser.
+  if ('window' in goog.global) {
     throw new Error(
         'Use of private key authentication in the browser is insecure. ' +
         'Consider using OAuth, instead.');
@@ -672,12 +672,20 @@ ee.data.computeValue = function(obj, opt_callback) {
  */
 ee.data.getThumbId = function(params, opt_callback) {
   params = goog.object.clone(params);
-  if (!goog.isString(params['image'])) {
-    params['image'] = params['image'].serialize();
-  }
   if (goog.isArray(params['dimensions'])) {
     params['dimensions'] = params['dimensions'].join('x');
   }
+
+  // The request accepts both serialized ee.Image and ee.ImageCollections, so
+  // we remove the imageCollection field and insert it as the image instead,
+  // if it exists.
+  let image = params['image'] || params['imageCollection'];
+  if (!goog.isString(image)) {
+    image = image.serialize();
+  }
+  params['image'] = image;
+  delete params['imageCollection'];
+
   var request = ee.data.makeRequest_(params).add('getid', '1');
   return /** @type {?ee.data.ThumbnailId} */(
       ee.data.send_('/thumb', request, opt_callback));
@@ -1245,13 +1253,18 @@ ee.data.renameAsset = function(sourceId, destinationId, opt_callback) {
  *
  * @param {string} sourceId The ID of the asset to copy.
  * @param {string} destinationId The ID of the new asset created by copying.
+ * @param {boolean=} opt_overwrite Overwrite any existing destination asset ID.
  * @param {function(?Object, string=)=} opt_callback An optional callback.
  *     If not supplied, the call is made synchronously. The callback is
  *     passed an empty object and an error message, if any.
  * @export
  */
-ee.data.copyAsset = function(sourceId, destinationId, opt_callback) {
+ee.data.copyAsset = function(
+    sourceId, destinationId, opt_overwrite, opt_callback) {
   var params = {'sourceId': sourceId, 'destinationId': destinationId};
+  if (opt_overwrite) {
+    params['allowOverwrite'] = opt_overwrite;
+  }
   ee.data.send_('/copy', ee.data.makeRequest_(params), opt_callback);
 };
 
@@ -1903,10 +1916,16 @@ ee.data.TableDownloadParameters = class {
 ee.data.ImageVisualizationParameters = class {
   constructor() {
     /**
-     * The image to render, represented as a JSON string.
+     * The image to render, represented as an ee.Image or JSON string.
      * @export {!ee.Image|string|undefined}
      */
     this.image;
+
+    /**
+     * The image collection to render.
+     * @export {!ee.Collection|undefined}
+     */
+    this.imageCollection;
 
     /**
      * Version number of image (or latest).
@@ -3014,17 +3033,17 @@ ee.data.buildAsyncRequest_ = function(url, callback, method, content, headers) {
 /**
  * Handles processing and dispatching a callback response.
  * @param {number} status The status code of the response.
- * @param {function(string):string?} getResponseHeader A function for getting
- *     the value of a response headers for a given header name.
+ * @param {function(string):string?} getResponseHeader A function for
+ *     getting the value of a response headers for a given header name.
  * @param {string} responseText The text of the response.
  * @param {?function(string)} profileHook The profile hook at the time the
  *     request was created.
- * @param {function(?,string=)=} opt_callback An optional callback to execute if
- *     the request is asynchronous.
+ * @param {function(?,string=)=} opt_callback An optional callback to
+ *     execute if the request is asynchronous.
  * @param {function(!Object):!Object=} opt_getData A function to extract the
  *     data payload from the response.  Defaults to using the 'data' field.
- * @return {Object} The response data, if the request is synchronous, otherwise
- *     null, if the request is asynchronous.
+ * @return {?Object} The response data, if the request is synchronous,
+ *     otherwise null, if the request is asynchronous.
  * @private
  */
 ee.data.handleResponse_ = function(
@@ -3415,6 +3434,15 @@ ee.data.xsrfToken_ = null;
  * @private {function(!goog.Uri.QueryData, string): !goog.Uri.QueryData}
  */
 ee.data.paramAugmenter_ = goog.functions.identity;
+
+/**
+ * A function used to transform expression right before they are sent to the
+ * server. Takes in an expression to annotate and any extra metadata to attach
+ * to the expression.
+ * @private {function(?gapi.client.earthengine.Expression, !Object=):
+ *     ?gapi.client.earthengine.Expression}
+ */
+ee.data.expressionAugmenter_ = goog.functions.identity;
 
 
 /**
