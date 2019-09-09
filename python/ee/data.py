@@ -30,6 +30,7 @@ import apiclient
 from . import ee_exception
 
 from google.oauth2.credentials import Credentials
+from .oauth import AccessTokenCredentials
 
 # OAuth2 credentials object.  This may be set by ee.Initialize().
 _credentials = None
@@ -216,14 +217,18 @@ def get_persistent_credentials():
   """
   try:
     tokens = json.load(open(oauth.get_credentials_path()))
+    access_token = tokens.get('access_token')
     refresh_token = tokens['refresh_token']
-    return Credentials(
-        None,
-        refresh_token=refresh_token,
-        token_uri=oauth.TOKEN_URI,
-        client_id=oauth.CLIENT_ID,
-        client_secret=oauth.CLIENT_SECRET,
-        scopes=oauth.SCOPES)
+    if access_token:
+        return AccessTokenCredentials()
+    else:
+        return Credentials(
+            None,
+            refresh_token=refresh_token,
+            token_uri=oauth.TOKEN_URI,
+            client_id=oauth.CLIENT_ID,
+            client_secret=oauth.CLIENT_SECRET,
+            scopes=oauth.SCOPES)
   except IOError:
     raise ee_exception.EEException(
         'Please authorize access to your Earth Engine account by '

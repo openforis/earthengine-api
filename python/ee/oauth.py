@@ -24,6 +24,7 @@ from google.oauth2.credentials import Credentials
 from six.moves.urllib import parse
 from six.moves.urllib import request
 from six.moves.urllib.error import HTTPError
+from time import sleep
 
 
 # Optional imports used for specific shells.
@@ -226,7 +227,11 @@ class AccessTokenCredentials(Credentials):
 
     @staticmethod
     def _read_access_token(credentials_path):
-        return json.load(open(credentials_path)).get('access_token')
+        for i in range(5):
+            try:
+                return json.load(open(credentials_path)).get('access_token')
+            except:
+                sleep(5)
 
     def refresh(self, request):
         self.token = self._read_access_token(self.credentials_path)

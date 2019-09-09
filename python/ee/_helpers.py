@@ -12,7 +12,6 @@ import contextlib
 import json
 import sys
 # pylint: disable=g-importing-member
-from .oauth import AccessTokenCredentials
 from . import data
 from . import oauth
 from .apifunction import ApiFunction
@@ -20,35 +19,6 @@ from .apifunction import ApiFunction
 import six
 from google.auth import crypt
 from google.oauth2 import service_account
-from google.oauth2.credentials import Credentials
-
-
-def _GetPersistentCredentials():
-  """Read persistent credentials from ~/.config/earthengine.
-
-  Raises EEException with helpful explanation if credentials don't exist.
-
-  Returns:
-    OAuth2Credentials built from persistently stored refresh_token
-  """
-  try:
-    tokens = json.load(open(oauth.get_credentials_path()))
-    access_token = tokens.get('access_token')
-    refresh_token = tokens.get('refresh_token')
-    if access_token:
-        return AccessTokenCredentials()
-    else:
-        return Credentials(
-            None,
-            refresh_token=refresh_token,
-            token_uri=oauth.TOKEN_URI,
-            client_id=oauth.CLIENT_ID,
-            client_secret=oauth.CLIENT_SECRET,
-            scopes=oauth.SCOPES)
-  except IOError:
-    raise EEException('Please authorize access to your Earth Engine account '
-                      'by running\n\nearthengine authenticate\n\nin your '
-                      'command line, and then retry.')
 
 
 def ServiceAccountCredentials(email, key_file=None, key_data=None):
@@ -68,14 +38,14 @@ def ServiceAccountCredentials(email, key_file=None, key_data=None):
   # Assume anything that doesn't end in '.pem' is a JSON key.
   if key_file and not key_file.endswith('.pem'):
     return service_account.Credentials.from_service_account_file(
-        key_file, scopes=oauth.SCOPES)
+      key_file, scopes=oauth.SCOPES)
 
   # If 'key_data' can be decoded as JSON, it's probably a raw JSON key.
   if key_data:
     try:
       key_data = json.loads(key_data)
       return service_account.Credentials.from_service_account_info(
-          key_data, scopes=oauth.SCOPES)
+        key_data, scopes=oauth.SCOPES)
     except ValueError:
       # It may actually be a raw PEM string, we'll try that below.
       pass
@@ -88,7 +58,7 @@ def ServiceAccountCredentials(email, key_file=None, key_data=None):
   # Raw PEM key.
   signer = crypt.RSASigner.from_string(key_data)
   return service_account.Credentials(
-      signer, email, oauth.TOKEN_URI, scopes=oauth.SCOPES)
+    signer, email, oauth.TOKEN_URI, scopes=oauth.SCOPES)
 
 
 def call(func, *args, **kwargs):
