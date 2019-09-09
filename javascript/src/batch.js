@@ -141,7 +141,7 @@ ee.batch.ExportTask = class {
  * @param {?ee.Geometry.LinearRing|?ee.Geometry.Polygon|string=} opt_region
  * @param {number=} opt_scale
  * @param {string=} opt_crs
- * @param {string=} opt_crsTransform
+ * @param {!Array<number>|string=} opt_crsTransform
  * @param {number=} opt_maxPixels
  * @return {!ee.batch.ExportTask}
  * @export
@@ -166,7 +166,7 @@ ee.batch.Export.image.toAsset = function(
  * @param {?ee.Geometry.LinearRing|?ee.Geometry.Polygon|string=} opt_region
  * @param {number=} opt_scale
  * @param {string=} opt_crs
- * @param {string=} opt_crsTransform
+ * @param {!Array<number>|string=} opt_crsTransform
  * @param {number=} opt_maxPixels
  * @param {number=} opt_shardSize
  * @param {number|?Array<number>=} opt_fileDimensions
@@ -198,7 +198,7 @@ ee.batch.Export.image.toCloudStorage = function(
  * @param {?ee.Geometry.LinearRing|?ee.Geometry.Polygon|string=} opt_region
  * @param {number=} opt_scale
  * @param {string=} opt_crs
- * @param {string=} opt_crsTransform
+ * @param {!Array<number>|string=} opt_crsTransform
  * @param {number=} opt_maxPixels
  * @param {number=} opt_shardSize
  * @param {number|?Array<number>=} opt_fileDimensions
@@ -319,7 +319,7 @@ ee.batch.Export.table.toAsset = function(
  * @param {?ee.Geometry.LinearRing|?ee.Geometry.Polygon|string=} opt_region
  * @param {number=} opt_scale Resolution
  * @param {string=} opt_crs
- * @param {string=} opt_crsTransform
+ * @param {!Array<number>|string=} opt_crsTransform
  * @param {number=} opt_maxPixels
  * @param {number=} opt_maxFrames
  * @return {!ee.batch.ExportTask}
@@ -347,7 +347,7 @@ ee.batch.Export.video.toCloudStorage = function(
  * @param {?ee.Geometry.LinearRing|?ee.Geometry.Polygon|string=} opt_region
  * @param {number=} opt_scale
  * @param {string=} opt_crs
- * @param {string=} opt_crsTransform
+ * @param {!Array<number>|string=} opt_crsTransform
  * @param {number=} opt_maxPixels
  * @param {number=} opt_maxFrames
  * @return {!ee.batch.ExportTask}
@@ -399,7 +399,7 @@ ee.batch.Export.serializeRegion = function(region) {
   // Convert region to a GeoJSON object.
   if (region instanceof ee.Geometry) {
     region = region.toGeoJSON();
-  } else if (goog.isString(region)) {
+  } else if (typeof region === 'string') {
     try {
       region = goog.asserts.assertObject(JSON.parse(region));
     } catch (x) {
@@ -533,7 +533,7 @@ ee.batch.Export.convertToServerParams = function(
     default:
       throw Error('Unknown export type: ' + taskConfig['type']);
   }
-  if (serializeRegion && goog.isDefAndNotNull(taskConfig['region'])) {
+  if (serializeRegion && taskConfig['region'] != null) {
     taskConfig['region'] =
         ee.batch.Export.serializeRegion(taskConfig['region']);
   }
@@ -594,7 +594,7 @@ ee.batch.Export.prepareDestination_ = function(taskConfig, destination) {
  */
 ee.batch.Export.image.prepareTaskConfig_ = function(taskConfig, destination) {
   // Set the file format to GeoTiff if not set.
-  if (!goog.isDefAndNotNull(taskConfig['fileFormat'])) {
+  if (taskConfig['fileFormat'] == null) {
     taskConfig['fileFormat'] = 'GeoTIFF';
   }
   // Handle format-specific options.
@@ -602,7 +602,7 @@ ee.batch.Export.image.prepareTaskConfig_ = function(taskConfig, destination) {
   // Add top-level destination fields.
   taskConfig = ee.batch.Export.prepareDestination_(taskConfig, destination);
   // Fix the CRS transform key.
-  if (goog.isDefAndNotNull(taskConfig['crsTransform'])) {
+  if (taskConfig['crsTransform'] != null) {
     taskConfig[ee.batch.Export.CRS_TRANSFORM_KEY] = taskConfig['crsTransform'];
     delete taskConfig['crsTransform'];
   }
@@ -656,7 +656,7 @@ ee.batch.Export.map.prepareTaskConfig_ = function(taskConfig, destination) {
 ee.batch.Export.video.prepareTaskConfig_ = function(taskConfig, destination) {
   taskConfig = ee.batch.Export.reconcileVideoFormat_(taskConfig);
   taskConfig = ee.batch.Export.prepareDestination_(taskConfig, destination);
-  if (goog.isDefAndNotNull(taskConfig['crsTransform'])) {
+  if (taskConfig['crsTransform'] != null) {
     taskConfig[ee.batch.Export.CRS_TRANSFORM_KEY] = taskConfig['crsTransform'];
     delete taskConfig['crsTransform'];
   }
@@ -676,6 +676,11 @@ ee.batch.Export.video.prepareTaskConfig_ = function(taskConfig, destination) {
 ee.batch.Export.videoMap.prepareTaskConfig_ = function(
     taskConfig, destination) {
   taskConfig = ee.batch.Export.reconcileVideoFormat_(taskConfig);
+  taskConfig['version'] = taskConfig['version'] || ee.batch.VideoMapVersion.V2;
+  taskConfig['stride'] = taskConfig['stride'] || 1;
+  const width = taskConfig['tileWidth'] || 1068,
+        height = taskConfig['tileHeight'] || 600;
+  taskConfig['tileDimensions'] = {width: width, height: height};
   taskConfig = ee.batch.Export.prepareDestination_(taskConfig, destination);
   return /** @type {!ee.data.MapTaskConfig} */ (taskConfig);
 };
@@ -699,6 +704,15 @@ ee.batch.ImageFormat = {
   GEO_TIFF: 'GEO_TIFF',
   TF_RECORD_IMAGE: 'TF_RECORD_IMAGE',
 };
+
+/**
+ * @enum {string} The valid versions supported by Export.VideoMap.
+ */
+ee.batch.VideoMapVersion = {
+  V1: 'V1',
+  V2: 'V2',
+};
+
 
 /** @type {!Object<string, !Array<string>>} */
 const FORMAT_OPTIONS_MAP = {
@@ -753,7 +767,7 @@ ee.batch.Export.reconcileImageFormat = function(taskConfig) {
   // Parse the image format key from the given fileFormat.
   let formatString = taskConfig['fileFormat'];
   // If not specified assume the format is geotiff.
-  if (!goog.isDefAndNotNull(formatString)) {
+  if (formatString == null) {
     formatString = 'GEO_TIFF';
   }
   formatString = formatString.toUpperCase();
@@ -775,7 +789,7 @@ ee.batch.Export.reconcileImageFormat = function(taskConfig) {
           `Supported formats are: 'GEOTIFF', 'TFRECORD'.`);
   }
 
-  if (goog.isDefAndNotNull(taskConfig['formatOptions'])) {
+  if (taskConfig['formatOptions'] != null) {
     // Add the prefix to the format-specific options.
     const formatOptions =
         ee.batch.Export.prefixImageFormatOptions_(taskConfig, formatString);
@@ -800,7 +814,7 @@ ee.batch.Export.reconcileImageFormat = function(taskConfig) {
 ee.batch.Export.prefixImageFormatOptions_ = function(taskConfig, imageFormat) {
   let formatOptions = taskConfig['formatOptions'];
   // No-op if no format options are provided.
-  if (!goog.isDefAndNotNull(formatOptions)) {
+  if (formatOptions == null) {
     return {};
   }
   // Verify that any formatOptions are not already specified in the

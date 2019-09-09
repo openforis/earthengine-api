@@ -49,7 +49,7 @@ ee.Image = function(opt_args) {
   ee.Image.initialize();
 
   var argCount = arguments.length;
-  if (argCount == 0 || (argCount == 1 && !goog.isDef(opt_args))) {
+  if (argCount == 0 || (argCount == 1 && opt_args === undefined)) {
     ee.Image.base(this, 'constructor', new ee.ApiFunction('Image.mask'), {
       'image': new ee.Image(0),
       'mask': new ee.Image(0)
@@ -252,8 +252,9 @@ ee.Image.prototype.getDownloadURL = function(params, opt_callback) {
  *         dimensions of the thumbnail to render, in pixels. If only one
  *         number is passed, it is used as the maximum, and the other
  *         dimension is computed by proportional scaling.
- *   - region (E,S,W,N or GeoJSON) Geospatial region of the image
- *         to render. By default, the whole image.
+ *   - region Geospatial region of the image to render, it may be an ee.Geometry,
+ *         GeoJSON, or an array of lat/lon points (E,S,W,N). If not set the
+           default is the bounds image.
  *   - format (string) Either 'png' or 'jpg'.
  * @param {function(string, string=)=} opt_callback An optional
  *     callback. If not supplied, the call is made synchronously.
@@ -267,18 +268,20 @@ ee.Image.prototype.getThumbURL = function(params, opt_callback) {
   const
   request = ee.data.images.applyVisualization(this, args['params']);
   if (request['region']) {
+    if (request['region'] instanceof ee.Geometry) {
+      request['region'] = request['region'].toGeoJSON();
+    }
     if (goog.isArray(request['region']) ||
         ee.Types.isRegularObject(request['region'])) {
       request['region'] = goog.json.serialize(request['region']);
-    } else if (!goog.isString(request['region'])) {
-      // TODO(user): Support ee.Geometry.
+    } else if (typeof request['region'] !== 'string') {
       throw Error('The region parameter must be an array or a GeoJSON object.');
     }
   }
   if (args['callback']) {
     const callbackWrapper = function(thumbId, opt_error) {
       let thumbUrl = '';
-      if (!goog.isDef(opt_error)) {
+      if (opt_error === undefined) {
         try {
           thumbUrl = ee.data.makeThumbUrl(thumbId);
         } catch (e) {
@@ -422,6 +425,9 @@ ee.Image.prototype.select = function(var_args) {
  * Both b() and image[] allow multiple arguments, to specify multiple bands,
  * such as b(1, 'name', 3).  Calling b() with no arguments, or using a variable
  * by itself, returns all bands of the image.
+ *
+ * If the result of an expression is a single band, it can be assigned a name
+ * using the '=' operator (e.g.: x = a + b).
  *
  * @param {string} expression The expression to evaluate.
  * @param {Object.<ee.Image>=} opt_map A map of input images available by name.

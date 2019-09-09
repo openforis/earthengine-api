@@ -74,9 +74,9 @@ ee.layers.AbstractOverlay = function(tileSource, opt_options) {
 
   // MapType options required by the compiler but which we don't support.
 
-  this.projection = undefined;
-  this.radius = undefined;
-  this.alt = undefined;
+  this.projection = null;
+  this.radius = 0;
+  this.alt = null;
 };
 goog.inherits(ee.layers.AbstractOverlay, goog.events.EventTarget);
 

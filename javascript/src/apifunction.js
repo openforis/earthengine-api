@@ -31,7 +31,7 @@ goog.require('goog.object');
  * @extends {ee.Function}
  */
 ee.ApiFunction = function(name, opt_signature) {
-  if (!goog.isDef(opt_signature)) {
+  if (opt_signature === undefined) {
     return ee.ApiFunction.lookup(name);
   } else if (!(this instanceof ee.ApiFunction)) {
     return ee.ComputedObject.construct(ee.ApiFunction, arguments);
@@ -177,7 +177,7 @@ ee.ApiFunction.lookupInternal = function(name) {
 ee.ApiFunction.initialize = function(opt_successCallback, opt_failureCallback) {
   if (!ee.ApiFunction.api_) {
     /**
-     * @param {!ee.data.AlgorithmsRegistry} data
+     * @param {?ee.data.AlgorithmsRegistry} data
      * @param {string=} opt_error
      */
     var callback = function(data, opt_error) {

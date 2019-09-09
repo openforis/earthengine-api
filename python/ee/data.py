@@ -23,10 +23,13 @@ from six.moves.urllib import parse
 from . import _cloud_api_utils
 from . import deprecation
 from . import encodable
+from . import oauth
 from . import serializer
 import apiclient
 
 from . import ee_exception
+
+from google.oauth2.credentials import Credentials
 
 # OAuth2 credentials object.  This may be set by ee.Initialize().
 _credentials = None
@@ -90,7 +93,7 @@ _thread_locals = _ThreadLocals()
 _PROFILE_RESPONSE_HEADER_LOWERCASE = 'x-earth-engine-computation-profile'
 
 # The HTTP header through which profiling is requested when using the Cloud API.
-_PROFILE_REQUEST_HEADER = 'X-Earth-Engine-Computation-Profiling'
+_PROFILE_REQUEST_HEADER = 'X-Earth-Engine-Computation-Profile'
 
 # The HTTP header through which a user project override is provided.
 _USER_PROJECT_OVERRIDE_HEADER = 'X-Goog-User-Project'
@@ -201,6 +204,31 @@ def initialize(credentials=None,
     _cloud_api_utils.set_cloud_api_user_project(DEFAULT_CLOUD_API_USER_PROJECT)
 
   _initialized = True
+
+
+def get_persistent_credentials():
+  """Read persistent credentials from ~/.config/earthengine.
+
+  Raises EEException with helpful explanation if credentials don't exist.
+
+  Returns:
+    OAuth2Credentials built from persistently stored refresh_token
+  """
+  try:
+    tokens = json.load(open(oauth.get_credentials_path()))
+    refresh_token = tokens['refresh_token']
+    return Credentials(
+        None,
+        refresh_token=refresh_token,
+        token_uri=oauth.TOKEN_URI,
+        client_id=oauth.CLIENT_ID,
+        client_secret=oauth.CLIENT_SECRET,
+        scopes=oauth.SCOPES)
+  except IOError:
+    raise ee_exception.EEException(
+        'Please authorize access to your Earth Engine account by '
+        'running\n\nearthengine authenticate\n\nin your command line, and then '
+        'retry.')
 
 
 def reset():
@@ -436,13 +464,37 @@ def getList(params):
 
 
 def listImages(params):
-  return _execute_cloud_call(
-      _cloud_api_resource.projects().assets().listImages(**params))
+  """Returns the images in an image collection or folder."""
+  images = {'images': []}
+  request = _cloud_api_resource.projects().assets().listImages(**params)
+  while request is not None:
+    response = _execute_cloud_call(request)
+    images['images'].extend(response.get('images', []))
+    request = _cloud_api_resource.projects().assets().listImages_next(
+        request, response)
+    # We currently treat pageSize as a cap on the results, if this param was
+    # provided we should break fast and not return more than the asked for
+    # amount.
+    if 'pageSize' in params:
+      break
+  return images
 
 
 def listAssets(params):
-  return _execute_cloud_call(
-      _cloud_api_resource.projects().assets().listAssets(**params))
+  """Returns the assets in a folder."""
+  assets = {'assets': []}
+  request = _cloud_api_resource.projects().assets().listAssets(**params)
+  while request is not None:
+    response = _execute_cloud_call(request)
+    assets['assets'].extend(response.get('assets', []))
+    request = _cloud_api_resource.projects().assets().listAssets_next(
+        request, response)
+    # We currently treat pageSize as a cap on the results, if this param was
+    # provided we should break fast and not return more than the asked for
+    # amount.
+    if 'pageSize' in params:
+      break
+  return assets
 
 
 def listBuckets(project=None):
@@ -859,7 +911,10 @@ def getAlgorithms():
   return send_('/algorithms', {}, 'GET')
 
 
-def createAsset(value, opt_path=None, opt_force=False, opt_properties=None):
+def createAsset(
+    value,
+    opt_path=None,
+    opt_properties=None):
   """Creates an asset from a JSON value.
 
   To create an empty image collection or folder, pass in a "value" object
@@ -870,7 +925,6 @@ def createAsset(value, opt_path=None, opt_force=False, opt_properties=None):
     value: An object describing the asset to create or a JSON string
         with the already-serialized value for the new asset.
     opt_path: An optional desired ID, including full path.
-    opt_force: True if asset overwrite is allowed
     opt_properties: The keys and values of the properties to set
         on the created asset.
 
@@ -895,14 +949,12 @@ def createAsset(value, opt_path=None, opt_force=False, opt_properties=None):
         parent=parent,
         assetId=asset_id,
         body=asset,
-        overwrite=opt_force,
         prettyPrint=False))
   if not isinstance(value, six.string_types):
     value = json.dumps(value)
   args = {'value': value, 'json_format': 'v2'}
   if opt_path is not None:
     args['id'] = opt_path
-  args['force'] = opt_force
   if opt_properties is not None:
     args['properties'] = json.dumps(opt_properties)
   return send_('/create', args)
@@ -1098,7 +1150,7 @@ def cancelTask(taskId):
 
 
 def cancelOperation(operation_name):
-  _execute_cloud_call(_cloud_api_resource.operations().cancel(
+  _execute_cloud_call(_cloud_api_resource.projects().operations().cancel(
       name=operation_name, body={}))
 
 

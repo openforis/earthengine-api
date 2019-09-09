@@ -16,7 +16,6 @@ from .oauth import AccessTokenCredentials
 from . import data
 from . import oauth
 from .apifunction import ApiFunction
-from .ee_exception import EEException
 # pylint: enable=g-importing-member
 import six
 from google.auth import crypt

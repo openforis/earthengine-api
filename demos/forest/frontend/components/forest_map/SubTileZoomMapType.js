@@ -36,7 +36,7 @@ forest.SubTileZoomMapType = function(options) {
       options.maxTileZoom || forest.SubTileZoomMapType.DEFAULT_MAX_ZOOM_;
 
   /** @private {number} The map type's opacity. */
-  this.opacity_ = goog.isDef(options.opacity) ?  options.opacity : 1;
+  this.opacity_ = (options.opacity !== undefined) ? options.opacity : 1;
 
   // Public options required by the Maps API.
 
@@ -56,18 +56,24 @@ forest.SubTileZoomMapType = function(options) {
 
   // Public options optional for the Maps API.
 
-  /** @const {number|undefined} The minimum permitted zoom level. */
+  /**
+   * @const {number|undefined} The minimum permitted zoom level.
+   * @suppress {checkTypes} overridden interface property is non-undefined.
+   */
   this.minZoom = options.minZoom;
 
-  /** @const {string|undefined} The name of the map type instance. */
+  /**
+   * @const {string|undefined} The name of the map type instance.
+   * @suppress {checkTypes} overridden interface property is non-undefined.
+   */
   this.name = options.name;
 
 
   // Public options required by the compiler but which we don't support.
 
-  this.projection = undefined;
-  this.radius = undefined;
-  this.alt = undefined;
+  this.projection = null;
+  this.radius = 0;
+  this.alt = null;
 
 
   // Private implementation details.
