@@ -307,7 +307,7 @@ ee.data.getAlgorithms = function(opt_callback) {
  *     For Images and ImageCollections:
  *       - image (JSON string) The image to render.
  *       - version (number) Version number of image (or latest).
- *       - bands (comma-seprated strings) Comma-delimited list of
+ *       - bands (comma-separated strings) Comma-delimited list of
  *             band names to be mapped to RGB.
  *       - min (comma-separated numbers) Value (or one per band)
  *             to map onto 00.
@@ -325,8 +325,8 @@ ee.data.getAlgorithms = function(opt_callback) {
  *       - format (string) Either "jpg" or "png".
  * @param {function(?ee.data.RawMapId, string=)=} opt_callback
  *     An optional callback. If not supplied, the call is made synchronously.
- * @return {?ee.data.RawMapId} The mapId call results, or null if a callback
- *     is specified.
+ * @return {?ee.data.RawMapId} The mapId call results, which may be passed to
+ *     ee.data.getTileUrl or ui.Map.addLayer. Null if a callback is specified.
  * @export
  */
 ee.data.getMapId = function(params, opt_callback) {
@@ -426,7 +426,7 @@ ee.data.computeValue = function(obj, opt_callback) {
  *       - format (string) Either 'png' (default) or 'jpg'.
  * @param {function(?ee.data.ThumbnailId, string=)=} opt_callback
  *     An optional callback. If not supplied, the call is made synchronously.
- * @return {?ee.data.ThumbnailId} The thumb ID and token, or null if a
+ * @return {?ee.data.ThumbnailId} The thumb ID and optional token, or null if a
  *     callback is specified.
  * @export
  */
@@ -500,10 +500,11 @@ ee.data.makeThumbUrl = function(id) {
 ee.data.getDownloadId = function(params, opt_callback) {
   // TODO(user): Redirect to getImageDownloadId.
   params = goog.object.clone(params);
-  return /** @type {?ee.data.DownloadId} */ (ee.data.send_(
+  const id = /** @type {?ee.data.DownloadId} */ (ee.data.send_(
       '/download',
       ee.data.makeRequest_(params),
       opt_callback));
+  return id;
 };
 
 
@@ -536,10 +537,11 @@ ee.data.makeDownloadUrl = function(id) {
  */
 ee.data.getTableDownloadId = function(params, opt_callback) {
   params = goog.object.clone(params);
-  return /** @type {?ee.data.DownloadId} */ (ee.data.send_(
+  const id = /** @type {?ee.data.DownloadId} */ (ee.data.send_(
       '/table',
       ee.data.makeRequest_(params),
       opt_callback));
+  return id;
 };
 
 
@@ -787,6 +789,7 @@ ee.data.startProcessing = function(taskId, params, opt_callback) {
 };
 
 
+
 /**
  * Creates an image asset ingestion task.
  *
@@ -858,7 +861,7 @@ ee.data.getInfo = ee.data.getAsset;
  * @export
  */
 ee.data.getList = function(params, opt_callback) {
-  var request = ee.data.makeRequest_(params);
+  const request = ee.data.makeRequest_(params);
   return /** @type {?ee.data.AssetList} */ (
       ee.data.send_('/list', request, opt_callback));
 };
@@ -1882,6 +1885,11 @@ ee.data.AlgorithmSignature = class {
      * @export {string|undefined}
      */
     this.deprecated;
+
+    /**
+     * @export {boolean|undefined}
+     */
+    this.preview;
   }
 };
 
@@ -2118,7 +2126,7 @@ ee.data.ImageExportFormatConfig;
 
 /**
  * An object for specifying configuration of a task to export an image as
- * Maps Mercator map tiles or a VideoMap to Cloud Storage.
+ * Maps Mercator map tiles to Cloud Storage.
  *
  * @typedef {{
  *   id: string,
@@ -2140,6 +2148,38 @@ ee.data.ImageExportFormatConfig;
  * }}
  */
 ee.data.MapTaskConfig;
+
+/**
+ * An object for specifying configuration of a task to export an image
+ * collection as a pyramid of videos on Cloud Storage.
+ *
+ * @typedef {{
+ *   id: string,
+ *   type: string,
+ *   sourceUrl: (undefined|string),
+ *   description: (undefined|string),
+ *   element: (undefined|!ee.Element),
+ *   minZoom: (undefined|number),
+ *   maxZoom: (undefined|number),
+ *   region: (undefined|string),
+ *   scale: (undefined|number),
+ *   crs: (undefined|string),
+ *   crs_transform: (undefined|!Array<number>|string),
+ *   tileWidth: (undefined|number),
+ *   tileHeight: (undefined|number),
+ *   stride: (undefined|number),
+ *   videoFormat: (undefined|string),
+ *   version: (undefined|string),
+ *   skipEmptyTiles: (undefined|boolean),
+ *   writePublicTiles: (undefined|boolean),
+ *   outputBucket: (undefined|string),
+ *   outputPrefix: (undefined|string),
+ *   mapsApiKey: (undefined|string),
+ *   minTimeMachineZoomSubset: (undefined|number),
+ *   maxTimeMachineZoomSubset: (undefined|number),
+ * }}
+ */
+ee.data.VideoMapTaskConfig;
 
 
 /**

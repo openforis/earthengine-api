@@ -24,7 +24,7 @@ ee.AbstractOverlay = function(url, mapId, token, opt_init, opt_profiler) {
 ee.Algorithms = {};
 /**
  * @param {string} name
- * @param {(ee.data.AlgorithmSignature|{args: !Array<(ee.data.AlgorithmArgument|null)>, deprecated: (string|undefined), description: (string|undefined), name: string, returns: string})=} opt_signature
+ * @param {(ee.data.AlgorithmSignature|{args: !Array<(ee.data.AlgorithmArgument|null)>, deprecated: (string|undefined), description: (string|undefined), name: string, preview: (boolean|undefined), returns: string})=} opt_signature
  * @return {?}
  * @extends {ee.Function}
  * @constructor
@@ -157,7 +157,7 @@ ee.ComputedObject.prototype.serialize = function() {
 ee.ComputedObject.prototype.toString = function() {
 };
 /**
- * @param {{args: !Array<(ee.data.AlgorithmArgument|null)>, deprecated: (string|undefined), description: (string|undefined), name: string, returns: string}} signature
+ * @param {{args: !Array<(ee.data.AlgorithmArgument|null)>, deprecated: (string|undefined), description: (string|undefined), name: string, preview: (boolean|undefined), returns: string}} signature
  * @param {(!Function|null)} body
  * @return {?}
  * @extends {ee.Function}
@@ -231,8 +231,8 @@ ee.Feature.prototype.getInfo = function(opt_callback) {
 };
 /**
  * @param {(Object|null)=} opt_visParams
- * @param {function((Object|null), string=): ?=} opt_callback
- * @return {(ee.data.MapId|null|undefined)}
+ * @param {function(!Object, string=): ?=} opt_callback
+ * @return {(ee.data.MapId|undefined)}
  */
 ee.Feature.prototype.getMap = function(opt_visParams, opt_callback) {
 };
@@ -262,8 +262,8 @@ ee.FeatureCollection.prototype.getInfo = function(opt_callback) {
 };
 /**
  * @param {(Object|null)=} opt_visParams
- * @param {function((Object|null), string=): ?=} opt_callback
- * @return {(ee.data.MapId|null|undefined)}
+ * @param {function(!Object, string=): ?=} opt_callback
+ * @return {(ee.data.MapId|undefined)}
  */
 ee.FeatureCollection.prototype.getMap = function(opt_visParams, opt_callback) {
 };
@@ -617,8 +617,8 @@ ee.ImageCollection.prototype.getInfo = function(opt_callback) {
 };
 /**
  * @param {(Object|null)=} opt_visParams
- * @param {function((Object|null), string=): ?=} opt_callback
- * @return {(ee.data.MapId|null|undefined)}
+ * @param {function(!Object, string=): ?=} opt_callback
+ * @return {(ee.data.MapId|undefined)}
  */
 ee.ImageCollection.prototype.getMap = function(opt_visParams, opt_callback) {
 };
@@ -713,7 +713,7 @@ ee.Number = function(number) {
 };
 /**
  * @param {string} path
- * @param {{args: !Array<(ee.data.AlgorithmArgument|null)>, deprecated: (string|undefined), description: (string|undefined), name: string, returns: string}} signature
+ * @param {{args: !Array<(ee.data.AlgorithmArgument|null)>, deprecated: (string|undefined), description: (string|undefined), name: string, preview: (boolean|undefined), returns: string}} signature
  * @return {?}
  * @extends {ee.Function}
  * @constructor

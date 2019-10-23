@@ -27,6 +27,13 @@ import httplib2
 import six
 
 
+PROJECT_ID_PATTERN = (r'^(?:\w+(?:[\w\-]+\.[\w\-]+)*?\.\w+\:)?'
+                      r'[a-z][-a-z0-9]{4,28}[a-z0-9]$')
+ASSET_NAME_PATTERN = (r'^projects/((?:\w+(?:[\w\-]+\.[\w\-]+)*?\.\w+\:)?'
+                      r'[a-z][a-z0-9\-]{4,28}[a-z0-9])/assets/(.*)$')
+
+ASSET_ROOT_PATTERN = (r'^projects\/((?:\w+(?:[\w\-]+\.[\w\-]+)*?\.\w+\:)?'
+                      r'[a-z][a-z0-9\-]{4,28}[a-z0-9])\/assets\/?$')
 # The default user project to use when making Cloud API calls.
 _cloud_api_user_project = None
 
@@ -376,8 +383,7 @@ def convert_asset_id_to_asset_name(asset_id):
   Returns:
     An asset name string in the format 'projects/*/assets/**'.
   """
-  # r'[a-z][a-z0-9\-]{4,28}[a-z0-9]' matches a valid Cloud project ID.
-  if re.match(r'projects/[a-z][a-z0-9\-]{4,28}[a-z0-9]/assets/.*', asset_id):
+  if re.match(ASSET_NAME_PATTERN, asset_id):
     return asset_id
   elif asset_id.split('/')[0] in ['users', 'projects']:
     return 'projects/earthengine-legacy/assets/{}'.format(asset_id)
@@ -484,6 +490,7 @@ def convert_algorithms(algorithms):
     - optional: bool (optional)
     - default: default value (optional)
   - hidden: bool (optional)
+  - preview: bool (optional)
   - deprecated: string containing deprecation reason (optional)
 
   Args:
@@ -506,7 +513,8 @@ def _convert_algorithm(algorithm):
           'description': 'description',
           'returnType': 'returns',
           'arguments': ('args', _convert_algorithm_arguments),
-          'hidden': 'hidden'
+          'hidden': 'hidden',
+          'preview': 'preview'
       },
       defaults={
           'description': '',

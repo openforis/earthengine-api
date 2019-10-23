@@ -379,34 +379,34 @@ class BatchTestCase(apitestcase.ApiTestCase):
       }, task.config)
 
   def testUnknownFileFormat(self):
-    self.assertRaisesRegexp(ee.EEException, '.*file format.*',
-                            ee.batch.ConvertFormatSpecificParams,
-                            {'fileFormat': 'mp3'})
+    self.assertRaisesRegex(ee.EEException, '.*file format.*',
+                           ee.batch.ConvertFormatSpecificParams,
+                           {'fileFormat': 'mp3'})
 
   def testFormatParamSpecifiedTwice(self):
-    self.assertRaisesRegexp(ee.EEException, '.*at least twice.*',
-                            ee.batch.ConvertFormatSpecificParams, {
-                                'cloudOptimized': False,
-                                'formatOptions': {
-                                    'cloudOptimized': True
-                                }
-                            })
+    self.assertRaisesRegex(ee.EEException, '.*at least twice.*',
+                           ee.batch.ConvertFormatSpecificParams, {
+                               'cloudOptimized': False,
+                               'formatOptions': {
+                                   'cloudOptimized': True
+                               }
+                           })
 
   def testDisallowedFormatPrefix(self):
-    self.assertRaisesRegexp(ee.EEException, '.*prefix "tiff" disallowed.*',
-                            ee.batch.ConvertFormatSpecificParams, {
-                                'tiffCloudOptimized': False,
-                                'formatOptions': {
-                                    'cloudOptimized': True
-                                }
-                            })
+    self.assertRaisesRegex(ee.EEException, '.*prefix "tiff" disallowed.*',
+                           ee.batch.ConvertFormatSpecificParams, {
+                               'tiffCloudOptimized': False,
+                               'formatOptions': {
+                                   'cloudOptimized': True
+                               }
+                           })
 
   def testUnknownFormatOption(self):
-    self.assertRaisesRegexp(ee.EEException, '.*not a valid option.*',
-                            ee.batch.ConvertFormatSpecificParams,
-                            {'formatOptions': {
-                                'garbage': 0
-                            }})
+    self.assertRaisesRegex(ee.EEException, '.*not a valid option.*',
+                           ee.batch.ConvertFormatSpecificParams,
+                           {'formatOptions': {
+                               'garbage': 0
+                           }})
 
   def testConvertFormat(self):
     config = {
@@ -539,8 +539,8 @@ class BatchTestCase(apitestcase.ApiTestCase):
           },
       }, drive_task_with_old_keys.config)
 
-      with self.assertRaisesRegexp(ee.EEException,
-                                   'Unknown configuration options.*'):
+      with self.assertRaisesRegex(ee.EEException,
+                                  'Unknown configuration options.*'):
         ee.batch.Export.image.toDrive(image=ee.Image(1), framesPerSecond=30)
 
   def testExportImageFileDimensions(self):
@@ -625,8 +625,8 @@ class BatchTestCase(apitestcase.ApiTestCase):
           }
       }, task_keyed.config)
 
-      with self.assertRaisesRegexp(ee.EEException,
-                                   'Unknown configuration options.*'):
+      with self.assertRaisesRegex(ee.EEException,
+                                  'Unknown configuration options.*'):
         config_with_bogus_option = config.copy()
         config_with_bogus_option['framesPerSecond'] = 30
         ee.batch.Export.map.toCloudStorage(**config_with_bogus_option)
@@ -690,8 +690,8 @@ class BatchTestCase(apitestcase.ApiTestCase):
   def testExportTableCloudApiBogusParameter(self):
     """Verifies that bogus parameters are rejected."""
     with apitestcase.UsingCloudApi():
-      with self.assertRaisesRegexp(ee.EEException,
-                                   'Unknown configuration options.*'):
+      with self.assertRaisesRegex(ee.EEException,
+                                  'Unknown configuration options.*'):
         ee.batch.Export.table.toDrive(
             ee.FeatureCollection('drive test FC'), framesPerSecond=30)
 
@@ -896,6 +896,48 @@ class BatchTestCase(apitestcase.ApiTestCase):
           }
       }, task.config)
 
+  def testExportTableWithFileFormat(self):
+    """Verifies the task created by Export.table() given a file format."""
+    task = ee.batch.Export.table.toCloudStorage(
+        collection=ee.FeatureCollection('foo'),
+        outputBucket='test-bucket',
+        fileFormat='tfRecord')
+    self.assertEqual('TESTTASKID', task.id)
+    self.assertEqual('EXPORT_FEATURES', task.task_type)
+    self.assertEqual('UNSUBMITTED', task.state)
+    self.assertEqual(
+        {
+            'json': ee.FeatureCollection('foo').serialize(),
+            'description': 'myExportTableTask',
+            'outputBucket': 'test-bucket',
+            'outputPrefix': 'myExportTableTask',
+            'fileFormat': 'tfRecord',
+        }, task.config)
+
+  def testExportTableWithFileFormatCloudApi(self):
+    """Verifies the task created by Export.table() given a file format."""
+    with apitestcase.UsingCloudApi():
+      task = ee.batch.Export.table.toCloudStorage(
+          collection=ee.FeatureCollection('foo'),
+          outputBucket='test-bucket',
+          fileFormat='tfRecord')
+      self.assertIsNone(task.id)
+      self.assertIsNone(task.name)
+      self.assertEqual('EXPORT_FEATURES', task.task_type)
+      self.assertEqual('UNSUBMITTED', task.state)
+      self.assertEqual(
+          {
+              'expression': ee.FeatureCollection('foo'),
+              'description': 'myExportTableTask',
+              'fileExportOptions': {
+                  'fileFormat': 'TF_RECORD_TABLE',
+                  'gcsDestination': {
+                      'bucket': 'test-bucket',
+                      'filenamePrefix': 'myExportTableTask',
+                  }
+              }
+          }, task.config)
+
   def testExportVideo(self):
     """Verifies the task created by Export.video()."""
     region = ee.Geometry.Rectangle(1, 2, 3, 4)
@@ -1001,8 +1043,8 @@ class BatchTestCase(apitestcase.ApiTestCase):
           },
       }, gcs_task.config)
 
-      with self.assertRaisesRegexp(ee.EEException,
-                                   'Unknown configuration options.*'):
+      with self.assertRaisesRegex(ee.EEException,
+                                  'Unknown configuration options.*'):
         config_with_bogus_option = config.copy()
         config_with_bogus_option['flamesPerSleestak'] = 30
         ee.batch.Export.video(collection, 'TestVideoName',
