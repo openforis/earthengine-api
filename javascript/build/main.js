@@ -1,5 +1,10 @@
 const {google} = require('googleapis');
 const XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
+/*
+
+ Copyright The Closure Library Authors.
+ SPDX-License-Identifier: Apache-2.0
+*/
 var $jscomp = $jscomp || {};
 $jscomp.scope = {};
 $jscomp.arrayIteratorImpl = function(array) {
@@ -69,20 +74,16 @@ $jscomp.inherits = function(childCtor, parentCtor) {
   }
   childCtor.superClass_ = parentCtor.prototype;
 };
-$jscomp.getGlobal = function(maybeGlobal) {
-  return "undefined" != typeof window && window === maybeGlobal ? maybeGlobal : "undefined" != typeof global && null != global ? global : maybeGlobal;
-};
-$jscomp.global = $jscomp.getGlobal(this);
-$jscomp.findInternal = function(array, callback, thisArg) {
-  array instanceof String && (array = String(array));
-  for (var len = array.length, i = 0; i < len; i++) {
-    var value = array[i];
-    if (callback.call(thisArg, value, i, array)) {
-      return {i:i, v:value};
+$jscomp.getGlobal = function(passedInThis) {
+  for (var possibleGlobals = ["object" == typeof window && window, "object" == typeof self && self, "object" == typeof global && global, passedInThis], i = 0; i < possibleGlobals.length; ++i) {
+    var maybeGlobal = possibleGlobals[i];
+    if (maybeGlobal && maybeGlobal.Math == Math) {
+      return maybeGlobal;
     }
   }
-  return {i:-1, v:void 0};
+  return globalThis;
 };
+$jscomp.global = $jscomp.getGlobal(this);
 $jscomp.defineProperty = $jscomp.ASSUME_ES5 || "function" == typeof Object.defineProperties ? Object.defineProperty : function(target, property, descriptor) {
   target != Array.prototype && target != Object.prototype && (target[property] = descriptor.value);
 };
@@ -96,6 +97,19 @@ $jscomp.polyfill = function(target, polyfill, fromLang, toLang) {
     var property = split[split.length - 1], orig = obj[property], impl = polyfill(orig);
     impl != orig && null != impl && $jscomp.defineProperty(obj, property, {configurable:!0, writable:!0, value:impl});
   }
+};
+$jscomp.polyfill("globalThis", function(orig) {
+  return orig || $jscomp.global;
+}, "es_next", "es3");
+$jscomp.findInternal = function(array, callback, thisArg) {
+  array instanceof String && (array = String(array));
+  for (var len = array.length, i = 0; i < len; i++) {
+    var value = array[i];
+    if (callback.call(thisArg, value, i, array)) {
+      return {i:i, v:value};
+    }
+  }
+  return {i:-1, v:void 0};
 };
 $jscomp.polyfill("Array.prototype.find", function(orig) {
   return orig ? orig : function(callback, opt_thisArg) {
@@ -793,18 +807,6 @@ $jscomp.polyfill("String.prototype.padStart", function(orig) {
 }, "es8", "es3");
 var goog = goog || {};
 goog.global = this || self;
-goog.isDef = function(val) {
-  return void 0 !== val;
-};
-goog.isString = function(val) {
-  return "string" == typeof val;
-};
-goog.isBoolean = function(val) {
-  return "boolean" == typeof val;
-};
-goog.isNumber = function(val) {
-  return "number" == typeof val;
-};
 goog.exportPath_ = function(name, opt_object, opt_objectToExportTo) {
   var parts = name.split("."), cur = opt_objectToExportTo || goog.global;
   parts[0] in cur || "undefined" == typeof cur.execScript || cur.execScript("var " + parts[0]);
@@ -1080,12 +1082,6 @@ goog.typeOf = function(value) {
   }
   return s;
 };
-goog.isNull = function(val) {
-  return null === val;
-};
-goog.isDefAndNotNull = function(val) {
-  return null != val;
-};
 goog.isArray = function(val) {
   return "array" == goog.typeOf(val);
 };
@@ -1104,7 +1100,7 @@ goog.isObject = function(val) {
   return "object" == type && null != val || "function" == type;
 };
 goog.getUid = function(obj) {
-  return obj[goog.UID_PROPERTY_] || (obj[goog.UID_PROPERTY_] = ++goog.uidCounter_);
+  return Object.prototype.hasOwnProperty.call(obj, goog.UID_PROPERTY_) && obj[goog.UID_PROPERTY_] || (obj[goog.UID_PROPERTY_] = ++goog.uidCounter_);
 };
 goog.hasUid = function(obj) {
   return !!obj[goog.UID_PROPERTY_];
@@ -1261,38 +1257,6 @@ goog.inherits = function(childCtor, parentCtor) {
     return parentCtor.prototype[methodName].apply(me, args);
   };
 };
-goog.base = function(me, opt_methodName, var_args) {
-  var caller = arguments.callee.caller;
-  if (goog.STRICT_MODE_COMPATIBLE || goog.DEBUG && !caller) {
-    throw Error("arguments.caller not defined.  goog.base() cannot be used with strict mode code. See http://www.ecma-international.org/ecma-262/5.1/#sec-C");
-  }
-  if ("undefined" !== typeof caller.superClass_) {
-    for (var ctorArgs = Array(arguments.length - 1), i = 1; i < arguments.length; i++) {
-      ctorArgs[i - 1] = arguments[i];
-    }
-    return caller.superClass_.constructor.apply(me, ctorArgs);
-  }
-  if ("string" != typeof opt_methodName && "symbol" != typeof opt_methodName) {
-    throw Error("method names provided to goog.base must be a string or a symbol");
-  }
-  var args = Array(arguments.length - 2);
-  for (i = 2; i < arguments.length; i++) {
-    args[i - 2] = arguments[i];
-  }
-  for (var foundCaller = !1, proto = me.constructor.prototype; proto; proto = Object.getPrototypeOf(proto)) {
-    if (proto[opt_methodName] === caller) {
-      foundCaller = !0;
-    } else {
-      if (foundCaller) {
-        return proto[opt_methodName].apply(me, args);
-      }
-    }
-  }
-  if (me[opt_methodName] === caller) {
-    return me.constructor.prototype[opt_methodName].apply(me, args);
-  }
-  throw Error("goog.base called from a method of one name to a method of a different name");
-};
 goog.scope = function(fn) {
   if (goog.isInModuleLoader_()) {
     throw Error("goog.scope is not supported within a module.");
@@ -1357,6 +1321,13 @@ goog.createTrustedTypesPolicy = function(name) {
   return policy;
 };
 goog.TRUSTED_TYPES_POLICY_ = goog.TRUSTED_TYPES_POLICY_NAME ? goog.createTrustedTypesPolicy(goog.TRUSTED_TYPES_POLICY_NAME + "#base") : null;
+goog.events = {};
+goog.events.EventId = function(eventId) {
+  this.id = eventId;
+};
+goog.events.EventId.prototype.toString = function() {
+  return this.id;
+};
 goog.disposable = {};
 goog.disposable.IDisposable = function() {
 };
@@ -1421,25 +1392,19 @@ goog.disposeAll = function(var_args) {
     goog.isArrayLike(disposable) ? goog.disposeAll.apply(null, disposable) : goog.dispose(disposable);
   }
 };
-goog.events = {};
-goog.events.EventId = function(eventId) {
-  this.id = eventId;
-};
-goog.events.EventId.prototype.toString = function() {
-  return this.id;
-};
 goog.events.Event = function(type, opt_target) {
   this.type = type instanceof goog.events.EventId ? String(type) : type;
   this.currentTarget = this.target = opt_target;
   this.defaultPrevented = this.propagationStopped_ = !1;
-  this.returnValue_ = !0;
+};
+goog.events.Event.prototype.hasPropagationStopped = function() {
+  return this.propagationStopped_;
 };
 goog.events.Event.prototype.stopPropagation = function() {
   this.propagationStopped_ = !0;
 };
 goog.events.Event.prototype.preventDefault = function() {
   this.defaultPrevented = !0;
-  this.returnValue_ = !1;
 };
 goog.events.Event.stopPropagation = function(e) {
   e.stopPropagation();
@@ -1447,6 +1412,8 @@ goog.events.Event.stopPropagation = function(e) {
 goog.events.Event.preventDefault = function(e) {
   e.preventDefault();
 };
+goog.dom = {};
+goog.dom.NodeType = {ELEMENT:1, ATTRIBUTE:2, TEXT:3, CDATA_SECTION:4, ENTITY_REFERENCE:5, ENTITY:6, PROCESSING_INSTRUCTION:7, COMMENT:8, DOCUMENT:9, DOCUMENT_TYPE:10, DOCUMENT_FRAGMENT:11, NOTATION:12};
 goog.debug = {};
 goog.debug.Error = function(opt_msg) {
   if (Error.captureStackTrace) {
@@ -1460,8 +1427,6 @@ goog.debug.Error = function(opt_msg) {
 };
 goog.inherits(goog.debug.Error, Error);
 goog.debug.Error.prototype.name = "CustomError";
-goog.dom = {};
-goog.dom.NodeType = {ELEMENT:1, ATTRIBUTE:2, TEXT:3, CDATA_SECTION:4, ENTITY_REFERENCE:5, ENTITY:6, PROCESSING_INSTRUCTION:7, COMMENT:8, DOCUMENT:9, DOCUMENT_TYPE:10, DOCUMENT_FRAGMENT:11, NOTATION:12};
 goog.asserts = {};
 goog.asserts.ENABLE_ASSERTS = goog.DEBUG;
 goog.asserts.AssertionError = function(messagePattern, messageArgs) {
@@ -1548,35 +1513,6 @@ goog.asserts.assertObjectPrototypeIsIntact = function() {
 };
 goog.asserts.getType_ = function(value) {
   return value instanceof Function ? value.displayName || value.name || "unknown type name" : value instanceof Object ? value.constructor.displayName || value.constructor.name || Object.prototype.toString.call(value) : null === value ? "null" : typeof value;
-};
-goog.debug.entryPointRegistry = {};
-goog.debug.EntryPointMonitor = function() {
-};
-goog.debug.entryPointRegistry.refList_ = [];
-goog.debug.entryPointRegistry.monitors_ = [];
-goog.debug.entryPointRegistry.monitorsMayExist_ = !1;
-goog.debug.entryPointRegistry.register = function(callback) {
-  goog.debug.entryPointRegistry.refList_[goog.debug.entryPointRegistry.refList_.length] = callback;
-  if (goog.debug.entryPointRegistry.monitorsMayExist_) {
-    for (var monitors = goog.debug.entryPointRegistry.monitors_, i = 0; i < monitors.length; i++) {
-      callback(goog.bind(monitors[i].wrap, monitors[i]));
-    }
-  }
-};
-goog.debug.entryPointRegistry.monitorAll = function(monitor) {
-  goog.debug.entryPointRegistry.monitorsMayExist_ = !0;
-  for (var transformer = goog.bind(monitor.wrap, monitor), i = 0; i < goog.debug.entryPointRegistry.refList_.length; i++) {
-    goog.debug.entryPointRegistry.refList_[i](transformer);
-  }
-  goog.debug.entryPointRegistry.monitors_.push(monitor);
-};
-goog.debug.entryPointRegistry.unmonitorAllIfPossible = function(monitor) {
-  var monitors = goog.debug.entryPointRegistry.monitors_;
-  goog.asserts.assert(monitor == monitors[monitors.length - 1], "Only the most recent monitor can be unwrapped.");
-  for (var transformer = goog.bind(monitor.unwrap, monitor), i = 0; i < goog.debug.entryPointRegistry.refList_.length; i++) {
-    goog.debug.entryPointRegistry.refList_[i](transformer);
-  }
-  monitors.length--;
 };
 goog.array = {};
 goog.NATIVE_ARRAY_PROTOTYPES = goog.TRUSTED_SITE;
@@ -2006,15 +1942,6 @@ goog.array.copyByIndex = function(arr, index_arr) {
 goog.array.concatMap = function(arr, f, opt_obj) {
   return goog.array.concat.apply([], goog.array.map(arr, f, opt_obj));
 };
-goog.debug.errorcontext = {};
-goog.debug.errorcontext.addErrorContext = function(err, contextKey, contextValue) {
-  err[goog.debug.errorcontext.CONTEXT_KEY_] || (err[goog.debug.errorcontext.CONTEXT_KEY_] = {});
-  err[goog.debug.errorcontext.CONTEXT_KEY_][contextKey] = contextValue;
-};
-goog.debug.errorcontext.getErrorContext = function(err) {
-  return err[goog.debug.errorcontext.CONTEXT_KEY_] || {};
-};
-goog.debug.errorcontext.CONTEXT_KEY_ = "__closure__error__context__984382";
 goog.string = {};
 goog.string.internal = {};
 goog.string.internal.startsWith = function(str, prefix) {
@@ -2450,7 +2377,7 @@ goog.labs.userAgent.browser.getVersion = function() {
     return lookUpValueWithKeys(["Edg"]);
   }
   if (goog.labs.userAgent.browser.isChrome()) {
-    return lookUpValueWithKeys(["Chrome", "CriOS"]);
+    return lookUpValueWithKeys(["Chrome", "CriOS", "HeadlessChrome"]);
   }
   var tuple = versionTuples[2];
   return tuple && tuple[1] || "";
@@ -2877,102 +2804,6 @@ goog.dom.tags.VOID_TAGS_ = {area:!0, base:!0, br:!0, col:!0, command:!0, embed:!
 goog.dom.tags.isVoidTag = function(tagName) {
   return !0 === goog.dom.tags.VOID_TAGS_[tagName];
 };
-goog.html = {};
-goog.html.trustedtypes = {};
-goog.html.trustedtypes.PRIVATE_DO_NOT_ACCESS_OR_ELSE_POLICY = goog.TRUSTED_TYPES_POLICY_NAME ? goog.createTrustedTypesPolicy(goog.TRUSTED_TYPES_POLICY_NAME + "#html") : null;
-goog.string.TypedString = function() {
-};
-goog.string.Const = function(opt_token, opt_content) {
-  this.stringConstValueWithSecurityContract__googStringSecurityPrivate_ = opt_token === goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_ && opt_content || "";
-  this.STRING_CONST_TYPE_MARKER__GOOG_STRING_SECURITY_PRIVATE_ = goog.string.Const.TYPE_MARKER_;
-};
-goog.string.Const.prototype.implementsGoogStringTypedString = !0;
-goog.string.Const.prototype.getTypedStringValue = function() {
-  return this.stringConstValueWithSecurityContract__googStringSecurityPrivate_;
-};
-goog.DEBUG && (goog.string.Const.prototype.toString = function() {
-  return "Const{" + this.stringConstValueWithSecurityContract__googStringSecurityPrivate_ + "}";
-});
-goog.string.Const.unwrap = function(stringConst) {
-  if (stringConst instanceof goog.string.Const && stringConst.constructor === goog.string.Const && stringConst.STRING_CONST_TYPE_MARKER__GOOG_STRING_SECURITY_PRIVATE_ === goog.string.Const.TYPE_MARKER_) {
-    return stringConst.stringConstValueWithSecurityContract__googStringSecurityPrivate_;
-  }
-  goog.asserts.fail("expected object of type Const, got '" + stringConst + "'");
-  return "type_error:Const";
-};
-goog.string.Const.from = function(s) {
-  return new goog.string.Const(goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_, s);
-};
-goog.string.Const.TYPE_MARKER_ = {};
-goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_ = {};
-goog.string.Const.EMPTY = goog.string.Const.from("");
-goog.html.SafeScript = function() {
-  this.privateDoNotAccessOrElseSafeScriptWrappedValue_ = "";
-  this.SAFE_SCRIPT_TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_ = goog.html.SafeScript.TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_;
-};
-goog.html.SafeScript.prototype.implementsGoogStringTypedString = !0;
-goog.html.SafeScript.TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_ = {};
-goog.html.SafeScript.fromConstant = function(script) {
-  var scriptString = goog.string.Const.unwrap(script);
-  return 0 === scriptString.length ? goog.html.SafeScript.EMPTY : goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(scriptString);
-};
-goog.html.SafeScript.fromConstantAndArgs = function(code, var_args) {
-  for (var args = [], i = 1; i < arguments.length; i++) {
-    args.push(goog.html.SafeScript.stringify_(arguments[i]));
-  }
-  return goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse("(" + goog.string.Const.unwrap(code) + ")(" + args.join(", ") + ");");
-};
-goog.html.SafeScript.fromJson = function(val) {
-  return goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(goog.html.SafeScript.stringify_(val));
-};
-goog.html.SafeScript.prototype.getTypedStringValue = function() {
-  return this.privateDoNotAccessOrElseSafeScriptWrappedValue_.toString();
-};
-goog.DEBUG && (goog.html.SafeScript.prototype.toString = function() {
-  return "SafeScript{" + this.privateDoNotAccessOrElseSafeScriptWrappedValue_ + "}";
-});
-goog.html.SafeScript.unwrap = function(safeScript) {
-  return goog.html.SafeScript.unwrapTrustedScript(safeScript).toString();
-};
-goog.html.SafeScript.unwrapTrustedScript = function(safeScript) {
-  if (safeScript instanceof goog.html.SafeScript && safeScript.constructor === goog.html.SafeScript && safeScript.SAFE_SCRIPT_TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_ === goog.html.SafeScript.TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_) {
-    return safeScript.privateDoNotAccessOrElseSafeScriptWrappedValue_;
-  }
-  goog.asserts.fail("expected object of type SafeScript, got '" + safeScript + "' of type " + goog.typeOf(safeScript));
-  return "type_error:SafeScript";
-};
-goog.html.SafeScript.stringify_ = function(val) {
-  return JSON.stringify(val).replace(/</g, "\\x3c");
-};
-goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse = function(script) {
-  return (new goog.html.SafeScript).initSecurityPrivateDoNotAccessOrElse_(script);
-};
-goog.html.SafeScript.prototype.initSecurityPrivateDoNotAccessOrElse_ = function(script) {
-  this.privateDoNotAccessOrElseSafeScriptWrappedValue_ = goog.html.trustedtypes.PRIVATE_DO_NOT_ACCESS_OR_ELSE_POLICY ? goog.html.trustedtypes.PRIVATE_DO_NOT_ACCESS_OR_ELSE_POLICY.createScript(script) : script;
-  return this;
-};
-goog.html.SafeScript.EMPTY = goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse("");
-goog.fs = {};
-goog.fs.url = {};
-goog.fs.url.createObjectUrl = function(blob) {
-  return goog.fs.url.getUrlObject_().createObjectURL(blob);
-};
-goog.fs.url.revokeObjectUrl = function(url) {
-  goog.fs.url.getUrlObject_().revokeObjectURL(url);
-};
-goog.fs.url.getUrlObject_ = function() {
-  var urlObject = goog.fs.url.findUrlObject_();
-  if (null != urlObject) {
-    return urlObject;
-  }
-  throw Error("This browser doesn't seem to support blob URLs");
-};
-goog.fs.url.findUrlObject_ = function() {
-  return void 0 !== goog.global.URL && void 0 !== goog.global.URL.createObjectURL ? goog.global.URL : void 0 !== goog.global.webkitURL && void 0 !== goog.global.webkitURL.createObjectURL ? goog.global.webkitURL : void 0 !== goog.global.createObjectURL ? goog.global : null;
-};
-goog.fs.url.browserSupportsObjectUrls = function() {
-  return null != goog.fs.url.findUrlObject_();
-};
 goog.i18n = {};
 goog.i18n.bidi = {};
 goog.i18n.bidi.FORCE_RTL = !1;
@@ -3103,6 +2934,129 @@ goog.i18n.bidi.setElementDirByTextDirectionality = function(element, text) {
 };
 goog.i18n.bidi.DirectionalString = function() {
 };
+goog.html = {};
+goog.html.trustedtypes = {};
+goog.html.trustedtypes.PRIVATE_DO_NOT_ACCESS_OR_ELSE_POLICY = goog.TRUSTED_TYPES_POLICY_NAME ? goog.createTrustedTypesPolicy(goog.TRUSTED_TYPES_POLICY_NAME + "#html") : null;
+goog.string.TypedString = function() {
+};
+goog.string.Const = function(opt_token, opt_content) {
+  this.stringConstValueWithSecurityContract__googStringSecurityPrivate_ = opt_token === goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_ && opt_content || "";
+  this.STRING_CONST_TYPE_MARKER__GOOG_STRING_SECURITY_PRIVATE_ = goog.string.Const.TYPE_MARKER_;
+};
+goog.string.Const.prototype.implementsGoogStringTypedString = !0;
+goog.string.Const.prototype.getTypedStringValue = function() {
+  return this.stringConstValueWithSecurityContract__googStringSecurityPrivate_;
+};
+goog.DEBUG && (goog.string.Const.prototype.toString = function() {
+  return "Const{" + this.stringConstValueWithSecurityContract__googStringSecurityPrivate_ + "}";
+});
+goog.string.Const.unwrap = function(stringConst) {
+  if (stringConst instanceof goog.string.Const && stringConst.constructor === goog.string.Const && stringConst.STRING_CONST_TYPE_MARKER__GOOG_STRING_SECURITY_PRIVATE_ === goog.string.Const.TYPE_MARKER_) {
+    return stringConst.stringConstValueWithSecurityContract__googStringSecurityPrivate_;
+  }
+  goog.asserts.fail("expected object of type Const, got '" + stringConst + "'");
+  return "type_error:Const";
+};
+goog.string.Const.from = function(s) {
+  return new goog.string.Const(goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_, s);
+};
+goog.string.Const.TYPE_MARKER_ = {};
+goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_ = {};
+goog.string.Const.EMPTY = goog.string.Const.from("");
+goog.html.SafeScript = function() {
+  this.privateDoNotAccessOrElseSafeScriptWrappedValue_ = "";
+  this.SAFE_SCRIPT_TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_ = goog.html.SafeScript.TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_;
+};
+goog.html.SafeScript.prototype.implementsGoogStringTypedString = !0;
+goog.html.SafeScript.TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_ = {};
+goog.html.SafeScript.fromConstant = function(script) {
+  var scriptString = goog.string.Const.unwrap(script);
+  return 0 === scriptString.length ? goog.html.SafeScript.EMPTY : goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(scriptString);
+};
+goog.html.SafeScript.fromConstantAndArgs = function(code, var_args) {
+  for (var args = [], i = 1; i < arguments.length; i++) {
+    args.push(goog.html.SafeScript.stringify_(arguments[i]));
+  }
+  return goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse("(" + goog.string.Const.unwrap(code) + ")(" + args.join(", ") + ");");
+};
+goog.html.SafeScript.fromJson = function(val) {
+  return goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(goog.html.SafeScript.stringify_(val));
+};
+goog.html.SafeScript.prototype.getTypedStringValue = function() {
+  return this.privateDoNotAccessOrElseSafeScriptWrappedValue_.toString();
+};
+goog.DEBUG && (goog.html.SafeScript.prototype.toString = function() {
+  return "SafeScript{" + this.privateDoNotAccessOrElseSafeScriptWrappedValue_ + "}";
+});
+goog.html.SafeScript.unwrap = function(safeScript) {
+  return goog.html.SafeScript.unwrapTrustedScript(safeScript).toString();
+};
+goog.html.SafeScript.unwrapTrustedScript = function(safeScript) {
+  if (safeScript instanceof goog.html.SafeScript && safeScript.constructor === goog.html.SafeScript && safeScript.SAFE_SCRIPT_TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_ === goog.html.SafeScript.TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_) {
+    return safeScript.privateDoNotAccessOrElseSafeScriptWrappedValue_;
+  }
+  goog.asserts.fail("expected object of type SafeScript, got '" + safeScript + "' of type " + goog.typeOf(safeScript));
+  return "type_error:SafeScript";
+};
+goog.html.SafeScript.stringify_ = function(val) {
+  return JSON.stringify(val).replace(/</g, "\\x3c");
+};
+goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse = function(script) {
+  return (new goog.html.SafeScript).initSecurityPrivateDoNotAccessOrElse_(script);
+};
+goog.html.SafeScript.prototype.initSecurityPrivateDoNotAccessOrElse_ = function(script) {
+  this.privateDoNotAccessOrElseSafeScriptWrappedValue_ = goog.html.trustedtypes.PRIVATE_DO_NOT_ACCESS_OR_ELSE_POLICY ? goog.html.trustedtypes.PRIVATE_DO_NOT_ACCESS_OR_ELSE_POLICY.createScript(script) : script;
+  return this;
+};
+goog.html.SafeScript.EMPTY = goog.html.SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse("");
+goog.fs = {};
+goog.fs.url = {};
+goog.fs.url.createObjectUrl = function(blob) {
+  return goog.fs.url.getUrlObject_().createObjectURL(blob);
+};
+goog.fs.url.revokeObjectUrl = function(url) {
+  goog.fs.url.getUrlObject_().revokeObjectURL(url);
+};
+goog.fs.url.getUrlObject_ = function() {
+  var urlObject = goog.fs.url.findUrlObject_();
+  if (null != urlObject) {
+    return urlObject;
+  }
+  throw Error("This browser doesn't seem to support blob URLs");
+};
+goog.fs.url.findUrlObject_ = function() {
+  return void 0 !== goog.global.URL && void 0 !== goog.global.URL.createObjectURL ? goog.global.URL : void 0 !== goog.global.webkitURL && void 0 !== goog.global.webkitURL.createObjectURL ? goog.global.webkitURL : void 0 !== goog.global.createObjectURL ? goog.global : null;
+};
+goog.fs.url.browserSupportsObjectUrls = function() {
+  return null != goog.fs.url.findUrlObject_();
+};
+goog.fs.blob = {};
+goog.fs.blob.getBlob = function(var_args) {
+  var BlobBuilder = goog.global.BlobBuilder || goog.global.WebKitBlobBuilder;
+  if (void 0 !== BlobBuilder) {
+    for (var bb = new BlobBuilder, i = 0; i < arguments.length; i++) {
+      bb.append(arguments[i]);
+    }
+    return bb.getBlob();
+  }
+  return goog.fs.blob.getBlobWithProperties(goog.array.toArray(arguments));
+};
+goog.fs.blob.getBlobWithProperties = function(parts, opt_type, opt_endings) {
+  var BlobBuilder = goog.global.BlobBuilder || goog.global.WebKitBlobBuilder;
+  if (void 0 !== BlobBuilder) {
+    for (var bb = new BlobBuilder, i = 0; i < parts.length; i++) {
+      bb.append(parts[i], opt_endings);
+    }
+    return bb.getBlob(opt_type);
+  }
+  if (void 0 !== goog.global.Blob) {
+    var properties = {};
+    opt_type && (properties.type = opt_type);
+    opt_endings && (properties.endings = opt_endings);
+    return new Blob(parts, properties);
+  }
+  throw Error("This browser doesn't seem to support creating Blobs");
+};
 goog.html.TrustedResourceUrl = function(opt_token, opt_content) {
   this.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue_ = opt_token === goog.html.TrustedResourceUrl.CONSTRUCTOR_TOKEN_PRIVATE_ && opt_content || "";
   this.TRUSTED_RESOURCE_URL_TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_ = goog.html.TrustedResourceUrl.TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_;
@@ -3160,6 +3114,10 @@ goog.html.TrustedResourceUrl.fromConstants = function(parts) {
     unwrapped += goog.string.Const.unwrap(parts[i]);
   }
   return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(unwrapped);
+};
+goog.html.TrustedResourceUrl.fromSafeScript = function(safeScript) {
+  var blob = goog.fs.blob.getBlobWithProperties([goog.html.SafeScript.unwrap(safeScript)], "text/javascript"), url = goog.fs.url.createObjectUrl(blob);
+  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(url);
 };
 goog.html.TrustedResourceUrl.TYPE_MARKER_GOOG_HTML_SECURITY_PRIVATE_ = {};
 goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse = function(url) {
@@ -4396,9 +4354,6 @@ goog.labs.userAgent.platform.isChromecast = function() {
 goog.labs.userAgent.platform.isKaiOS = function() {
   return goog.labs.userAgent.util.matchUserAgentIgnoreCase("KaiOS");
 };
-goog.labs.userAgent.platform.isGo2Phone = function() {
-  return goog.labs.userAgent.util.matchUserAgentIgnoreCase("GAFP");
-};
 goog.labs.userAgent.platform.getVersion = function() {
   var userAgentString = goog.labs.userAgent.util.getUserAgent(), version = "";
   if (goog.labs.userAgent.platform.isWindows()) {
@@ -4480,7 +4435,6 @@ goog.userAgent.ASSUME_IPHONE = !1;
 goog.userAgent.ASSUME_IPAD = !1;
 goog.userAgent.ASSUME_IPOD = !1;
 goog.userAgent.ASSUME_KAIOS = !1;
-goog.userAgent.ASSUME_GO2PHONE = !1;
 goog.userAgent.PLATFORM_KNOWN_ = goog.userAgent.ASSUME_MAC || goog.userAgent.ASSUME_WINDOWS || goog.userAgent.ASSUME_LINUX || goog.userAgent.ASSUME_X11 || goog.userAgent.ASSUME_ANDROID || goog.userAgent.ASSUME_IPHONE || goog.userAgent.ASSUME_IPAD || goog.userAgent.ASSUME_IPOD;
 goog.userAgent.MAC = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_MAC : goog.labs.userAgent.platform.isMacintosh();
 goog.userAgent.WINDOWS = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_WINDOWS : goog.labs.userAgent.platform.isWindows();
@@ -4499,7 +4453,6 @@ goog.userAgent.IPAD = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPA
 goog.userAgent.IPOD = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPOD : goog.labs.userAgent.platform.isIpod();
 goog.userAgent.IOS = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPHONE || goog.userAgent.ASSUME_IPAD || goog.userAgent.ASSUME_IPOD : goog.labs.userAgent.platform.isIos();
 goog.userAgent.KAIOS = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_KAIOS : goog.labs.userAgent.platform.isKaiOS();
-goog.userAgent.GO2PHONE = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_GO2PHONE : goog.labs.userAgent.platform.isGo2Phone();
 goog.userAgent.determineVersion_ = function() {
   var version = "", arr = goog.userAgent.getVersionRegexResult_();
   arr && (version = arr ? arr[1] : "");
@@ -4553,6 +4506,56 @@ goog.userAgent.DOCUMENT_MODE = function() {
     return goog.userAgent.getDocumentMode_();
   }
 }();
+$jscomp.scope.purify = function(fn) {
+  return {valueOf:fn}.valueOf();
+};
+goog.events.BrowserFeature = {HAS_W3C_BUTTON:!goog.userAgent.IE || goog.userAgent.isDocumentModeOrHigher(9), HAS_W3C_EVENT_SUPPORT:!goog.userAgent.IE || goog.userAgent.isDocumentModeOrHigher(9), SET_KEY_CODE_TO_PREVENT_DEFAULT:goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("9"), HAS_NAVIGATOR_ONLINE_PROPERTY:!goog.userAgent.WEBKIT || goog.userAgent.isVersionOrHigher("528"), HAS_HTML5_NETWORK_EVENT_SUPPORT:goog.userAgent.GECKO && goog.userAgent.isVersionOrHigher("1.9b") || goog.userAgent.IE && 
+goog.userAgent.isVersionOrHigher("8") || goog.userAgent.OPERA && goog.userAgent.isVersionOrHigher("9.5") || goog.userAgent.WEBKIT && goog.userAgent.isVersionOrHigher("528"), HTML5_NETWORK_EVENTS_FIRE_ON_BODY:goog.userAgent.GECKO && !goog.userAgent.isVersionOrHigher("8") || goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("9"), TOUCH_ENABLED:"ontouchstart" in goog.global || !!(goog.global.document && document.documentElement && "ontouchstart" in document.documentElement) || !(!goog.global.navigator || 
+!goog.global.navigator.maxTouchPoints && !goog.global.navigator.msMaxTouchPoints), POINTER_EVENTS:"PointerEvent" in goog.global, MSPOINTER_EVENTS:"MSPointerEvent" in goog.global && !(!goog.global.navigator || !goog.global.navigator.msPointerEnabled), PASSIVE_EVENTS:(0,$jscomp.scope.purify)(function() {
+  if (!goog.global.addEventListener || !Object.defineProperty) {
+    return !1;
+  }
+  var passive = !1, options = Object.defineProperty({}, "passive", {get:function() {
+    passive = !0;
+  }});
+  try {
+    goog.global.addEventListener("test", goog.nullFunction, options), goog.global.removeEventListener("test", goog.nullFunction, options);
+  } catch (e) {
+  }
+  return passive;
+})};
+goog.events.getVendorPrefixedName_ = function(eventName) {
+  return goog.userAgent.WEBKIT ? "webkit" + eventName : goog.userAgent.OPERA ? "o" + eventName.toLowerCase() : eventName.toLowerCase();
+};
+goog.events.EventType = {CLICK:"click", RIGHTCLICK:"rightclick", DBLCLICK:"dblclick", AUXCLICK:"auxclick", MOUSEDOWN:"mousedown", MOUSEUP:"mouseup", MOUSEOVER:"mouseover", MOUSEOUT:"mouseout", MOUSEMOVE:"mousemove", MOUSEENTER:"mouseenter", MOUSELEAVE:"mouseleave", MOUSECANCEL:"mousecancel", SELECTIONCHANGE:"selectionchange", SELECTSTART:"selectstart", WHEEL:"wheel", KEYPRESS:"keypress", KEYDOWN:"keydown", KEYUP:"keyup", BLUR:"blur", FOCUS:"focus", DEACTIVATE:"deactivate", FOCUSIN:"focusin", FOCUSOUT:"focusout", 
+CHANGE:"change", RESET:"reset", SELECT:"select", SUBMIT:"submit", INPUT:"input", PROPERTYCHANGE:"propertychange", DRAGSTART:"dragstart", DRAG:"drag", DRAGENTER:"dragenter", DRAGOVER:"dragover", DRAGLEAVE:"dragleave", DROP:"drop", DRAGEND:"dragend", TOUCHSTART:"touchstart", TOUCHMOVE:"touchmove", TOUCHEND:"touchend", TOUCHCANCEL:"touchcancel", BEFOREUNLOAD:"beforeunload", CONSOLEMESSAGE:"consolemessage", CONTEXTMENU:"contextmenu", DEVICECHANGE:"devicechange", DEVICEMOTION:"devicemotion", DEVICEORIENTATION:"deviceorientation", 
+DOMCONTENTLOADED:"DOMContentLoaded", ERROR:"error", HELP:"help", LOAD:"load", LOSECAPTURE:"losecapture", ORIENTATIONCHANGE:"orientationchange", READYSTATECHANGE:"readystatechange", RESIZE:"resize", SCROLL:"scroll", UNLOAD:"unload", CANPLAY:"canplay", CANPLAYTHROUGH:"canplaythrough", DURATIONCHANGE:"durationchange", EMPTIED:"emptied", ENDED:"ended", LOADEDDATA:"loadeddata", LOADEDMETADATA:"loadedmetadata", PAUSE:"pause", PLAY:"play", PLAYING:"playing", PROGRESS:"progress", RATECHANGE:"ratechange", 
+SEEKED:"seeked", SEEKING:"seeking", STALLED:"stalled", SUSPEND:"suspend", TIMEUPDATE:"timeupdate", VOLUMECHANGE:"volumechange", WAITING:"waiting", SOURCEOPEN:"sourceopen", SOURCEENDED:"sourceended", SOURCECLOSED:"sourceclosed", ABORT:"abort", UPDATE:"update", UPDATESTART:"updatestart", UPDATEEND:"updateend", HASHCHANGE:"hashchange", PAGEHIDE:"pagehide", PAGESHOW:"pageshow", POPSTATE:"popstate", COPY:"copy", PASTE:"paste", CUT:"cut", BEFORECOPY:"beforecopy", BEFORECUT:"beforecut", BEFOREPASTE:"beforepaste", 
+ONLINE:"online", OFFLINE:"offline", MESSAGE:"message", CONNECT:"connect", INSTALL:"install", ACTIVATE:"activate", FETCH:"fetch", FOREIGNFETCH:"foreignfetch", MESSAGEERROR:"messageerror", STATECHANGE:"statechange", UPDATEFOUND:"updatefound", CONTROLLERCHANGE:"controllerchange", ANIMATIONSTART:goog.events.getVendorPrefixedName_("AnimationStart"), ANIMATIONEND:goog.events.getVendorPrefixedName_("AnimationEnd"), ANIMATIONITERATION:goog.events.getVendorPrefixedName_("AnimationIteration"), TRANSITIONEND:goog.events.getVendorPrefixedName_("TransitionEnd"), 
+POINTERDOWN:"pointerdown", POINTERUP:"pointerup", POINTERCANCEL:"pointercancel", POINTERMOVE:"pointermove", POINTEROVER:"pointerover", POINTEROUT:"pointerout", POINTERENTER:"pointerenter", POINTERLEAVE:"pointerleave", GOTPOINTERCAPTURE:"gotpointercapture", LOSTPOINTERCAPTURE:"lostpointercapture", MSGESTURECHANGE:"MSGestureChange", MSGESTUREEND:"MSGestureEnd", MSGESTUREHOLD:"MSGestureHold", MSGESTURESTART:"MSGestureStart", MSGESTURETAP:"MSGestureTap", MSGOTPOINTERCAPTURE:"MSGotPointerCapture", MSINERTIASTART:"MSInertiaStart", 
+MSLOSTPOINTERCAPTURE:"MSLostPointerCapture", MSPOINTERCANCEL:"MSPointerCancel", MSPOINTERDOWN:"MSPointerDown", MSPOINTERENTER:"MSPointerEnter", MSPOINTERHOVER:"MSPointerHover", MSPOINTERLEAVE:"MSPointerLeave", MSPOINTERMOVE:"MSPointerMove", MSPOINTEROUT:"MSPointerOut", MSPOINTEROVER:"MSPointerOver", MSPOINTERUP:"MSPointerUp", TEXT:"text", TEXTINPUT:goog.userAgent.IE ? "textinput" : "textInput", COMPOSITIONSTART:"compositionstart", COMPOSITIONUPDATE:"compositionupdate", COMPOSITIONEND:"compositionend", 
+BEFOREINPUT:"beforeinput", EXIT:"exit", LOADABORT:"loadabort", LOADCOMMIT:"loadcommit", LOADREDIRECT:"loadredirect", LOADSTART:"loadstart", LOADSTOP:"loadstop", RESPONSIVE:"responsive", SIZECHANGED:"sizechanged", UNRESPONSIVE:"unresponsive", VISIBILITYCHANGE:"visibilitychange", STORAGE:"storage", DOMSUBTREEMODIFIED:"DOMSubtreeModified", DOMNODEINSERTED:"DOMNodeInserted", DOMNODEREMOVED:"DOMNodeRemoved", DOMNODEREMOVEDFROMDOCUMENT:"DOMNodeRemovedFromDocument", DOMNODEINSERTEDINTODOCUMENT:"DOMNodeInsertedIntoDocument", 
+DOMATTRMODIFIED:"DOMAttrModified", DOMCHARACTERDATAMODIFIED:"DOMCharacterDataModified", BEFOREPRINT:"beforeprint", AFTERPRINT:"afterprint", BEFOREINSTALLPROMPT:"beforeinstallprompt", APPINSTALLED:"appinstalled"};
+goog.events.getPointerFallbackEventName_ = function(pointerEventName, msPointerEventName, fallbackEventName) {
+  return goog.events.BrowserFeature.POINTER_EVENTS ? pointerEventName : goog.events.BrowserFeature.MSPOINTER_EVENTS ? msPointerEventName : fallbackEventName;
+};
+goog.events.PointerFallbackEventType = {POINTERDOWN:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERDOWN, goog.events.EventType.MSPOINTERDOWN, goog.events.EventType.MOUSEDOWN), POINTERUP:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERUP, goog.events.EventType.MSPOINTERUP, goog.events.EventType.MOUSEUP), POINTERCANCEL:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERCANCEL, goog.events.EventType.MSPOINTERCANCEL, goog.events.EventType.MOUSECANCEL), 
+POINTERMOVE:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERMOVE, goog.events.EventType.MSPOINTERMOVE, goog.events.EventType.MOUSEMOVE), POINTEROVER:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTEROVER, goog.events.EventType.MSPOINTEROVER, goog.events.EventType.MOUSEOVER), POINTEROUT:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTEROUT, goog.events.EventType.MSPOINTEROUT, goog.events.EventType.MOUSEOUT), POINTERENTER:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERENTER, 
+goog.events.EventType.MSPOINTERENTER, goog.events.EventType.MOUSEENTER), POINTERLEAVE:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERLEAVE, goog.events.EventType.MSPOINTERLEAVE, goog.events.EventType.MOUSELEAVE)};
+goog.events.PointerTouchFallbackEventType = {POINTERDOWN:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERDOWN, goog.events.EventType.MSPOINTERDOWN, goog.events.EventType.TOUCHSTART), POINTERUP:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERUP, goog.events.EventType.MSPOINTERUP, goog.events.EventType.TOUCHEND), POINTERCANCEL:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERCANCEL, goog.events.EventType.MSPOINTERCANCEL, goog.events.EventType.TOUCHCANCEL), 
+POINTERMOVE:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERMOVE, goog.events.EventType.MSPOINTERMOVE, goog.events.EventType.TOUCHMOVE)};
+goog.events.PointerAsMouseEventType = {MOUSEDOWN:goog.events.PointerFallbackEventType.POINTERDOWN, MOUSEUP:goog.events.PointerFallbackEventType.POINTERUP, MOUSECANCEL:goog.events.PointerFallbackEventType.POINTERCANCEL, MOUSEMOVE:goog.events.PointerFallbackEventType.POINTERMOVE, MOUSEOVER:goog.events.PointerFallbackEventType.POINTEROVER, MOUSEOUT:goog.events.PointerFallbackEventType.POINTEROUT, MOUSEENTER:goog.events.PointerFallbackEventType.POINTERENTER, MOUSELEAVE:goog.events.PointerFallbackEventType.POINTERLEAVE};
+goog.events.MouseAsMouseEventType = {MOUSEDOWN:goog.events.EventType.MOUSEDOWN, MOUSEUP:goog.events.EventType.MOUSEUP, MOUSECANCEL:goog.events.EventType.MOUSECANCEL, MOUSEMOVE:goog.events.EventType.MOUSEMOVE, MOUSEOVER:goog.events.EventType.MOUSEOVER, MOUSEOUT:goog.events.EventType.MOUSEOUT, MOUSEENTER:goog.events.EventType.MOUSEENTER, MOUSELEAVE:goog.events.EventType.MOUSELEAVE};
+goog.events.PointerAsTouchEventType = {TOUCHCANCEL:goog.events.PointerTouchFallbackEventType.POINTERCANCEL, TOUCHEND:goog.events.PointerTouchFallbackEventType.POINTERUP, TOUCHMOVE:goog.events.PointerTouchFallbackEventType.POINTERMOVE, TOUCHSTART:goog.events.PointerTouchFallbackEventType.POINTERDOWN};
+goog.debug.errorcontext = {};
+goog.debug.errorcontext.addErrorContext = function(err, contextKey, contextValue) {
+  err[goog.debug.errorcontext.CONTEXT_KEY_] || (err[goog.debug.errorcontext.CONTEXT_KEY_] = {});
+  err[goog.debug.errorcontext.CONTEXT_KEY_][contextKey] = contextValue;
+};
+goog.debug.errorcontext.getErrorContext = function(err) {
+  return err[goog.debug.errorcontext.CONTEXT_KEY_] || {};
+};
+goog.debug.errorcontext.CONTEXT_KEY_ = "__closure__error__context__984382";
 goog.debug.LOGGING_ENABLED = goog.DEBUG;
 goog.debug.FORCE_SLOPPY_STACKS = !1;
 goog.debug.catchErrors = function(logFunc, opt_cancel, opt_target) {
@@ -4806,47 +4809,6 @@ goog.debug.freeze = function(arg) {
     return goog.debug.freezeInternal_(arg);
   }();
 };
-$jscomp.scope.purify = function(fn) {
-  return {valueOf:fn}.valueOf();
-};
-goog.events.BrowserFeature = {HAS_W3C_BUTTON:!goog.userAgent.IE || goog.userAgent.isDocumentModeOrHigher(9), HAS_W3C_EVENT_SUPPORT:!goog.userAgent.IE || goog.userAgent.isDocumentModeOrHigher(9), SET_KEY_CODE_TO_PREVENT_DEFAULT:goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("9"), HAS_NAVIGATOR_ONLINE_PROPERTY:!goog.userAgent.WEBKIT || goog.userAgent.isVersionOrHigher("528"), HAS_HTML5_NETWORK_EVENT_SUPPORT:goog.userAgent.GECKO && goog.userAgent.isVersionOrHigher("1.9b") || goog.userAgent.IE && 
-goog.userAgent.isVersionOrHigher("8") || goog.userAgent.OPERA && goog.userAgent.isVersionOrHigher("9.5") || goog.userAgent.WEBKIT && goog.userAgent.isVersionOrHigher("528"), HTML5_NETWORK_EVENTS_FIRE_ON_BODY:goog.userAgent.GECKO && !goog.userAgent.isVersionOrHigher("8") || goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("9"), TOUCH_ENABLED:"ontouchstart" in goog.global || !!(goog.global.document && document.documentElement && "ontouchstart" in document.documentElement) || !(!goog.global.navigator || 
-!goog.global.navigator.maxTouchPoints && !goog.global.navigator.msMaxTouchPoints), POINTER_EVENTS:"PointerEvent" in goog.global, MSPOINTER_EVENTS:"MSPointerEvent" in goog.global && !(!goog.global.navigator || !goog.global.navigator.msPointerEnabled), PASSIVE_EVENTS:(0,$jscomp.scope.purify)(function() {
-  if (!goog.global.addEventListener || !Object.defineProperty) {
-    return !1;
-  }
-  var passive = !1, options = Object.defineProperty({}, "passive", {get:function() {
-    passive = !0;
-  }});
-  try {
-    goog.global.addEventListener("test", goog.nullFunction, options), goog.global.removeEventListener("test", goog.nullFunction, options);
-  } catch (e) {
-  }
-  return passive;
-})};
-goog.events.getVendorPrefixedName_ = function(eventName) {
-  return goog.userAgent.WEBKIT ? "webkit" + eventName : goog.userAgent.OPERA ? "o" + eventName.toLowerCase() : eventName.toLowerCase();
-};
-goog.events.EventType = {CLICK:"click", RIGHTCLICK:"rightclick", DBLCLICK:"dblclick", AUXCLICK:"auxclick", MOUSEDOWN:"mousedown", MOUSEUP:"mouseup", MOUSEOVER:"mouseover", MOUSEOUT:"mouseout", MOUSEMOVE:"mousemove", MOUSEENTER:"mouseenter", MOUSELEAVE:"mouseleave", MOUSECANCEL:"mousecancel", SELECTIONCHANGE:"selectionchange", SELECTSTART:"selectstart", WHEEL:"wheel", KEYPRESS:"keypress", KEYDOWN:"keydown", KEYUP:"keyup", BLUR:"blur", FOCUS:"focus", DEACTIVATE:"deactivate", FOCUSIN:"focusin", FOCUSOUT:"focusout", 
-CHANGE:"change", RESET:"reset", SELECT:"select", SUBMIT:"submit", INPUT:"input", PROPERTYCHANGE:"propertychange", DRAGSTART:"dragstart", DRAG:"drag", DRAGENTER:"dragenter", DRAGOVER:"dragover", DRAGLEAVE:"dragleave", DROP:"drop", DRAGEND:"dragend", TOUCHSTART:"touchstart", TOUCHMOVE:"touchmove", TOUCHEND:"touchend", TOUCHCANCEL:"touchcancel", BEFOREUNLOAD:"beforeunload", CONSOLEMESSAGE:"consolemessage", CONTEXTMENU:"contextmenu", DEVICECHANGE:"devicechange", DEVICEMOTION:"devicemotion", DEVICEORIENTATION:"deviceorientation", 
-DOMCONTENTLOADED:"DOMContentLoaded", ERROR:"error", HELP:"help", LOAD:"load", LOSECAPTURE:"losecapture", ORIENTATIONCHANGE:"orientationchange", READYSTATECHANGE:"readystatechange", RESIZE:"resize", SCROLL:"scroll", UNLOAD:"unload", CANPLAY:"canplay", CANPLAYTHROUGH:"canplaythrough", DURATIONCHANGE:"durationchange", EMPTIED:"emptied", ENDED:"ended", LOADEDDATA:"loadeddata", LOADEDMETADATA:"loadedmetadata", PAUSE:"pause", PLAY:"play", PLAYING:"playing", PROGRESS:"progress", RATECHANGE:"ratechange", 
-SEEKED:"seeked", SEEKING:"seeking", STALLED:"stalled", SUSPEND:"suspend", TIMEUPDATE:"timeupdate", VOLUMECHANGE:"volumechange", WAITING:"waiting", SOURCEOPEN:"sourceopen", SOURCEENDED:"sourceended", SOURCECLOSED:"sourceclosed", ABORT:"abort", UPDATE:"update", UPDATESTART:"updatestart", UPDATEEND:"updateend", HASHCHANGE:"hashchange", PAGEHIDE:"pagehide", PAGESHOW:"pageshow", POPSTATE:"popstate", COPY:"copy", PASTE:"paste", CUT:"cut", BEFORECOPY:"beforecopy", BEFORECUT:"beforecut", BEFOREPASTE:"beforepaste", 
-ONLINE:"online", OFFLINE:"offline", MESSAGE:"message", CONNECT:"connect", INSTALL:"install", ACTIVATE:"activate", FETCH:"fetch", FOREIGNFETCH:"foreignfetch", MESSAGEERROR:"messageerror", STATECHANGE:"statechange", UPDATEFOUND:"updatefound", CONTROLLERCHANGE:"controllerchange", ANIMATIONSTART:goog.events.getVendorPrefixedName_("AnimationStart"), ANIMATIONEND:goog.events.getVendorPrefixedName_("AnimationEnd"), ANIMATIONITERATION:goog.events.getVendorPrefixedName_("AnimationIteration"), TRANSITIONEND:goog.events.getVendorPrefixedName_("TransitionEnd"), 
-POINTERDOWN:"pointerdown", POINTERUP:"pointerup", POINTERCANCEL:"pointercancel", POINTERMOVE:"pointermove", POINTEROVER:"pointerover", POINTEROUT:"pointerout", POINTERENTER:"pointerenter", POINTERLEAVE:"pointerleave", GOTPOINTERCAPTURE:"gotpointercapture", LOSTPOINTERCAPTURE:"lostpointercapture", MSGESTURECHANGE:"MSGestureChange", MSGESTUREEND:"MSGestureEnd", MSGESTUREHOLD:"MSGestureHold", MSGESTURESTART:"MSGestureStart", MSGESTURETAP:"MSGestureTap", MSGOTPOINTERCAPTURE:"MSGotPointerCapture", MSINERTIASTART:"MSInertiaStart", 
-MSLOSTPOINTERCAPTURE:"MSLostPointerCapture", MSPOINTERCANCEL:"MSPointerCancel", MSPOINTERDOWN:"MSPointerDown", MSPOINTERENTER:"MSPointerEnter", MSPOINTERHOVER:"MSPointerHover", MSPOINTERLEAVE:"MSPointerLeave", MSPOINTERMOVE:"MSPointerMove", MSPOINTEROUT:"MSPointerOut", MSPOINTEROVER:"MSPointerOver", MSPOINTERUP:"MSPointerUp", TEXT:"text", TEXTINPUT:goog.userAgent.IE ? "textinput" : "textInput", COMPOSITIONSTART:"compositionstart", COMPOSITIONUPDATE:"compositionupdate", COMPOSITIONEND:"compositionend", 
-BEFOREINPUT:"beforeinput", EXIT:"exit", LOADABORT:"loadabort", LOADCOMMIT:"loadcommit", LOADREDIRECT:"loadredirect", LOADSTART:"loadstart", LOADSTOP:"loadstop", RESPONSIVE:"responsive", SIZECHANGED:"sizechanged", UNRESPONSIVE:"unresponsive", VISIBILITYCHANGE:"visibilitychange", STORAGE:"storage", DOMSUBTREEMODIFIED:"DOMSubtreeModified", DOMNODEINSERTED:"DOMNodeInserted", DOMNODEREMOVED:"DOMNodeRemoved", DOMNODEREMOVEDFROMDOCUMENT:"DOMNodeRemovedFromDocument", DOMNODEINSERTEDINTODOCUMENT:"DOMNodeInsertedIntoDocument", 
-DOMATTRMODIFIED:"DOMAttrModified", DOMCHARACTERDATAMODIFIED:"DOMCharacterDataModified", BEFOREPRINT:"beforeprint", AFTERPRINT:"afterprint", BEFOREINSTALLPROMPT:"beforeinstallprompt", APPINSTALLED:"appinstalled"};
-goog.events.getPointerFallbackEventName_ = function(pointerEventName, msPointerEventName, fallbackEventName) {
-  return goog.events.BrowserFeature.POINTER_EVENTS ? pointerEventName : goog.events.BrowserFeature.MSPOINTER_EVENTS ? msPointerEventName : fallbackEventName;
-};
-goog.events.PointerFallbackEventType = {POINTERDOWN:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERDOWN, goog.events.EventType.MSPOINTERDOWN, goog.events.EventType.MOUSEDOWN), POINTERUP:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERUP, goog.events.EventType.MSPOINTERUP, goog.events.EventType.MOUSEUP), POINTERCANCEL:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERCANCEL, goog.events.EventType.MSPOINTERCANCEL, goog.events.EventType.MOUSECANCEL), 
-POINTERMOVE:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERMOVE, goog.events.EventType.MSPOINTERMOVE, goog.events.EventType.MOUSEMOVE), POINTEROVER:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTEROVER, goog.events.EventType.MSPOINTEROVER, goog.events.EventType.MOUSEOVER), POINTEROUT:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTEROUT, goog.events.EventType.MSPOINTEROUT, goog.events.EventType.MOUSEOUT), POINTERENTER:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERENTER, 
-goog.events.EventType.MSPOINTERENTER, goog.events.EventType.MOUSEENTER), POINTERLEAVE:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERLEAVE, goog.events.EventType.MSPOINTERLEAVE, goog.events.EventType.MOUSELEAVE)};
-goog.events.PointerTouchFallbackEventType = {POINTERDOWN:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERDOWN, goog.events.EventType.MSPOINTERDOWN, goog.events.EventType.TOUCHSTART), POINTERUP:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERUP, goog.events.EventType.MSPOINTERUP, goog.events.EventType.TOUCHEND), POINTERCANCEL:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERCANCEL, goog.events.EventType.MSPOINTERCANCEL, goog.events.EventType.TOUCHCANCEL), 
-POINTERMOVE:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERMOVE, goog.events.EventType.MSPOINTERMOVE, goog.events.EventType.TOUCHMOVE)};
-goog.events.PointerAsMouseEventType = {MOUSEDOWN:goog.events.PointerFallbackEventType.POINTERDOWN, MOUSEUP:goog.events.PointerFallbackEventType.POINTERUP, MOUSECANCEL:goog.events.PointerFallbackEventType.POINTERCANCEL, MOUSEMOVE:goog.events.PointerFallbackEventType.POINTERMOVE, MOUSEOVER:goog.events.PointerFallbackEventType.POINTEROVER, MOUSEOUT:goog.events.PointerFallbackEventType.POINTEROUT, MOUSEENTER:goog.events.PointerFallbackEventType.POINTERENTER, MOUSELEAVE:goog.events.PointerFallbackEventType.POINTERLEAVE};
-goog.events.MouseAsMouseEventType = {MOUSEDOWN:goog.events.EventType.MOUSEDOWN, MOUSEUP:goog.events.EventType.MOUSEUP, MOUSECANCEL:goog.events.EventType.MOUSECANCEL, MOUSEMOVE:goog.events.EventType.MOUSEMOVE, MOUSEOVER:goog.events.EventType.MOUSEOVER, MOUSEOUT:goog.events.EventType.MOUSEOUT, MOUSEENTER:goog.events.EventType.MOUSEENTER, MOUSELEAVE:goog.events.EventType.MOUSELEAVE};
-goog.events.PointerAsTouchEventType = {TOUCHCANCEL:goog.events.PointerTouchFallbackEventType.POINTERCANCEL, TOUCHEND:goog.events.PointerTouchFallbackEventType.POINTERUP, TOUCHMOVE:goog.events.PointerTouchFallbackEventType.POINTERMOVE, TOUCHSTART:goog.events.PointerTouchFallbackEventType.POINTERDOWN};
 goog.events.USE_LAYER_XY_AS_OFFSET_XY = !1;
 goog.events.BrowserEvent = function(opt_e, opt_currentTarget) {
   goog.events.Event.call(this, opt_e ? opt_e.type : "");
@@ -5046,6 +5008,35 @@ goog.events.ListenerMap.findListenerIndex_ = function(listenerArray, listener, o
     }
   }
   return -1;
+};
+goog.debug.entryPointRegistry = {};
+goog.debug.EntryPointMonitor = function() {
+};
+goog.debug.entryPointRegistry.refList_ = [];
+goog.debug.entryPointRegistry.monitors_ = [];
+goog.debug.entryPointRegistry.monitorsMayExist_ = !1;
+goog.debug.entryPointRegistry.register = function(callback) {
+  goog.debug.entryPointRegistry.refList_[goog.debug.entryPointRegistry.refList_.length] = callback;
+  if (goog.debug.entryPointRegistry.monitorsMayExist_) {
+    for (var monitors = goog.debug.entryPointRegistry.monitors_, i = 0; i < monitors.length; i++) {
+      callback(goog.bind(monitors[i].wrap, monitors[i]));
+    }
+  }
+};
+goog.debug.entryPointRegistry.monitorAll = function(monitor) {
+  goog.debug.entryPointRegistry.monitorsMayExist_ = !0;
+  for (var transformer = goog.bind(monitor.wrap, monitor), i = 0; i < goog.debug.entryPointRegistry.refList_.length; i++) {
+    goog.debug.entryPointRegistry.refList_[i](transformer);
+  }
+  goog.debug.entryPointRegistry.monitors_.push(monitor);
+};
+goog.debug.entryPointRegistry.unmonitorAllIfPossible = function(monitor) {
+  var monitors = goog.debug.entryPointRegistry.monitors_;
+  goog.asserts.assert(monitor == monitors[monitors.length - 1], "Only the most recent monitor can be unwrapped.");
+  for (var transformer = goog.bind(monitor.unwrap, monitor), i = 0; i < goog.debug.entryPointRegistry.refList_.length; i++) {
+    goog.debug.entryPointRegistry.refList_[i](transformer);
+  }
+  monitors.length--;
 };
 goog.events.LISTENER_MAP_PROP_ = "closure_lm_" + (1e6 * Math.random() | 0);
 goog.events.onString_ = "on";
@@ -5278,12 +5269,12 @@ goog.events.handleBrowserEvent_ = function(listener, opt_evt) {
         for (var ancestors = [], parent = evt.currentTarget; parent; parent = parent.parentNode) {
           ancestors.push(parent);
         }
-        for (var type = listener.type, i = ancestors.length - 1; !evt.propagationStopped_ && 0 <= i; i--) {
+        for (var type = listener.type, i = ancestors.length - 1; !evt.hasPropagationStopped() && 0 <= i; i--) {
           evt.currentTarget = ancestors[i];
           var result = goog.events.fireListeners_(ancestors[i], type, !0, evt);
           retval = retval && result;
         }
-        for (i = 0; !evt.propagationStopped_ && i < ancestors.length; i++) {
+        for (i = 0; !evt.hasPropagationStopped() && i < ancestors.length; i++) {
           evt.currentTarget = ancestors[i], result = goog.events.fireListeners_(ancestors[i], type, !1, evt), retval = retval && result;
         }
       }
@@ -5401,7 +5392,7 @@ goog.events.EventTarget.prototype.fireListeners = function(type, capture, eventO
       rv = !1 !== listenerFn.call(listenerHandler, eventObject) && rv;
     }
   }
-  return rv && 0 != eventObject.returnValue_;
+  return rv && !eventObject.defaultPrevented;
 };
 goog.events.EventTarget.prototype.getListeners = function(type, capture) {
   return this.eventTargetListeners_.getListeners(String(type), capture);
@@ -5433,14 +5424,14 @@ goog.events.EventTarget.dispatchEventInternal_ = function(target, e, opt_ancesto
   }
   var rv = !0;
   if (opt_ancestorsTree) {
-    for (var i = opt_ancestorsTree.length - 1; !e.propagationStopped_ && 0 <= i; i--) {
+    for (var i = opt_ancestorsTree.length - 1; !e.hasPropagationStopped() && 0 <= i; i--) {
       var currentTarget = e.currentTarget = opt_ancestorsTree[i];
       rv = currentTarget.fireListeners(type, !0, e) && rv;
     }
   }
-  e.propagationStopped_ || (currentTarget = e.currentTarget = target, rv = currentTarget.fireListeners(type, !0, e) && rv, e.propagationStopped_ || (rv = currentTarget.fireListeners(type, !1, e) && rv));
+  e.hasPropagationStopped() || (currentTarget = e.currentTarget = target, rv = currentTarget.fireListeners(type, !0, e) && rv, e.hasPropagationStopped() || (rv = currentTarget.fireListeners(type, !1, e) && rv));
   if (opt_ancestorsTree) {
-    for (i = 0; !e.propagationStopped_ && i < opt_ancestorsTree.length; i++) {
+    for (i = 0; !e.hasPropagationStopped() && i < opt_ancestorsTree.length; i++) {
       currentTarget = e.currentTarget = opt_ancestorsTree[i], rv = currentTarget.fireListeners(type, !1, e) && rv;
     }
   }
@@ -6384,9 +6375,12 @@ ee.TileEvent = function(count) {
   this.count = count;
 };
 goog.inherits(ee.TileEvent, goog.events.Event);
-var module$contents$eeapiclient$domain_object_module = module$contents$eeapiclient$domain_object_module || {id:"javascript/typescript/contrib/apiclient/core/domain_object.closure.js"}, module$exports$eeapiclient$domain_object = {ObjectMapMetadata:function module$contents$eeapiclient$domain_object_ObjectMapMetadata() {
-}, ClassMetadata:function module$contents$eeapiclient$domain_object_ClassMetadata() {
-}}, module$contents$eeapiclient$domain_object_NullClass = function() {
+var module$exports$eeapiclient$domain_object = {}, module$contents$eeapiclient$domain_object_module = module$contents$eeapiclient$domain_object_module || {id:"javascript/typescript/contrib/apiclient/core/domain_object.closure.js"};
+module$exports$eeapiclient$domain_object.ObjectMapMetadata = function module$contents$eeapiclient$domain_object_ObjectMapMetadata() {
+};
+module$exports$eeapiclient$domain_object.ClassMetadata = function module$contents$eeapiclient$domain_object_ClassMetadata() {
+};
+var module$contents$eeapiclient$domain_object_NullClass = function() {
 };
 module$exports$eeapiclient$domain_object.NULL_VALUE = new module$contents$eeapiclient$domain_object_NullClass;
 module$exports$eeapiclient$domain_object.ISerializable = function module$contents$eeapiclient$domain_object_ISerializable() {
@@ -6395,25 +6389,21 @@ function module$contents$eeapiclient$domain_object_buildClassMetadataFromPartial
   return Object.assign({arrays:{}, descriptions:{}, keys:[], objectMaps:{}, objects:{}, enums:{}}, partialClassMetadata);
 }
 module$exports$eeapiclient$domain_object.buildClassMetadataFromPartial = module$contents$eeapiclient$domain_object_buildClassMetadataFromPartial;
-var module$contents$eeapiclient$domain_object_Serializable = function() {
+module$exports$eeapiclient$domain_object.Serializable = function() {
   this.Serializable$values = {};
 };
-module$contents$eeapiclient$domain_object_Serializable.prototype.getClassMetadata = function() {
+module$exports$eeapiclient$domain_object.Serializable.prototype.getClassMetadata = function() {
   return module$contents$eeapiclient$domain_object_buildClassMetadataFromPartial(this.getPartialClassMetadata());
 };
-module$contents$eeapiclient$domain_object_Serializable.prototype.getPartialClassMetadata = function() {
-  return {};
-};
-module$contents$eeapiclient$domain_object_Serializable.prototype.Serializable$get = function(key) {
+module$exports$eeapiclient$domain_object.Serializable.prototype.Serializable$get = function(key) {
   return this.Serializable$values.hasOwnProperty(key) ? this.Serializable$values[key] : null;
 };
-module$contents$eeapiclient$domain_object_Serializable.prototype.Serializable$set = function(key, value) {
+module$exports$eeapiclient$domain_object.Serializable.prototype.Serializable$set = function(key, value) {
   this.Serializable$values[key] = value;
 };
-module$contents$eeapiclient$domain_object_Serializable.prototype.Serializable$has = function(key) {
+module$exports$eeapiclient$domain_object.Serializable.prototype.Serializable$has = function(key) {
   return null != this.Serializable$values[key];
 };
-module$exports$eeapiclient$domain_object.Serializable = module$contents$eeapiclient$domain_object_Serializable;
 module$exports$eeapiclient$domain_object.SerializableCtor = function module$contents$eeapiclient$domain_object_SerializableCtor() {
 };
 module$exports$eeapiclient$domain_object.clone = function module$contents$eeapiclient$domain_object_clone(serializable) {
@@ -6489,10 +6479,10 @@ function module$contents$eeapiclient$domain_object_deepCopyValue(value, valueGet
   }) : !isArray && isRef ? module$contents$eeapiclient$domain_object_deepCopy(value, valueGetter, valueSetter, copyInstanciator, ctor) : value instanceof module$contents$eeapiclient$domain_object_NullClass ? null : "object" === typeof value ? JSON.parse(JSON.stringify(value)) : value;
 }
 function module$contents$eeapiclient$domain_object_deepCopyMetadata(source, target) {
-  if (target instanceof module$contents$eeapiclient$domain_object_Serializable) {
+  if (target instanceof module$exports$eeapiclient$domain_object.Serializable) {
     var metadata = target.getClassMetadata();
   } else {
-    if (source instanceof module$contents$eeapiclient$domain_object_Serializable) {
+    if (source instanceof module$exports$eeapiclient$domain_object.Serializable) {
       metadata = source.getClassMetadata();
     } else {
       throw Error("Cannot find ClassMetadata.");
@@ -6614,7 +6604,8 @@ function module$contents$eeapiclient$domain_object_sameKeys(a, b) {
   }
   return !0;
 }
-;var module$contents$eeapiclient$multipart_request_module = module$contents$eeapiclient$multipart_request_module || {id:"javascript/typescript/contrib/apiclient/core/multipart_request.closure.js"}, module$contents$eeapiclient$multipart_request_MultipartRequest = function(files, _metadata) {
+;var module$exports$eeapiclient$multipart_request = {}, module$contents$eeapiclient$multipart_request_module = module$contents$eeapiclient$multipart_request_module || {id:"javascript/typescript/contrib/apiclient/core/multipart_request.closure.js"};
+module$exports$eeapiclient$multipart_request.MultipartRequest = function(files, _metadata) {
   this.files = files;
   this._metadata = _metadata;
   this._metadataPayload = "";
@@ -6622,11 +6613,11 @@ function module$contents$eeapiclient$domain_object_sameKeys(a, b) {
   _metadata && this.addMetadata(_metadata);
   this._payloadPromise = this.build();
 };
-module$contents$eeapiclient$multipart_request_MultipartRequest.prototype.addMetadata = function(metadata) {
-  var json = metadata instanceof module$contents$eeapiclient$domain_object_Serializable ? module$contents$eeapiclient$domain_object_serialize(metadata) : metadata;
+module$exports$eeapiclient$multipart_request.MultipartRequest.prototype.addMetadata = function(metadata) {
+  var json = metadata instanceof module$exports$eeapiclient$domain_object.Serializable ? module$contents$eeapiclient$domain_object_serialize(metadata) : metadata;
   this._metadataPayload += "Content-Type: application/json; charset=utf-8\r\n\r\n" + JSON.stringify(json) + ("\r\n--" + this._boundary + "\r\n");
 };
-module$contents$eeapiclient$multipart_request_MultipartRequest.prototype.build = function() {
+module$exports$eeapiclient$multipart_request.MultipartRequest.prototype.build = function() {
   var $jscomp$this = this, payload = "--" + this.boundary + "\r\n";
   payload += this._metadataPayload;
   return Promise.all(this.files.map(function(f) {
@@ -6638,12 +6629,12 @@ module$contents$eeapiclient$multipart_request_MultipartRequest.prototype.build =
     return payload += "\r\n--" + $jscomp$this._boundary + "--";
   });
 };
-module$contents$eeapiclient$multipart_request_MultipartRequest.prototype.encodeFile = function(file) {
+module$exports$eeapiclient$multipart_request.MultipartRequest.prototype.encodeFile = function(file) {
   return this.base64EncodeFile(file).then(function(base64Str) {
     return "Content-Type: " + file.type + "\r\nContent-Transfer-Encoding: base64\r\n\r\n" + base64Str;
   });
 };
-module$contents$eeapiclient$multipart_request_MultipartRequest.prototype.base64EncodeFile = function(file) {
+module$exports$eeapiclient$multipart_request.MultipartRequest.prototype.base64EncodeFile = function(file) {
   return new Promise(function(resolve, reject) {
     var reader = new FileReader;
     reader.onload = function(ev) {
@@ -6657,93 +6648,33 @@ module$contents$eeapiclient$multipart_request_MultipartRequest.prototype.base64E
     reader.readAsDataURL(file);
   });
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$multipart_request_MultipartRequest.prototype, {boundary:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$multipart_request.MultipartRequest.prototype, {boundary:{configurable:!0, enumerable:!0, get:function() {
   return this._boundary;
 }}, metadata:{configurable:!0, enumerable:!0, get:function() {
   return this._metadata;
 }}, payloadPromise:{configurable:!0, enumerable:!0, get:function() {
   return this._payloadPromise;
 }}});
-var module$contents$eeapiclient$api_client_module = module$contents$eeapiclient$api_client_module || {id:"javascript/typescript/contrib/apiclient/core/api_client.closure.js"}, module$exports$eeapiclient$api_client = {}, module$contents$eeapiclient$api_client_ApiClient = function() {
+var module$exports$eeapiclient$request_params = {}, module$contents$eeapiclient$request_params_module = module$contents$eeapiclient$request_params_module || {id:"javascript/typescript/contrib/apiclient/core/request_params.closure.js"};
+module$exports$eeapiclient$request_params.HttpMethodEnum = function() {
 };
-module$contents$eeapiclient$api_client_ApiClient.prototype.$validateParameter = function(param, pattern) {
-  var paramStr = String(param);
-  if (!pattern.test(paramStr)) {
-    throw Error("parameter [" + paramStr + "] does not match pattern [" + pattern.toString() + "]");
-  }
+module$exports$eeapiclient$request_params.HttpMethodEnum.isHttpMethod = function(method) {
+  return method === module$exports$eeapiclient$request_params.HttpMethodEnum.GET || method === module$exports$eeapiclient$request_params.HttpMethodEnum.POST || method === module$exports$eeapiclient$request_params.HttpMethodEnum.PUT || method === module$exports$eeapiclient$request_params.HttpMethodEnum.PATCH || method === module$exports$eeapiclient$request_params.HttpMethodEnum.DELETE;
 };
-module$exports$eeapiclient$api_client.ApiClient = module$contents$eeapiclient$api_client_ApiClient;
-function module$contents$eeapiclient$api_client_toMakeRequestParams(requestParams) {
-  var body = requestParams.body instanceof module$contents$eeapiclient$domain_object_Serializable ? module$contents$eeapiclient$domain_object_serialize(requestParams.body) : requestParams.body;
-  return {path:requestParams.path, httpMethod:requestParams.httpMethod, methodId:requestParams.methodId, body:body, queryParams:requestParams.queryParams};
-}
-module$exports$eeapiclient$api_client.toMakeRequestParams = module$contents$eeapiclient$api_client_toMakeRequestParams;
-function module$contents$eeapiclient$api_client_toMultipartMakeRequestParams(requestParams) {
-  if (!(requestParams.body instanceof module$contents$eeapiclient$multipart_request_MultipartRequest)) {
-    throw Error(requestParams.path + " request must be a MultipartRequest");
-  }
-  var multipartRequest = requestParams.body;
-  return multipartRequest.payloadPromise.then(function(body) {
-    return {path:requestParams.path, httpMethod:requestParams.httpMethod, methodId:requestParams.methodId, queryParams:{uploadType:"multipart"}, headers:{"X-Goog-Upload-Protocol":"multipart", "Content-Type":"multipart/related; boundary=" + multipartRequest.boundary}, body:body};
-  });
-}
-module$exports$eeapiclient$api_client.toMultipartMakeRequestParams = module$contents$eeapiclient$api_client_toMultipartMakeRequestParams;
-var module$contents$eeapiclient$api_request_hook_module = module$contents$eeapiclient$api_request_hook_module || {id:"javascript/typescript/contrib/apiclient/core/api_request_hook.closure.js"}, module$exports$eeapiclient$api_request_hook = {ApiClientRequestHook:function module$contents$eeapiclient$api_request_hook_ApiClientRequestHook() {
-}, ApiClientHookFactory:function() {
-}, ApiClientHookFactoryCtor:function module$contents$eeapiclient$api_request_hook_ApiClientHookFactoryCtor() {
-}}, module$contents$eeapiclient$api_request_hook_DefaultApiClientHookFactory = function() {
-};
-module$contents$eeapiclient$api_request_hook_DefaultApiClientHookFactory.prototype.getRequestHook = function(requestParams) {
-  return {onBeforeSend:function() {
-  }, onSuccess:function(response) {
-  }, onError:function(error) {
-  }};
-};
-module$exports$eeapiclient$api_request_hook.DefaultApiClientHookFactory = module$contents$eeapiclient$api_request_hook_DefaultApiClientHookFactory;
-function module$contents$eeapiclient$api_request_hook_getRequestHook(factory, requestParams) {
-  if (null == factory) {
-    return null;
-  }
-  var hook = factory.getRequestHook(requestParams);
-  return null == hook ? null : hook;
-}
-module$exports$eeapiclient$api_request_hook.getRequestHook = module$contents$eeapiclient$api_request_hook_getRequestHook;
-var module$contents$eeapiclient$promise_api_client_module = module$contents$eeapiclient$promise_api_client_module || {id:"javascript/typescript/contrib/apiclient/request_service/promise_api_client.closure.js"}, module$contents$eeapiclient$promise_api_client_PromiseApiClient = function(requestService, hookFactory) {
-  this.requestService = requestService;
-  this.hookFactory = void 0 === hookFactory ? null : hookFactory;
-};
-$jscomp.inherits(module$contents$eeapiclient$promise_api_client_PromiseApiClient, module$contents$eeapiclient$api_client_ApiClient);
-module$contents$eeapiclient$promise_api_client_PromiseApiClient.prototype.$addHooksToRequest = function(requestParams, promise) {
-  return null == module$contents$eeapiclient$api_request_hook_getRequestHook(this.hookFactory, requestParams) ? promise : promise.then(function(response) {
-    return response;
-  }, function(error) {
-    throw error;
-  });
-};
-module$contents$eeapiclient$promise_api_client_PromiseApiClient.prototype.$request = function(requestParams) {
-  var responseCtor = requestParams.responseCtor || void 0;
-  return this.$addHooksToRequest(requestParams, this.requestService.send(module$contents$eeapiclient$api_client_toMakeRequestParams(requestParams), responseCtor));
-};
-module$contents$eeapiclient$promise_api_client_PromiseApiClient.prototype.$uploadRequest = function(requestParams) {
-  var $jscomp$this = this, responseCtor = requestParams.responseCtor || void 0;
-  return this.$addHooksToRequest(requestParams, module$contents$eeapiclient$api_client_toMultipartMakeRequestParams(requestParams).then(function(params) {
-    return $jscomp$this.requestService.send(params, responseCtor);
-  }));
-};
-var module$contents$eeapiclient$request_params_module = module$contents$eeapiclient$request_params_module || {id:"javascript/typescript/contrib/apiclient/core/request_params.closure.js"}, module$exports$eeapiclient$request_params = {}, module$contents$eeapiclient$request_params_HttpMethodEnum = function() {
-};
-module$contents$eeapiclient$request_params_HttpMethodEnum.isHttpMethod = function(method) {
-  return method === module$contents$eeapiclient$request_params_HttpMethodEnum.GET || method === module$contents$eeapiclient$request_params_HttpMethodEnum.POST || method === module$contents$eeapiclient$request_params_HttpMethodEnum.PUT || method === module$contents$eeapiclient$request_params_HttpMethodEnum.PATCH || method === module$contents$eeapiclient$request_params_HttpMethodEnum.DELETE;
-};
-module$contents$eeapiclient$request_params_HttpMethodEnum.GET = "GET";
-module$contents$eeapiclient$request_params_HttpMethodEnum.POST = "POST";
-module$contents$eeapiclient$request_params_HttpMethodEnum.PUT = "PUT";
-module$contents$eeapiclient$request_params_HttpMethodEnum.PATCH = "PATCH";
-module$contents$eeapiclient$request_params_HttpMethodEnum.DELETE = "DELETE";
-module$exports$eeapiclient$request_params.HttpMethodEnum = module$contents$eeapiclient$request_params_HttpMethodEnum;
+module$exports$eeapiclient$request_params.HttpMethodEnum.GET = "GET";
+module$exports$eeapiclient$request_params.HttpMethodEnum.POST = "POST";
+module$exports$eeapiclient$request_params.HttpMethodEnum.PUT = "PUT";
+module$exports$eeapiclient$request_params.HttpMethodEnum.PATCH = "PATCH";
+module$exports$eeapiclient$request_params.HttpMethodEnum.DELETE = "DELETE";
 module$exports$eeapiclient$request_params.AuthType = {AUTO:"auto", NONE:"none", OAUTH2:"oauth2", FIRST_PARTY:"1p"};
-module$exports$eeapiclient$request_params.MakeRequestParams = function module$contents$eeapiclient$request_params_MakeRequestParams() {
-};
+module$exports$eeapiclient$request_params.StreamingType = {NONE:0, CLIENT_SIDE:1, SERVER_SIDE:2, BIDIRECTONAL:3};
+module$exports$eeapiclient$request_params.StreamingType[module$exports$eeapiclient$request_params.StreamingType.NONE] = "NONE";
+module$exports$eeapiclient$request_params.StreamingType[module$exports$eeapiclient$request_params.StreamingType.CLIENT_SIDE] = "CLIENT_SIDE";
+module$exports$eeapiclient$request_params.StreamingType[module$exports$eeapiclient$request_params.StreamingType.SERVER_SIDE] = "SERVER_SIDE";
+module$exports$eeapiclient$request_params.StreamingType[module$exports$eeapiclient$request_params.StreamingType.BIDIRECTONAL] = "BIDIRECTONAL";
+function module$contents$eeapiclient$request_params_MakeRequestParams() {
+}
+module$exports$eeapiclient$request_params.MakeRequestParams = module$contents$eeapiclient$request_params_MakeRequestParams;
 function module$contents$eeapiclient$request_params_processParams(params) {
   if (null != params.queryParams) {
     var filteredQueryParams = {}, key;
@@ -6754,18 +6685,89 @@ function module$contents$eeapiclient$request_params_processParams(params) {
   }
 }
 module$exports$eeapiclient$request_params.processParams = module$contents$eeapiclient$request_params_processParams;
-var module$contents$eeapiclient$promise_request_service_module = module$contents$eeapiclient$promise_request_service_module || {id:"javascript/typescript/contrib/apiclient/request_service/promise_request_service.closure.js"}, module$exports$eeapiclient$promise_request_service = {}, module$contents$eeapiclient$promise_request_service_PromiseRequestService = 
-function() {
+var module$exports$eeapiclient$api_client = {}, module$contents$eeapiclient$api_client_module = module$contents$eeapiclient$api_client_module || {id:"javascript/typescript/contrib/apiclient/core/api_client.closure.js"};
+module$exports$eeapiclient$api_client.ApiClient = function() {
 };
-module$contents$eeapiclient$promise_request_service_PromiseRequestService.prototype.send = function(params, responseCtor) {
+module$exports$eeapiclient$api_client.ApiClient.prototype.$validateParameter = function(param, pattern) {
+  var paramStr = String(param);
+  if (!pattern.test(paramStr)) {
+    throw Error("parameter [" + paramStr + "] does not match pattern [" + pattern.toString() + "]");
+  }
+};
+function module$contents$eeapiclient$api_client_toMakeRequestParams(requestParams) {
+  var body = requestParams.body instanceof module$exports$eeapiclient$domain_object.Serializable ? module$contents$eeapiclient$domain_object_serialize(requestParams.body) : requestParams.body;
+  return {path:requestParams.path, httpMethod:requestParams.httpMethod, methodId:requestParams.methodId, body:body, queryParams:requestParams.queryParams, streamingType:requestParams.streamingType && module$exports$eeapiclient$request_params.StreamingType[requestParams.streamingType]};
+}
+module$exports$eeapiclient$api_client.toMakeRequestParams = module$contents$eeapiclient$api_client_toMakeRequestParams;
+function module$contents$eeapiclient$api_client_toMultipartMakeRequestParams(requestParams) {
+  if (!(requestParams.body instanceof module$exports$eeapiclient$multipart_request.MultipartRequest)) {
+    throw Error(requestParams.path + " request must be a MultipartRequest");
+  }
+  var multipartRequest = requestParams.body;
+  return multipartRequest.payloadPromise.then(function(body) {
+    return {path:requestParams.path, httpMethod:requestParams.httpMethod, methodId:requestParams.methodId, queryParams:{uploadType:"multipart"}, headers:{"X-Goog-Upload-Protocol":"multipart", "Content-Type":"multipart/related; boundary=" + multipartRequest.boundary}, body:body};
+  });
+}
+module$exports$eeapiclient$api_client.toMultipartMakeRequestParams = module$contents$eeapiclient$api_client_toMultipartMakeRequestParams;
+var module$exports$eeapiclient$api_request_hook = {}, module$contents$eeapiclient$api_request_hook_module = module$contents$eeapiclient$api_request_hook_module || {id:"javascript/typescript/contrib/apiclient/core/api_request_hook.closure.js"};
+module$exports$eeapiclient$api_request_hook.ApiClientRequestHook = function module$contents$eeapiclient$api_request_hook_ApiClientRequestHook() {
+};
+module$exports$eeapiclient$api_request_hook.ApiClientHookFactory = function() {
+};
+module$exports$eeapiclient$api_request_hook.ApiClientHookFactoryCtor = function module$contents$eeapiclient$api_request_hook_ApiClientHookFactoryCtor() {
+};
+module$exports$eeapiclient$api_request_hook.DefaultApiClientHookFactory = function() {
+};
+module$exports$eeapiclient$api_request_hook.DefaultApiClientHookFactory.prototype.getRequestHook = function(requestParams) {
+  return {onBeforeSend:function() {
+  }, onSuccess:function(response) {
+  }, onError:function(error) {
+  }};
+};
+function module$contents$eeapiclient$api_request_hook_getRequestHook(factory, requestParams) {
+  if (null == factory) {
+    return null;
+  }
+  var hook = factory.getRequestHook(requestParams);
+  return null == hook ? null : hook;
+}
+module$exports$eeapiclient$api_request_hook.getRequestHook = module$contents$eeapiclient$api_request_hook_getRequestHook;
+var module$exports$eeapiclient$promise_api_client = {}, module$contents$eeapiclient$promise_api_client_module = module$contents$eeapiclient$promise_api_client_module || {id:"javascript/typescript/contrib/apiclient/request_service/promise_api_client.closure.js"};
+module$exports$eeapiclient$promise_api_client.PromiseApiClient = function(requestService, hookFactory) {
+  this.requestService = requestService;
+  this.hookFactory = void 0 === hookFactory ? null : hookFactory;
+};
+$jscomp.inherits(module$exports$eeapiclient$promise_api_client.PromiseApiClient, module$exports$eeapiclient$api_client.ApiClient);
+module$exports$eeapiclient$promise_api_client.PromiseApiClient.prototype.$addHooksToRequest = function(requestParams, promise) {
+  return null == module$contents$eeapiclient$api_request_hook_getRequestHook(this.hookFactory, requestParams) ? promise : promise.then(function(response) {
+    return response;
+  }, function(error) {
+    throw error;
+  });
+};
+module$exports$eeapiclient$promise_api_client.PromiseApiClient.prototype.$request = function(requestParams) {
+  var responseCtor = requestParams.responseCtor || void 0;
+  return this.$addHooksToRequest(requestParams, this.requestService.send(module$contents$eeapiclient$api_client_toMakeRequestParams(requestParams), responseCtor));
+};
+module$exports$eeapiclient$promise_api_client.PromiseApiClient.prototype.$uploadRequest = function(requestParams) {
+  var $jscomp$this = this, responseCtor = requestParams.responseCtor || void 0;
+  return this.$addHooksToRequest(requestParams, module$contents$eeapiclient$api_client_toMultipartMakeRequestParams(requestParams).then(function(params) {
+    return $jscomp$this.requestService.send(params, responseCtor);
+  }));
+};
+var module$exports$eeapiclient$promise_request_service = {}, module$contents$eeapiclient$promise_request_service_module = module$contents$eeapiclient$promise_request_service_module || {id:"javascript/typescript/contrib/apiclient/request_service/promise_request_service.closure.js"};
+module$exports$eeapiclient$promise_request_service.PromiseRequestService = function() {
+};
+module$exports$eeapiclient$promise_request_service.PromiseRequestService.prototype.send = function(params, responseCtor) {
   module$contents$eeapiclient$request_params_processParams(params);
   return this.makeRequest(params).then(function(response) {
     return responseCtor ? module$contents$eeapiclient$domain_object_deserialize(responseCtor, response) : response;
   });
 };
-module$exports$eeapiclient$promise_request_service.PromiseRequestService = module$contents$eeapiclient$promise_request_service_PromiseRequestService;
-var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclient$ee_api_client_module || {id:"geo/gestalt/client/javascript/ee_api_client.closure.js"}, module$exports$eeapiclient$ee_api_client = {IAuditLogConfigLogTypeEnum:function module$contents$eeapiclient$ee_api_client_IAuditLogConfigLogTypeEnum() {
-}, AuditLogConfigLogTypeEnum:{get ADMIN_READ() {
+var module$exports$eeapiclient$ee_api_client = {}, module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclient$ee_api_client_module || {id:"geo/gestalt/client/javascript/ee_api_client.closure.js"};
+module$exports$eeapiclient$ee_api_client.IAuditLogConfigLogTypeEnum = function module$contents$eeapiclient$ee_api_client_IAuditLogConfigLogTypeEnum() {
+};
+module$exports$eeapiclient$ee_api_client.AuditLogConfigLogTypeEnum = {get ADMIN_READ() {
   return "ADMIN_READ";
 }, get DATA_READ() {
   return "DATA_READ";
@@ -6775,8 +6777,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "LOG_TYPE_UNSPECIFIED";
 }, values:function() {
   return ["LOG_TYPE_UNSPECIFIED", "ADMIN_READ", "DATA_WRITE", "DATA_READ"];
-}}, IAuthorizationLoggingOptionsPermissionTypeEnum:function module$contents$eeapiclient$ee_api_client_IAuthorizationLoggingOptionsPermissionTypeEnum() {
-}, AuthorizationLoggingOptionsPermissionTypeEnum:{get ADMIN_READ() {
+}};
+module$exports$eeapiclient$ee_api_client.IAuthorizationLoggingOptionsPermissionTypeEnum = function module$contents$eeapiclient$ee_api_client_IAuthorizationLoggingOptionsPermissionTypeEnum() {
+};
+module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptionsPermissionTypeEnum = {get ADMIN_READ() {
   return "ADMIN_READ";
 }, get ADMIN_WRITE() {
   return "ADMIN_WRITE";
@@ -6788,8 +6792,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "PERMISSION_TYPE_UNSPECIFIED";
 }, values:function() {
   return ["PERMISSION_TYPE_UNSPECIFIED", "ADMIN_READ", "ADMIN_WRITE", "DATA_READ", "DATA_WRITE"];
-}}, ICapabilitiesCapabilitiesEnum:function module$contents$eeapiclient$ee_api_client_ICapabilitiesCapabilitiesEnum() {
-}, CapabilitiesCapabilitiesEnum:{get CAPABILITY_GROUP_UNSPECIFIED() {
+}};
+module$exports$eeapiclient$ee_api_client.ICapabilitiesCapabilitiesEnum = function module$contents$eeapiclient$ee_api_client_ICapabilitiesCapabilitiesEnum() {
+};
+module$exports$eeapiclient$ee_api_client.CapabilitiesCapabilitiesEnum = {get CAPABILITY_GROUP_UNSPECIFIED() {
   return "CAPABILITY_GROUP_UNSPECIFIED";
 }, get CLOUD_ALPHA() {
   return "CLOUD_ALPHA";
@@ -6807,8 +6813,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "PUBLIC";
 }, values:function() {
   return "CAPABILITY_GROUP_UNSPECIFIED PUBLIC INTERNAL EXTERNAL LIMITED PREAUTHORIZED PREVIEW CLOUD_ALPHA".split(" ");
-}}, ICloudAuditOptionsLogNameEnum:function module$contents$eeapiclient$ee_api_client_ICloudAuditOptionsLogNameEnum() {
-}, CloudAuditOptionsLogNameEnum:{get ADMIN_ACTIVITY() {
+}};
+module$exports$eeapiclient$ee_api_client.ICloudAuditOptionsLogNameEnum = function module$contents$eeapiclient$ee_api_client_ICloudAuditOptionsLogNameEnum() {
+};
+module$exports$eeapiclient$ee_api_client.CloudAuditOptionsLogNameEnum = {get ADMIN_ACTIVITY() {
   return "ADMIN_ACTIVITY";
 }, get DATA_ACCESS() {
   return "DATA_ACCESS";
@@ -6816,8 +6824,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "UNSPECIFIED_LOG_NAME";
 }, values:function() {
   return ["UNSPECIFIED_LOG_NAME", "ADMIN_ACTIVITY", "DATA_ACCESS"];
-}}, IComputePixelsRequestFileFormatEnum:function module$contents$eeapiclient$ee_api_client_IComputePixelsRequestFileFormatEnum() {
-}, ComputePixelsRequestFileFormatEnum:{get AUTO_JPEG_PNG() {
+}};
+module$exports$eeapiclient$ee_api_client.IComputePixelsRequestFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IComputePixelsRequestFileFormatEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ComputePixelsRequestFileFormatEnum = {get AUTO_JPEG_PNG() {
   return "AUTO_JPEG_PNG";
 }, get GEO_TIFF() {
   return "GEO_TIFF";
@@ -6833,10 +6843,16 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "PNG";
 }, get TF_RECORD_IMAGE() {
   return "TF_RECORD_IMAGE";
+}, get ZIPPED_GEO_TIFF() {
+  return "ZIPPED_GEO_TIFF";
+}, get ZIPPED_GEO_TIFF_PER_BAND() {
+  return "ZIPPED_GEO_TIFF_PER_BAND";
 }, values:function() {
-  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE".split(" ");
-}}, IConditionIamEnum:function module$contents$eeapiclient$ee_api_client_IConditionIamEnum() {
-}, ConditionIamEnum:{get APPROVER() {
+  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE ZIPPED_GEO_TIFF ZIPPED_GEO_TIFF_PER_BAND".split(" ");
+}};
+module$exports$eeapiclient$ee_api_client.IConditionIamEnum = function module$contents$eeapiclient$ee_api_client_IConditionIamEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ConditionIamEnum = {get APPROVER() {
   return "APPROVER";
 }, get ATTRIBUTION() {
   return "ATTRIBUTION";
@@ -6852,8 +6868,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "SECURITY_REALM";
 }, values:function() {
   return "NO_ATTR AUTHORITY ATTRIBUTION SECURITY_REALM APPROVER JUSTIFICATION_TYPE CREDENTIALS_TYPE".split(" ");
-}}, IConditionOpEnum:function module$contents$eeapiclient$ee_api_client_IConditionOpEnum() {
-}, ConditionOpEnum:{get DISCHARGED() {
+}};
+module$exports$eeapiclient$ee_api_client.IConditionOpEnum = function module$contents$eeapiclient$ee_api_client_IConditionOpEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ConditionOpEnum = {get DISCHARGED() {
   return "DISCHARGED";
 }, get EQUALS() {
   return "EQUALS";
@@ -6867,8 +6885,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "NO_OP";
 }, values:function() {
   return "NO_OP EQUALS NOT_EQUALS IN NOT_IN DISCHARGED".split(" ");
-}}, IConditionSysEnum:function module$contents$eeapiclient$ee_api_client_IConditionSysEnum() {
-}, ConditionSysEnum:{get IP() {
+}};
+module$exports$eeapiclient$ee_api_client.IConditionSysEnum = function module$contents$eeapiclient$ee_api_client_IConditionSysEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ConditionSysEnum = {get IP() {
   return "IP";
 }, get NAME() {
   return "NAME";
@@ -6880,15 +6900,19 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "SERVICE";
 }, values:function() {
   return ["NO_ATTR", "REGION", "SERVICE", "NAME", "IP"];
-}}, IDataAccessOptionsLogModeEnum:function module$contents$eeapiclient$ee_api_client_IDataAccessOptionsLogModeEnum() {
-}, DataAccessOptionsLogModeEnum:{get LOG_FAIL_CLOSED() {
+}};
+module$exports$eeapiclient$ee_api_client.IDataAccessOptionsLogModeEnum = function module$contents$eeapiclient$ee_api_client_IDataAccessOptionsLogModeEnum() {
+};
+module$exports$eeapiclient$ee_api_client.DataAccessOptionsLogModeEnum = {get LOG_FAIL_CLOSED() {
   return "LOG_FAIL_CLOSED";
 }, get LOG_MODE_UNSPECIFIED() {
   return "LOG_MODE_UNSPECIFIED";
 }, values:function() {
   return ["LOG_MODE_UNSPECIFIED", "LOG_FAIL_CLOSED"];
-}}, IEarthEngineAssetTypeEnum:function module$contents$eeapiclient$ee_api_client_IEarthEngineAssetTypeEnum() {
-}, EarthEngineAssetTypeEnum:{get FOLDER() {
+}};
+module$exports$eeapiclient$ee_api_client.IEarthEngineAssetTypeEnum = function module$contents$eeapiclient$ee_api_client_IEarthEngineAssetTypeEnum() {
+};
+module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum = {get FOLDER() {
   return "FOLDER";
 }, get IMAGE() {
   return "IMAGE";
@@ -6900,8 +6924,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "TYPE_UNSPECIFIED";
 }, values:function() {
   return ["TYPE_UNSPECIFIED", "IMAGE", "IMAGE_COLLECTION", "TABLE", "FOLDER"];
-}}, IEarthEngineMapFileFormatEnum:function module$contents$eeapiclient$ee_api_client_IEarthEngineMapFileFormatEnum() {
-}, EarthEngineMapFileFormatEnum:{get AUTO_JPEG_PNG() {
+}};
+module$exports$eeapiclient$ee_api_client.IEarthEngineMapFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IEarthEngineMapFileFormatEnum() {
+};
+module$exports$eeapiclient$ee_api_client.EarthEngineMapFileFormatEnum = {get AUTO_JPEG_PNG() {
   return "AUTO_JPEG_PNG";
 }, get GEO_TIFF() {
   return "GEO_TIFF";
@@ -6917,10 +6943,16 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "PNG";
 }, get TF_RECORD_IMAGE() {
   return "TF_RECORD_IMAGE";
+}, get ZIPPED_GEO_TIFF() {
+  return "ZIPPED_GEO_TIFF";
+}, get ZIPPED_GEO_TIFF_PER_BAND() {
+  return "ZIPPED_GEO_TIFF_PER_BAND";
 }, values:function() {
-  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE".split(" ");
-}}, IExportVideoMapRequestVersionEnum:function module$contents$eeapiclient$ee_api_client_IExportVideoMapRequestVersionEnum() {
-}, ExportVideoMapRequestVersionEnum:{get V1() {
+  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE ZIPPED_GEO_TIFF ZIPPED_GEO_TIFF_PER_BAND".split(" ");
+}};
+module$exports$eeapiclient$ee_api_client.IExportVideoMapRequestVersionEnum = function module$contents$eeapiclient$ee_api_client_IExportVideoMapRequestVersionEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum = {get V1() {
   return "V1";
 }, get V2() {
   return "V2";
@@ -6928,8 +6960,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "VERSION_UNSPECIFIED";
 }, values:function() {
   return ["VERSION_UNSPECIFIED", "V1", "V2"];
-}}, IFilmstripThumbnailFileFormatEnum:function module$contents$eeapiclient$ee_api_client_IFilmstripThumbnailFileFormatEnum() {
-}, FilmstripThumbnailFileFormatEnum:{get AUTO_JPEG_PNG() {
+}};
+module$exports$eeapiclient$ee_api_client.IFilmstripThumbnailFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IFilmstripThumbnailFileFormatEnum() {
+};
+module$exports$eeapiclient$ee_api_client.FilmstripThumbnailFileFormatEnum = {get AUTO_JPEG_PNG() {
   return "AUTO_JPEG_PNG";
 }, get GEO_TIFF() {
   return "GEO_TIFF";
@@ -6945,10 +6979,16 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "PNG";
 }, get TF_RECORD_IMAGE() {
   return "TF_RECORD_IMAGE";
+}, get ZIPPED_GEO_TIFF() {
+  return "ZIPPED_GEO_TIFF";
+}, get ZIPPED_GEO_TIFF_PER_BAND() {
+  return "ZIPPED_GEO_TIFF_PER_BAND";
 }, values:function() {
-  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE".split(" ");
-}}, IFilmstripThumbnailOrientationEnum:function module$contents$eeapiclient$ee_api_client_IFilmstripThumbnailOrientationEnum() {
-}, FilmstripThumbnailOrientationEnum:{get HORIZONTAL() {
+  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE ZIPPED_GEO_TIFF ZIPPED_GEO_TIFF_PER_BAND".split(" ");
+}};
+module$exports$eeapiclient$ee_api_client.IFilmstripThumbnailOrientationEnum = function module$contents$eeapiclient$ee_api_client_IFilmstripThumbnailOrientationEnum() {
+};
+module$exports$eeapiclient$ee_api_client.FilmstripThumbnailOrientationEnum = {get HORIZONTAL() {
   return "HORIZONTAL";
 }, get ORIENTATION_UNSPECIFIED() {
   return "ORIENTATION_UNSPECIFIED";
@@ -6956,8 +6996,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "VERTICAL";
 }, values:function() {
   return ["ORIENTATION_UNSPECIFIED", "HORIZONTAL", "VERTICAL"];
-}}, IGcsDestinationPermissionsEnum:function module$contents$eeapiclient$ee_api_client_IGcsDestinationPermissionsEnum() {
-}, GcsDestinationPermissionsEnum:{get DEFAULT_OBJECT_ACL() {
+}};
+module$exports$eeapiclient$ee_api_client.IGcsDestinationPermissionsEnum = function module$contents$eeapiclient$ee_api_client_IGcsDestinationPermissionsEnum() {
+};
+module$exports$eeapiclient$ee_api_client.GcsDestinationPermissionsEnum = {get DEFAULT_OBJECT_ACL() {
   return "DEFAULT_OBJECT_ACL";
 }, get PUBLIC() {
   return "PUBLIC";
@@ -6965,8 +7007,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "TILE_PERMISSIONS_UNSPECIFIED";
 }, values:function() {
   return ["TILE_PERMISSIONS_UNSPECIFIED", "PUBLIC", "DEFAULT_OBJECT_ACL"];
-}}, IGetPixelsRequestFileFormatEnum:function module$contents$eeapiclient$ee_api_client_IGetPixelsRequestFileFormatEnum() {
-}, GetPixelsRequestFileFormatEnum:{get AUTO_JPEG_PNG() {
+}};
+module$exports$eeapiclient$ee_api_client.IGetPixelsRequestFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IGetPixelsRequestFileFormatEnum() {
+};
+module$exports$eeapiclient$ee_api_client.GetPixelsRequestFileFormatEnum = {get AUTO_JPEG_PNG() {
   return "AUTO_JPEG_PNG";
 }, get GEO_TIFF() {
   return "GEO_TIFF";
@@ -6982,10 +7026,16 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "PNG";
 }, get TF_RECORD_IMAGE() {
   return "TF_RECORD_IMAGE";
+}, get ZIPPED_GEO_TIFF() {
+  return "ZIPPED_GEO_TIFF";
+}, get ZIPPED_GEO_TIFF_PER_BAND() {
+  return "ZIPPED_GEO_TIFF_PER_BAND";
 }, values:function() {
-  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE".split(" ");
-}}, IImageAssetExportOptionsPyramidingPolicyEnum:function module$contents$eeapiclient$ee_api_client_IImageAssetExportOptionsPyramidingPolicyEnum() {
-}, ImageAssetExportOptionsPyramidingPolicyEnum:{get MAX() {
+  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE ZIPPED_GEO_TIFF ZIPPED_GEO_TIFF_PER_BAND".split(" ");
+}};
+module$exports$eeapiclient$ee_api_client.IImageAssetExportOptionsPyramidingPolicyEnum = function module$contents$eeapiclient$ee_api_client_IImageAssetExportOptionsPyramidingPolicyEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum = {get MAX() {
   return "MAX";
 }, get MEAN() {
   return "MEAN";
@@ -6999,8 +7049,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "SAMPLE";
 }, values:function() {
   return "PYRAMIDING_POLICY_UNSPECIFIED MEAN SAMPLE MIN MAX MODE".split(" ");
-}}, IImageAssetExportOptionsPyramidingPolicyOverridesEnum:function module$contents$eeapiclient$ee_api_client_IImageAssetExportOptionsPyramidingPolicyOverridesEnum() {
-}, ImageAssetExportOptionsPyramidingPolicyOverridesEnum:{get MAX() {
+}};
+module$exports$eeapiclient$ee_api_client.IImageAssetExportOptionsPyramidingPolicyOverridesEnum = function module$contents$eeapiclient$ee_api_client_IImageAssetExportOptionsPyramidingPolicyOverridesEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum = {get MAX() {
   return "MAX";
 }, get MEAN() {
   return "MEAN";
@@ -7014,8 +7066,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "SAMPLE";
 }, values:function() {
   return "PYRAMIDING_POLICY_UNSPECIFIED MEAN SAMPLE MIN MAX MODE".split(" ");
-}}, IImageBandPyramidingPolicyEnum:function module$contents$eeapiclient$ee_api_client_IImageBandPyramidingPolicyEnum() {
-}, ImageBandPyramidingPolicyEnum:{get MAX() {
+}};
+module$exports$eeapiclient$ee_api_client.IImageBandPyramidingPolicyEnum = function module$contents$eeapiclient$ee_api_client_IImageBandPyramidingPolicyEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum = {get MAX() {
   return "MAX";
 }, get MEAN() {
   return "MEAN";
@@ -7029,8 +7083,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "SAMPLE";
 }, values:function() {
   return "PYRAMIDING_POLICY_UNSPECIFIED MEAN SAMPLE MIN MAX MODE".split(" ");
-}}, IImageFileExportOptionsFileFormatEnum:function module$contents$eeapiclient$ee_api_client_IImageFileExportOptionsFileFormatEnum() {
-}, ImageFileExportOptionsFileFormatEnum:{get AUTO_JPEG_PNG() {
+}};
+module$exports$eeapiclient$ee_api_client.IImageFileExportOptionsFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IImageFileExportOptionsFileFormatEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ImageFileExportOptionsFileFormatEnum = {get AUTO_JPEG_PNG() {
   return "AUTO_JPEG_PNG";
 }, get GEO_TIFF() {
   return "GEO_TIFF";
@@ -7046,10 +7102,16 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "PNG";
 }, get TF_RECORD_IMAGE() {
   return "TF_RECORD_IMAGE";
+}, get ZIPPED_GEO_TIFF() {
+  return "ZIPPED_GEO_TIFF";
+}, get ZIPPED_GEO_TIFF_PER_BAND() {
+  return "ZIPPED_GEO_TIFF_PER_BAND";
 }, values:function() {
-  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE".split(" ");
-}}, IImageManifestPyramidingPolicyEnum:function module$contents$eeapiclient$ee_api_client_IImageManifestPyramidingPolicyEnum() {
-}, ImageManifestPyramidingPolicyEnum:{get MAX() {
+  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE ZIPPED_GEO_TIFF ZIPPED_GEO_TIFF_PER_BAND".split(" ");
+}};
+module$exports$eeapiclient$ee_api_client.IImageManifestPyramidingPolicyEnum = function module$contents$eeapiclient$ee_api_client_IImageManifestPyramidingPolicyEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum = {get MAX() {
   return "MAX";
 }, get MEAN() {
   return "MEAN";
@@ -7063,8 +7125,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "SAMPLE";
 }, values:function() {
   return "PYRAMIDING_POLICY_UNSPECIFIED MEAN SAMPLE MIN MAX MODE".split(" ");
-}}, IOperationMetadataStateEnum:function module$contents$eeapiclient$ee_api_client_IOperationMetadataStateEnum() {
-}, OperationMetadataStateEnum:{get CANCELLED() {
+}};
+module$exports$eeapiclient$ee_api_client.IOperationMetadataStateEnum = function module$contents$eeapiclient$ee_api_client_IOperationMetadataStateEnum() {
+};
+module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum = {get CANCELLED() {
   return "CANCELLED";
 }, get CANCELLING() {
   return "CANCELLING";
@@ -7080,8 +7144,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "SUCCEEDED";
 }, values:function() {
   return "STATE_UNSPECIFIED PENDING RUNNING CANCELLING SUCCEEDED CANCELLED FAILED".split(" ");
-}}, IPixelDataTypePrecisionEnum:function module$contents$eeapiclient$ee_api_client_IPixelDataTypePrecisionEnum() {
-}, PixelDataTypePrecisionEnum:{get DOUBLE() {
+}};
+module$exports$eeapiclient$ee_api_client.IPixelDataTypePrecisionEnum = function module$contents$eeapiclient$ee_api_client_IPixelDataTypePrecisionEnum() {
+};
+module$exports$eeapiclient$ee_api_client.PixelDataTypePrecisionEnum = {get DOUBLE() {
   return "DOUBLE";
 }, get FLOAT() {
   return "FLOAT";
@@ -7091,8 +7157,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "PRECISION_UNSPECIFIED";
 }, values:function() {
   return ["PRECISION_UNSPECIFIED", "INT", "FLOAT", "DOUBLE"];
-}}, IRuleActionEnum:function module$contents$eeapiclient$ee_api_client_IRuleActionEnum() {
-}, RuleActionEnum:{get ALLOW() {
+}};
+module$exports$eeapiclient$ee_api_client.IRuleActionEnum = function module$contents$eeapiclient$ee_api_client_IRuleActionEnum() {
+};
+module$exports$eeapiclient$ee_api_client.RuleActionEnum = {get ALLOW() {
   return "ALLOW";
 }, get ALLOW_WITH_LOG() {
   return "ALLOW_WITH_LOG";
@@ -7106,8 +7174,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "NO_ACTION";
 }, values:function() {
   return "NO_ACTION ALLOW ALLOW_WITH_LOG DENY DENY_WITH_LOG LOG".split(" ");
-}}, ITableFileExportOptionsFileFormatEnum:function module$contents$eeapiclient$ee_api_client_ITableFileExportOptionsFileFormatEnum() {
-}, TableFileExportOptionsFileFormatEnum:{get CSV() {
+}};
+module$exports$eeapiclient$ee_api_client.ITableFileExportOptionsFileFormatEnum = function module$contents$eeapiclient$ee_api_client_ITableFileExportOptionsFileFormatEnum() {
+};
+module$exports$eeapiclient$ee_api_client.TableFileExportOptionsFileFormatEnum = {get CSV() {
   return "CSV";
 }, get GEO_JSON() {
   return "GEO_JSON";
@@ -7123,8 +7193,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "TF_RECORD_TABLE";
 }, values:function() {
   return "TABLE_FILE_FORMAT_UNSPECIFIED CSV GEO_JSON KML KMZ SHP TF_RECORD_TABLE".split(" ");
-}}, IThumbnailFileFormatEnum:function module$contents$eeapiclient$ee_api_client_IThumbnailFileFormatEnum() {
-}, ThumbnailFileFormatEnum:{get AUTO_JPEG_PNG() {
+}};
+module$exports$eeapiclient$ee_api_client.IThumbnailFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IThumbnailFileFormatEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ThumbnailFileFormatEnum = {get AUTO_JPEG_PNG() {
   return "AUTO_JPEG_PNG";
 }, get GEO_TIFF() {
   return "GEO_TIFF";
@@ -7140,10 +7212,16 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "PNG";
 }, get TF_RECORD_IMAGE() {
   return "TF_RECORD_IMAGE";
+}, get ZIPPED_GEO_TIFF() {
+  return "ZIPPED_GEO_TIFF";
+}, get ZIPPED_GEO_TIFF_PER_BAND() {
+  return "ZIPPED_GEO_TIFF_PER_BAND";
 }, values:function() {
-  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE".split(" ");
-}}, ITilesetBandPyramidingPolicyEnum:function module$contents$eeapiclient$ee_api_client_ITilesetBandPyramidingPolicyEnum() {
-}, TilesetBandPyramidingPolicyEnum:{get MAX() {
+  return "IMAGE_FILE_FORMAT_UNSPECIFIED JPEG PNG AUTO_JPEG_PNG NPY GEO_TIFF TF_RECORD_IMAGE MULTI_BAND_IMAGE_TILE ZIPPED_GEO_TIFF ZIPPED_GEO_TIFF_PER_BAND".split(" ");
+}};
+module$exports$eeapiclient$ee_api_client.ITilesetBandPyramidingPolicyEnum = function module$contents$eeapiclient$ee_api_client_ITilesetBandPyramidingPolicyEnum() {
+};
+module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum = {get MAX() {
   return "MAX";
 }, get MEAN() {
   return "MEAN";
@@ -7157,8 +7235,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "SAMPLE";
 }, values:function() {
   return "PYRAMIDING_POLICY_UNSPECIFIED MEAN SAMPLE MIN MAX MODE".split(" ");
-}}, ITilesetDataTypeEnum:function module$contents$eeapiclient$ee_api_client_ITilesetDataTypeEnum() {
-}, TilesetDataTypeEnum:{get DATA_TYPE_UNSPECIFIED() {
+}};
+module$exports$eeapiclient$ee_api_client.ITilesetDataTypeEnum = function module$contents$eeapiclient$ee_api_client_ITilesetDataTypeEnum() {
+};
+module$exports$eeapiclient$ee_api_client.TilesetDataTypeEnum = {get DATA_TYPE_UNSPECIFIED() {
   return "DATA_TYPE_UNSPECIFIED";
 }, get DOUBLE() {
   return "DOUBLE";
@@ -7178,8 +7258,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "UINT8";
 }, values:function() {
   return "DATA_TYPE_UNSPECIFIED INT8 UINT8 INT16 UINT16 INT32 UINT32 FLOAT DOUBLE".split(" ");
-}}, IVideoFileExportOptionsFileFormatEnum:function module$contents$eeapiclient$ee_api_client_IVideoFileExportOptionsFileFormatEnum() {
-}, VideoFileExportOptionsFileFormatEnum:{get GIF() {
+}};
+module$exports$eeapiclient$ee_api_client.IVideoFileExportOptionsFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IVideoFileExportOptionsFileFormatEnum() {
+};
+module$exports$eeapiclient$ee_api_client.VideoFileExportOptionsFileFormatEnum = {get GIF() {
   return "GIF";
 }, get MP4() {
   return "MP4";
@@ -7189,8 +7271,10 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "VP9";
 }, values:function() {
   return ["VIDEO_FILE_FORMAT_UNSPECIFIED", "MP4", "GIF", "VP9"];
-}}, IVideoThumbnailFileFormatEnum:function module$contents$eeapiclient$ee_api_client_IVideoThumbnailFileFormatEnum() {
-}, VideoThumbnailFileFormatEnum:{get GIF() {
+}};
+module$exports$eeapiclient$ee_api_client.IVideoThumbnailFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IVideoThumbnailFileFormatEnum() {
+};
+module$exports$eeapiclient$ee_api_client.VideoThumbnailFileFormatEnum = {get GIF() {
   return "GIF";
 }, get MP4() {
   return "MP4";
@@ -7200,10 +7284,12 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   return "VP9";
 }, values:function() {
   return ["VIDEO_FILE_FORMAT_UNSPECIFIED", "MP4", "GIF", "VP9"];
-}}, AffineTransformParameters:function module$contents$eeapiclient$ee_api_client_AffineTransformParameters() {
-}}, module$contents$eeapiclient$ee_api_client_AffineTransform = function(parameters) {
+}};
+module$exports$eeapiclient$ee_api_client.AffineTransformParameters = function module$contents$eeapiclient$ee_api_client_AffineTransformParameters() {
+};
+module$exports$eeapiclient$ee_api_client.AffineTransform = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("scaleX", null == parameters.scaleX ? null : parameters.scaleX);
   this.Serializable$set("shearX", null == parameters.shearX ? null : parameters.shearX);
   this.Serializable$set("translateX", null == parameters.translateX ? null : parameters.translateX);
@@ -7211,14 +7297,14 @@ var module$contents$eeapiclient$ee_api_client_module = module$contents$eeapiclie
   this.Serializable$set("scaleY", null == parameters.scaleY ? null : parameters.scaleY);
   this.Serializable$set("translateY", null == parameters.translateY ? null : parameters.translateY);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_AffineTransform, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_AffineTransform.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_AffineTransform;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.AffineTransform, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.AffineTransform.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.AffineTransform;
 };
-module$contents$eeapiclient$ee_api_client_AffineTransform.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.AffineTransform.prototype.getPartialClassMetadata = function() {
   return {keys:"scaleX scaleY shearX shearY translateX translateY".split(" ")};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_AffineTransform.prototype, {scaleX:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.AffineTransform.prototype, {scaleX:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("scaleX") ? this.Serializable$get("scaleX") : null;
 }, set:function(value) {
   this.Serializable$set("scaleX", value);
@@ -7243,12 +7329,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("translateY", value);
 }}});
-module$exports$eeapiclient$ee_api_client.AffineTransform = module$contents$eeapiclient$ee_api_client_AffineTransform;
 module$exports$eeapiclient$ee_api_client.AlgorithmParameters = function module$contents$eeapiclient$ee_api_client_AlgorithmParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Algorithm = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Algorithm = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("returnType", null == parameters.returnType ? null : parameters.returnType);
@@ -7257,15 +7342,16 @@ var module$contents$eeapiclient$ee_api_client_Algorithm = function(parameters) {
   this.Serializable$set("deprecationReason", null == parameters.deprecationReason ? null : parameters.deprecationReason);
   this.Serializable$set("hidden", null == parameters.hidden ? null : parameters.hidden);
   this.Serializable$set("preview", null == parameters.preview ? null : parameters.preview);
+  this.Serializable$set("sourceCodeUri", null == parameters.sourceCodeUri ? null : parameters.sourceCodeUri);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Algorithm, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Algorithm.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Algorithm;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Algorithm, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Algorithm.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Algorithm;
 };
-module$contents$eeapiclient$ee_api_client_Algorithm.prototype.getPartialClassMetadata = function() {
-  return {arrays:{arguments:module$contents$eeapiclient$ee_api_client_AlgorithmArgument}, keys:"arguments deprecated deprecationReason description hidden name preview returnType".split(" ")};
+module$exports$eeapiclient$ee_api_client.Algorithm.prototype.getPartialClassMetadata = function() {
+  return {arrays:{arguments:module$exports$eeapiclient$ee_api_client.AlgorithmArgument}, keys:"arguments deprecated deprecationReason description hidden name preview returnType sourceCodeUri".split(" ")};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Algorithm.prototype, {arguments:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Algorithm.prototype, {arguments:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("arguments") ? this.Serializable$get("arguments") : null;
 }, set:function(value) {
   this.Serializable$set("arguments", value);
@@ -7297,27 +7383,30 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
   return this.Serializable$has("returnType") ? this.Serializable$get("returnType") : null;
 }, set:function(value) {
   this.Serializable$set("returnType", value);
+}}, sourceCodeUri:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("sourceCodeUri") ? this.Serializable$get("sourceCodeUri") : null;
+}, set:function(value) {
+  this.Serializable$set("sourceCodeUri", value);
 }}});
-module$exports$eeapiclient$ee_api_client.Algorithm = module$contents$eeapiclient$ee_api_client_Algorithm;
 module$exports$eeapiclient$ee_api_client.AlgorithmArgumentParameters = function module$contents$eeapiclient$ee_api_client_AlgorithmArgumentParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_AlgorithmArgument = function(parameters) {
+module$exports$eeapiclient$ee_api_client.AlgorithmArgument = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("argumentName", null == parameters.argumentName ? null : parameters.argumentName);
   this.Serializable$set("type", null == parameters.type ? null : parameters.type);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("optional", null == parameters.optional ? null : parameters.optional);
   this.Serializable$set("defaultValue", null == parameters.defaultValue ? null : parameters.defaultValue);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_AlgorithmArgument, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_AlgorithmArgument.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_AlgorithmArgument;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.AlgorithmArgument, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.AlgorithmArgument.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.AlgorithmArgument;
 };
-module$contents$eeapiclient$ee_api_client_AlgorithmArgument.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.AlgorithmArgument.prototype.getPartialClassMetadata = function() {
   return {keys:["argumentName", "defaultValue", "description", "optional", "type"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_AlgorithmArgument.prototype, {argumentName:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.AlgorithmArgument.prototype, {argumentName:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("argumentName") ? this.Serializable$get("argumentName") : null;
 }, set:function(value) {
   this.Serializable$set("argumentName", value);
@@ -7338,44 +7427,42 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("type", value);
 }}});
-module$exports$eeapiclient$ee_api_client.AlgorithmArgument = module$contents$eeapiclient$ee_api_client_AlgorithmArgument;
 module$exports$eeapiclient$ee_api_client.ArrayValueParameters = function module$contents$eeapiclient$ee_api_client_ArrayValueParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ArrayValue = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ArrayValue = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("values", null == parameters.values ? null : parameters.values);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ArrayValue, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ArrayValue.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ArrayValue;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ArrayValue, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ArrayValue.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ArrayValue;
 };
-module$contents$eeapiclient$ee_api_client_ArrayValue.prototype.getPartialClassMetadata = function() {
-  return {arrays:{values:module$contents$eeapiclient$ee_api_client_ValueNode}, keys:["values"]};
+module$exports$eeapiclient$ee_api_client.ArrayValue.prototype.getPartialClassMetadata = function() {
+  return {arrays:{values:module$exports$eeapiclient$ee_api_client.ValueNode}, keys:["values"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ArrayValue.prototype, {values:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ArrayValue.prototype, {values:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("values") ? this.Serializable$get("values") : null;
 }, set:function(value) {
   this.Serializable$set("values", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ArrayValue = module$contents$eeapiclient$ee_api_client_ArrayValue;
 module$exports$eeapiclient$ee_api_client.AuditConfigParameters = function module$contents$eeapiclient$ee_api_client_AuditConfigParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_AuditConfig = function(parameters) {
+module$exports$eeapiclient$ee_api_client.AuditConfig = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("service", null == parameters.service ? null : parameters.service);
   this.Serializable$set("exemptedMembers", null == parameters.exemptedMembers ? null : parameters.exemptedMembers);
   this.Serializable$set("auditLogConfigs", null == parameters.auditLogConfigs ? null : parameters.auditLogConfigs);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_AuditConfig, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_AuditConfig.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_AuditConfig;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.AuditConfig, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.AuditConfig.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.AuditConfig;
 };
-module$contents$eeapiclient$ee_api_client_AuditConfig.prototype.getPartialClassMetadata = function() {
-  return {arrays:{auditLogConfigs:module$contents$eeapiclient$ee_api_client_AuditLogConfig}, keys:["auditLogConfigs", "exemptedMembers", "service"]};
+module$exports$eeapiclient$ee_api_client.AuditConfig.prototype.getPartialClassMetadata = function() {
+  return {arrays:{auditLogConfigs:module$exports$eeapiclient$ee_api_client.AuditLogConfig}, keys:["auditLogConfigs", "exemptedMembers", "service"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_AuditConfig.prototype, {auditLogConfigs:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.AuditConfig.prototype, {auditLogConfigs:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("auditLogConfigs") ? this.Serializable$get("auditLogConfigs") : null;
 }, set:function(value) {
   this.Serializable$set("auditLogConfigs", value);
@@ -7388,24 +7475,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("service", value);
 }}});
-module$exports$eeapiclient$ee_api_client.AuditConfig = module$contents$eeapiclient$ee_api_client_AuditConfig;
 module$exports$eeapiclient$ee_api_client.AuditLogConfigParameters = function module$contents$eeapiclient$ee_api_client_AuditLogConfigParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_AuditLogConfig = function(parameters) {
+module$exports$eeapiclient$ee_api_client.AuditLogConfig = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("logType", null == parameters.logType ? null : parameters.logType);
   this.Serializable$set("exemptedMembers", null == parameters.exemptedMembers ? null : parameters.exemptedMembers);
   this.Serializable$set("ignoreChildExemptions", null == parameters.ignoreChildExemptions ? null : parameters.ignoreChildExemptions);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_AuditLogConfig, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_AuditLogConfig.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_AuditLogConfig;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.AuditLogConfig, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.AuditLogConfig.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.AuditLogConfig;
 };
-module$contents$eeapiclient$ee_api_client_AuditLogConfig.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.AuditLogConfig.prototype.getPartialClassMetadata = function() {
   return {enums:{logType:module$exports$eeapiclient$ee_api_client.AuditLogConfigLogTypeEnum}, keys:["exemptedMembers", "ignoreChildExemptions", "logType"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_AuditLogConfig.prototype, {exemptedMembers:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.AuditLogConfig.prototype, {exemptedMembers:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("exemptedMembers") ? this.Serializable$get("exemptedMembers") : null;
 }, set:function(value) {
   this.Serializable$set("exemptedMembers", value);
@@ -7418,50 +7504,48 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("logType", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_AuditLogConfig, {LogType:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.AuditLogConfig, {LogType:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.AuditLogConfigLogTypeEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.AuditLogConfig = module$contents$eeapiclient$ee_api_client_AuditLogConfig;
 module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptionsParameters = function module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("permissionType", null == parameters.permissionType ? null : parameters.permissionType);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptions;
 };
-module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptions.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptions.prototype.getPartialClassMetadata = function() {
   return {enums:{permissionType:module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptionsPermissionTypeEnum}, keys:["permissionType"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptions.prototype, {permissionType:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptions.prototype, {permissionType:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("permissionType") ? this.Serializable$get("permissionType") : null;
 }, set:function(value) {
   this.Serializable$set("permissionType", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptions, {PermissionType:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptions, {PermissionType:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptionsPermissionTypeEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptions = module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptions;
 module$exports$eeapiclient$ee_api_client.BindingParameters = function module$contents$eeapiclient$ee_api_client_BindingParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Binding = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Binding = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("role", null == parameters.role ? null : parameters.role);
   this.Serializable$set("members", null == parameters.members ? null : parameters.members);
   this.Serializable$set("condition", null == parameters.condition ? null : parameters.condition);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Binding, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Binding.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Binding;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Binding, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Binding.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Binding;
 };
-module$contents$eeapiclient$ee_api_client_Binding.prototype.getPartialClassMetadata = function() {
-  return {keys:["condition", "members", "role"], objects:{condition:module$contents$eeapiclient$ee_api_client_Expr}};
+module$exports$eeapiclient$ee_api_client.Binding.prototype.getPartialClassMetadata = function() {
+  return {keys:["condition", "members", "role"], objects:{condition:module$exports$eeapiclient$ee_api_client.Expr}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Binding.prototype, {condition:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Binding.prototype, {condition:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("condition") ? this.Serializable$get("condition") : null;
 }, set:function(value) {
   this.Serializable$set("condition", value);
@@ -7474,60 +7558,57 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("role", value);
 }}});
-module$exports$eeapiclient$ee_api_client.Binding = module$contents$eeapiclient$ee_api_client_Binding;
 module$exports$eeapiclient$ee_api_client.CancelOperationRequestParameters = function module$contents$eeapiclient$ee_api_client_CancelOperationRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_CancelOperationRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.CancelOperationRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_CancelOperationRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_CancelOperationRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_CancelOperationRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.CancelOperationRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.CancelOperationRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.CancelOperationRequest;
 };
-module$contents$eeapiclient$ee_api_client_CancelOperationRequest.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.CancelOperationRequest.prototype.getPartialClassMetadata = function() {
   return {keys:[]};
 };
-module$exports$eeapiclient$ee_api_client.CancelOperationRequest = module$contents$eeapiclient$ee_api_client_CancelOperationRequest;
 module$exports$eeapiclient$ee_api_client.CapabilitiesParameters = function module$contents$eeapiclient$ee_api_client_CapabilitiesParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Capabilities = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Capabilities = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("capabilities", null == parameters.capabilities ? null : parameters.capabilities);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Capabilities, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Capabilities.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Capabilities;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Capabilities, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Capabilities.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Capabilities;
 };
-module$contents$eeapiclient$ee_api_client_Capabilities.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.Capabilities.prototype.getPartialClassMetadata = function() {
   return {enums:{capabilities:module$exports$eeapiclient$ee_api_client.CapabilitiesCapabilitiesEnum}, keys:["capabilities"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Capabilities.prototype, {capabilities:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Capabilities.prototype, {capabilities:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("capabilities") ? this.Serializable$get("capabilities") : null;
 }, set:function(value) {
   this.Serializable$set("capabilities", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Capabilities, {Capabilities:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Capabilities, {Capabilities:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.CapabilitiesCapabilitiesEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.Capabilities = module$contents$eeapiclient$ee_api_client_Capabilities;
 module$exports$eeapiclient$ee_api_client.CloudAuditOptionsParameters = function module$contents$eeapiclient$ee_api_client_CloudAuditOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_CloudAuditOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.CloudAuditOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("logName", null == parameters.logName ? null : parameters.logName);
   this.Serializable$set("authorizationLoggingOptions", null == parameters.authorizationLoggingOptions ? null : parameters.authorizationLoggingOptions);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_CloudAuditOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_CloudAuditOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_CloudAuditOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.CloudAuditOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.CloudAuditOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.CloudAuditOptions;
 };
-module$contents$eeapiclient$ee_api_client_CloudAuditOptions.prototype.getPartialClassMetadata = function() {
-  return {enums:{logName:module$exports$eeapiclient$ee_api_client.CloudAuditOptionsLogNameEnum}, keys:["authorizationLoggingOptions", "logName"], objects:{authorizationLoggingOptions:module$contents$eeapiclient$ee_api_client_AuthorizationLoggingOptions}};
+module$exports$eeapiclient$ee_api_client.CloudAuditOptions.prototype.getPartialClassMetadata = function() {
+  return {enums:{logName:module$exports$eeapiclient$ee_api_client.CloudAuditOptionsLogNameEnum}, keys:["authorizationLoggingOptions", "logName"], objects:{authorizationLoggingOptions:module$exports$eeapiclient$ee_api_client.AuthorizationLoggingOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_CloudAuditOptions.prototype, {authorizationLoggingOptions:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.CloudAuditOptions.prototype, {authorizationLoggingOptions:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("authorizationLoggingOptions") ? this.Serializable$get("authorizationLoggingOptions") : null;
 }, set:function(value) {
   this.Serializable$set("authorizationLoggingOptions", value);
@@ -7536,27 +7617,26 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("logName", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_CloudAuditOptions, {LogName:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.CloudAuditOptions, {LogName:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.CloudAuditOptionsLogNameEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.CloudAuditOptions = module$contents$eeapiclient$ee_api_client_CloudAuditOptions;
 module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequestParameters = function module$contents$eeapiclient$ee_api_client_ComputeFeaturesRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ComputeFeaturesRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("pageSize", null == parameters.pageSize ? null : parameters.pageSize);
   this.Serializable$set("pageToken", null == parameters.pageToken ? null : parameters.pageToken);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ComputeFeaturesRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ComputeFeaturesRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ComputeFeaturesRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest;
 };
-module$contents$eeapiclient$ee_api_client_ComputeFeaturesRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["expression", "pageSize", "pageToken"], objects:{expression:module$contents$eeapiclient$ee_api_client_Expression}};
+module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:["expression", "pageSize", "pageToken"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ComputeFeaturesRequest.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
@@ -7569,24 +7649,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("pageToken", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest = module$contents$eeapiclient$ee_api_client_ComputeFeaturesRequest;
 module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponseParameters = function module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("type", null == parameters.type ? null : parameters.type);
   this.Serializable$set("features", null == parameters.features ? null : parameters.features);
   this.Serializable$set("nextPageToken", null == parameters.nextPageToken ? null : parameters.nextPageToken);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponse;
 };
-module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponse.prototype.getPartialClassMetadata = function() {
-  return {arrays:{features:module$contents$eeapiclient$ee_api_client_Feature}, keys:["features", "nextPageToken", "type"]};
+module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponse.prototype.getPartialClassMetadata = function() {
+  return {arrays:{features:module$exports$eeapiclient$ee_api_client.Feature}, keys:["features", "nextPageToken", "type"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponse.prototype, {features:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponse.prototype, {features:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("features") ? this.Serializable$get("features") : null;
 }, set:function(value) {
   this.Serializable$set("features", value);
@@ -7599,24 +7678,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("type", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponse = module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponse;
 module$exports$eeapiclient$ee_api_client.ComputeImagesRequestParameters = function module$contents$eeapiclient$ee_api_client_ComputeImagesRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ComputeImagesRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ComputeImagesRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("pageSize", null == parameters.pageSize ? null : parameters.pageSize);
   this.Serializable$set("pageToken", null == parameters.pageToken ? null : parameters.pageToken);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ComputeImagesRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ComputeImagesRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ComputeImagesRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputeImagesRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ComputeImagesRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ComputeImagesRequest;
 };
-module$contents$eeapiclient$ee_api_client_ComputeImagesRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["expression", "pageSize", "pageToken"], objects:{expression:module$contents$eeapiclient$ee_api_client_Expression}};
+module$exports$eeapiclient$ee_api_client.ComputeImagesRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:["expression", "pageSize", "pageToken"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ComputeImagesRequest.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputeImagesRequest.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
@@ -7629,23 +7707,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("pageToken", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ComputeImagesRequest = module$contents$eeapiclient$ee_api_client_ComputeImagesRequest;
 module$exports$eeapiclient$ee_api_client.ComputeImagesResponseParameters = function module$contents$eeapiclient$ee_api_client_ComputeImagesResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ComputeImagesResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ComputeImagesResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("images", null == parameters.images ? null : parameters.images);
   this.Serializable$set("nextPageToken", null == parameters.nextPageToken ? null : parameters.nextPageToken);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ComputeImagesResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ComputeImagesResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ComputeImagesResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputeImagesResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ComputeImagesResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ComputeImagesResponse;
 };
-module$contents$eeapiclient$ee_api_client_ComputeImagesResponse.prototype.getPartialClassMetadata = function() {
-  return {arrays:{images:module$contents$eeapiclient$ee_api_client_Image}, keys:["images", "nextPageToken"]};
+module$exports$eeapiclient$ee_api_client.ComputeImagesResponse.prototype.getPartialClassMetadata = function() {
+  return {arrays:{images:module$exports$eeapiclient$ee_api_client.Image}, keys:["images", "nextPageToken"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ComputeImagesResponse.prototype, {images:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputeImagesResponse.prototype, {images:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("images") ? this.Serializable$get("images") : null;
 }, set:function(value) {
   this.Serializable$set("images", value);
@@ -7654,26 +7731,25 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("nextPageToken", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ComputeImagesResponse = module$contents$eeapiclient$ee_api_client_ComputeImagesResponse;
 module$exports$eeapiclient$ee_api_client.ComputePixelsRequestParameters = function module$contents$eeapiclient$ee_api_client_ComputePixelsRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ComputePixelsRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ComputePixelsRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("fileFormat", null == parameters.fileFormat ? null : parameters.fileFormat);
   this.Serializable$set("grid", null == parameters.grid ? null : parameters.grid);
   this.Serializable$set("bandIds", null == parameters.bandIds ? null : parameters.bandIds);
   this.Serializable$set("visualizationOptions", null == parameters.visualizationOptions ? null : parameters.visualizationOptions);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ComputePixelsRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ComputePixelsRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ComputePixelsRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputePixelsRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ComputePixelsRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ComputePixelsRequest;
 };
-module$contents$eeapiclient$ee_api_client_ComputePixelsRequest.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.ComputePixelsRequestFileFormatEnum}, keys:["bandIds", "expression", "fileFormat", "grid", "visualizationOptions"], objects:{expression:module$contents$eeapiclient$ee_api_client_Expression, grid:module$contents$eeapiclient$ee_api_client_PixelGrid, visualizationOptions:module$contents$eeapiclient$ee_api_client_VisualizationOptions}};
+module$exports$eeapiclient$ee_api_client.ComputePixelsRequest.prototype.getPartialClassMetadata = function() {
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.ComputePixelsRequestFileFormatEnum}, keys:["bandIds", "expression", "fileFormat", "grid", "visualizationOptions"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, grid:module$exports$eeapiclient$ee_api_client.PixelGrid, visualizationOptions:module$exports$eeapiclient$ee_api_client.VisualizationOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ComputePixelsRequest.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputePixelsRequest.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bandIds") ? this.Serializable$get("bandIds") : null;
 }, set:function(value) {
   this.Serializable$set("bandIds", value);
@@ -7694,69 +7770,66 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("visualizationOptions", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ComputePixelsRequest, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputePixelsRequest, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ComputePixelsRequestFileFormatEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.ComputePixelsRequest = module$contents$eeapiclient$ee_api_client_ComputePixelsRequest;
 module$exports$eeapiclient$ee_api_client.ComputeValueRequestParameters = function module$contents$eeapiclient$ee_api_client_ComputeValueRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ComputeValueRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ComputeValueRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ComputeValueRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ComputeValueRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ComputeValueRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputeValueRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ComputeValueRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ComputeValueRequest;
 };
-module$contents$eeapiclient$ee_api_client_ComputeValueRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["expression"], objects:{expression:module$contents$eeapiclient$ee_api_client_Expression}};
+module$exports$eeapiclient$ee_api_client.ComputeValueRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:["expression"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ComputeValueRequest.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputeValueRequest.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ComputeValueRequest = module$contents$eeapiclient$ee_api_client_ComputeValueRequest;
 module$exports$eeapiclient$ee_api_client.ComputeValueResponseParameters = function module$contents$eeapiclient$ee_api_client_ComputeValueResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ComputeValueResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ComputeValueResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("result", null == parameters.result ? null : parameters.result);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ComputeValueResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ComputeValueResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ComputeValueResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputeValueResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ComputeValueResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ComputeValueResponse;
 };
-module$contents$eeapiclient$ee_api_client_ComputeValueResponse.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.ComputeValueResponse.prototype.getPartialClassMetadata = function() {
   return {keys:["result"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ComputeValueResponse.prototype, {result:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputeValueResponse.prototype, {result:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("result") ? this.Serializable$get("result") : null;
 }, set:function(value) {
   this.Serializable$set("result", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ComputeValueResponse = module$contents$eeapiclient$ee_api_client_ComputeValueResponse;
 module$exports$eeapiclient$ee_api_client.ConditionParameters = function module$contents$eeapiclient$ee_api_client_ConditionParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Condition = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Condition = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("iam", null == parameters.iam ? null : parameters.iam);
   this.Serializable$set("sys", null == parameters.sys ? null : parameters.sys);
   this.Serializable$set("svc", null == parameters.svc ? null : parameters.svc);
   this.Serializable$set("op", null == parameters.op ? null : parameters.op);
   this.Serializable$set("values", null == parameters.values ? null : parameters.values);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Condition, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Condition.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Condition;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Condition, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Condition.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Condition;
 };
-module$contents$eeapiclient$ee_api_client_Condition.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.Condition.prototype.getPartialClassMetadata = function() {
   return {enums:{iam:module$exports$eeapiclient$ee_api_client.ConditionIamEnum, op:module$exports$eeapiclient$ee_api_client.ConditionOpEnum, sys:module$exports$eeapiclient$ee_api_client.ConditionSysEnum}, keys:["iam", "op", "svc", "sys", "values"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Condition.prototype, {iam:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Condition.prototype, {iam:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("iam") ? this.Serializable$get("iam") : null;
 }, set:function(value) {
   this.Serializable$set("iam", value);
@@ -7777,31 +7850,30 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("values", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Condition, {Iam:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Condition, {Iam:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ConditionIamEnum;
 }}, Op:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ConditionOpEnum;
 }}, Sys:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ConditionSysEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.Condition = module$contents$eeapiclient$ee_api_client_Condition;
 module$exports$eeapiclient$ee_api_client.CopyAssetRequestParameters = function module$contents$eeapiclient$ee_api_client_CopyAssetRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_CopyAssetRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.CopyAssetRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("destinationName", null == parameters.destinationName ? null : parameters.destinationName);
   this.Serializable$set("overwrite", null == parameters.overwrite ? null : parameters.overwrite);
   this.Serializable$set("bandIds", null == parameters.bandIds ? null : parameters.bandIds);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_CopyAssetRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_CopyAssetRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_CopyAssetRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.CopyAssetRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.CopyAssetRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.CopyAssetRequest;
 };
-module$contents$eeapiclient$ee_api_client_CopyAssetRequest.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.CopyAssetRequest.prototype.getPartialClassMetadata = function() {
   return {keys:["bandIds", "destinationName", "overwrite"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_CopyAssetRequest.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.CopyAssetRequest.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bandIds") ? this.Serializable$get("bandIds") : null;
 }, set:function(value) {
   this.Serializable$set("bandIds", value);
@@ -7814,24 +7886,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("overwrite", value);
 }}});
-module$exports$eeapiclient$ee_api_client.CopyAssetRequest = module$contents$eeapiclient$ee_api_client_CopyAssetRequest;
 module$exports$eeapiclient$ee_api_client.CounterOptionsParameters = function module$contents$eeapiclient$ee_api_client_CounterOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_CounterOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.CounterOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("metric", null == parameters.metric ? null : parameters.metric);
   this.Serializable$set("field", null == parameters.field ? null : parameters.field);
   this.Serializable$set("customFields", null == parameters.customFields ? null : parameters.customFields);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_CounterOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_CounterOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_CounterOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.CounterOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.CounterOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.CounterOptions;
 };
-module$contents$eeapiclient$ee_api_client_CounterOptions.prototype.getPartialClassMetadata = function() {
-  return {arrays:{customFields:module$contents$eeapiclient$ee_api_client_CustomField}, keys:["customFields", "field", "metric"]};
+module$exports$eeapiclient$ee_api_client.CounterOptions.prototype.getPartialClassMetadata = function() {
+  return {arrays:{customFields:module$exports$eeapiclient$ee_api_client.CustomField}, keys:["customFields", "field", "metric"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_CounterOptions.prototype, {customFields:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.CounterOptions.prototype, {customFields:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("customFields") ? this.Serializable$get("customFields") : null;
 }, set:function(value) {
   this.Serializable$set("customFields", value);
@@ -7844,23 +7915,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("metric", value);
 }}});
-module$exports$eeapiclient$ee_api_client.CounterOptions = module$contents$eeapiclient$ee_api_client_CounterOptions;
 module$exports$eeapiclient$ee_api_client.CustomFieldParameters = function module$contents$eeapiclient$ee_api_client_CustomFieldParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_CustomField = function(parameters) {
+module$exports$eeapiclient$ee_api_client.CustomField = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("value", null == parameters.value ? null : parameters.value);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_CustomField, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_CustomField.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_CustomField;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.CustomField, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.CustomField.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.CustomField;
 };
-module$contents$eeapiclient$ee_api_client_CustomField.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.CustomField.prototype.getPartialClassMetadata = function() {
   return {keys:["name", "value"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_CustomField.prototype, {name:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.CustomField.prototype, {name:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("name") ? this.Serializable$get("name") : null;
 }, set:function(value) {
   this.Serializable$set("name", value);
@@ -7869,66 +7939,63 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("value", value);
 }}});
-module$exports$eeapiclient$ee_api_client.CustomField = module$contents$eeapiclient$ee_api_client_CustomField;
 module$exports$eeapiclient$ee_api_client.DataAccessOptionsParameters = function module$contents$eeapiclient$ee_api_client_DataAccessOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_DataAccessOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.DataAccessOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("logMode", null == parameters.logMode ? null : parameters.logMode);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_DataAccessOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_DataAccessOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_DataAccessOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.DataAccessOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.DataAccessOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.DataAccessOptions;
 };
-module$contents$eeapiclient$ee_api_client_DataAccessOptions.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.DataAccessOptions.prototype.getPartialClassMetadata = function() {
   return {enums:{logMode:module$exports$eeapiclient$ee_api_client.DataAccessOptionsLogModeEnum}, keys:["logMode"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_DataAccessOptions.prototype, {logMode:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.DataAccessOptions.prototype, {logMode:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("logMode") ? this.Serializable$get("logMode") : null;
 }, set:function(value) {
   this.Serializable$set("logMode", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_DataAccessOptions, {LogMode:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.DataAccessOptions, {LogMode:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.DataAccessOptionsLogModeEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.DataAccessOptions = module$contents$eeapiclient$ee_api_client_DataAccessOptions;
 module$exports$eeapiclient$ee_api_client.DictionaryValueParameters = function module$contents$eeapiclient$ee_api_client_DictionaryValueParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_DictionaryValue = function(parameters) {
+module$exports$eeapiclient$ee_api_client.DictionaryValue = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("values", null == parameters.values ? null : parameters.values);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_DictionaryValue, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_DictionaryValue.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_DictionaryValue;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.DictionaryValue, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.DictionaryValue.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.DictionaryValue;
 };
-module$contents$eeapiclient$ee_api_client_DictionaryValue.prototype.getPartialClassMetadata = function() {
-  return {keys:["values"], objectMaps:{values:{ctor:module$contents$eeapiclient$ee_api_client_ValueNode, isPropertyArray:!1, isSerializable:!0, isValueArray:!1}}};
+module$exports$eeapiclient$ee_api_client.DictionaryValue.prototype.getPartialClassMetadata = function() {
+  return {keys:["values"], objectMaps:{values:{ctor:module$exports$eeapiclient$ee_api_client.ValueNode, isPropertyArray:!1, isSerializable:!0, isValueArray:!1}}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_DictionaryValue.prototype, {values:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.DictionaryValue.prototype, {values:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("values") ? this.Serializable$get("values") : null;
 }, set:function(value) {
   this.Serializable$set("values", value);
 }}});
-module$exports$eeapiclient$ee_api_client.DictionaryValue = module$contents$eeapiclient$ee_api_client_DictionaryValue;
 module$exports$eeapiclient$ee_api_client.DoubleRangeParameters = function module$contents$eeapiclient$ee_api_client_DoubleRangeParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_DoubleRange = function(parameters) {
+module$exports$eeapiclient$ee_api_client.DoubleRange = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("min", null == parameters.min ? null : parameters.min);
   this.Serializable$set("max", null == parameters.max ? null : parameters.max);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_DoubleRange, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_DoubleRange.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_DoubleRange;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.DoubleRange, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.DoubleRange.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.DoubleRange;
 };
-module$contents$eeapiclient$ee_api_client_DoubleRange.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.DoubleRange.prototype.getPartialClassMetadata = function() {
   return {keys:["max", "min"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_DoubleRange.prototype, {max:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.DoubleRange.prototype, {max:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("max") ? this.Serializable$get("max") : null;
 }, set:function(value) {
   this.Serializable$set("max", value);
@@ -7937,23 +8004,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("min", value);
 }}});
-module$exports$eeapiclient$ee_api_client.DoubleRange = module$contents$eeapiclient$ee_api_client_DoubleRange;
 module$exports$eeapiclient$ee_api_client.DriveDestinationParameters = function module$contents$eeapiclient$ee_api_client_DriveDestinationParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_DriveDestination = function(parameters) {
+module$exports$eeapiclient$ee_api_client.DriveDestination = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("folder", null == parameters.folder ? null : parameters.folder);
   this.Serializable$set("filenamePrefix", null == parameters.filenamePrefix ? null : parameters.filenamePrefix);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_DriveDestination, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_DriveDestination.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_DriveDestination;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.DriveDestination, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.DriveDestination.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.DriveDestination;
 };
-module$contents$eeapiclient$ee_api_client_DriveDestination.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.DriveDestination.prototype.getPartialClassMetadata = function() {
   return {keys:["filenamePrefix", "folder"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_DriveDestination.prototype, {filenamePrefix:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.DriveDestination.prototype, {filenamePrefix:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("filenamePrefix") ? this.Serializable$get("filenamePrefix") : null;
 }, set:function(value) {
   this.Serializable$set("filenamePrefix", value);
@@ -7962,12 +8028,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("folder", value);
 }}});
-module$exports$eeapiclient$ee_api_client.DriveDestination = module$contents$eeapiclient$ee_api_client_DriveDestination;
 module$exports$eeapiclient$ee_api_client.EarthEngineAssetParameters = function module$contents$eeapiclient$ee_api_client_EarthEngineAssetParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_EarthEngineAsset = function(parameters) {
+module$exports$eeapiclient$ee_api_client.EarthEngineAsset = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("type", null == parameters.type ? null : parameters.type);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("id", null == parameters.id ? null : parameters.id);
@@ -7984,15 +8049,15 @@ var module$contents$eeapiclient$ee_api_client_EarthEngineAsset = function(parame
   this.Serializable$set("tilestoreEntry", null == parameters.tilestoreEntry ? null : parameters.tilestoreEntry);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_EarthEngineAsset, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_EarthEngineAsset.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_EarthEngineAsset;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.EarthEngineAsset, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.EarthEngineAsset.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.EarthEngineAsset;
 };
-module$contents$eeapiclient$ee_api_client_EarthEngineAsset.prototype.getPartialClassMetadata = function() {
-  return {arrays:{bands:module$contents$eeapiclient$ee_api_client_ImageBand}, enums:{type:module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum}, keys:"bands description endTime expression geometry id name properties quota sizeBytes startTime tilestoreEntry title type updateTime".split(" "), objectMaps:{geometry:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}, properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, 
-  isValueArray:!1}}, objects:{expression:module$contents$eeapiclient$ee_api_client_Expression, quota:module$contents$eeapiclient$ee_api_client_FolderQuota, tilestoreEntry:module$contents$eeapiclient$ee_api_client_TilestoreEntry}};
+module$exports$eeapiclient$ee_api_client.EarthEngineAsset.prototype.getPartialClassMetadata = function() {
+  return {arrays:{bands:module$exports$eeapiclient$ee_api_client.ImageBand}, enums:{type:module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum}, keys:"bands description endTime expression geometry id name properties quota sizeBytes startTime tilestoreEntry title type updateTime".split(" "), objectMaps:{geometry:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}, properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, 
+  isValueArray:!1}}, objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, quota:module$exports$eeapiclient$ee_api_client.FolderQuota, tilestoreEntry:module$exports$eeapiclient$ee_api_client.TilestoreEntry}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_EarthEngineAsset.prototype, {bands:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.EarthEngineAsset.prototype, {bands:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bands") ? this.Serializable$get("bands") : null;
 }, set:function(value) {
   this.Serializable$set("bands", value);
@@ -8053,49 +8118,47 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("updateTime", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_EarthEngineAsset, {Type:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.EarthEngineAsset, {Type:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.EarthEngineAsset = module$contents$eeapiclient$ee_api_client_EarthEngineAsset;
 module$exports$eeapiclient$ee_api_client.EarthEngineDestinationParameters = function module$contents$eeapiclient$ee_api_client_EarthEngineDestinationParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_EarthEngineDestination = function(parameters) {
+module$exports$eeapiclient$ee_api_client.EarthEngineDestination = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_EarthEngineDestination, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_EarthEngineDestination.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_EarthEngineDestination;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.EarthEngineDestination, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.EarthEngineDestination.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.EarthEngineDestination;
 };
-module$contents$eeapiclient$ee_api_client_EarthEngineDestination.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.EarthEngineDestination.prototype.getPartialClassMetadata = function() {
   return {keys:["name"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_EarthEngineDestination.prototype, {name:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.EarthEngineDestination.prototype, {name:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("name") ? this.Serializable$get("name") : null;
 }, set:function(value) {
   this.Serializable$set("name", value);
 }}});
-module$exports$eeapiclient$ee_api_client.EarthEngineDestination = module$contents$eeapiclient$ee_api_client_EarthEngineDestination;
 module$exports$eeapiclient$ee_api_client.EarthEngineMapParameters = function module$contents$eeapiclient$ee_api_client_EarthEngineMapParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_EarthEngineMap = function(parameters) {
+module$exports$eeapiclient$ee_api_client.EarthEngineMap = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("fileFormat", null == parameters.fileFormat ? null : parameters.fileFormat);
   this.Serializable$set("bandIds", null == parameters.bandIds ? null : parameters.bandIds);
   this.Serializable$set("visualizationOptions", null == parameters.visualizationOptions ? null : parameters.visualizationOptions);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_EarthEngineMap, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_EarthEngineMap.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_EarthEngineMap;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.EarthEngineMap, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.EarthEngineMap.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.EarthEngineMap;
 };
-module$contents$eeapiclient$ee_api_client_EarthEngineMap.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.EarthEngineMapFileFormatEnum}, keys:["bandIds", "expression", "fileFormat", "name", "visualizationOptions"], objects:{expression:module$contents$eeapiclient$ee_api_client_Expression, visualizationOptions:module$contents$eeapiclient$ee_api_client_VisualizationOptions}};
+module$exports$eeapiclient$ee_api_client.EarthEngineMap.prototype.getPartialClassMetadata = function() {
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.EarthEngineMapFileFormatEnum}, keys:["bandIds", "expression", "fileFormat", "name", "visualizationOptions"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, visualizationOptions:module$exports$eeapiclient$ee_api_client.VisualizationOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_EarthEngineMap.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.EarthEngineMap.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bandIds") ? this.Serializable$get("bandIds") : null;
 }, set:function(value) {
   this.Serializable$set("bandIds", value);
@@ -8116,29 +8179,27 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("visualizationOptions", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_EarthEngineMap, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.EarthEngineMap, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.EarthEngineMapFileFormatEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.EarthEngineMap = module$contents$eeapiclient$ee_api_client_EarthEngineMap;
 module$exports$eeapiclient$ee_api_client.EmptyParameters = function module$contents$eeapiclient$ee_api_client_EmptyParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Empty = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Empty = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Empty, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Empty.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Empty;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Empty, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Empty.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Empty;
 };
-module$contents$eeapiclient$ee_api_client_Empty.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.Empty.prototype.getPartialClassMetadata = function() {
   return {keys:[]};
 };
-module$exports$eeapiclient$ee_api_client.Empty = module$contents$eeapiclient$ee_api_client_Empty;
 module$exports$eeapiclient$ee_api_client.ExportImageRequestParameters = function module$contents$eeapiclient$ee_api_client_ExportImageRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ExportImageRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ExportImageRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("fileExportOptions", null == parameters.fileExportOptions ? null : parameters.fileExportOptions);
@@ -8146,15 +8207,16 @@ var module$contents$eeapiclient$ee_api_client_ExportImageRequest = function(para
   this.Serializable$set("maxPixels", null == parameters.maxPixels ? null : parameters.maxPixels);
   this.Serializable$set("grid", null == parameters.grid ? null : parameters.grid);
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
+  this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ExportImageRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ExportImageRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ExportImageRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportImageRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ExportImageRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ExportImageRequest;
 };
-module$contents$eeapiclient$ee_api_client_ExportImageRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:"assetExportOptions description expression fileExportOptions grid maxPixels requestId".split(" "), objects:{assetExportOptions:module$contents$eeapiclient$ee_api_client_ImageAssetExportOptions, expression:module$contents$eeapiclient$ee_api_client_Expression, fileExportOptions:module$contents$eeapiclient$ee_api_client_ImageFileExportOptions, grid:module$contents$eeapiclient$ee_api_client_PixelGrid}};
+module$exports$eeapiclient$ee_api_client.ExportImageRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:"assetExportOptions description expression fileExportOptions grid maxPixels maxWorkerCount requestId".split(" "), objects:{assetExportOptions:module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions, expression:module$exports$eeapiclient$ee_api_client.Expression, fileExportOptions:module$exports$eeapiclient$ee_api_client.ImageFileExportOptions, grid:module$exports$eeapiclient$ee_api_client.PixelGrid}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ExportImageRequest.prototype, {assetExportOptions:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportImageRequest.prototype, {assetExportOptions:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("assetExportOptions") ? this.Serializable$get("assetExportOptions") : null;
 }, set:function(value) {
   this.Serializable$set("assetExportOptions", value);
@@ -8178,31 +8240,35 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
   return this.Serializable$has("maxPixels") ? this.Serializable$get("maxPixels") : null;
 }, set:function(value) {
   this.Serializable$set("maxPixels", value);
+}}, maxWorkerCount:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("maxWorkerCount") ? this.Serializable$get("maxWorkerCount") : null;
+}, set:function(value) {
+  this.Serializable$set("maxWorkerCount", value);
 }}, requestId:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("requestId") ? this.Serializable$get("requestId") : null;
 }, set:function(value) {
   this.Serializable$set("requestId", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ExportImageRequest = module$contents$eeapiclient$ee_api_client_ExportImageRequest;
 module$exports$eeapiclient$ee_api_client.ExportMapRequestParameters = function module$contents$eeapiclient$ee_api_client_ExportMapRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ExportMapRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ExportMapRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("tileOptions", null == parameters.tileOptions ? null : parameters.tileOptions);
   this.Serializable$set("tileExportOptions", null == parameters.tileExportOptions ? null : parameters.tileExportOptions);
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
+  this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ExportMapRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ExportMapRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ExportMapRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportMapRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ExportMapRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ExportMapRequest;
 };
-module$contents$eeapiclient$ee_api_client_ExportMapRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["description", "expression", "requestId", "tileExportOptions", "tileOptions"], objects:{expression:module$contents$eeapiclient$ee_api_client_Expression, tileExportOptions:module$contents$eeapiclient$ee_api_client_ImageFileExportOptions, tileOptions:module$contents$eeapiclient$ee_api_client_TileOptions}};
+module$exports$eeapiclient$ee_api_client.ExportMapRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:"description expression maxWorkerCount requestId tileExportOptions tileOptions".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, tileExportOptions:module$exports$eeapiclient$ee_api_client.ImageFileExportOptions, tileOptions:module$exports$eeapiclient$ee_api_client.TileOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ExportMapRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportMapRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("description") ? this.Serializable$get("description") : null;
 }, set:function(value) {
   this.Serializable$set("description", value);
@@ -8210,6 +8276,10 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
+}}, maxWorkerCount:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("maxWorkerCount") ? this.Serializable$get("maxWorkerCount") : null;
+}, set:function(value) {
+  this.Serializable$set("maxWorkerCount", value);
 }}, requestId:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("requestId") ? this.Serializable$get("requestId") : null;
 }, set:function(value) {
@@ -8223,12 +8293,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("tileOptions", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ExportMapRequest = module$contents$eeapiclient$ee_api_client_ExportMapRequest;
 module$exports$eeapiclient$ee_api_client.ExportTableRequestParameters = function module$contents$eeapiclient$ee_api_client_ExportTableRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ExportTableRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ExportTableRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("fileExportOptions", null == parameters.fileExportOptions ? null : parameters.fileExportOptions);
@@ -8236,15 +8305,16 @@ var module$contents$eeapiclient$ee_api_client_ExportTableRequest = function(para
   this.Serializable$set("selectors", null == parameters.selectors ? null : parameters.selectors);
   this.Serializable$set("maxErrorMeters", null == parameters.maxErrorMeters ? null : parameters.maxErrorMeters);
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
+  this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ExportTableRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ExportTableRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ExportTableRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportTableRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ExportTableRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ExportTableRequest;
 };
-module$contents$eeapiclient$ee_api_client_ExportTableRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:"assetExportOptions description expression fileExportOptions maxErrorMeters requestId selectors".split(" "), objects:{assetExportOptions:module$contents$eeapiclient$ee_api_client_TableAssetExportOptions, expression:module$contents$eeapiclient$ee_api_client_Expression, fileExportOptions:module$contents$eeapiclient$ee_api_client_TableFileExportOptions}};
+module$exports$eeapiclient$ee_api_client.ExportTableRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:"assetExportOptions description expression fileExportOptions maxErrorMeters maxWorkerCount requestId selectors".split(" "), objects:{assetExportOptions:module$exports$eeapiclient$ee_api_client.TableAssetExportOptions, expression:module$exports$eeapiclient$ee_api_client.Expression, fileExportOptions:module$exports$eeapiclient$ee_api_client.TableFileExportOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ExportTableRequest.prototype, {assetExportOptions:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportTableRequest.prototype, {assetExportOptions:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("assetExportOptions") ? this.Serializable$get("assetExportOptions") : null;
 }, set:function(value) {
   this.Serializable$set("assetExportOptions", value);
@@ -8264,6 +8334,10 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
   return this.Serializable$has("maxErrorMeters") ? this.Serializable$get("maxErrorMeters") : null;
 }, set:function(value) {
   this.Serializable$set("maxErrorMeters", value);
+}}, maxWorkerCount:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("maxWorkerCount") ? this.Serializable$get("maxWorkerCount") : null;
+}, set:function(value) {
+  this.Serializable$set("maxWorkerCount", value);
 }}, requestId:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("requestId") ? this.Serializable$get("requestId") : null;
 }, set:function(value) {
@@ -8273,12 +8347,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("selectors", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ExportTableRequest = module$contents$eeapiclient$ee_api_client_ExportTableRequest;
 module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestParameters = function module$contents$eeapiclient$ee_api_client_ExportVideoMapRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ExportVideoMapRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("videoOptions", null == parameters.videoOptions ? null : parameters.videoOptions);
@@ -8286,16 +8359,17 @@ var module$contents$eeapiclient$ee_api_client_ExportVideoMapRequest = function(p
   this.Serializable$set("tileExportOptions", null == parameters.tileExportOptions ? null : parameters.tileExportOptions);
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
   this.Serializable$set("version", null == parameters.version ? null : parameters.version);
+  this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ExportVideoMapRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ExportVideoMapRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ExportVideoMapRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest;
 };
-module$contents$eeapiclient$ee_api_client_ExportVideoMapRequest.prototype.getPartialClassMetadata = function() {
-  return {enums:{version:module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum}, keys:"description expression requestId tileExportOptions tileOptions version videoOptions".split(" "), objects:{expression:module$contents$eeapiclient$ee_api_client_Expression, tileExportOptions:module$contents$eeapiclient$ee_api_client_VideoFileExportOptions, tileOptions:module$contents$eeapiclient$ee_api_client_TileOptions, 
-  videoOptions:module$contents$eeapiclient$ee_api_client_VideoOptions}};
+module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest.prototype.getPartialClassMetadata = function() {
+  return {enums:{version:module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum}, keys:"description expression maxWorkerCount requestId tileExportOptions tileOptions version videoOptions".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, tileExportOptions:module$exports$eeapiclient$ee_api_client.VideoFileExportOptions, tileOptions:module$exports$eeapiclient$ee_api_client.TileOptions, 
+  videoOptions:module$exports$eeapiclient$ee_api_client.VideoOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ExportVideoMapRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("description") ? this.Serializable$get("description") : null;
 }, set:function(value) {
   this.Serializable$set("description", value);
@@ -8303,6 +8377,10 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
+}}, maxWorkerCount:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("maxWorkerCount") ? this.Serializable$get("maxWorkerCount") : null;
+}, set:function(value) {
+  this.Serializable$set("maxWorkerCount", value);
 }}, requestId:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("requestId") ? this.Serializable$get("requestId") : null;
 }, set:function(value) {
@@ -8324,29 +8402,29 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("videoOptions", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ExportVideoMapRequest, {Version:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest, {Version:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest = module$contents$eeapiclient$ee_api_client_ExportVideoMapRequest;
 module$exports$eeapiclient$ee_api_client.ExportVideoRequestParameters = function module$contents$eeapiclient$ee_api_client_ExportVideoRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ExportVideoRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ExportVideoRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("videoOptions", null == parameters.videoOptions ? null : parameters.videoOptions);
   this.Serializable$set("fileExportOptions", null == parameters.fileExportOptions ? null : parameters.fileExportOptions);
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
+  this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ExportVideoRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ExportVideoRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ExportVideoRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportVideoRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ExportVideoRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ExportVideoRequest;
 };
-module$contents$eeapiclient$ee_api_client_ExportVideoRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["description", "expression", "fileExportOptions", "requestId", "videoOptions"], objects:{expression:module$contents$eeapiclient$ee_api_client_Expression, fileExportOptions:module$contents$eeapiclient$ee_api_client_VideoFileExportOptions, videoOptions:module$contents$eeapiclient$ee_api_client_VideoOptions}};
+module$exports$eeapiclient$ee_api_client.ExportVideoRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:"description expression fileExportOptions maxWorkerCount requestId videoOptions".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, fileExportOptions:module$exports$eeapiclient$ee_api_client.VideoFileExportOptions, videoOptions:module$exports$eeapiclient$ee_api_client.VideoOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ExportVideoRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportVideoRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("description") ? this.Serializable$get("description") : null;
 }, set:function(value) {
   this.Serializable$set("description", value);
@@ -8358,6 +8436,10 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
   return this.Serializable$has("fileExportOptions") ? this.Serializable$get("fileExportOptions") : null;
 }, set:function(value) {
   this.Serializable$set("fileExportOptions", value);
+}}, maxWorkerCount:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("maxWorkerCount") ? this.Serializable$get("maxWorkerCount") : null;
+}, set:function(value) {
+  this.Serializable$set("maxWorkerCount", value);
 }}, requestId:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("requestId") ? this.Serializable$get("requestId") : null;
 }, set:function(value) {
@@ -8367,25 +8449,24 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("videoOptions", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ExportVideoRequest = module$contents$eeapiclient$ee_api_client_ExportVideoRequest;
 module$exports$eeapiclient$ee_api_client.ExprParameters = function module$contents$eeapiclient$ee_api_client_ExprParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Expr = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Expr = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("title", null == parameters.title ? null : parameters.title);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("location", null == parameters.location ? null : parameters.location);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Expr, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Expr.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Expr;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Expr, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Expr.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Expr;
 };
-module$contents$eeapiclient$ee_api_client_Expr.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.Expr.prototype.getPartialClassMetadata = function() {
   return {keys:["description", "expression", "location", "title"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Expr.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Expr.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("description") ? this.Serializable$get("description") : null;
 }, set:function(value) {
   this.Serializable$set("description", value);
@@ -8402,23 +8483,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("title", value);
 }}});
-module$exports$eeapiclient$ee_api_client.Expr = module$contents$eeapiclient$ee_api_client_Expr;
 module$exports$eeapiclient$ee_api_client.ExpressionParameters = function module$contents$eeapiclient$ee_api_client_ExpressionParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Expression = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Expression = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("values", null == parameters.values ? null : parameters.values);
   this.Serializable$set("result", null == parameters.result ? null : parameters.result);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Expression, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Expression.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Expression;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Expression, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Expression.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Expression;
 };
-module$contents$eeapiclient$ee_api_client_Expression.prototype.getPartialClassMetadata = function() {
-  return {keys:["result", "values"], objectMaps:{values:{ctor:module$contents$eeapiclient$ee_api_client_ValueNode, isPropertyArray:!1, isSerializable:!0, isValueArray:!1}}};
+module$exports$eeapiclient$ee_api_client.Expression.prototype.getPartialClassMetadata = function() {
+  return {keys:["result", "values"], objectMaps:{values:{ctor:module$exports$eeapiclient$ee_api_client.ValueNode, isPropertyArray:!1, isSerializable:!0, isValueArray:!1}}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Expression.prototype, {result:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Expression.prototype, {result:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("result") ? this.Serializable$get("result") : null;
 }, set:function(value) {
   this.Serializable$set("result", value);
@@ -8427,24 +8507,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("values", value);
 }}});
-module$exports$eeapiclient$ee_api_client.Expression = module$contents$eeapiclient$ee_api_client_Expression;
 module$exports$eeapiclient$ee_api_client.FeatureParameters = function module$contents$eeapiclient$ee_api_client_FeatureParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Feature = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Feature = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("type", null == parameters.type ? null : parameters.type);
   this.Serializable$set("geometry", null == parameters.geometry ? null : parameters.geometry);
   this.Serializable$set("properties", null == parameters.properties ? null : parameters.properties);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Feature, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Feature.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Feature;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Feature, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Feature.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Feature;
 };
-module$contents$eeapiclient$ee_api_client_Feature.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.Feature.prototype.getPartialClassMetadata = function() {
   return {keys:["geometry", "properties", "type"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Feature.prototype, {geometry:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Feature.prototype, {geometry:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("geometry") ? this.Serializable$get("geometry") : null;
 }, set:function(value) {
   this.Serializable$set("geometry", value);
@@ -8457,26 +8536,25 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("type", value);
 }}});
-module$exports$eeapiclient$ee_api_client.Feature = module$contents$eeapiclient$ee_api_client_Feature;
 module$exports$eeapiclient$ee_api_client.FilmstripThumbnailParameters = function module$contents$eeapiclient$ee_api_client_FilmstripThumbnailParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_FilmstripThumbnail = function(parameters) {
+module$exports$eeapiclient$ee_api_client.FilmstripThumbnail = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("orientation", null == parameters.orientation ? null : parameters.orientation);
   this.Serializable$set("fileFormat", null == parameters.fileFormat ? null : parameters.fileFormat);
   this.Serializable$set("grid", null == parameters.grid ? null : parameters.grid);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_FilmstripThumbnail, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_FilmstripThumbnail.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_FilmstripThumbnail;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FilmstripThumbnail, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FilmstripThumbnail.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FilmstripThumbnail;
 };
-module$contents$eeapiclient$ee_api_client_FilmstripThumbnail.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.FilmstripThumbnailFileFormatEnum, orientation:module$exports$eeapiclient$ee_api_client.FilmstripThumbnailOrientationEnum}, keys:["expression", "fileFormat", "grid", "name", "orientation"], objects:{expression:module$contents$eeapiclient$ee_api_client_Expression, grid:module$contents$eeapiclient$ee_api_client_PixelGrid}};
+module$exports$eeapiclient$ee_api_client.FilmstripThumbnail.prototype.getPartialClassMetadata = function() {
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.FilmstripThumbnailFileFormatEnum, orientation:module$exports$eeapiclient$ee_api_client.FilmstripThumbnailOrientationEnum}, keys:["expression", "fileFormat", "grid", "name", "orientation"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, grid:module$exports$eeapiclient$ee_api_client.PixelGrid}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_FilmstripThumbnail.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FilmstripThumbnail.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
@@ -8497,30 +8575,29 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("orientation", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_FilmstripThumbnail, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FilmstripThumbnail, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.FilmstripThumbnailFileFormatEnum;
 }}, Orientation:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.FilmstripThumbnailOrientationEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.FilmstripThumbnail = module$contents$eeapiclient$ee_api_client_FilmstripThumbnail;
 module$exports$eeapiclient$ee_api_client.FolderQuotaParameters = function module$contents$eeapiclient$ee_api_client_FolderQuotaParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_FolderQuota = function(parameters) {
+module$exports$eeapiclient$ee_api_client.FolderQuota = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("sizeBytes", null == parameters.sizeBytes ? null : parameters.sizeBytes);
   this.Serializable$set("maxSizeBytes", null == parameters.maxSizeBytes ? null : parameters.maxSizeBytes);
   this.Serializable$set("assetCount", null == parameters.assetCount ? null : parameters.assetCount);
   this.Serializable$set("maxAssetCount", null == parameters.maxAssetCount ? null : parameters.maxAssetCount);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_FolderQuota, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_FolderQuota.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_FolderQuota;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FolderQuota, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FolderQuota.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FolderQuota;
 };
-module$contents$eeapiclient$ee_api_client_FolderQuota.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.FolderQuota.prototype.getPartialClassMetadata = function() {
   return {keys:["assetCount", "maxAssetCount", "maxSizeBytes", "sizeBytes"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_FolderQuota.prototype, {assetCount:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FolderQuota.prototype, {assetCount:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("assetCount") ? this.Serializable$get("assetCount") : null;
 }, set:function(value) {
   this.Serializable$set("assetCount", value);
@@ -8537,23 +8614,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("sizeBytes", value);
 }}});
-module$exports$eeapiclient$ee_api_client.FolderQuota = module$contents$eeapiclient$ee_api_client_FolderQuota;
 module$exports$eeapiclient$ee_api_client.FunctionDefinitionParameters = function module$contents$eeapiclient$ee_api_client_FunctionDefinitionParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_FunctionDefinition = function(parameters) {
+module$exports$eeapiclient$ee_api_client.FunctionDefinition = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("argumentNames", null == parameters.argumentNames ? null : parameters.argumentNames);
   this.Serializable$set("body", null == parameters.body ? null : parameters.body);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_FunctionDefinition, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_FunctionDefinition.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_FunctionDefinition;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FunctionDefinition, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FunctionDefinition.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FunctionDefinition;
 };
-module$contents$eeapiclient$ee_api_client_FunctionDefinition.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.FunctionDefinition.prototype.getPartialClassMetadata = function() {
   return {keys:["argumentNames", "body"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_FunctionDefinition.prototype, {argumentNames:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FunctionDefinition.prototype, {argumentNames:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("argumentNames") ? this.Serializable$get("argumentNames") : null;
 }, set:function(value) {
   this.Serializable$set("argumentNames", value);
@@ -8562,24 +8638,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("body", value);
 }}});
-module$exports$eeapiclient$ee_api_client.FunctionDefinition = module$contents$eeapiclient$ee_api_client_FunctionDefinition;
 module$exports$eeapiclient$ee_api_client.FunctionInvocationParameters = function module$contents$eeapiclient$ee_api_client_FunctionInvocationParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_FunctionInvocation = function(parameters) {
+module$exports$eeapiclient$ee_api_client.FunctionInvocation = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("functionName", null == parameters.functionName ? null : parameters.functionName);
   this.Serializable$set("functionReference", null == parameters.functionReference ? null : parameters.functionReference);
   this.Serializable$set("arguments", null == parameters.arguments ? null : parameters.arguments);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_FunctionInvocation, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_FunctionInvocation.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_FunctionInvocation;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FunctionInvocation, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FunctionInvocation.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FunctionInvocation;
 };
-module$contents$eeapiclient$ee_api_client_FunctionInvocation.prototype.getPartialClassMetadata = function() {
-  return {keys:["arguments", "functionName", "functionReference"], objectMaps:{arguments:{ctor:module$contents$eeapiclient$ee_api_client_ValueNode, isPropertyArray:!1, isSerializable:!0, isValueArray:!1}}};
+module$exports$eeapiclient$ee_api_client.FunctionInvocation.prototype.getPartialClassMetadata = function() {
+  return {keys:["arguments", "functionName", "functionReference"], objectMaps:{arguments:{ctor:module$exports$eeapiclient$ee_api_client.ValueNode, isPropertyArray:!1, isSerializable:!0, isValueArray:!1}}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_FunctionInvocation.prototype, {arguments:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FunctionInvocation.prototype, {arguments:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("arguments") ? this.Serializable$get("arguments") : null;
 }, set:function(value) {
   this.Serializable$set("arguments", value);
@@ -8592,25 +8667,24 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("functionReference", value);
 }}});
-module$exports$eeapiclient$ee_api_client.FunctionInvocation = module$contents$eeapiclient$ee_api_client_FunctionInvocation;
 module$exports$eeapiclient$ee_api_client.GcsDestinationParameters = function module$contents$eeapiclient$ee_api_client_GcsDestinationParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_GcsDestination = function(parameters) {
+module$exports$eeapiclient$ee_api_client.GcsDestination = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("bucket", null == parameters.bucket ? null : parameters.bucket);
   this.Serializable$set("filenamePrefix", null == parameters.filenamePrefix ? null : parameters.filenamePrefix);
   this.Serializable$set("permissions", null == parameters.permissions ? null : parameters.permissions);
   this.Serializable$set("bucketCorsUris", null == parameters.bucketCorsUris ? null : parameters.bucketCorsUris);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_GcsDestination, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_GcsDestination.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_GcsDestination;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.GcsDestination, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.GcsDestination.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.GcsDestination;
 };
-module$contents$eeapiclient$ee_api_client_GcsDestination.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.GcsDestination.prototype.getPartialClassMetadata = function() {
   return {enums:{permissions:module$exports$eeapiclient$ee_api_client.GcsDestinationPermissionsEnum}, keys:["bucket", "bucketCorsUris", "filenamePrefix", "permissions"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_GcsDestination.prototype, {bucket:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.GcsDestination.prototype, {bucket:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bucket") ? this.Serializable$get("bucket") : null;
 }, set:function(value) {
   this.Serializable$set("bucket", value);
@@ -8627,27 +8701,26 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("permissions", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_GcsDestination, {Permissions:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.GcsDestination, {Permissions:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.GcsDestinationPermissionsEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.GcsDestination = module$contents$eeapiclient$ee_api_client_GcsDestination;
 module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptionsParameters = function module$contents$eeapiclient$ee_api_client_GeoTiffImageExportOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_GeoTiffImageExportOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("cloudOptimized", null == parameters.cloudOptimized ? null : parameters.cloudOptimized);
   this.Serializable$set("tileDimensions", null == parameters.tileDimensions ? null : parameters.tileDimensions);
   this.Serializable$set("skipEmptyFiles", null == parameters.skipEmptyFiles ? null : parameters.skipEmptyFiles);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_GeoTiffImageExportOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_GeoTiffImageExportOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_GeoTiffImageExportOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions;
 };
-module$contents$eeapiclient$ee_api_client_GeoTiffImageExportOptions.prototype.getPartialClassMetadata = function() {
-  return {keys:["cloudOptimized", "skipEmptyFiles", "tileDimensions"], objects:{tileDimensions:module$contents$eeapiclient$ee_api_client_GridDimensions}};
+module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions.prototype.getPartialClassMetadata = function() {
+  return {keys:["cloudOptimized", "skipEmptyFiles", "tileDimensions"], objects:{tileDimensions:module$exports$eeapiclient$ee_api_client.GridDimensions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_GeoTiffImageExportOptions.prototype, {cloudOptimized:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions.prototype, {cloudOptimized:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("cloudOptimized") ? this.Serializable$get("cloudOptimized") : null;
 }, set:function(value) {
   this.Serializable$set("cloudOptimized", value);
@@ -8660,46 +8733,44 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("tileDimensions", value);
 }}});
-module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions = module$contents$eeapiclient$ee_api_client_GeoTiffImageExportOptions;
 module$exports$eeapiclient$ee_api_client.GetIamPolicyRequestParameters = function module$contents$eeapiclient$ee_api_client_GetIamPolicyRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_GetIamPolicyRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("options", null == parameters.options ? null : parameters.options);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_GetIamPolicyRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_GetIamPolicyRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_GetIamPolicyRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest;
 };
-module$contents$eeapiclient$ee_api_client_GetIamPolicyRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["options"], objects:{options:module$contents$eeapiclient$ee_api_client_GetPolicyOptions}};
+module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:["options"], objects:{options:module$exports$eeapiclient$ee_api_client.GetPolicyOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_GetIamPolicyRequest.prototype, {options:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest.prototype, {options:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("options") ? this.Serializable$get("options") : null;
 }, set:function(value) {
   this.Serializable$set("options", value);
 }}});
-module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest = module$contents$eeapiclient$ee_api_client_GetIamPolicyRequest;
 module$exports$eeapiclient$ee_api_client.GetPixelsRequestParameters = function module$contents$eeapiclient$ee_api_client_GetPixelsRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_GetPixelsRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.GetPixelsRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("fileFormat", null == parameters.fileFormat ? null : parameters.fileFormat);
   this.Serializable$set("grid", null == parameters.grid ? null : parameters.grid);
   this.Serializable$set("region", null == parameters.region ? null : parameters.region);
   this.Serializable$set("bandIds", null == parameters.bandIds ? null : parameters.bandIds);
   this.Serializable$set("visualizationOptions", null == parameters.visualizationOptions ? null : parameters.visualizationOptions);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_GetPixelsRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_GetPixelsRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_GetPixelsRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.GetPixelsRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.GetPixelsRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.GetPixelsRequest;
 };
-module$contents$eeapiclient$ee_api_client_GetPixelsRequest.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.GetPixelsRequestFileFormatEnum}, keys:["bandIds", "fileFormat", "grid", "region", "visualizationOptions"], objectMaps:{region:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{grid:module$contents$eeapiclient$ee_api_client_PixelGrid, visualizationOptions:module$contents$eeapiclient$ee_api_client_VisualizationOptions}};
+module$exports$eeapiclient$ee_api_client.GetPixelsRequest.prototype.getPartialClassMetadata = function() {
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.GetPixelsRequestFileFormatEnum}, keys:["bandIds", "fileFormat", "grid", "region", "visualizationOptions"], objectMaps:{region:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{grid:module$exports$eeapiclient$ee_api_client.PixelGrid, visualizationOptions:module$exports$eeapiclient$ee_api_client.VisualizationOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_GetPixelsRequest.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.GetPixelsRequest.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bandIds") ? this.Serializable$get("bandIds") : null;
 }, set:function(value) {
   this.Serializable$set("bandIds", value);
@@ -8720,46 +8791,44 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("visualizationOptions", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_GetPixelsRequest, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.GetPixelsRequest, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.GetPixelsRequestFileFormatEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.GetPixelsRequest = module$contents$eeapiclient$ee_api_client_GetPixelsRequest;
 module$exports$eeapiclient$ee_api_client.GetPolicyOptionsParameters = function module$contents$eeapiclient$ee_api_client_GetPolicyOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_GetPolicyOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.GetPolicyOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("requestedPolicyVersion", null == parameters.requestedPolicyVersion ? null : parameters.requestedPolicyVersion);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_GetPolicyOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_GetPolicyOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_GetPolicyOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.GetPolicyOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.GetPolicyOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.GetPolicyOptions;
 };
-module$contents$eeapiclient$ee_api_client_GetPolicyOptions.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.GetPolicyOptions.prototype.getPartialClassMetadata = function() {
   return {keys:["requestedPolicyVersion"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_GetPolicyOptions.prototype, {requestedPolicyVersion:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.GetPolicyOptions.prototype, {requestedPolicyVersion:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("requestedPolicyVersion") ? this.Serializable$get("requestedPolicyVersion") : null;
 }, set:function(value) {
   this.Serializable$set("requestedPolicyVersion", value);
 }}});
-module$exports$eeapiclient$ee_api_client.GetPolicyOptions = module$contents$eeapiclient$ee_api_client_GetPolicyOptions;
 module$exports$eeapiclient$ee_api_client.GridDimensionsParameters = function module$contents$eeapiclient$ee_api_client_GridDimensionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_GridDimensions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.GridDimensions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("width", null == parameters.width ? null : parameters.width);
   this.Serializable$set("height", null == parameters.height ? null : parameters.height);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_GridDimensions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_GridDimensions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_GridDimensions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.GridDimensions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.GridDimensions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.GridDimensions;
 };
-module$contents$eeapiclient$ee_api_client_GridDimensions.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.GridDimensions.prototype.getPartialClassMetadata = function() {
   return {keys:["height", "width"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_GridDimensions.prototype, {height:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.GridDimensions.prototype, {height:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("height") ? this.Serializable$get("height") : null;
 }, set:function(value) {
   this.Serializable$set("height", value);
@@ -8768,23 +8837,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("width", value);
 }}});
-module$exports$eeapiclient$ee_api_client.GridDimensions = module$contents$eeapiclient$ee_api_client_GridDimensions;
 module$exports$eeapiclient$ee_api_client.GridPointParameters = function module$contents$eeapiclient$ee_api_client_GridPointParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_GridPoint = function(parameters) {
+module$exports$eeapiclient$ee_api_client.GridPoint = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("x", null == parameters.x ? null : parameters.x);
   this.Serializable$set("y", null == parameters.y ? null : parameters.y);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_GridPoint, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_GridPoint.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_GridPoint;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.GridPoint, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.GridPoint.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.GridPoint;
 };
-module$contents$eeapiclient$ee_api_client_GridPoint.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.GridPoint.prototype.getPartialClassMetadata = function() {
   return {keys:["x", "y"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_GridPoint.prototype, {x:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.GridPoint.prototype, {x:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("x") ? this.Serializable$get("x") : null;
 }, set:function(value) {
   this.Serializable$set("x", value);
@@ -8793,24 +8861,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("y", value);
 }}});
-module$exports$eeapiclient$ee_api_client.GridPoint = module$contents$eeapiclient$ee_api_client_GridPoint;
 module$exports$eeapiclient$ee_api_client.HttpBodyParameters = function module$contents$eeapiclient$ee_api_client_HttpBodyParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_HttpBody = function(parameters) {
+module$exports$eeapiclient$ee_api_client.HttpBody = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("contentType", null == parameters.contentType ? null : parameters.contentType);
   this.Serializable$set("data", null == parameters.data ? null : parameters.data);
   this.Serializable$set("extensions", null == parameters.extensions ? null : parameters.extensions);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_HttpBody, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_HttpBody.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_HttpBody;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.HttpBody, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.HttpBody.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.HttpBody;
 };
-module$contents$eeapiclient$ee_api_client_HttpBody.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.HttpBody.prototype.getPartialClassMetadata = function() {
   return {keys:["contentType", "data", "extensions"], objectMaps:{extensions:{ctor:null, isPropertyArray:!0, isSerializable:!1, isValueArray:!1}}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_HttpBody.prototype, {contentType:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.HttpBody.prototype, {contentType:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("contentType") ? this.Serializable$get("contentType") : null;
 }, set:function(value) {
   this.Serializable$set("contentType", value);
@@ -8823,12 +8890,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("extensions", value);
 }}});
-module$exports$eeapiclient$ee_api_client.HttpBody = module$contents$eeapiclient$ee_api_client_HttpBody;
 module$exports$eeapiclient$ee_api_client.ImageParameters = function module$contents$eeapiclient$ee_api_client_ImageParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Image = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Image = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("id", null == parameters.id ? null : parameters.id);
   this.Serializable$set("updateTime", null == parameters.updateTime ? null : parameters.updateTime);
@@ -8841,14 +8907,14 @@ var module$contents$eeapiclient$ee_api_client_Image = function(parameters) {
   this.Serializable$set("bands", null == parameters.bands ? null : parameters.bands);
   this.Serializable$set("sizeBytes", null == parameters.sizeBytes ? null : parameters.sizeBytes);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Image, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Image.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Image;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Image, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Image.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Image;
 };
-module$contents$eeapiclient$ee_api_client_Image.prototype.getPartialClassMetadata = function() {
-  return {arrays:{bands:module$contents$eeapiclient$ee_api_client_ImageBand}, keys:"bands description endTime geometry id name properties sizeBytes startTime title updateTime".split(" "), objectMaps:{geometry:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}, properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}};
+module$exports$eeapiclient$ee_api_client.Image.prototype.getPartialClassMetadata = function() {
+  return {arrays:{bands:module$exports$eeapiclient$ee_api_client.ImageBand}, keys:"bands description endTime geometry id name properties sizeBytes startTime title updateTime".split(" "), objectMaps:{geometry:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}, properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Image.prototype, {bands:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Image.prototype, {bands:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bands") ? this.Serializable$get("bands") : null;
 }, set:function(value) {
   this.Serializable$set("bands", value);
@@ -8893,24 +8959,24 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("updateTime", value);
 }}});
-module$exports$eeapiclient$ee_api_client.Image = module$contents$eeapiclient$ee_api_client_Image;
 module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsParameters = function module$contents$eeapiclient$ee_api_client_ImageAssetExportOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ImageAssetExportOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("earthEngineDestination", null == parameters.earthEngineDestination ? null : parameters.earthEngineDestination);
   this.Serializable$set("pyramidingPolicy", null == parameters.pyramidingPolicy ? null : parameters.pyramidingPolicy);
   this.Serializable$set("pyramidingPolicyOverrides", null == parameters.pyramidingPolicyOverrides ? null : parameters.pyramidingPolicyOverrides);
+  this.Serializable$set("tileSize", null == parameters.tileSize ? null : parameters.tileSize);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ImageAssetExportOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ImageAssetExportOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ImageAssetExportOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions;
 };
-module$contents$eeapiclient$ee_api_client_ImageAssetExportOptions.prototype.getPartialClassMetadata = function() {
-  return {enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum, pyramidingPolicyOverrides:module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum}, keys:["earthEngineDestination", "pyramidingPolicy", "pyramidingPolicyOverrides"], objectMaps:{pyramidingPolicyOverrides:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{earthEngineDestination:module$contents$eeapiclient$ee_api_client_EarthEngineDestination}};
+module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions.prototype.getPartialClassMetadata = function() {
+  return {enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum, pyramidingPolicyOverrides:module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum}, keys:["earthEngineDestination", "pyramidingPolicy", "pyramidingPolicyOverrides", "tileSize"], objectMaps:{pyramidingPolicyOverrides:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{earthEngineDestination:module$exports$eeapiclient$ee_api_client.EarthEngineDestination}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImageAssetExportOptions.prototype, {earthEngineDestination:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions.prototype, {earthEngineDestination:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("earthEngineDestination") ? this.Serializable$get("earthEngineDestination") : null;
 }, set:function(value) {
   this.Serializable$set("earthEngineDestination", value);
@@ -8922,18 +8988,21 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
   return this.Serializable$has("pyramidingPolicyOverrides") ? this.Serializable$get("pyramidingPolicyOverrides") : null;
 }, set:function(value) {
   this.Serializable$set("pyramidingPolicyOverrides", value);
+}}, tileSize:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("tileSize") ? this.Serializable$get("tileSize") : null;
+}, set:function(value) {
+  this.Serializable$set("tileSize", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImageAssetExportOptions, {PyramidingPolicy:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions, {PyramidingPolicy:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum;
 }}, PyramidingPolicyOverrides:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions = module$contents$eeapiclient$ee_api_client_ImageAssetExportOptions;
 module$exports$eeapiclient$ee_api_client.ImageBandParameters = function module$contents$eeapiclient$ee_api_client_ImageBandParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ImageBand = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ImageBand = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("id", null == parameters.id ? null : parameters.id);
   this.Serializable$set("dataType", null == parameters.dataType ? null : parameters.dataType);
   this.Serializable$set("grid", null == parameters.grid ? null : parameters.grid);
@@ -8941,14 +9010,14 @@ var module$contents$eeapiclient$ee_api_client_ImageBand = function(parameters) {
   this.Serializable$set("tilesets", null == parameters.tilesets ? null : parameters.tilesets);
   this.Serializable$set("missingData", null == parameters.missingData ? null : parameters.missingData);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ImageBand, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ImageBand.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ImageBand;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImageBand, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ImageBand.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ImageBand;
 };
-module$contents$eeapiclient$ee_api_client_ImageBand.prototype.getPartialClassMetadata = function() {
-  return {arrays:{tilesets:module$contents$eeapiclient$ee_api_client_TilestoreTileset}, enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum}, keys:"dataType grid id missingData pyramidingPolicy tilesets".split(" "), objects:{dataType:module$contents$eeapiclient$ee_api_client_PixelDataType, grid:module$contents$eeapiclient$ee_api_client_PixelGrid, missingData:module$contents$eeapiclient$ee_api_client_MissingData}};
+module$exports$eeapiclient$ee_api_client.ImageBand.prototype.getPartialClassMetadata = function() {
+  return {arrays:{tilesets:module$exports$eeapiclient$ee_api_client.TilestoreTileset}, enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum}, keys:"dataType grid id missingData pyramidingPolicy tilesets".split(" "), objects:{dataType:module$exports$eeapiclient$ee_api_client.PixelDataType, grid:module$exports$eeapiclient$ee_api_client.PixelGrid, missingData:module$exports$eeapiclient$ee_api_client.MissingData}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImageBand.prototype, {dataType:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageBand.prototype, {dataType:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("dataType") ? this.Serializable$get("dataType") : null;
 }, set:function(value) {
   this.Serializable$set("dataType", value);
@@ -8973,30 +9042,29 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("tilesets", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImageBand, {PyramidingPolicy:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageBand, {PyramidingPolicy:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.ImageBand = module$contents$eeapiclient$ee_api_client_ImageBand;
 module$exports$eeapiclient$ee_api_client.ImageFileExportOptionsParameters = function module$contents$eeapiclient$ee_api_client_ImageFileExportOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ImageFileExportOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ImageFileExportOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("fileFormat", null == parameters.fileFormat ? null : parameters.fileFormat);
   this.Serializable$set("driveDestination", null == parameters.driveDestination ? null : parameters.driveDestination);
   this.Serializable$set("gcsDestination", null == parameters.gcsDestination ? null : parameters.gcsDestination);
   this.Serializable$set("geoTiffOptions", null == parameters.geoTiffOptions ? null : parameters.geoTiffOptions);
   this.Serializable$set("tfRecordOptions", null == parameters.tfRecordOptions ? null : parameters.tfRecordOptions);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ImageFileExportOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ImageFileExportOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ImageFileExportOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImageFileExportOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ImageFileExportOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ImageFileExportOptions;
 };
-module$contents$eeapiclient$ee_api_client_ImageFileExportOptions.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.ImageFileExportOptionsFileFormatEnum}, keys:["driveDestination", "fileFormat", "gcsDestination", "geoTiffOptions", "tfRecordOptions"], objects:{driveDestination:module$contents$eeapiclient$ee_api_client_DriveDestination, gcsDestination:module$contents$eeapiclient$ee_api_client_GcsDestination, geoTiffOptions:module$contents$eeapiclient$ee_api_client_GeoTiffImageExportOptions, 
-  tfRecordOptions:module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptions}};
+module$exports$eeapiclient$ee_api_client.ImageFileExportOptions.prototype.getPartialClassMetadata = function() {
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.ImageFileExportOptionsFileFormatEnum}, keys:["driveDestination", "fileFormat", "gcsDestination", "geoTiffOptions", "tfRecordOptions"], objects:{driveDestination:module$exports$eeapiclient$ee_api_client.DriveDestination, gcsDestination:module$exports$eeapiclient$ee_api_client.GcsDestination, geoTiffOptions:module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions, 
+  tfRecordOptions:module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImageFileExportOptions.prototype, {driveDestination:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageFileExportOptions.prototype, {driveDestination:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("driveDestination") ? this.Serializable$get("driveDestination") : null;
 }, set:function(value) {
   this.Serializable$set("driveDestination", value);
@@ -9017,15 +9085,14 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("tfRecordOptions", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImageFileExportOptions, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageFileExportOptions, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ImageFileExportOptionsFileFormatEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.ImageFileExportOptions = module$contents$eeapiclient$ee_api_client_ImageFileExportOptions;
 module$exports$eeapiclient$ee_api_client.ImageManifestParameters = function module$contents$eeapiclient$ee_api_client_ImageManifestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ImageManifest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ImageManifest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("properties", null == parameters.properties ? null : parameters.properties);
   this.Serializable$set("uriPrefix", null == parameters.uriPrefix ? null : parameters.uriPrefix);
@@ -9038,15 +9105,15 @@ var module$contents$eeapiclient$ee_api_client_ImageManifest = function(parameter
   this.Serializable$set("startTime", null == parameters.startTime ? null : parameters.startTime);
   this.Serializable$set("endTime", null == parameters.endTime ? null : parameters.endTime);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ImageManifest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ImageManifest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ImageManifest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImageManifest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ImageManifest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ImageManifest;
 };
-module$contents$eeapiclient$ee_api_client_ImageManifest.prototype.getPartialClassMetadata = function() {
-  return {arrays:{bands:module$contents$eeapiclient$ee_api_client_TilesetBand, maskBands:module$contents$eeapiclient$ee_api_client_TilesetMaskBand, tilesets:module$contents$eeapiclient$ee_api_client_Tileset}, enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum}, keys:"bands endTime footprint maskBands missingData name properties pyramidingPolicy startTime tilesets uriPrefix".split(" "), 
-  objectMaps:{properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{footprint:module$contents$eeapiclient$ee_api_client_PixelFootprint, missingData:module$contents$eeapiclient$ee_api_client_MissingData}};
+module$exports$eeapiclient$ee_api_client.ImageManifest.prototype.getPartialClassMetadata = function() {
+  return {arrays:{bands:module$exports$eeapiclient$ee_api_client.TilesetBand, maskBands:module$exports$eeapiclient$ee_api_client.TilesetMaskBand, tilesets:module$exports$eeapiclient$ee_api_client.Tileset}, enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum}, keys:"bands endTime footprint maskBands missingData name properties pyramidingPolicy startTime tilesets uriPrefix".split(" "), 
+  objectMaps:{properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{footprint:module$exports$eeapiclient$ee_api_client.PixelFootprint, missingData:module$exports$eeapiclient$ee_api_client.MissingData}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImageManifest.prototype, {bands:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageManifest.prototype, {bands:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bands") ? this.Serializable$get("bands") : null;
 }, set:function(value) {
   this.Serializable$set("bands", value);
@@ -9091,26 +9158,25 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("uriPrefix", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImageManifest, {PyramidingPolicy:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageManifest, {PyramidingPolicy:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.ImageManifest = module$contents$eeapiclient$ee_api_client_ImageManifest;
 module$exports$eeapiclient$ee_api_client.ImageSourceParameters = function module$contents$eeapiclient$ee_api_client_ImageSourceParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ImageSource = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ImageSource = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("uris", null == parameters.uris ? null : parameters.uris);
   this.Serializable$set("affineTransform", null == parameters.affineTransform ? null : parameters.affineTransform);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ImageSource, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ImageSource.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ImageSource;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImageSource, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ImageSource.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ImageSource;
 };
-module$contents$eeapiclient$ee_api_client_ImageSource.prototype.getPartialClassMetadata = function() {
-  return {keys:["affineTransform", "uris"], objects:{affineTransform:module$contents$eeapiclient$ee_api_client_AffineTransform}};
+module$exports$eeapiclient$ee_api_client.ImageSource.prototype.getPartialClassMetadata = function() {
+  return {keys:["affineTransform", "uris"], objects:{affineTransform:module$exports$eeapiclient$ee_api_client.AffineTransform}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImageSource.prototype, {affineTransform:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageSource.prototype, {affineTransform:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("affineTransform") ? this.Serializable$get("affineTransform") : null;
 }, set:function(value) {
   this.Serializable$set("affineTransform", value);
@@ -9119,25 +9185,24 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("uris", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ImageSource = module$contents$eeapiclient$ee_api_client_ImageSource;
 module$exports$eeapiclient$ee_api_client.ImportImageRequestParameters = function module$contents$eeapiclient$ee_api_client_ImportImageRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ImportImageRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ImportImageRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("imageManifest", null == parameters.imageManifest ? null : parameters.imageManifest);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("overwrite", null == parameters.overwrite ? null : parameters.overwrite);
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ImportImageRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ImportImageRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ImportImageRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImportImageRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ImportImageRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ImportImageRequest;
 };
-module$contents$eeapiclient$ee_api_client_ImportImageRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["description", "imageManifest", "overwrite", "requestId"], objects:{imageManifest:module$contents$eeapiclient$ee_api_client_ImageManifest}};
+module$exports$eeapiclient$ee_api_client.ImportImageRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:["description", "imageManifest", "overwrite", "requestId"], objects:{imageManifest:module$exports$eeapiclient$ee_api_client.ImageManifest}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImportImageRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImportImageRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("description") ? this.Serializable$get("description") : null;
 }, set:function(value) {
   this.Serializable$set("description", value);
@@ -9154,25 +9219,24 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("requestId", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ImportImageRequest = module$contents$eeapiclient$ee_api_client_ImportImageRequest;
 module$exports$eeapiclient$ee_api_client.ImportTableRequestParameters = function module$contents$eeapiclient$ee_api_client_ImportTableRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ImportTableRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ImportTableRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("tableManifest", null == parameters.tableManifest ? null : parameters.tableManifest);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("overwrite", null == parameters.overwrite ? null : parameters.overwrite);
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ImportTableRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ImportTableRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ImportTableRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImportTableRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ImportTableRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ImportTableRequest;
 };
-module$contents$eeapiclient$ee_api_client_ImportTableRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["description", "overwrite", "requestId", "tableManifest"], objects:{tableManifest:module$contents$eeapiclient$ee_api_client_TableManifest}};
+module$exports$eeapiclient$ee_api_client.ImportTableRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:["description", "overwrite", "requestId", "tableManifest"], objects:{tableManifest:module$exports$eeapiclient$ee_api_client.TableManifest}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ImportTableRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImportTableRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("description") ? this.Serializable$get("description") : null;
 }, set:function(value) {
   this.Serializable$set("description", value);
@@ -9189,43 +9253,41 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("tableManifest", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ImportTableRequest = module$contents$eeapiclient$ee_api_client_ImportTableRequest;
 module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponseParameters = function module$contents$eeapiclient$ee_api_client_ListAlgorithmsResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ListAlgorithmsResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("algorithms", null == parameters.algorithms ? null : parameters.algorithms);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ListAlgorithmsResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ListAlgorithmsResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ListAlgorithmsResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponse;
 };
-module$contents$eeapiclient$ee_api_client_ListAlgorithmsResponse.prototype.getPartialClassMetadata = function() {
-  return {arrays:{algorithms:module$contents$eeapiclient$ee_api_client_Algorithm}, keys:["algorithms"]};
+module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponse.prototype.getPartialClassMetadata = function() {
+  return {arrays:{algorithms:module$exports$eeapiclient$ee_api_client.Algorithm}, keys:["algorithms"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ListAlgorithmsResponse.prototype, {algorithms:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponse.prototype, {algorithms:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("algorithms") ? this.Serializable$get("algorithms") : null;
 }, set:function(value) {
   this.Serializable$set("algorithms", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponse = module$contents$eeapiclient$ee_api_client_ListAlgorithmsResponse;
 module$exports$eeapiclient$ee_api_client.ListAssetsResponseParameters = function module$contents$eeapiclient$ee_api_client_ListAssetsResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ListAssetsResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ListAssetsResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("assets", null == parameters.assets ? null : parameters.assets);
   this.Serializable$set("nextPageToken", null == parameters.nextPageToken ? null : parameters.nextPageToken);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ListAssetsResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ListAssetsResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ListAssetsResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ListAssetsResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ListAssetsResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ListAssetsResponse;
 };
-module$contents$eeapiclient$ee_api_client_ListAssetsResponse.prototype.getPartialClassMetadata = function() {
-  return {arrays:{assets:module$contents$eeapiclient$ee_api_client_EarthEngineAsset}, keys:["assets", "nextPageToken"]};
+module$exports$eeapiclient$ee_api_client.ListAssetsResponse.prototype.getPartialClassMetadata = function() {
+  return {arrays:{assets:module$exports$eeapiclient$ee_api_client.EarthEngineAsset}, keys:["assets", "nextPageToken"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ListAssetsResponse.prototype, {assets:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ListAssetsResponse.prototype, {assets:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("assets") ? this.Serializable$get("assets") : null;
 }, set:function(value) {
   this.Serializable$set("assets", value);
@@ -9234,24 +9296,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("nextPageToken", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ListAssetsResponse = module$contents$eeapiclient$ee_api_client_ListAssetsResponse;
 module$exports$eeapiclient$ee_api_client.ListFeaturesResponseParameters = function module$contents$eeapiclient$ee_api_client_ListFeaturesResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ListFeaturesResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ListFeaturesResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("type", null == parameters.type ? null : parameters.type);
   this.Serializable$set("features", null == parameters.features ? null : parameters.features);
   this.Serializable$set("nextPageToken", null == parameters.nextPageToken ? null : parameters.nextPageToken);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ListFeaturesResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ListFeaturesResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ListFeaturesResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ListFeaturesResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ListFeaturesResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ListFeaturesResponse;
 };
-module$contents$eeapiclient$ee_api_client_ListFeaturesResponse.prototype.getPartialClassMetadata = function() {
-  return {arrays:{features:module$contents$eeapiclient$ee_api_client_Feature}, keys:["features", "nextPageToken", "type"]};
+module$exports$eeapiclient$ee_api_client.ListFeaturesResponse.prototype.getPartialClassMetadata = function() {
+  return {arrays:{features:module$exports$eeapiclient$ee_api_client.Feature}, keys:["features", "nextPageToken", "type"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ListFeaturesResponse.prototype, {features:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ListFeaturesResponse.prototype, {features:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("features") ? this.Serializable$get("features") : null;
 }, set:function(value) {
   this.Serializable$set("features", value);
@@ -9264,23 +9325,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("type", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ListFeaturesResponse = module$contents$eeapiclient$ee_api_client_ListFeaturesResponse;
 module$exports$eeapiclient$ee_api_client.ListImagesResponseParameters = function module$contents$eeapiclient$ee_api_client_ListImagesResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ListImagesResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ListImagesResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("images", null == parameters.images ? null : parameters.images);
   this.Serializable$set("nextPageToken", null == parameters.nextPageToken ? null : parameters.nextPageToken);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ListImagesResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ListImagesResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ListImagesResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ListImagesResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ListImagesResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ListImagesResponse;
 };
-module$contents$eeapiclient$ee_api_client_ListImagesResponse.prototype.getPartialClassMetadata = function() {
-  return {arrays:{images:module$contents$eeapiclient$ee_api_client_Image}, keys:["images", "nextPageToken"]};
+module$exports$eeapiclient$ee_api_client.ListImagesResponse.prototype.getPartialClassMetadata = function() {
+  return {arrays:{images:module$exports$eeapiclient$ee_api_client.Image}, keys:["images", "nextPageToken"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ListImagesResponse.prototype, {images:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ListImagesResponse.prototype, {images:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("images") ? this.Serializable$get("images") : null;
 }, set:function(value) {
   this.Serializable$set("images", value);
@@ -9289,23 +9349,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("nextPageToken", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ListImagesResponse = module$contents$eeapiclient$ee_api_client_ListImagesResponse;
 module$exports$eeapiclient$ee_api_client.ListOperationsResponseParameters = function module$contents$eeapiclient$ee_api_client_ListOperationsResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ListOperationsResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ListOperationsResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("operations", null == parameters.operations ? null : parameters.operations);
   this.Serializable$set("nextPageToken", null == parameters.nextPageToken ? null : parameters.nextPageToken);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ListOperationsResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ListOperationsResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ListOperationsResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ListOperationsResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ListOperationsResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ListOperationsResponse;
 };
-module$contents$eeapiclient$ee_api_client_ListOperationsResponse.prototype.getPartialClassMetadata = function() {
-  return {arrays:{operations:module$contents$eeapiclient$ee_api_client_Operation}, keys:["nextPageToken", "operations"]};
+module$exports$eeapiclient$ee_api_client.ListOperationsResponse.prototype.getPartialClassMetadata = function() {
+  return {arrays:{operations:module$exports$eeapiclient$ee_api_client.Operation}, keys:["nextPageToken", "operations"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ListOperationsResponse.prototype, {nextPageToken:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ListOperationsResponse.prototype, {nextPageToken:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("nextPageToken") ? this.Serializable$get("nextPageToken") : null;
 }, set:function(value) {
   this.Serializable$set("nextPageToken", value);
@@ -9314,24 +9373,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("operations", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ListOperationsResponse = module$contents$eeapiclient$ee_api_client_ListOperationsResponse;
 module$exports$eeapiclient$ee_api_client.LogConfigParameters = function module$contents$eeapiclient$ee_api_client_LogConfigParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_LogConfig = function(parameters) {
+module$exports$eeapiclient$ee_api_client.LogConfig = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("counter", null == parameters.counter ? null : parameters.counter);
   this.Serializable$set("dataAccess", null == parameters.dataAccess ? null : parameters.dataAccess);
   this.Serializable$set("cloudAudit", null == parameters.cloudAudit ? null : parameters.cloudAudit);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_LogConfig, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_LogConfig.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_LogConfig;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.LogConfig, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.LogConfig.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.LogConfig;
 };
-module$contents$eeapiclient$ee_api_client_LogConfig.prototype.getPartialClassMetadata = function() {
-  return {keys:["cloudAudit", "counter", "dataAccess"], objects:{cloudAudit:module$contents$eeapiclient$ee_api_client_CloudAuditOptions, counter:module$contents$eeapiclient$ee_api_client_CounterOptions, dataAccess:module$contents$eeapiclient$ee_api_client_DataAccessOptions}};
+module$exports$eeapiclient$ee_api_client.LogConfig.prototype.getPartialClassMetadata = function() {
+  return {keys:["cloudAudit", "counter", "dataAccess"], objects:{cloudAudit:module$exports$eeapiclient$ee_api_client.CloudAuditOptions, counter:module$exports$eeapiclient$ee_api_client.CounterOptions, dataAccess:module$exports$eeapiclient$ee_api_client.DataAccessOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_LogConfig.prototype, {cloudAudit:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.LogConfig.prototype, {cloudAudit:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("cloudAudit") ? this.Serializable$get("cloudAudit") : null;
 }, set:function(value) {
   this.Serializable$set("cloudAudit", value);
@@ -9344,66 +9402,63 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("dataAccess", value);
 }}});
-module$exports$eeapiclient$ee_api_client.LogConfig = module$contents$eeapiclient$ee_api_client_LogConfig;
 module$exports$eeapiclient$ee_api_client.MissingDataParameters = function module$contents$eeapiclient$ee_api_client_MissingDataParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_MissingData = function(parameters) {
+module$exports$eeapiclient$ee_api_client.MissingData = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("values", null == parameters.values ? null : parameters.values);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_MissingData, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_MissingData.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_MissingData;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.MissingData, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.MissingData.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.MissingData;
 };
-module$contents$eeapiclient$ee_api_client_MissingData.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.MissingData.prototype.getPartialClassMetadata = function() {
   return {keys:["values"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_MissingData.prototype, {values:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.MissingData.prototype, {values:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("values") ? this.Serializable$get("values") : null;
 }, set:function(value) {
   this.Serializable$set("values", value);
 }}});
-module$exports$eeapiclient$ee_api_client.MissingData = module$contents$eeapiclient$ee_api_client_MissingData;
 module$exports$eeapiclient$ee_api_client.MoveAssetRequestParameters = function module$contents$eeapiclient$ee_api_client_MoveAssetRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_MoveAssetRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.MoveAssetRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("destinationName", null == parameters.destinationName ? null : parameters.destinationName);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_MoveAssetRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_MoveAssetRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_MoveAssetRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.MoveAssetRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.MoveAssetRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.MoveAssetRequest;
 };
-module$contents$eeapiclient$ee_api_client_MoveAssetRequest.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.MoveAssetRequest.prototype.getPartialClassMetadata = function() {
   return {keys:["destinationName"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_MoveAssetRequest.prototype, {destinationName:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.MoveAssetRequest.prototype, {destinationName:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("destinationName") ? this.Serializable$get("destinationName") : null;
 }, set:function(value) {
   this.Serializable$set("destinationName", value);
 }}});
-module$exports$eeapiclient$ee_api_client.MoveAssetRequest = module$contents$eeapiclient$ee_api_client_MoveAssetRequest;
 module$exports$eeapiclient$ee_api_client.OperationParameters = function module$contents$eeapiclient$ee_api_client_OperationParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Operation = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Operation = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("metadata", null == parameters.metadata ? null : parameters.metadata);
   this.Serializable$set("done", null == parameters.done ? null : parameters.done);
   this.Serializable$set("error", null == parameters.error ? null : parameters.error);
   this.Serializable$set("response", null == parameters.response ? null : parameters.response);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Operation, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Operation.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Operation;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Operation, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Operation.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Operation;
 };
-module$contents$eeapiclient$ee_api_client_Operation.prototype.getPartialClassMetadata = function() {
-  return {keys:["done", "error", "metadata", "name", "response"], objectMaps:{metadata:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}, response:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{error:module$contents$eeapiclient$ee_api_client_Status}};
+module$exports$eeapiclient$ee_api_client.Operation.prototype.getPartialClassMetadata = function() {
+  return {keys:["done", "error", "metadata", "name", "response"], objectMaps:{metadata:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}, response:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{error:module$exports$eeapiclient$ee_api_client.Status}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Operation.prototype, {done:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Operation.prototype, {done:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("done") ? this.Serializable$get("done") : null;
 }, set:function(value) {
   this.Serializable$set("done", value);
@@ -9424,12 +9479,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("response", value);
 }}});
-module$exports$eeapiclient$ee_api_client.Operation = module$contents$eeapiclient$ee_api_client_Operation;
 module$exports$eeapiclient$ee_api_client.OperationMetadataParameters = function module$contents$eeapiclient$ee_api_client_OperationMetadataParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_OperationMetadata = function(parameters) {
+module$exports$eeapiclient$ee_api_client.OperationMetadata = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("state", null == parameters.state ? null : parameters.state);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("type", null == parameters.type ? null : parameters.type);
@@ -9441,14 +9495,14 @@ var module$contents$eeapiclient$ee_api_client_OperationMetadata = function(param
   this.Serializable$set("scriptUri", null == parameters.scriptUri ? null : parameters.scriptUri);
   this.Serializable$set("destinationUris", null == parameters.destinationUris ? null : parameters.destinationUris);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_OperationMetadata, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_OperationMetadata.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_OperationMetadata;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.OperationMetadata, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.OperationMetadata.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.OperationMetadata;
 };
-module$contents$eeapiclient$ee_api_client_OperationMetadata.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.OperationMetadata.prototype.getPartialClassMetadata = function() {
   return {enums:{state:module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum}, keys:"createTime description destinationUris endTime priority scriptUri startTime state type updateTime".split(" ")};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_OperationMetadata.prototype, {createTime:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.OperationMetadata.prototype, {createTime:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("createTime") ? this.Serializable$get("createTime") : null;
 }, set:function(value) {
   this.Serializable$set("createTime", value);
@@ -9489,27 +9543,26 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("updateTime", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_OperationMetadata, {State:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.OperationMetadata, {State:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.OperationMetadata = module$contents$eeapiclient$ee_api_client_OperationMetadata;
 module$exports$eeapiclient$ee_api_client.PixelDataTypeParameters = function module$contents$eeapiclient$ee_api_client_PixelDataTypeParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_PixelDataType = function(parameters) {
+module$exports$eeapiclient$ee_api_client.PixelDataType = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("precision", null == parameters.precision ? null : parameters.precision);
   this.Serializable$set("range", null == parameters.range ? null : parameters.range);
   this.Serializable$set("dimensionsCount", null == parameters.dimensionsCount ? null : parameters.dimensionsCount);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_PixelDataType, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_PixelDataType.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_PixelDataType;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.PixelDataType, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.PixelDataType.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.PixelDataType;
 };
-module$contents$eeapiclient$ee_api_client_PixelDataType.prototype.getPartialClassMetadata = function() {
-  return {enums:{precision:module$exports$eeapiclient$ee_api_client.PixelDataTypePrecisionEnum}, keys:["dimensionsCount", "precision", "range"], objects:{range:module$contents$eeapiclient$ee_api_client_DoubleRange}};
+module$exports$eeapiclient$ee_api_client.PixelDataType.prototype.getPartialClassMetadata = function() {
+  return {enums:{precision:module$exports$eeapiclient$ee_api_client.PixelDataTypePrecisionEnum}, keys:["dimensionsCount", "precision", "range"], objects:{range:module$exports$eeapiclient$ee_api_client.DoubleRange}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_PixelDataType.prototype, {dimensionsCount:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.PixelDataType.prototype, {dimensionsCount:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("dimensionsCount") ? this.Serializable$get("dimensionsCount") : null;
 }, set:function(value) {
   this.Serializable$set("dimensionsCount", value);
@@ -9522,26 +9575,25 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("range", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_PixelDataType, {Precision:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.PixelDataType, {Precision:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.PixelDataTypePrecisionEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.PixelDataType = module$contents$eeapiclient$ee_api_client_PixelDataType;
 module$exports$eeapiclient$ee_api_client.PixelFootprintParameters = function module$contents$eeapiclient$ee_api_client_PixelFootprintParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_PixelFootprint = function(parameters) {
+module$exports$eeapiclient$ee_api_client.PixelFootprint = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("points", null == parameters.points ? null : parameters.points);
   this.Serializable$set("bandId", null == parameters.bandId ? null : parameters.bandId);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_PixelFootprint, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_PixelFootprint.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_PixelFootprint;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.PixelFootprint, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.PixelFootprint.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.PixelFootprint;
 };
-module$contents$eeapiclient$ee_api_client_PixelFootprint.prototype.getPartialClassMetadata = function() {
-  return {arrays:{points:module$contents$eeapiclient$ee_api_client_GridPoint}, keys:["bandId", "points"]};
+module$exports$eeapiclient$ee_api_client.PixelFootprint.prototype.getPartialClassMetadata = function() {
+  return {arrays:{points:module$exports$eeapiclient$ee_api_client.GridPoint}, keys:["bandId", "points"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_PixelFootprint.prototype, {bandId:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.PixelFootprint.prototype, {bandId:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bandId") ? this.Serializable$get("bandId") : null;
 }, set:function(value) {
   this.Serializable$set("bandId", value);
@@ -9550,25 +9602,24 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("points", value);
 }}});
-module$exports$eeapiclient$ee_api_client.PixelFootprint = module$contents$eeapiclient$ee_api_client_PixelFootprint;
 module$exports$eeapiclient$ee_api_client.PixelGridParameters = function module$contents$eeapiclient$ee_api_client_PixelGridParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_PixelGrid = function(parameters) {
+module$exports$eeapiclient$ee_api_client.PixelGrid = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("crsCode", null == parameters.crsCode ? null : parameters.crsCode);
   this.Serializable$set("crsWkt", null == parameters.crsWkt ? null : parameters.crsWkt);
   this.Serializable$set("dimensions", null == parameters.dimensions ? null : parameters.dimensions);
   this.Serializable$set("affineTransform", null == parameters.affineTransform ? null : parameters.affineTransform);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_PixelGrid, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_PixelGrid.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_PixelGrid;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.PixelGrid, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.PixelGrid.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.PixelGrid;
 };
-module$contents$eeapiclient$ee_api_client_PixelGrid.prototype.getPartialClassMetadata = function() {
-  return {keys:["affineTransform", "crsCode", "crsWkt", "dimensions"], objects:{affineTransform:module$contents$eeapiclient$ee_api_client_AffineTransform, dimensions:module$contents$eeapiclient$ee_api_client_GridDimensions}};
+module$exports$eeapiclient$ee_api_client.PixelGrid.prototype.getPartialClassMetadata = function() {
+  return {keys:["affineTransform", "crsCode", "crsWkt", "dimensions"], objects:{affineTransform:module$exports$eeapiclient$ee_api_client.AffineTransform, dimensions:module$exports$eeapiclient$ee_api_client.GridDimensions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_PixelGrid.prototype, {affineTransform:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.PixelGrid.prototype, {affineTransform:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("affineTransform") ? this.Serializable$get("affineTransform") : null;
 }, set:function(value) {
   this.Serializable$set("affineTransform", value);
@@ -9585,12 +9636,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("dimensions", value);
 }}});
-module$exports$eeapiclient$ee_api_client.PixelGrid = module$contents$eeapiclient$ee_api_client_PixelGrid;
 module$exports$eeapiclient$ee_api_client.PolicyParameters = function module$contents$eeapiclient$ee_api_client_PolicyParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Policy = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Policy = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("version", null == parameters.version ? null : parameters.version);
   this.Serializable$set("bindings", null == parameters.bindings ? null : parameters.bindings);
   this.Serializable$set("auditConfigs", null == parameters.auditConfigs ? null : parameters.auditConfigs);
@@ -9598,14 +9648,14 @@ var module$contents$eeapiclient$ee_api_client_Policy = function(parameters) {
   this.Serializable$set("etag", null == parameters.etag ? null : parameters.etag);
   this.Serializable$set("iamOwned", null == parameters.iamOwned ? null : parameters.iamOwned);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Policy, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Policy.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Policy;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Policy, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Policy.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Policy;
 };
-module$contents$eeapiclient$ee_api_client_Policy.prototype.getPartialClassMetadata = function() {
-  return {arrays:{auditConfigs:module$contents$eeapiclient$ee_api_client_AuditConfig, bindings:module$contents$eeapiclient$ee_api_client_Binding, rules:module$contents$eeapiclient$ee_api_client_Rule}, keys:"auditConfigs bindings etag iamOwned rules version".split(" ")};
+module$exports$eeapiclient$ee_api_client.Policy.prototype.getPartialClassMetadata = function() {
+  return {arrays:{auditConfigs:module$exports$eeapiclient$ee_api_client.AuditConfig, bindings:module$exports$eeapiclient$ee_api_client.Binding, rules:module$exports$eeapiclient$ee_api_client.Rule}, keys:"auditConfigs bindings etag iamOwned rules version".split(" ")};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Policy.prototype, {auditConfigs:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Policy.prototype, {auditConfigs:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("auditConfigs") ? this.Serializable$get("auditConfigs") : null;
 }, set:function(value) {
   this.Serializable$set("auditConfigs", value);
@@ -9630,12 +9680,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("version", value);
 }}});
-module$exports$eeapiclient$ee_api_client.Policy = module$contents$eeapiclient$ee_api_client_Policy;
 module$exports$eeapiclient$ee_api_client.RuleParameters = function module$contents$eeapiclient$ee_api_client_RuleParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Rule = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Rule = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("permissions", null == parameters.permissions ? null : parameters.permissions);
   this.Serializable$set("action", null == parameters.action ? null : parameters.action);
@@ -9644,14 +9693,14 @@ var module$contents$eeapiclient$ee_api_client_Rule = function(parameters) {
   this.Serializable$set("conditions", null == parameters.conditions ? null : parameters.conditions);
   this.Serializable$set("logConfig", null == parameters.logConfig ? null : parameters.logConfig);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Rule, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Rule.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Rule;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Rule, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Rule.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Rule;
 };
-module$contents$eeapiclient$ee_api_client_Rule.prototype.getPartialClassMetadata = function() {
-  return {arrays:{conditions:module$contents$eeapiclient$ee_api_client_Condition, logConfig:module$contents$eeapiclient$ee_api_client_LogConfig}, enums:{action:module$exports$eeapiclient$ee_api_client.RuleActionEnum}, keys:"action conditions description in logConfig notIn permissions".split(" ")};
+module$exports$eeapiclient$ee_api_client.Rule.prototype.getPartialClassMetadata = function() {
+  return {arrays:{conditions:module$exports$eeapiclient$ee_api_client.Condition, logConfig:module$exports$eeapiclient$ee_api_client.LogConfig}, enums:{action:module$exports$eeapiclient$ee_api_client.RuleActionEnum}, keys:"action conditions description in logConfig notIn permissions".split(" ")};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Rule.prototype, {action:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Rule.prototype, {action:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("action") ? this.Serializable$get("action") : null;
 }, set:function(value) {
   this.Serializable$set("action", value);
@@ -9680,26 +9729,25 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("permissions", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Rule, {Action:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Rule, {Action:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.RuleActionEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.Rule = module$contents$eeapiclient$ee_api_client_Rule;
 module$exports$eeapiclient$ee_api_client.SearchAssetsResponseParameters = function module$contents$eeapiclient$ee_api_client_SearchAssetsResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_SearchAssetsResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.SearchAssetsResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("assets", null == parameters.assets ? null : parameters.assets);
   this.Serializable$set("nextPageToken", null == parameters.nextPageToken ? null : parameters.nextPageToken);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_SearchAssetsResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_SearchAssetsResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_SearchAssetsResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.SearchAssetsResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.SearchAssetsResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.SearchAssetsResponse;
 };
-module$contents$eeapiclient$ee_api_client_SearchAssetsResponse.prototype.getPartialClassMetadata = function() {
-  return {arrays:{assets:module$contents$eeapiclient$ee_api_client_EarthEngineAsset}, keys:["assets", "nextPageToken"]};
+module$exports$eeapiclient$ee_api_client.SearchAssetsResponse.prototype.getPartialClassMetadata = function() {
+  return {arrays:{assets:module$exports$eeapiclient$ee_api_client.EarthEngineAsset}, keys:["assets", "nextPageToken"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_SearchAssetsResponse.prototype, {assets:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.SearchAssetsResponse.prototype, {assets:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("assets") ? this.Serializable$get("assets") : null;
 }, set:function(value) {
   this.Serializable$set("assets", value);
@@ -9708,23 +9756,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("nextPageToken", value);
 }}});
-module$exports$eeapiclient$ee_api_client.SearchAssetsResponse = module$contents$eeapiclient$ee_api_client_SearchAssetsResponse;
 module$exports$eeapiclient$ee_api_client.SetIamPolicyRequestParameters = function module$contents$eeapiclient$ee_api_client_SetIamPolicyRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_SetIamPolicyRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.SetIamPolicyRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("policy", null == parameters.policy ? null : parameters.policy);
   this.Serializable$set("updateMask", null == parameters.updateMask ? null : parameters.updateMask);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_SetIamPolicyRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_SetIamPolicyRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_SetIamPolicyRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.SetIamPolicyRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.SetIamPolicyRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.SetIamPolicyRequest;
 };
-module$contents$eeapiclient$ee_api_client_SetIamPolicyRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["policy", "updateMask"], objects:{policy:module$contents$eeapiclient$ee_api_client_Policy}};
+module$exports$eeapiclient$ee_api_client.SetIamPolicyRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:["policy", "updateMask"], objects:{policy:module$exports$eeapiclient$ee_api_client.Policy}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_SetIamPolicyRequest.prototype, {policy:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.SetIamPolicyRequest.prototype, {policy:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("policy") ? this.Serializable$get("policy") : null;
 }, set:function(value) {
   this.Serializable$set("policy", value);
@@ -9733,24 +9780,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("updateMask", value);
 }}});
-module$exports$eeapiclient$ee_api_client.SetIamPolicyRequest = module$contents$eeapiclient$ee_api_client_SetIamPolicyRequest;
 module$exports$eeapiclient$ee_api_client.StatusParameters = function module$contents$eeapiclient$ee_api_client_StatusParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Status = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Status = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("code", null == parameters.code ? null : parameters.code);
   this.Serializable$set("message", null == parameters.message ? null : parameters.message);
   this.Serializable$set("details", null == parameters.details ? null : parameters.details);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Status, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Status.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Status;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Status, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Status.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Status;
 };
-module$contents$eeapiclient$ee_api_client_Status.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.Status.prototype.getPartialClassMetadata = function() {
   return {keys:["code", "details", "message"], objectMaps:{details:{ctor:null, isPropertyArray:!0, isSerializable:!1, isValueArray:!1}}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Status.prototype, {code:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Status.prototype, {code:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("code") ? this.Serializable$get("code") : null;
 }, set:function(value) {
   this.Serializable$set("code", value);
@@ -9763,44 +9809,42 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("message", value);
 }}});
-module$exports$eeapiclient$ee_api_client.Status = module$contents$eeapiclient$ee_api_client_Status;
 module$exports$eeapiclient$ee_api_client.TableAssetExportOptionsParameters = function module$contents$eeapiclient$ee_api_client_TableAssetExportOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TableAssetExportOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TableAssetExportOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("earthEngineDestination", null == parameters.earthEngineDestination ? null : parameters.earthEngineDestination);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TableAssetExportOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TableAssetExportOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TableAssetExportOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TableAssetExportOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TableAssetExportOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TableAssetExportOptions;
 };
-module$contents$eeapiclient$ee_api_client_TableAssetExportOptions.prototype.getPartialClassMetadata = function() {
-  return {keys:["earthEngineDestination"], objects:{earthEngineDestination:module$contents$eeapiclient$ee_api_client_EarthEngineDestination}};
+module$exports$eeapiclient$ee_api_client.TableAssetExportOptions.prototype.getPartialClassMetadata = function() {
+  return {keys:["earthEngineDestination"], objects:{earthEngineDestination:module$exports$eeapiclient$ee_api_client.EarthEngineDestination}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TableAssetExportOptions.prototype, {earthEngineDestination:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TableAssetExportOptions.prototype, {earthEngineDestination:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("earthEngineDestination") ? this.Serializable$get("earthEngineDestination") : null;
 }, set:function(value) {
   this.Serializable$set("earthEngineDestination", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TableAssetExportOptions = module$contents$eeapiclient$ee_api_client_TableAssetExportOptions;
 module$exports$eeapiclient$ee_api_client.TableFileExportOptionsParameters = function module$contents$eeapiclient$ee_api_client_TableFileExportOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TableFileExportOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TableFileExportOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("fileFormat", null == parameters.fileFormat ? null : parameters.fileFormat);
   this.Serializable$set("driveDestination", null == parameters.driveDestination ? null : parameters.driveDestination);
   this.Serializable$set("gcsDestination", null == parameters.gcsDestination ? null : parameters.gcsDestination);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TableFileExportOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TableFileExportOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TableFileExportOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TableFileExportOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TableFileExportOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TableFileExportOptions;
 };
-module$contents$eeapiclient$ee_api_client_TableFileExportOptions.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.TableFileExportOptionsFileFormatEnum}, keys:["driveDestination", "fileFormat", "gcsDestination"], objects:{driveDestination:module$contents$eeapiclient$ee_api_client_DriveDestination, gcsDestination:module$contents$eeapiclient$ee_api_client_GcsDestination}};
+module$exports$eeapiclient$ee_api_client.TableFileExportOptions.prototype.getPartialClassMetadata = function() {
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.TableFileExportOptionsFileFormatEnum}, keys:["driveDestination", "fileFormat", "gcsDestination"], objects:{driveDestination:module$exports$eeapiclient$ee_api_client.DriveDestination, gcsDestination:module$exports$eeapiclient$ee_api_client.GcsDestination}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TableFileExportOptions.prototype, {driveDestination:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TableFileExportOptions.prototype, {driveDestination:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("driveDestination") ? this.Serializable$get("driveDestination") : null;
 }, set:function(value) {
   this.Serializable$set("driveDestination", value);
@@ -9813,15 +9857,14 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("gcsDestination", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TableFileExportOptions, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TableFileExportOptions, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.TableFileExportOptionsFileFormatEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.TableFileExportOptions = module$contents$eeapiclient$ee_api_client_TableFileExportOptions;
 module$exports$eeapiclient$ee_api_client.TableManifestParameters = function module$contents$eeapiclient$ee_api_client_TableManifestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TableManifest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TableManifest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("properties", null == parameters.properties ? null : parameters.properties);
   this.Serializable$set("uriPrefix", null == parameters.uriPrefix ? null : parameters.uriPrefix);
@@ -9829,14 +9872,14 @@ var module$contents$eeapiclient$ee_api_client_TableManifest = function(parameter
   this.Serializable$set("startTime", null == parameters.startTime ? null : parameters.startTime);
   this.Serializable$set("endTime", null == parameters.endTime ? null : parameters.endTime);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TableManifest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TableManifest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TableManifest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TableManifest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TableManifest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TableManifest;
 };
-module$contents$eeapiclient$ee_api_client_TableManifest.prototype.getPartialClassMetadata = function() {
-  return {arrays:{sources:module$contents$eeapiclient$ee_api_client_TableSource}, keys:"endTime name properties sources startTime uriPrefix".split(" "), objectMaps:{properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}};
+module$exports$eeapiclient$ee_api_client.TableManifest.prototype.getPartialClassMetadata = function() {
+  return {arrays:{sources:module$exports$eeapiclient$ee_api_client.TableSource}, keys:"endTime name properties sources startTime uriPrefix".split(" "), objectMaps:{properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TableManifest.prototype, {endTime:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TableManifest.prototype, {endTime:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("endTime") ? this.Serializable$get("endTime") : null;
 }, set:function(value) {
   this.Serializable$set("endTime", value);
@@ -9861,12 +9904,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("uriPrefix", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TableManifest = module$contents$eeapiclient$ee_api_client_TableManifest;
 module$exports$eeapiclient$ee_api_client.TableSourceParameters = function module$contents$eeapiclient$ee_api_client_TableSourceParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TableSource = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TableSource = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("uris", null == parameters.uris ? null : parameters.uris);
   this.Serializable$set("charset", null == parameters.charset ? null : parameters.charset);
   this.Serializable$set("maxErrorMeters", null == parameters.maxErrorMeters ? null : parameters.maxErrorMeters);
@@ -9880,14 +9922,14 @@ var module$contents$eeapiclient$ee_api_client_TableSource = function(parameters)
   this.Serializable$set("csvDelimiter", null == parameters.csvDelimiter ? null : parameters.csvDelimiter);
   this.Serializable$set("csvQualifier", null == parameters.csvQualifier ? null : parameters.csvQualifier);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TableSource, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TableSource.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TableSource;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TableSource, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TableSource.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TableSource;
 };
-module$contents$eeapiclient$ee_api_client_TableSource.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.TableSource.prototype.getPartialClassMetadata = function() {
   return {keys:"charset crs csvDelimiter csvQualifier dateFormat geodesic maxErrorMeters maxVertices primaryGeometryColumn uris xColumn yColumn".split(" ")};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TableSource.prototype, {charset:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TableSource.prototype, {charset:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("charset") ? this.Serializable$get("charset") : null;
 }, set:function(value) {
   this.Serializable$set("charset", value);
@@ -9936,52 +9978,49 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("yColumn", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TableSource = module$contents$eeapiclient$ee_api_client_TableSource;
 module$exports$eeapiclient$ee_api_client.TestIamPermissionsRequestParameters = function module$contents$eeapiclient$ee_api_client_TestIamPermissionsRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TestIamPermissionsRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TestIamPermissionsRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("permissions", null == parameters.permissions ? null : parameters.permissions);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TestIamPermissionsRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TestIamPermissionsRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TestIamPermissionsRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TestIamPermissionsRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TestIamPermissionsRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TestIamPermissionsRequest;
 };
-module$contents$eeapiclient$ee_api_client_TestIamPermissionsRequest.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.TestIamPermissionsRequest.prototype.getPartialClassMetadata = function() {
   return {keys:["permissions"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TestIamPermissionsRequest.prototype, {permissions:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TestIamPermissionsRequest.prototype, {permissions:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("permissions") ? this.Serializable$get("permissions") : null;
 }, set:function(value) {
   this.Serializable$set("permissions", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TestIamPermissionsRequest = module$contents$eeapiclient$ee_api_client_TestIamPermissionsRequest;
 module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponseParameters = function module$contents$eeapiclient$ee_api_client_TestIamPermissionsResponseParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TestIamPermissionsResponse = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponse = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("permissions", null == parameters.permissions ? null : parameters.permissions);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TestIamPermissionsResponse, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TestIamPermissionsResponse.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TestIamPermissionsResponse;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponse, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponse.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponse;
 };
-module$contents$eeapiclient$ee_api_client_TestIamPermissionsResponse.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponse.prototype.getPartialClassMetadata = function() {
   return {keys:["permissions"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TestIamPermissionsResponse.prototype, {permissions:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponse.prototype, {permissions:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("permissions") ? this.Serializable$get("permissions") : null;
 }, set:function(value) {
   this.Serializable$set("permissions", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponse = module$contents$eeapiclient$ee_api_client_TestIamPermissionsResponse;
 module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptionsParameters = function module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("tileDimensions", null == parameters.tileDimensions ? null : parameters.tileDimensions);
   this.Serializable$set("marginDimensions", null == parameters.marginDimensions ? null : parameters.marginDimensions);
   this.Serializable$set("compress", null == parameters.compress ? null : parameters.compress);
@@ -9992,14 +10031,14 @@ var module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptions = funct
   this.Serializable$set("collapseBands", null == parameters.collapseBands ? null : parameters.collapseBands);
   this.Serializable$set("maxMaskedRatio", null == parameters.maxMaskedRatio ? null : parameters.maxMaskedRatio);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptions;
 };
-module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptions.prototype.getPartialClassMetadata = function() {
-  return {keys:"collapseBands compress defaultValue marginDimensions maxMaskedRatio maxSizeBytes sequenceData tensorDepths tileDimensions".split(" "), objectMaps:{tensorDepths:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{marginDimensions:module$contents$eeapiclient$ee_api_client_GridDimensions, tileDimensions:module$contents$eeapiclient$ee_api_client_GridDimensions}};
+module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptions.prototype.getPartialClassMetadata = function() {
+  return {keys:"collapseBands compress defaultValue marginDimensions maxMaskedRatio maxSizeBytes sequenceData tensorDepths tileDimensions".split(" "), objectMaps:{tensorDepths:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{marginDimensions:module$exports$eeapiclient$ee_api_client.GridDimensions, tileDimensions:module$exports$eeapiclient$ee_api_client.GridDimensions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptions.prototype, {collapseBands:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptions.prototype, {collapseBands:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("collapseBands") ? this.Serializable$get("collapseBands") : null;
 }, set:function(value) {
   this.Serializable$set("collapseBands", value);
@@ -10036,27 +10075,27 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("tileDimensions", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptions = module$contents$eeapiclient$ee_api_client_TfRecordImageExportOptions;
 module$exports$eeapiclient$ee_api_client.ThumbnailParameters = function module$contents$eeapiclient$ee_api_client_ThumbnailParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Thumbnail = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Thumbnail = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("fileFormat", null == parameters.fileFormat ? null : parameters.fileFormat);
   this.Serializable$set("bandIds", null == parameters.bandIds ? null : parameters.bandIds);
   this.Serializable$set("visualizationOptions", null == parameters.visualizationOptions ? null : parameters.visualizationOptions);
   this.Serializable$set("grid", null == parameters.grid ? null : parameters.grid);
+  this.Serializable$set("filenamePrefix", null == parameters.filenamePrefix ? null : parameters.filenamePrefix);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Thumbnail, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Thumbnail.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Thumbnail;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Thumbnail, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Thumbnail.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Thumbnail;
 };
-module$contents$eeapiclient$ee_api_client_Thumbnail.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.ThumbnailFileFormatEnum}, keys:"bandIds expression fileFormat grid name visualizationOptions".split(" "), objects:{expression:module$contents$eeapiclient$ee_api_client_Expression, grid:module$contents$eeapiclient$ee_api_client_PixelGrid, visualizationOptions:module$contents$eeapiclient$ee_api_client_VisualizationOptions}};
+module$exports$eeapiclient$ee_api_client.Thumbnail.prototype.getPartialClassMetadata = function() {
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.ThumbnailFileFormatEnum}, keys:"bandIds expression fileFormat filenamePrefix grid name visualizationOptions".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, grid:module$exports$eeapiclient$ee_api_client.PixelGrid, visualizationOptions:module$exports$eeapiclient$ee_api_client.VisualizationOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Thumbnail.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Thumbnail.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bandIds") ? this.Serializable$get("bandIds") : null;
 }, set:function(value) {
   this.Serializable$set("bandIds", value);
@@ -10068,6 +10107,10 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
   return this.Serializable$has("fileFormat") ? this.Serializable$get("fileFormat") : null;
 }, set:function(value) {
   this.Serializable$set("fileFormat", value);
+}}, filenamePrefix:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("filenamePrefix") ? this.Serializable$get("filenamePrefix") : null;
+}, set:function(value) {
+  this.Serializable$set("filenamePrefix", value);
 }}, grid:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("grid") ? this.Serializable$get("grid") : null;
 }, set:function(value) {
@@ -10081,15 +10124,14 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("visualizationOptions", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Thumbnail, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Thumbnail, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ThumbnailFileFormatEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.Thumbnail = module$contents$eeapiclient$ee_api_client_Thumbnail;
 module$exports$eeapiclient$ee_api_client.TileOptionsParameters = function module$contents$eeapiclient$ee_api_client_TileOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TileOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TileOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("maxZoom", null == parameters.maxZoom ? null : parameters.maxZoom);
   this.Serializable$set("scale", null == parameters.scale ? null : parameters.scale);
   this.Serializable$set("minZoom", null == parameters.minZoom ? null : parameters.minZoom);
@@ -10099,14 +10141,14 @@ var module$contents$eeapiclient$ee_api_client_TileOptions = function(parameters)
   this.Serializable$set("stride", null == parameters.stride ? null : parameters.stride);
   this.Serializable$set("zoomSubset", null == parameters.zoomSubset ? null : parameters.zoomSubset);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TileOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TileOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TileOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TileOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TileOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TileOptions;
 };
-module$contents$eeapiclient$ee_api_client_TileOptions.prototype.getPartialClassMetadata = function() {
-  return {keys:"mapsApiKey maxZoom minZoom scale skipEmptyTiles stride tileDimensions zoomSubset".split(" "), objects:{tileDimensions:module$contents$eeapiclient$ee_api_client_GridDimensions, zoomSubset:module$contents$eeapiclient$ee_api_client_ZoomSubset}};
+module$exports$eeapiclient$ee_api_client.TileOptions.prototype.getPartialClassMetadata = function() {
+  return {keys:"mapsApiKey maxZoom minZoom scale skipEmptyTiles stride tileDimensions zoomSubset".split(" "), objects:{tileDimensions:module$exports$eeapiclient$ee_api_client.GridDimensions, zoomSubset:module$exports$eeapiclient$ee_api_client.ZoomSubset}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TileOptions.prototype, {mapsApiKey:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TileOptions.prototype, {mapsApiKey:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("mapsApiKey") ? this.Serializable$get("mapsApiKey") : null;
 }, set:function(value) {
   this.Serializable$set("mapsApiKey", value);
@@ -10139,12 +10181,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("zoomSubset", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TileOptions = module$contents$eeapiclient$ee_api_client_TileOptions;
 module$exports$eeapiclient$ee_api_client.TilesetParameters = function module$contents$eeapiclient$ee_api_client_TilesetParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_Tileset = function(parameters) {
+module$exports$eeapiclient$ee_api_client.Tileset = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("id", null == parameters.id ? null : parameters.id);
   this.Serializable$set("sources", null == parameters.sources ? null : parameters.sources);
   this.Serializable$set("dataType", null == parameters.dataType ? null : parameters.dataType);
@@ -10152,14 +10193,14 @@ var module$contents$eeapiclient$ee_api_client_Tileset = function(parameters) {
   this.Serializable$set("subdatasetPrefix", null == parameters.subdatasetPrefix ? null : parameters.subdatasetPrefix);
   this.Serializable$set("subdatasetSuffix", null == parameters.subdatasetSuffix ? null : parameters.subdatasetSuffix);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_Tileset, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_Tileset.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_Tileset;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.Tileset, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.Tileset.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.Tileset;
 };
-module$contents$eeapiclient$ee_api_client_Tileset.prototype.getPartialClassMetadata = function() {
-  return {arrays:{sources:module$contents$eeapiclient$ee_api_client_ImageSource}, enums:{dataType:module$exports$eeapiclient$ee_api_client.TilesetDataTypeEnum}, keys:"crs dataType id sources subdatasetPrefix subdatasetSuffix".split(" ")};
+module$exports$eeapiclient$ee_api_client.Tileset.prototype.getPartialClassMetadata = function() {
+  return {arrays:{sources:module$exports$eeapiclient$ee_api_client.ImageSource}, enums:{dataType:module$exports$eeapiclient$ee_api_client.TilesetDataTypeEnum}, keys:"crs dataType id sources subdatasetPrefix subdatasetSuffix".split(" ")};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Tileset.prototype, {crs:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Tileset.prototype, {crs:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("crs") ? this.Serializable$get("crs") : null;
 }, set:function(value) {
   this.Serializable$set("crs", value);
@@ -10184,29 +10225,28 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("subdatasetSuffix", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_Tileset, {DataType:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Tileset, {DataType:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.TilesetDataTypeEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.Tileset = module$contents$eeapiclient$ee_api_client_Tileset;
 module$exports$eeapiclient$ee_api_client.TilesetBandParameters = function module$contents$eeapiclient$ee_api_client_TilesetBandParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TilesetBand = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TilesetBand = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("id", null == parameters.id ? null : parameters.id);
   this.Serializable$set("tilesetId", null == parameters.tilesetId ? null : parameters.tilesetId);
   this.Serializable$set("tilesetBandIndex", null == parameters.tilesetBandIndex ? null : parameters.tilesetBandIndex);
   this.Serializable$set("missingData", null == parameters.missingData ? null : parameters.missingData);
   this.Serializable$set("pyramidingPolicy", null == parameters.pyramidingPolicy ? null : parameters.pyramidingPolicy);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TilesetBand, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TilesetBand.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TilesetBand;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TilesetBand, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TilesetBand.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TilesetBand;
 };
-module$contents$eeapiclient$ee_api_client_TilesetBand.prototype.getPartialClassMetadata = function() {
-  return {enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum}, keys:["id", "missingData", "pyramidingPolicy", "tilesetBandIndex", "tilesetId"], objects:{missingData:module$contents$eeapiclient$ee_api_client_MissingData}};
+module$exports$eeapiclient$ee_api_client.TilesetBand.prototype.getPartialClassMetadata = function() {
+  return {enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum}, keys:["id", "missingData", "pyramidingPolicy", "tilesetBandIndex", "tilesetId"], objects:{missingData:module$exports$eeapiclient$ee_api_client.MissingData}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TilesetBand.prototype, {id:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TilesetBand.prototype, {id:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("id") ? this.Serializable$get("id") : null;
 }, set:function(value) {
   this.Serializable$set("id", value);
@@ -10227,26 +10267,25 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("tilesetId", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TilesetBand, {PyramidingPolicy:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TilesetBand, {PyramidingPolicy:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.TilesetBand = module$contents$eeapiclient$ee_api_client_TilesetBand;
 module$exports$eeapiclient$ee_api_client.TilesetMaskBandParameters = function module$contents$eeapiclient$ee_api_client_TilesetMaskBandParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TilesetMaskBand = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TilesetMaskBand = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("tilesetId", null == parameters.tilesetId ? null : parameters.tilesetId);
   this.Serializable$set("bandIds", null == parameters.bandIds ? null : parameters.bandIds);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TilesetMaskBand, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TilesetMaskBand.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TilesetMaskBand;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TilesetMaskBand, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TilesetMaskBand.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TilesetMaskBand;
 };
-module$contents$eeapiclient$ee_api_client_TilesetMaskBand.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.TilesetMaskBand.prototype.getPartialClassMetadata = function() {
   return {keys:["bandIds", "tilesetId"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TilesetMaskBand.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TilesetMaskBand.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bandIds") ? this.Serializable$get("bandIds") : null;
 }, set:function(value) {
   this.Serializable$set("bandIds", value);
@@ -10255,23 +10294,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("tilesetId", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TilesetMaskBand = module$contents$eeapiclient$ee_api_client_TilesetMaskBand;
 module$exports$eeapiclient$ee_api_client.TilestoreEntryParameters = function module$contents$eeapiclient$ee_api_client_TilestoreEntryParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TilestoreEntry = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TilestoreEntry = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("sources", null == parameters.sources ? null : parameters.sources);
   this.Serializable$set("pathPrefix", null == parameters.pathPrefix ? null : parameters.pathPrefix);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TilestoreEntry, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TilestoreEntry.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TilestoreEntry;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TilestoreEntry, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TilestoreEntry.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TilestoreEntry;
 };
-module$contents$eeapiclient$ee_api_client_TilestoreEntry.prototype.getPartialClassMetadata = function() {
-  return {arrays:{sources:module$contents$eeapiclient$ee_api_client_TilestoreSource}, keys:["pathPrefix", "sources"]};
+module$exports$eeapiclient$ee_api_client.TilestoreEntry.prototype.getPartialClassMetadata = function() {
+  return {arrays:{sources:module$exports$eeapiclient$ee_api_client.TilestoreSource}, keys:["pathPrefix", "sources"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TilestoreEntry.prototype, {pathPrefix:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TilestoreEntry.prototype, {pathPrefix:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("pathPrefix") ? this.Serializable$get("pathPrefix") : null;
 }, set:function(value) {
   this.Serializable$set("pathPrefix", value);
@@ -10280,23 +10318,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("sources", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TilestoreEntry = module$contents$eeapiclient$ee_api_client_TilestoreEntry;
 module$exports$eeapiclient$ee_api_client.TilestoreSourceParameters = function module$contents$eeapiclient$ee_api_client_TilestoreSourceParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TilestoreSource = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TilestoreSource = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("pathSuffix", null == parameters.pathSuffix ? null : parameters.pathSuffix);
   this.Serializable$set("headerSizeBytes", null == parameters.headerSizeBytes ? null : parameters.headerSizeBytes);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TilestoreSource, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TilestoreSource.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TilestoreSource;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TilestoreSource, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TilestoreSource.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TilestoreSource;
 };
-module$contents$eeapiclient$ee_api_client_TilestoreSource.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.TilestoreSource.prototype.getPartialClassMetadata = function() {
   return {keys:["headerSizeBytes", "pathSuffix"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TilestoreSource.prototype, {headerSizeBytes:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TilestoreSource.prototype, {headerSizeBytes:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("headerSizeBytes") ? this.Serializable$get("headerSizeBytes") : null;
 }, set:function(value) {
   this.Serializable$set("headerSizeBytes", value);
@@ -10305,24 +10342,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("pathSuffix", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TilestoreSource = module$contents$eeapiclient$ee_api_client_TilestoreSource;
 module$exports$eeapiclient$ee_api_client.TilestoreTilesetParameters = function module$contents$eeapiclient$ee_api_client_TilestoreTilesetParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_TilestoreTileset = function(parameters) {
+module$exports$eeapiclient$ee_api_client.TilestoreTileset = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("fileIndexes", null == parameters.fileIndexes ? null : parameters.fileIndexes);
   this.Serializable$set("firstTileIndex", null == parameters.firstTileIndex ? null : parameters.firstTileIndex);
   this.Serializable$set("tilesPerFile", null == parameters.tilesPerFile ? null : parameters.tilesPerFile);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_TilestoreTileset, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_TilestoreTileset.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_TilestoreTileset;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TilestoreTileset, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TilestoreTileset.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TilestoreTileset;
 };
-module$contents$eeapiclient$ee_api_client_TilestoreTileset.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.TilestoreTileset.prototype.getPartialClassMetadata = function() {
   return {keys:["fileIndexes", "firstTileIndex", "tilesPerFile"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_TilestoreTileset.prototype, {fileIndexes:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TilestoreTileset.prototype, {fileIndexes:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("fileIndexes") ? this.Serializable$get("fileIndexes") : null;
 }, set:function(value) {
   this.Serializable$set("fileIndexes", value);
@@ -10335,23 +10371,22 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("tilesPerFile", value);
 }}});
-module$exports$eeapiclient$ee_api_client.TilestoreTileset = module$contents$eeapiclient$ee_api_client_TilestoreTileset;
 module$exports$eeapiclient$ee_api_client.UpdateAssetRequestParameters = function module$contents$eeapiclient$ee_api_client_UpdateAssetRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_UpdateAssetRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.UpdateAssetRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("asset", null == parameters.asset ? null : parameters.asset);
   this.Serializable$set("updateMask", null == parameters.updateMask ? null : parameters.updateMask);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_UpdateAssetRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_UpdateAssetRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_UpdateAssetRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.UpdateAssetRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.UpdateAssetRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.UpdateAssetRequest;
 };
-module$contents$eeapiclient$ee_api_client_UpdateAssetRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["asset", "updateMask"], objects:{asset:module$contents$eeapiclient$ee_api_client_EarthEngineAsset}};
+module$exports$eeapiclient$ee_api_client.UpdateAssetRequest.prototype.getPartialClassMetadata = function() {
+  return {keys:["asset", "updateMask"], objects:{asset:module$exports$eeapiclient$ee_api_client.EarthEngineAsset}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_UpdateAssetRequest.prototype, {asset:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.UpdateAssetRequest.prototype, {asset:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("asset") ? this.Serializable$get("asset") : null;
 }, set:function(value) {
   this.Serializable$set("asset", value);
@@ -10360,12 +10395,11 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("updateMask", value);
 }}});
-module$exports$eeapiclient$ee_api_client.UpdateAssetRequest = module$contents$eeapiclient$ee_api_client_UpdateAssetRequest;
 module$exports$eeapiclient$ee_api_client.ValueNodeParameters = function module$contents$eeapiclient$ee_api_client_ValueNodeParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ValueNode = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ValueNode = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("constantValue", null == parameters.constantValue ? null : parameters.constantValue);
   this.Serializable$set("integerValue", null == parameters.integerValue ? null : parameters.integerValue);
   this.Serializable$set("bytesValue", null == parameters.bytesValue ? null : parameters.bytesValue);
@@ -10376,14 +10410,14 @@ var module$contents$eeapiclient$ee_api_client_ValueNode = function(parameters) {
   this.Serializable$set("argumentReference", null == parameters.argumentReference ? null : parameters.argumentReference);
   this.Serializable$set("valueReference", null == parameters.valueReference ? null : parameters.valueReference);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ValueNode, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ValueNode.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ValueNode;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ValueNode, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ValueNode.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ValueNode;
 };
-module$contents$eeapiclient$ee_api_client_ValueNode.prototype.getPartialClassMetadata = function() {
-  return {keys:"argumentReference arrayValue bytesValue constantValue dictionaryValue functionDefinitionValue functionInvocationValue integerValue valueReference".split(" "), objects:{arrayValue:module$contents$eeapiclient$ee_api_client_ArrayValue, dictionaryValue:module$contents$eeapiclient$ee_api_client_DictionaryValue, functionDefinitionValue:module$contents$eeapiclient$ee_api_client_FunctionDefinition, functionInvocationValue:module$contents$eeapiclient$ee_api_client_FunctionInvocation}};
+module$exports$eeapiclient$ee_api_client.ValueNode.prototype.getPartialClassMetadata = function() {
+  return {keys:"argumentReference arrayValue bytesValue constantValue dictionaryValue functionDefinitionValue functionInvocationValue integerValue valueReference".split(" "), objects:{arrayValue:module$exports$eeapiclient$ee_api_client.ArrayValue, dictionaryValue:module$exports$eeapiclient$ee_api_client.DictionaryValue, functionDefinitionValue:module$exports$eeapiclient$ee_api_client.FunctionDefinition, functionInvocationValue:module$exports$eeapiclient$ee_api_client.FunctionInvocation}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ValueNode.prototype, {argumentReference:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ValueNode.prototype, {argumentReference:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("argumentReference") ? this.Serializable$get("argumentReference") : null;
 }, set:function(value) {
   this.Serializable$set("argumentReference", value);
@@ -10420,24 +10454,23 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("valueReference", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ValueNode = module$contents$eeapiclient$ee_api_client_ValueNode;
 module$exports$eeapiclient$ee_api_client.VideoFileExportOptionsParameters = function module$contents$eeapiclient$ee_api_client_VideoFileExportOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_VideoFileExportOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.VideoFileExportOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("fileFormat", null == parameters.fileFormat ? null : parameters.fileFormat);
   this.Serializable$set("driveDestination", null == parameters.driveDestination ? null : parameters.driveDestination);
   this.Serializable$set("gcsDestination", null == parameters.gcsDestination ? null : parameters.gcsDestination);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_VideoFileExportOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_VideoFileExportOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_VideoFileExportOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.VideoFileExportOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.VideoFileExportOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.VideoFileExportOptions;
 };
-module$contents$eeapiclient$ee_api_client_VideoFileExportOptions.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.VideoFileExportOptionsFileFormatEnum}, keys:["driveDestination", "fileFormat", "gcsDestination"], objects:{driveDestination:module$contents$eeapiclient$ee_api_client_DriveDestination, gcsDestination:module$contents$eeapiclient$ee_api_client_GcsDestination}};
+module$exports$eeapiclient$ee_api_client.VideoFileExportOptions.prototype.getPartialClassMetadata = function() {
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.VideoFileExportOptionsFileFormatEnum}, keys:["driveDestination", "fileFormat", "gcsDestination"], objects:{driveDestination:module$exports$eeapiclient$ee_api_client.DriveDestination, gcsDestination:module$exports$eeapiclient$ee_api_client.GcsDestination}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_VideoFileExportOptions.prototype, {driveDestination:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.VideoFileExportOptions.prototype, {driveDestination:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("driveDestination") ? this.Serializable$get("driveDestination") : null;
 }, set:function(value) {
   this.Serializable$set("driveDestination", value);
@@ -10450,27 +10483,26 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("gcsDestination", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_VideoFileExportOptions, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.VideoFileExportOptions, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.VideoFileExportOptionsFileFormatEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.VideoFileExportOptions = module$contents$eeapiclient$ee_api_client_VideoFileExportOptions;
 module$exports$eeapiclient$ee_api_client.VideoOptionsParameters = function module$contents$eeapiclient$ee_api_client_VideoOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_VideoOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.VideoOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("framesPerSecond", null == parameters.framesPerSecond ? null : parameters.framesPerSecond);
   this.Serializable$set("maxFrames", null == parameters.maxFrames ? null : parameters.maxFrames);
   this.Serializable$set("maxPixelsPerFrame", null == parameters.maxPixelsPerFrame ? null : parameters.maxPixelsPerFrame);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_VideoOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_VideoOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_VideoOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.VideoOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.VideoOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.VideoOptions;
 };
-module$contents$eeapiclient$ee_api_client_VideoOptions.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.VideoOptions.prototype.getPartialClassMetadata = function() {
   return {keys:["framesPerSecond", "maxFrames", "maxPixelsPerFrame"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_VideoOptions.prototype, {framesPerSecond:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.VideoOptions.prototype, {framesPerSecond:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("framesPerSecond") ? this.Serializable$get("framesPerSecond") : null;
 }, set:function(value) {
   this.Serializable$set("framesPerSecond", value);
@@ -10483,26 +10515,25 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("maxPixelsPerFrame", value);
 }}});
-module$exports$eeapiclient$ee_api_client.VideoOptions = module$contents$eeapiclient$ee_api_client_VideoOptions;
 module$exports$eeapiclient$ee_api_client.VideoThumbnailParameters = function module$contents$eeapiclient$ee_api_client_VideoThumbnailParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_VideoThumbnail = function(parameters) {
+module$exports$eeapiclient$ee_api_client.VideoThumbnail = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("videoOptions", null == parameters.videoOptions ? null : parameters.videoOptions);
   this.Serializable$set("fileFormat", null == parameters.fileFormat ? null : parameters.fileFormat);
   this.Serializable$set("grid", null == parameters.grid ? null : parameters.grid);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_VideoThumbnail, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_VideoThumbnail.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_VideoThumbnail;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.VideoThumbnail, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.VideoThumbnail.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.VideoThumbnail;
 };
-module$contents$eeapiclient$ee_api_client_VideoThumbnail.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.VideoThumbnailFileFormatEnum}, keys:["expression", "fileFormat", "grid", "name", "videoOptions"], objects:{expression:module$contents$eeapiclient$ee_api_client_Expression, grid:module$contents$eeapiclient$ee_api_client_PixelGrid, videoOptions:module$contents$eeapiclient$ee_api_client_VideoOptions}};
+module$exports$eeapiclient$ee_api_client.VideoThumbnail.prototype.getPartialClassMetadata = function() {
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.VideoThumbnailFileFormatEnum}, keys:["expression", "fileFormat", "grid", "name", "videoOptions"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, grid:module$exports$eeapiclient$ee_api_client.PixelGrid, videoOptions:module$exports$eeapiclient$ee_api_client.VideoOptions}};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_VideoThumbnail.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.VideoThumbnail.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
@@ -10523,28 +10554,27 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("videoOptions", value);
 }}});
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_VideoThumbnail, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.VideoThumbnail, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.VideoThumbnailFileFormatEnum;
 }}});
-module$exports$eeapiclient$ee_api_client.VideoThumbnail = module$contents$eeapiclient$ee_api_client_VideoThumbnail;
 module$exports$eeapiclient$ee_api_client.VisualizationOptionsParameters = function module$contents$eeapiclient$ee_api_client_VisualizationOptionsParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_VisualizationOptions = function(parameters) {
+module$exports$eeapiclient$ee_api_client.VisualizationOptions = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("ranges", null == parameters.ranges ? null : parameters.ranges);
   this.Serializable$set("paletteColors", null == parameters.paletteColors ? null : parameters.paletteColors);
   this.Serializable$set("gamma", null == parameters.gamma ? null : parameters.gamma);
   this.Serializable$set("opacity", null == parameters.opacity ? null : parameters.opacity);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_VisualizationOptions, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_VisualizationOptions.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_VisualizationOptions;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.VisualizationOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.VisualizationOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.VisualizationOptions;
 };
-module$contents$eeapiclient$ee_api_client_VisualizationOptions.prototype.getPartialClassMetadata = function() {
-  return {arrays:{ranges:module$contents$eeapiclient$ee_api_client_DoubleRange}, keys:["gamma", "opacity", "paletteColors", "ranges"]};
+module$exports$eeapiclient$ee_api_client.VisualizationOptions.prototype.getPartialClassMetadata = function() {
+  return {arrays:{ranges:module$exports$eeapiclient$ee_api_client.DoubleRange}, keys:["gamma", "opacity", "paletteColors", "ranges"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_VisualizationOptions.prototype, {gamma:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.VisualizationOptions.prototype, {gamma:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("gamma") ? this.Serializable$get("gamma") : null;
 }, set:function(value) {
   this.Serializable$set("gamma", value);
@@ -10561,43 +10591,41 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("ranges", value);
 }}});
-module$exports$eeapiclient$ee_api_client.VisualizationOptions = module$contents$eeapiclient$ee_api_client_VisualizationOptions;
 module$exports$eeapiclient$ee_api_client.WaitOperationRequestParameters = function module$contents$eeapiclient$ee_api_client_WaitOperationRequestParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_WaitOperationRequest = function(parameters) {
+module$exports$eeapiclient$ee_api_client.WaitOperationRequest = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("timeout", null == parameters.timeout ? null : parameters.timeout);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_WaitOperationRequest, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_WaitOperationRequest.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_WaitOperationRequest;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.WaitOperationRequest, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.WaitOperationRequest.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.WaitOperationRequest;
 };
-module$contents$eeapiclient$ee_api_client_WaitOperationRequest.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.WaitOperationRequest.prototype.getPartialClassMetadata = function() {
   return {keys:["timeout"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_WaitOperationRequest.prototype, {timeout:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.WaitOperationRequest.prototype, {timeout:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("timeout") ? this.Serializable$get("timeout") : null;
 }, set:function(value) {
   this.Serializable$set("timeout", value);
 }}});
-module$exports$eeapiclient$ee_api_client.WaitOperationRequest = module$contents$eeapiclient$ee_api_client_WaitOperationRequest;
 module$exports$eeapiclient$ee_api_client.ZoomSubsetParameters = function module$contents$eeapiclient$ee_api_client_ZoomSubsetParameters() {
 };
-var module$contents$eeapiclient$ee_api_client_ZoomSubset = function(parameters) {
+module$exports$eeapiclient$ee_api_client.ZoomSubset = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
-  module$contents$eeapiclient$domain_object_Serializable.call(this);
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("min", null == parameters.min ? null : parameters.min);
   this.Serializable$set("max", null == parameters.max ? null : parameters.max);
 };
-$jscomp.inherits(module$contents$eeapiclient$ee_api_client_ZoomSubset, module$contents$eeapiclient$domain_object_Serializable);
-module$contents$eeapiclient$ee_api_client_ZoomSubset.prototype.getConstructor = function() {
-  return module$contents$eeapiclient$ee_api_client_ZoomSubset;
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ZoomSubset, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ZoomSubset.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ZoomSubset;
 };
-module$contents$eeapiclient$ee_api_client_ZoomSubset.prototype.getPartialClassMetadata = function() {
+module$exports$eeapiclient$ee_api_client.ZoomSubset.prototype.getPartialClassMetadata = function() {
   return {keys:["max", "min"]};
 };
-$jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client_ZoomSubset.prototype, {max:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ZoomSubset.prototype, {max:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("max") ? this.Serializable$get("max") : null;
 }, set:function(value) {
   this.Serializable$set("max", value);
@@ -10606,7 +10634,6 @@ $jscomp.global.Object.defineProperties(module$contents$eeapiclient$ee_api_client
 }, set:function(value) {
   this.Serializable$set("min", value);
 }}});
-module$exports$eeapiclient$ee_api_client.ZoomSubset = module$contents$eeapiclient$ee_api_client_ZoomSubset;
 module$exports$eeapiclient$ee_api_client.IProjectsAlgorithmsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsAlgorithmsApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClient$XgafvEnum = {get 1() {
@@ -10629,18 +10656,17 @@ module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClientAltEnum = {g
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsAlgorithmsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAlgorithmsApiClientImpl.prototype.list = function(project, $jscomp$destructuring$var0) {
+module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClientImpl.prototype.list = function(project, $jscomp$destructuring$var0) {
   var $jscomp$destructuring$var1 = void 0 === $jscomp$destructuring$var0 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var0, $Xgafv = void 0 === $jscomp$destructuring$var1.$Xgafv ? void 0 : $jscomp$destructuring$var1.$Xgafv, access_token = void 0 === $jscomp$destructuring$var1.access_token ? void 0 : $jscomp$destructuring$var1.access_token, 
   alt = void 0 === $jscomp$destructuring$var1.alt ? void 0 : $jscomp$destructuring$var1.alt, callback = void 0 === $jscomp$destructuring$var1.callback ? void 0 : $jscomp$destructuring$var1.callback, fields = void 0 === $jscomp$destructuring$var1.fields ? void 0 : $jscomp$destructuring$var1.fields, key = void 0 === $jscomp$destructuring$var1.key ? void 0 : $jscomp$destructuring$var1.key, oauth_token = void 0 === $jscomp$destructuring$var1.oauth_token ? void 0 : $jscomp$destructuring$var1.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var1.prettyPrint ? void 0 : $jscomp$destructuring$var1.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var1.quotaUser ? void 0 : $jscomp$destructuring$var1.quotaUser, uploadType = void 0 === $jscomp$destructuring$var1.uploadType ? void 0 : $jscomp$destructuring$var1.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var1.upload_protocol ? void 0 : $jscomp$destructuring$var1.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.algorithms.list", path:"/" + this.gapiVersion + "/" + project + "/algorithms", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_ListAlgorithmsResponse});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.algorithms.list", path:"/" + this.gapiVersion + "/" + project + "/algorithms", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponse});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsAlgorithmsApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsApiClient$XgafvEnum = {get 1() {
@@ -10663,26 +10689,25 @@ module$exports$eeapiclient$ee_api_client.ProjectsApiClientAltEnum = {get JSON() 
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsApiClientImpl.prototype.getCapabilities = function(parent, $jscomp$destructuring$var2) {
+module$exports$eeapiclient$ee_api_client.ProjectsApiClientImpl.prototype.getCapabilities = function(parent, $jscomp$destructuring$var2) {
   var $jscomp$destructuring$var3 = void 0 === $jscomp$destructuring$var2 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var2, $Xgafv = void 0 === $jscomp$destructuring$var3.$Xgafv ? void 0 : $jscomp$destructuring$var3.$Xgafv, access_token = void 0 === $jscomp$destructuring$var3.access_token ? void 0 : $jscomp$destructuring$var3.access_token, 
   alt = void 0 === $jscomp$destructuring$var3.alt ? void 0 : $jscomp$destructuring$var3.alt, callback = void 0 === $jscomp$destructuring$var3.callback ? void 0 : $jscomp$destructuring$var3.callback, fields = void 0 === $jscomp$destructuring$var3.fields ? void 0 : $jscomp$destructuring$var3.fields, key = void 0 === $jscomp$destructuring$var3.key ? void 0 : $jscomp$destructuring$var3.key, oauth_token = void 0 === $jscomp$destructuring$var3.oauth_token ? void 0 : $jscomp$destructuring$var3.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var3.prettyPrint ? void 0 : $jscomp$destructuring$var3.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var3.quotaUser ? void 0 : $jscomp$destructuring$var3.quotaUser, uploadType = void 0 === $jscomp$destructuring$var3.uploadType ? void 0 : $jscomp$destructuring$var3.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var3.upload_protocol ? void 0 : $jscomp$destructuring$var3.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.getCapabilities", path:"/" + this.gapiVersion + "/" + parent + "/capabilities", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Capabilities});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.getCapabilities", path:"/" + this.gapiVersion + "/" + parent + "/capabilities", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Capabilities});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsApiClientImpl.prototype.listAssets = function(parent, $jscomp$destructuring$var4) {
+module$exports$eeapiclient$ee_api_client.ProjectsApiClientImpl.prototype.listAssets = function(parent, $jscomp$destructuring$var4) {
   var $jscomp$destructuring$var5 = void 0 === $jscomp$destructuring$var4 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, pageSize:void 0, pageToken:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var4, $Xgafv = void 0 === $jscomp$destructuring$var5.$Xgafv ? void 0 : $jscomp$destructuring$var5.$Xgafv, access_token = void 0 === $jscomp$destructuring$var5.access_token ? 
   void 0 : $jscomp$destructuring$var5.access_token, alt = void 0 === $jscomp$destructuring$var5.alt ? void 0 : $jscomp$destructuring$var5.alt, callback = void 0 === $jscomp$destructuring$var5.callback ? void 0 : $jscomp$destructuring$var5.callback, fields = void 0 === $jscomp$destructuring$var5.fields ? void 0 : $jscomp$destructuring$var5.fields, key = void 0 === $jscomp$destructuring$var5.key ? void 0 : $jscomp$destructuring$var5.key, oauth_token = void 0 === $jscomp$destructuring$var5.oauth_token ? 
   void 0 : $jscomp$destructuring$var5.oauth_token, pageSize = void 0 === $jscomp$destructuring$var5.pageSize ? void 0 : $jscomp$destructuring$var5.pageSize, pageToken = void 0 === $jscomp$destructuring$var5.pageToken ? void 0 : $jscomp$destructuring$var5.pageToken, prettyPrint = void 0 === $jscomp$destructuring$var5.prettyPrint ? void 0 : $jscomp$destructuring$var5.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var5.quotaUser ? void 0 : $jscomp$destructuring$var5.quotaUser, uploadType = 
   void 0 === $jscomp$destructuring$var5.uploadType ? void 0 : $jscomp$destructuring$var5.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var5.upload_protocol ? void 0 : $jscomp$destructuring$var5.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.listAssets", path:"/" + this.gapiVersion + "/" + parent + ":listAssets", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, pageSize:pageSize, pageToken:pageToken, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_ListAssetsResponse});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.listAssets", path:"/" + this.gapiVersion + "/" + parent + ":listAssets", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, pageSize:pageSize, pageToken:pageToken, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.ListAssetsResponse});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsAssetsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsAssetsApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClient$XgafvEnum = {get 1() {
@@ -10716,70 +10741,70 @@ module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientViewEnum = {get 
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.copy = function(sourceName, $requestBody, $jscomp$destructuring$var6) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.copy = function(sourceName, $requestBody, $jscomp$destructuring$var6) {
   var $jscomp$destructuring$var7 = void 0 === $jscomp$destructuring$var6 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var6, $Xgafv = void 0 === $jscomp$destructuring$var7.$Xgafv ? void 0 : $jscomp$destructuring$var7.$Xgafv, access_token = void 0 === $jscomp$destructuring$var7.access_token ? void 0 : $jscomp$destructuring$var7.access_token, 
   alt = void 0 === $jscomp$destructuring$var7.alt ? void 0 : $jscomp$destructuring$var7.alt, callback = void 0 === $jscomp$destructuring$var7.callback ? void 0 : $jscomp$destructuring$var7.callback, fields = void 0 === $jscomp$destructuring$var7.fields ? void 0 : $jscomp$destructuring$var7.fields, key = void 0 === $jscomp$destructuring$var7.key ? void 0 : $jscomp$destructuring$var7.key, oauth_token = void 0 === $jscomp$destructuring$var7.oauth_token ? void 0 : $jscomp$destructuring$var7.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var7.prettyPrint ? void 0 : $jscomp$destructuring$var7.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var7.quotaUser ? void 0 : $jscomp$destructuring$var7.quotaUser, uploadType = void 0 === $jscomp$destructuring$var7.uploadType ? void 0 : $jscomp$destructuring$var7.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var7.upload_protocol ? void 0 : $jscomp$destructuring$var7.upload_protocol;
   this.$apiClient.$validateParameter(sourceName, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.copy", path:"/" + this.gapiVersion + "/" + sourceName + ":copy", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_EarthEngineAsset});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.copy", path:"/" + this.gapiVersion + "/" + sourceName + ":copy", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var8) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var8) {
   var $jscomp$destructuring$var9 = void 0 === $jscomp$destructuring$var8 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, assetId:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, overwrite:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var8, $Xgafv = void 0 === $jscomp$destructuring$var9.$Xgafv ? void 0 : $jscomp$destructuring$var9.$Xgafv, access_token = void 0 === $jscomp$destructuring$var9.access_token ? 
   void 0 : $jscomp$destructuring$var9.access_token, alt = void 0 === $jscomp$destructuring$var9.alt ? void 0 : $jscomp$destructuring$var9.alt, assetId = void 0 === $jscomp$destructuring$var9.assetId ? void 0 : $jscomp$destructuring$var9.assetId, callback = void 0 === $jscomp$destructuring$var9.callback ? void 0 : $jscomp$destructuring$var9.callback, fields = void 0 === $jscomp$destructuring$var9.fields ? void 0 : $jscomp$destructuring$var9.fields, key = void 0 === $jscomp$destructuring$var9.key ? 
   void 0 : $jscomp$destructuring$var9.key, oauth_token = void 0 === $jscomp$destructuring$var9.oauth_token ? void 0 : $jscomp$destructuring$var9.oauth_token, overwrite = void 0 === $jscomp$destructuring$var9.overwrite ? void 0 : $jscomp$destructuring$var9.overwrite, prettyPrint = void 0 === $jscomp$destructuring$var9.prettyPrint ? void 0 : $jscomp$destructuring$var9.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var9.quotaUser ? void 0 : $jscomp$destructuring$var9.quotaUser, uploadType = 
   void 0 === $jscomp$destructuring$var9.uploadType ? void 0 : $jscomp$destructuring$var9.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var9.upload_protocol ? void 0 : $jscomp$destructuring$var9.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.create", path:"/" + this.gapiVersion + "/" + parent + "/assets", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, assetId:assetId, callback:callback, fields:fields, key:key, oauth_token:oauth_token, overwrite:overwrite, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_EarthEngineAsset});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.create", path:"/" + this.gapiVersion + "/" + parent + "/assets", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, assetId:assetId, callback:callback, fields:fields, key:key, oauth_token:oauth_token, overwrite:overwrite, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype["delete"] = function(name, $jscomp$destructuring$var10) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype["delete"] = function(name, $jscomp$destructuring$var10) {
   var $jscomp$destructuring$var11 = void 0 === $jscomp$destructuring$var10 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var10, $Xgafv = void 0 === $jscomp$destructuring$var11.$Xgafv ? void 0 : $jscomp$destructuring$var11.$Xgafv, access_token = void 0 === $jscomp$destructuring$var11.access_token ? void 0 : $jscomp$destructuring$var11.access_token, 
   alt = void 0 === $jscomp$destructuring$var11.alt ? void 0 : $jscomp$destructuring$var11.alt, callback = void 0 === $jscomp$destructuring$var11.callback ? void 0 : $jscomp$destructuring$var11.callback, fields = void 0 === $jscomp$destructuring$var11.fields ? void 0 : $jscomp$destructuring$var11.fields, key = void 0 === $jscomp$destructuring$var11.key ? void 0 : $jscomp$destructuring$var11.key, oauth_token = void 0 === $jscomp$destructuring$var11.oauth_token ? void 0 : $jscomp$destructuring$var11.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var11.prettyPrint ? void 0 : $jscomp$destructuring$var11.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var11.quotaUser ? void 0 : $jscomp$destructuring$var11.quotaUser, uploadType = void 0 === $jscomp$destructuring$var11.uploadType ? void 0 : $jscomp$destructuring$var11.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var11.upload_protocol ? void 0 : $jscomp$destructuring$var11.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"DELETE", methodId:"earthengine.projects.assets.delete", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Empty});
+  return this.$apiClient.$request({body:null, httpMethod:"DELETE", methodId:"earthengine.projects.assets.delete", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Empty});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.get = function(name, $jscomp$destructuring$var12) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.get = function(name, $jscomp$destructuring$var12) {
   var $jscomp$destructuring$var13 = void 0 === $jscomp$destructuring$var12 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var12, $Xgafv = void 0 === $jscomp$destructuring$var13.$Xgafv ? void 0 : $jscomp$destructuring$var13.$Xgafv, access_token = void 0 === $jscomp$destructuring$var13.access_token ? void 0 : $jscomp$destructuring$var13.access_token, 
   alt = void 0 === $jscomp$destructuring$var13.alt ? void 0 : $jscomp$destructuring$var13.alt, callback = void 0 === $jscomp$destructuring$var13.callback ? void 0 : $jscomp$destructuring$var13.callback, fields = void 0 === $jscomp$destructuring$var13.fields ? void 0 : $jscomp$destructuring$var13.fields, key = void 0 === $jscomp$destructuring$var13.key ? void 0 : $jscomp$destructuring$var13.key, oauth_token = void 0 === $jscomp$destructuring$var13.oauth_token ? void 0 : $jscomp$destructuring$var13.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var13.prettyPrint ? void 0 : $jscomp$destructuring$var13.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var13.quotaUser ? void 0 : $jscomp$destructuring$var13.quotaUser, uploadType = void 0 === $jscomp$destructuring$var13.uploadType ? void 0 : $jscomp$destructuring$var13.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var13.upload_protocol ? void 0 : $jscomp$destructuring$var13.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.get", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_EarthEngineAsset});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.get", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.getIamPolicy = function(resource, $requestBody, $jscomp$destructuring$var14) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.getIamPolicy = function(resource, $requestBody, $jscomp$destructuring$var14) {
   var $jscomp$destructuring$var15 = void 0 === $jscomp$destructuring$var14 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var14, $Xgafv = void 0 === $jscomp$destructuring$var15.$Xgafv ? void 0 : $jscomp$destructuring$var15.$Xgafv, access_token = void 0 === $jscomp$destructuring$var15.access_token ? void 0 : $jscomp$destructuring$var15.access_token, 
   alt = void 0 === $jscomp$destructuring$var15.alt ? void 0 : $jscomp$destructuring$var15.alt, callback = void 0 === $jscomp$destructuring$var15.callback ? void 0 : $jscomp$destructuring$var15.callback, fields = void 0 === $jscomp$destructuring$var15.fields ? void 0 : $jscomp$destructuring$var15.fields, key = void 0 === $jscomp$destructuring$var15.key ? void 0 : $jscomp$destructuring$var15.key, oauth_token = void 0 === $jscomp$destructuring$var15.oauth_token ? void 0 : $jscomp$destructuring$var15.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var15.prettyPrint ? void 0 : $jscomp$destructuring$var15.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var15.quotaUser ? void 0 : $jscomp$destructuring$var15.quotaUser, uploadType = void 0 === $jscomp$destructuring$var15.uploadType ? void 0 : $jscomp$destructuring$var15.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var15.upload_protocol ? void 0 : $jscomp$destructuring$var15.upload_protocol;
   this.$apiClient.$validateParameter(resource, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.getIamPolicy", path:"/" + this.gapiVersion + "/" + resource + ":getIamPolicy", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Policy});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.getIamPolicy", path:"/" + this.gapiVersion + "/" + resource + ":getIamPolicy", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Policy});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.getPixels = function(name, $requestBody, $jscomp$destructuring$var16) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.getPixels = function(name, $requestBody, $jscomp$destructuring$var16) {
   var $jscomp$destructuring$var17 = void 0 === $jscomp$destructuring$var16 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var16, $Xgafv = void 0 === $jscomp$destructuring$var17.$Xgafv ? void 0 : $jscomp$destructuring$var17.$Xgafv, access_token = void 0 === $jscomp$destructuring$var17.access_token ? void 0 : $jscomp$destructuring$var17.access_token, 
   alt = void 0 === $jscomp$destructuring$var17.alt ? void 0 : $jscomp$destructuring$var17.alt, callback = void 0 === $jscomp$destructuring$var17.callback ? void 0 : $jscomp$destructuring$var17.callback, fields = void 0 === $jscomp$destructuring$var17.fields ? void 0 : $jscomp$destructuring$var17.fields, key = void 0 === $jscomp$destructuring$var17.key ? void 0 : $jscomp$destructuring$var17.key, oauth_token = void 0 === $jscomp$destructuring$var17.oauth_token ? void 0 : $jscomp$destructuring$var17.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var17.prettyPrint ? void 0 : $jscomp$destructuring$var17.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var17.quotaUser ? void 0 : $jscomp$destructuring$var17.quotaUser, uploadType = void 0 === $jscomp$destructuring$var17.uploadType ? void 0 : $jscomp$destructuring$var17.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var17.upload_protocol ? void 0 : $jscomp$destructuring$var17.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_HttpBody});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.listAssets = function(parent, $jscomp$destructuring$var18) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.listAssets = function(parent, $jscomp$destructuring$var18) {
   var $jscomp$destructuring$var19 = void 0 === $jscomp$destructuring$var18 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, pageSize:void 0, pageToken:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var18, $Xgafv = void 0 === $jscomp$destructuring$var19.$Xgafv ? void 0 : $jscomp$destructuring$var19.$Xgafv, access_token = void 0 === $jscomp$destructuring$var19.access_token ? 
   void 0 : $jscomp$destructuring$var19.access_token, alt = void 0 === $jscomp$destructuring$var19.alt ? void 0 : $jscomp$destructuring$var19.alt, callback = void 0 === $jscomp$destructuring$var19.callback ? void 0 : $jscomp$destructuring$var19.callback, fields = void 0 === $jscomp$destructuring$var19.fields ? void 0 : $jscomp$destructuring$var19.fields, key = void 0 === $jscomp$destructuring$var19.key ? void 0 : $jscomp$destructuring$var19.key, oauth_token = void 0 === $jscomp$destructuring$var19.oauth_token ? 
   void 0 : $jscomp$destructuring$var19.oauth_token, pageSize = void 0 === $jscomp$destructuring$var19.pageSize ? void 0 : $jscomp$destructuring$var19.pageSize, pageToken = void 0 === $jscomp$destructuring$var19.pageToken ? void 0 : $jscomp$destructuring$var19.pageToken, prettyPrint = void 0 === $jscomp$destructuring$var19.prettyPrint ? void 0 : $jscomp$destructuring$var19.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var19.quotaUser ? void 0 : $jscomp$destructuring$var19.quotaUser, uploadType = 
   void 0 === $jscomp$destructuring$var19.uploadType ? void 0 : $jscomp$destructuring$var19.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var19.upload_protocol ? void 0 : $jscomp$destructuring$var19.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.listAssets", path:"/" + this.gapiVersion + "/" + parent + ":listAssets", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, pageSize:pageSize, pageToken:pageToken, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_ListAssetsResponse});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.listAssets", path:"/" + this.gapiVersion + "/" + parent + ":listAssets", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, pageSize:pageSize, pageToken:pageToken, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.ListAssetsResponse});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.listFeatures = function(parent, $jscomp$destructuring$var20) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.listFeatures = function(parent, $jscomp$destructuring$var20) {
   var $jscomp$destructuring$var21 = void 0 === $jscomp$destructuring$var20 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, filter:void 0, key:void 0, oauth_token:void 0, pageSize:void 0, pageToken:void 0, prettyPrint:void 0, quotaUser:void 0, region:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var20, $Xgafv = void 0 === $jscomp$destructuring$var21.$Xgafv ? void 0 : $jscomp$destructuring$var21.$Xgafv, access_token = void 0 === $jscomp$destructuring$var21.access_token ? 
   void 0 : $jscomp$destructuring$var21.access_token, alt = void 0 === $jscomp$destructuring$var21.alt ? void 0 : $jscomp$destructuring$var21.alt, callback = void 0 === $jscomp$destructuring$var21.callback ? void 0 : $jscomp$destructuring$var21.callback, fields = void 0 === $jscomp$destructuring$var21.fields ? void 0 : $jscomp$destructuring$var21.fields, filter = void 0 === $jscomp$destructuring$var21.filter ? void 0 : $jscomp$destructuring$var21.filter, key = void 0 === $jscomp$destructuring$var21.key ? 
   void 0 : $jscomp$destructuring$var21.key, oauth_token = void 0 === $jscomp$destructuring$var21.oauth_token ? void 0 : $jscomp$destructuring$var21.oauth_token, pageSize = void 0 === $jscomp$destructuring$var21.pageSize ? void 0 : $jscomp$destructuring$var21.pageSize, pageToken = void 0 === $jscomp$destructuring$var21.pageToken ? void 0 : $jscomp$destructuring$var21.pageToken, prettyPrint = void 0 === $jscomp$destructuring$var21.prettyPrint ? void 0 : $jscomp$destructuring$var21.prettyPrint, quotaUser = 
   void 0 === $jscomp$destructuring$var21.quotaUser ? void 0 : $jscomp$destructuring$var21.quotaUser, region = void 0 === $jscomp$destructuring$var21.region ? void 0 : $jscomp$destructuring$var21.region, uploadType = void 0 === $jscomp$destructuring$var21.uploadType ? void 0 : $jscomp$destructuring$var21.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var21.upload_protocol ? void 0 : $jscomp$destructuring$var21.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.listFeatures", path:"/" + this.gapiVersion + "/" + parent + ":listFeatures", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, filter:filter, key:key, oauth_token:oauth_token, pageSize:pageSize, pageToken:pageToken, prettyPrint:prettyPrint, quotaUser:quotaUser, region:region, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_ListFeaturesResponse});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.listFeatures", path:"/" + this.gapiVersion + "/" + parent + ":listFeatures", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, filter:filter, key:key, oauth_token:oauth_token, pageSize:pageSize, pageToken:pageToken, prettyPrint:prettyPrint, quotaUser:quotaUser, region:region, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.ListFeaturesResponse});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.listImages = function(parent, $jscomp$destructuring$var22) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.listImages = function(parent, $jscomp$destructuring$var22) {
   var $jscomp$destructuring$var23 = void 0 === $jscomp$destructuring$var22 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, endTime:void 0, fields:void 0, filter:void 0, key:void 0, oauth_token:void 0, pageSize:void 0, pageToken:void 0, prettyPrint:void 0, quotaUser:void 0, region:void 0, startTime:void 0, uploadType:void 0, upload_protocol:void 0, view:void 0} : $jscomp$destructuring$var22, $Xgafv = void 0 === $jscomp$destructuring$var23.$Xgafv ? void 0 : $jscomp$destructuring$var23.$Xgafv, 
   access_token = void 0 === $jscomp$destructuring$var23.access_token ? void 0 : $jscomp$destructuring$var23.access_token, alt = void 0 === $jscomp$destructuring$var23.alt ? void 0 : $jscomp$destructuring$var23.alt, callback = void 0 === $jscomp$destructuring$var23.callback ? void 0 : $jscomp$destructuring$var23.callback, endTime = void 0 === $jscomp$destructuring$var23.endTime ? void 0 : $jscomp$destructuring$var23.endTime, fields = void 0 === $jscomp$destructuring$var23.fields ? void 0 : $jscomp$destructuring$var23.fields, 
   filter = void 0 === $jscomp$destructuring$var23.filter ? void 0 : $jscomp$destructuring$var23.filter, key = void 0 === $jscomp$destructuring$var23.key ? void 0 : $jscomp$destructuring$var23.key, oauth_token = void 0 === $jscomp$destructuring$var23.oauth_token ? void 0 : $jscomp$destructuring$var23.oauth_token, pageSize = void 0 === $jscomp$destructuring$var23.pageSize ? void 0 : $jscomp$destructuring$var23.pageSize, pageToken = void 0 === $jscomp$destructuring$var23.pageToken ? void 0 : $jscomp$destructuring$var23.pageToken, 
@@ -10787,45 +10812,44 @@ module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.
   void 0 : $jscomp$destructuring$var23.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var23.upload_protocol ? void 0 : $jscomp$destructuring$var23.upload_protocol, view = void 0 === $jscomp$destructuring$var23.view ? void 0 : $jscomp$destructuring$var23.view;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/assets\/.+$/);
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.listImages", path:"/" + this.gapiVersion + "/" + parent + ":listImages", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, endTime:endTime, fields:fields, filter:filter, key:key, oauth_token:oauth_token, pageSize:pageSize, pageToken:pageToken, prettyPrint:prettyPrint, quotaUser:quotaUser, region:region, startTime:startTime, uploadType:uploadType, upload_protocol:upload_protocol, 
-  view:view}, responseCtor:module$contents$eeapiclient$ee_api_client_ListImagesResponse});
+  view:view}, responseCtor:module$exports$eeapiclient$ee_api_client.ListImagesResponse});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.move = function(sourceName, $requestBody, $jscomp$destructuring$var24) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.move = function(sourceName, $requestBody, $jscomp$destructuring$var24) {
   var $jscomp$destructuring$var25 = void 0 === $jscomp$destructuring$var24 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var24, $Xgafv = void 0 === $jscomp$destructuring$var25.$Xgafv ? void 0 : $jscomp$destructuring$var25.$Xgafv, access_token = void 0 === $jscomp$destructuring$var25.access_token ? void 0 : $jscomp$destructuring$var25.access_token, 
   alt = void 0 === $jscomp$destructuring$var25.alt ? void 0 : $jscomp$destructuring$var25.alt, callback = void 0 === $jscomp$destructuring$var25.callback ? void 0 : $jscomp$destructuring$var25.callback, fields = void 0 === $jscomp$destructuring$var25.fields ? void 0 : $jscomp$destructuring$var25.fields, key = void 0 === $jscomp$destructuring$var25.key ? void 0 : $jscomp$destructuring$var25.key, oauth_token = void 0 === $jscomp$destructuring$var25.oauth_token ? void 0 : $jscomp$destructuring$var25.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var25.prettyPrint ? void 0 : $jscomp$destructuring$var25.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var25.quotaUser ? void 0 : $jscomp$destructuring$var25.quotaUser, uploadType = void 0 === $jscomp$destructuring$var25.uploadType ? void 0 : $jscomp$destructuring$var25.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var25.upload_protocol ? void 0 : $jscomp$destructuring$var25.upload_protocol;
   this.$apiClient.$validateParameter(sourceName, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.move", path:"/" + this.gapiVersion + "/" + sourceName + ":move", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_EarthEngineAsset});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.move", path:"/" + this.gapiVersion + "/" + sourceName + ":move", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.patch = function(name, $requestBody, $jscomp$destructuring$var26) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.patch = function(name, $requestBody, $jscomp$destructuring$var26) {
   var $jscomp$destructuring$var27 = void 0 === $jscomp$destructuring$var26 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var26, $Xgafv = void 0 === $jscomp$destructuring$var27.$Xgafv ? void 0 : $jscomp$destructuring$var27.$Xgafv, access_token = void 0 === $jscomp$destructuring$var27.access_token ? void 0 : $jscomp$destructuring$var27.access_token, 
   alt = void 0 === $jscomp$destructuring$var27.alt ? void 0 : $jscomp$destructuring$var27.alt, callback = void 0 === $jscomp$destructuring$var27.callback ? void 0 : $jscomp$destructuring$var27.callback, fields = void 0 === $jscomp$destructuring$var27.fields ? void 0 : $jscomp$destructuring$var27.fields, key = void 0 === $jscomp$destructuring$var27.key ? void 0 : $jscomp$destructuring$var27.key, oauth_token = void 0 === $jscomp$destructuring$var27.oauth_token ? void 0 : $jscomp$destructuring$var27.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var27.prettyPrint ? void 0 : $jscomp$destructuring$var27.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var27.quotaUser ? void 0 : $jscomp$destructuring$var27.quotaUser, uploadType = void 0 === $jscomp$destructuring$var27.uploadType ? void 0 : $jscomp$destructuring$var27.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var27.upload_protocol ? void 0 : $jscomp$destructuring$var27.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"PATCH", methodId:"earthengine.projects.assets.patch", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_EarthEngineAsset});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"PATCH", methodId:"earthengine.projects.assets.patch", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.search = function(project, $jscomp$destructuring$var28) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.search = function(project, $jscomp$destructuring$var28) {
   var $jscomp$destructuring$var29 = void 0 === $jscomp$destructuring$var28 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, nextPageToken:void 0, oauth_token:void 0, pageSize:void 0, prettyPrint:void 0, query:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var28, $Xgafv = void 0 === $jscomp$destructuring$var29.$Xgafv ? void 0 : $jscomp$destructuring$var29.$Xgafv, access_token = void 0 === $jscomp$destructuring$var29.access_token ? 
   void 0 : $jscomp$destructuring$var29.access_token, alt = void 0 === $jscomp$destructuring$var29.alt ? void 0 : $jscomp$destructuring$var29.alt, callback = void 0 === $jscomp$destructuring$var29.callback ? void 0 : $jscomp$destructuring$var29.callback, fields = void 0 === $jscomp$destructuring$var29.fields ? void 0 : $jscomp$destructuring$var29.fields, key = void 0 === $jscomp$destructuring$var29.key ? void 0 : $jscomp$destructuring$var29.key, nextPageToken = void 0 === $jscomp$destructuring$var29.nextPageToken ? 
   void 0 : $jscomp$destructuring$var29.nextPageToken, oauth_token = void 0 === $jscomp$destructuring$var29.oauth_token ? void 0 : $jscomp$destructuring$var29.oauth_token, pageSize = void 0 === $jscomp$destructuring$var29.pageSize ? void 0 : $jscomp$destructuring$var29.pageSize, prettyPrint = void 0 === $jscomp$destructuring$var29.prettyPrint ? void 0 : $jscomp$destructuring$var29.prettyPrint, query = void 0 === $jscomp$destructuring$var29.query ? void 0 : $jscomp$destructuring$var29.query, quotaUser = 
   void 0 === $jscomp$destructuring$var29.quotaUser ? void 0 : $jscomp$destructuring$var29.quotaUser, uploadType = void 0 === $jscomp$destructuring$var29.uploadType ? void 0 : $jscomp$destructuring$var29.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var29.upload_protocol ? void 0 : $jscomp$destructuring$var29.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.search", path:"/" + this.gapiVersion + "/" + project + "/assets:search", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, nextPageToken:nextPageToken, oauth_token:oauth_token, pageSize:pageSize, prettyPrint:prettyPrint, query:query, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_SearchAssetsResponse});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.search", path:"/" + this.gapiVersion + "/" + project + "/assets:search", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, nextPageToken:nextPageToken, oauth_token:oauth_token, pageSize:pageSize, prettyPrint:prettyPrint, query:query, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.SearchAssetsResponse});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.setIamPolicy = function(resource, $requestBody, $jscomp$destructuring$var30) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.setIamPolicy = function(resource, $requestBody, $jscomp$destructuring$var30) {
   var $jscomp$destructuring$var31 = void 0 === $jscomp$destructuring$var30 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var30, $Xgafv = void 0 === $jscomp$destructuring$var31.$Xgafv ? void 0 : $jscomp$destructuring$var31.$Xgafv, access_token = void 0 === $jscomp$destructuring$var31.access_token ? void 0 : $jscomp$destructuring$var31.access_token, 
   alt = void 0 === $jscomp$destructuring$var31.alt ? void 0 : $jscomp$destructuring$var31.alt, callback = void 0 === $jscomp$destructuring$var31.callback ? void 0 : $jscomp$destructuring$var31.callback, fields = void 0 === $jscomp$destructuring$var31.fields ? void 0 : $jscomp$destructuring$var31.fields, key = void 0 === $jscomp$destructuring$var31.key ? void 0 : $jscomp$destructuring$var31.key, oauth_token = void 0 === $jscomp$destructuring$var31.oauth_token ? void 0 : $jscomp$destructuring$var31.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var31.prettyPrint ? void 0 : $jscomp$destructuring$var31.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var31.quotaUser ? void 0 : $jscomp$destructuring$var31.quotaUser, uploadType = void 0 === $jscomp$destructuring$var31.uploadType ? void 0 : $jscomp$destructuring$var31.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var31.upload_protocol ? void 0 : $jscomp$destructuring$var31.upload_protocol;
   this.$apiClient.$validateParameter(resource, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.setIamPolicy", path:"/" + this.gapiVersion + "/" + resource + ":setIamPolicy", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Policy});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.setIamPolicy", path:"/" + this.gapiVersion + "/" + resource + ":setIamPolicy", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Policy});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl.prototype.testIamPermissions = function(resource, $requestBody, $jscomp$destructuring$var32) {
+module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.testIamPermissions = function(resource, $requestBody, $jscomp$destructuring$var32) {
   var $jscomp$destructuring$var33 = void 0 === $jscomp$destructuring$var32 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var32, $Xgafv = void 0 === $jscomp$destructuring$var33.$Xgafv ? void 0 : $jscomp$destructuring$var33.$Xgafv, access_token = void 0 === $jscomp$destructuring$var33.access_token ? void 0 : $jscomp$destructuring$var33.access_token, 
   alt = void 0 === $jscomp$destructuring$var33.alt ? void 0 : $jscomp$destructuring$var33.alt, callback = void 0 === $jscomp$destructuring$var33.callback ? void 0 : $jscomp$destructuring$var33.callback, fields = void 0 === $jscomp$destructuring$var33.fields ? void 0 : $jscomp$destructuring$var33.fields, key = void 0 === $jscomp$destructuring$var33.key ? void 0 : $jscomp$destructuring$var33.key, oauth_token = void 0 === $jscomp$destructuring$var33.oauth_token ? void 0 : $jscomp$destructuring$var33.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var33.prettyPrint ? void 0 : $jscomp$destructuring$var33.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var33.quotaUser ? void 0 : $jscomp$destructuring$var33.quotaUser, uploadType = void 0 === $jscomp$destructuring$var33.uploadType ? void 0 : $jscomp$destructuring$var33.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var33.upload_protocol ? void 0 : $jscomp$destructuring$var33.upload_protocol;
   this.$apiClient.$validateParameter(resource, /^projects\/[^/]+\/assets\/.+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.testIamPermissions", path:"/" + this.gapiVersion + "/" + resource + ":testIamPermissions", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_TestIamPermissionsResponse});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.testIamPermissions", path:"/" + this.gapiVersion + "/" + resource + ":testIamPermissions", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponse});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsAssetsApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsFilmstripThumbnailsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsFilmstripThumbnailsApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClient$XgafvEnum = {get 1() {
@@ -10848,25 +10872,24 @@ module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClientAlt
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsFilmstripThumbnailsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsFilmstripThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var34) {
+module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var34) {
   var $jscomp$destructuring$var35 = void 0 === $jscomp$destructuring$var34 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var34, $Xgafv = void 0 === $jscomp$destructuring$var35.$Xgafv ? void 0 : $jscomp$destructuring$var35.$Xgafv, access_token = void 0 === $jscomp$destructuring$var35.access_token ? void 0 : $jscomp$destructuring$var35.access_token, 
   alt = void 0 === $jscomp$destructuring$var35.alt ? void 0 : $jscomp$destructuring$var35.alt, callback = void 0 === $jscomp$destructuring$var35.callback ? void 0 : $jscomp$destructuring$var35.callback, fields = void 0 === $jscomp$destructuring$var35.fields ? void 0 : $jscomp$destructuring$var35.fields, key = void 0 === $jscomp$destructuring$var35.key ? void 0 : $jscomp$destructuring$var35.key, oauth_token = void 0 === $jscomp$destructuring$var35.oauth_token ? void 0 : $jscomp$destructuring$var35.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var35.prettyPrint ? void 0 : $jscomp$destructuring$var35.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var35.quotaUser ? void 0 : $jscomp$destructuring$var35.quotaUser, uploadType = void 0 === $jscomp$destructuring$var35.uploadType ? void 0 : $jscomp$destructuring$var35.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var35.upload_protocol ? void 0 : $jscomp$destructuring$var35.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.filmstripThumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/filmstripThumbnails", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_FilmstripThumbnail});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.filmstripThumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/filmstripThumbnails", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.FilmstripThumbnail});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsFilmstripThumbnailsApiClientImpl.prototype.getPixels = function(name, $jscomp$destructuring$var36) {
+module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClientImpl.prototype.getPixels = function(name, $jscomp$destructuring$var36) {
   var $jscomp$destructuring$var37 = void 0 === $jscomp$destructuring$var36 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var36, $Xgafv = void 0 === $jscomp$destructuring$var37.$Xgafv ? void 0 : $jscomp$destructuring$var37.$Xgafv, access_token = void 0 === $jscomp$destructuring$var37.access_token ? void 0 : $jscomp$destructuring$var37.access_token, 
   alt = void 0 === $jscomp$destructuring$var37.alt ? void 0 : $jscomp$destructuring$var37.alt, callback = void 0 === $jscomp$destructuring$var37.callback ? void 0 : $jscomp$destructuring$var37.callback, fields = void 0 === $jscomp$destructuring$var37.fields ? void 0 : $jscomp$destructuring$var37.fields, key = void 0 === $jscomp$destructuring$var37.key ? void 0 : $jscomp$destructuring$var37.key, oauth_token = void 0 === $jscomp$destructuring$var37.oauth_token ? void 0 : $jscomp$destructuring$var37.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var37.prettyPrint ? void 0 : $jscomp$destructuring$var37.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var37.quotaUser ? void 0 : $jscomp$destructuring$var37.quotaUser, uploadType = void 0 === $jscomp$destructuring$var37.uploadType ? void 0 : $jscomp$destructuring$var37.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var37.upload_protocol ? void 0 : $jscomp$destructuring$var37.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/filmstripThumbnails\/[^/]+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.filmstripThumbnails.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_HttpBody});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.filmstripThumbnails.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsFilmstripThumbnailsApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsImageApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsImageApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsImageApiClient$XgafvEnum = {get 1() {
@@ -10889,32 +10912,31 @@ module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientAltEnum = {get JS
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsImageApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsImageApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsImageApiClientImpl.prototype.computePixels = function(project, $requestBody, $jscomp$destructuring$var38) {
+module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientImpl.prototype.computePixels = function(project, $requestBody, $jscomp$destructuring$var38) {
   var $jscomp$destructuring$var39 = void 0 === $jscomp$destructuring$var38 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var38, $Xgafv = void 0 === $jscomp$destructuring$var39.$Xgafv ? void 0 : $jscomp$destructuring$var39.$Xgafv, access_token = void 0 === $jscomp$destructuring$var39.access_token ? void 0 : $jscomp$destructuring$var39.access_token, 
   alt = void 0 === $jscomp$destructuring$var39.alt ? void 0 : $jscomp$destructuring$var39.alt, callback = void 0 === $jscomp$destructuring$var39.callback ? void 0 : $jscomp$destructuring$var39.callback, fields = void 0 === $jscomp$destructuring$var39.fields ? void 0 : $jscomp$destructuring$var39.fields, key = void 0 === $jscomp$destructuring$var39.key ? void 0 : $jscomp$destructuring$var39.key, oauth_token = void 0 === $jscomp$destructuring$var39.oauth_token ? void 0 : $jscomp$destructuring$var39.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var39.prettyPrint ? void 0 : $jscomp$destructuring$var39.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var39.quotaUser ? void 0 : $jscomp$destructuring$var39.quotaUser, uploadType = void 0 === $jscomp$destructuring$var39.uploadType ? void 0 : $jscomp$destructuring$var39.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var39.upload_protocol ? void 0 : $jscomp$destructuring$var39.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.image.computePixels", path:"/" + this.gapiVersion + "/" + project + "/image:computePixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_HttpBody});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.image.computePixels", path:"/" + this.gapiVersion + "/" + project + "/image:computePixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsImageApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var40) {
+module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var40) {
   var $jscomp$destructuring$var41 = void 0 === $jscomp$destructuring$var40 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var40, $Xgafv = void 0 === $jscomp$destructuring$var41.$Xgafv ? void 0 : $jscomp$destructuring$var41.$Xgafv, access_token = void 0 === $jscomp$destructuring$var41.access_token ? void 0 : $jscomp$destructuring$var41.access_token, 
   alt = void 0 === $jscomp$destructuring$var41.alt ? void 0 : $jscomp$destructuring$var41.alt, callback = void 0 === $jscomp$destructuring$var41.callback ? void 0 : $jscomp$destructuring$var41.callback, fields = void 0 === $jscomp$destructuring$var41.fields ? void 0 : $jscomp$destructuring$var41.fields, key = void 0 === $jscomp$destructuring$var41.key ? void 0 : $jscomp$destructuring$var41.key, oauth_token = void 0 === $jscomp$destructuring$var41.oauth_token ? void 0 : $jscomp$destructuring$var41.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var41.prettyPrint ? void 0 : $jscomp$destructuring$var41.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var41.quotaUser ? void 0 : $jscomp$destructuring$var41.quotaUser, uploadType = void 0 === $jscomp$destructuring$var41.uploadType ? void 0 : $jscomp$destructuring$var41.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var41.upload_protocol ? void 0 : $jscomp$destructuring$var41.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.image.export", path:"/" + this.gapiVersion + "/" + project + "/image:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Operation});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.image.export", path:"/" + this.gapiVersion + "/" + project + "/image:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsImageApiClientImpl.prototype["import"] = function(project, $requestBody, $jscomp$destructuring$var42) {
+module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientImpl.prototype["import"] = function(project, $requestBody, $jscomp$destructuring$var42) {
   var $jscomp$destructuring$var43 = void 0 === $jscomp$destructuring$var42 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var42, $Xgafv = void 0 === $jscomp$destructuring$var43.$Xgafv ? void 0 : $jscomp$destructuring$var43.$Xgafv, access_token = void 0 === $jscomp$destructuring$var43.access_token ? void 0 : $jscomp$destructuring$var43.access_token, 
   alt = void 0 === $jscomp$destructuring$var43.alt ? void 0 : $jscomp$destructuring$var43.alt, callback = void 0 === $jscomp$destructuring$var43.callback ? void 0 : $jscomp$destructuring$var43.callback, fields = void 0 === $jscomp$destructuring$var43.fields ? void 0 : $jscomp$destructuring$var43.fields, key = void 0 === $jscomp$destructuring$var43.key ? void 0 : $jscomp$destructuring$var43.key, oauth_token = void 0 === $jscomp$destructuring$var43.oauth_token ? void 0 : $jscomp$destructuring$var43.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var43.prettyPrint ? void 0 : $jscomp$destructuring$var43.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var43.quotaUser ? void 0 : $jscomp$destructuring$var43.quotaUser, uploadType = void 0 === $jscomp$destructuring$var43.uploadType ? void 0 : $jscomp$destructuring$var43.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var43.upload_protocol ? void 0 : $jscomp$destructuring$var43.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.image.import", path:"/" + this.gapiVersion + "/" + project + "/image:import", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Operation});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.image.import", path:"/" + this.gapiVersion + "/" + project + "/image:import", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsImageApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsImageCollectionApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsImageCollectionApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsImageCollectionApiClient$XgafvEnum = {get 1() {
@@ -10937,18 +10959,17 @@ module$exports$eeapiclient$ee_api_client.ProjectsImageCollectionApiClientAltEnum
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsImageCollectionApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsImageCollectionApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsImageCollectionApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsImageCollectionApiClientImpl.prototype.computeImages = function(project, $requestBody, $jscomp$destructuring$var44) {
+module$exports$eeapiclient$ee_api_client.ProjectsImageCollectionApiClientImpl.prototype.computeImages = function(project, $requestBody, $jscomp$destructuring$var44) {
   var $jscomp$destructuring$var45 = void 0 === $jscomp$destructuring$var44 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var44, $Xgafv = void 0 === $jscomp$destructuring$var45.$Xgafv ? void 0 : $jscomp$destructuring$var45.$Xgafv, access_token = void 0 === $jscomp$destructuring$var45.access_token ? void 0 : $jscomp$destructuring$var45.access_token, 
   alt = void 0 === $jscomp$destructuring$var45.alt ? void 0 : $jscomp$destructuring$var45.alt, callback = void 0 === $jscomp$destructuring$var45.callback ? void 0 : $jscomp$destructuring$var45.callback, fields = void 0 === $jscomp$destructuring$var45.fields ? void 0 : $jscomp$destructuring$var45.fields, key = void 0 === $jscomp$destructuring$var45.key ? void 0 : $jscomp$destructuring$var45.key, oauth_token = void 0 === $jscomp$destructuring$var45.oauth_token ? void 0 : $jscomp$destructuring$var45.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var45.prettyPrint ? void 0 : $jscomp$destructuring$var45.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var45.quotaUser ? void 0 : $jscomp$destructuring$var45.quotaUser, uploadType = void 0 === $jscomp$destructuring$var45.uploadType ? void 0 : $jscomp$destructuring$var45.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var45.upload_protocol ? void 0 : $jscomp$destructuring$var45.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.imageCollection.computeImages", path:"/" + this.gapiVersion + "/" + project + "/imageCollection:computeImages", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_ComputeImagesResponse});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.imageCollection.computeImages", path:"/" + this.gapiVersion + "/" + project + "/imageCollection:computeImages", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.ComputeImagesResponse});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsImageCollectionApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsImageCollectionApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsMapApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsMapApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsMapApiClient$XgafvEnum = {get 1() {
@@ -10971,18 +10992,17 @@ module$exports$eeapiclient$ee_api_client.ProjectsMapApiClientAltEnum = {get JSON
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsMapApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsMapApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsMapApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsMapApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var46) {
+module$exports$eeapiclient$ee_api_client.ProjectsMapApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var46) {
   var $jscomp$destructuring$var47 = void 0 === $jscomp$destructuring$var46 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var46, $Xgafv = void 0 === $jscomp$destructuring$var47.$Xgafv ? void 0 : $jscomp$destructuring$var47.$Xgafv, access_token = void 0 === $jscomp$destructuring$var47.access_token ? void 0 : $jscomp$destructuring$var47.access_token, 
   alt = void 0 === $jscomp$destructuring$var47.alt ? void 0 : $jscomp$destructuring$var47.alt, callback = void 0 === $jscomp$destructuring$var47.callback ? void 0 : $jscomp$destructuring$var47.callback, fields = void 0 === $jscomp$destructuring$var47.fields ? void 0 : $jscomp$destructuring$var47.fields, key = void 0 === $jscomp$destructuring$var47.key ? void 0 : $jscomp$destructuring$var47.key, oauth_token = void 0 === $jscomp$destructuring$var47.oauth_token ? void 0 : $jscomp$destructuring$var47.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var47.prettyPrint ? void 0 : $jscomp$destructuring$var47.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var47.quotaUser ? void 0 : $jscomp$destructuring$var47.quotaUser, uploadType = void 0 === $jscomp$destructuring$var47.uploadType ? void 0 : $jscomp$destructuring$var47.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var47.upload_protocol ? void 0 : $jscomp$destructuring$var47.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.map.export", path:"/" + this.gapiVersion + "/" + project + "/map:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Operation});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.map.export", path:"/" + this.gapiVersion + "/" + project + "/map:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsMapApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsMapApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsMapsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsMapsApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsMapsApiClient$XgafvEnum = {get 1() {
@@ -11005,18 +11025,17 @@ module$exports$eeapiclient$ee_api_client.ProjectsMapsApiClientAltEnum = {get JSO
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsMapsApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsMapsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsMapsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsMapsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var48) {
+module$exports$eeapiclient$ee_api_client.ProjectsMapsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var48) {
   var $jscomp$destructuring$var49 = void 0 === $jscomp$destructuring$var48 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var48, $Xgafv = void 0 === $jscomp$destructuring$var49.$Xgafv ? void 0 : $jscomp$destructuring$var49.$Xgafv, access_token = void 0 === $jscomp$destructuring$var49.access_token ? void 0 : $jscomp$destructuring$var49.access_token, 
   alt = void 0 === $jscomp$destructuring$var49.alt ? void 0 : $jscomp$destructuring$var49.alt, callback = void 0 === $jscomp$destructuring$var49.callback ? void 0 : $jscomp$destructuring$var49.callback, fields = void 0 === $jscomp$destructuring$var49.fields ? void 0 : $jscomp$destructuring$var49.fields, key = void 0 === $jscomp$destructuring$var49.key ? void 0 : $jscomp$destructuring$var49.key, oauth_token = void 0 === $jscomp$destructuring$var49.oauth_token ? void 0 : $jscomp$destructuring$var49.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var49.prettyPrint ? void 0 : $jscomp$destructuring$var49.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var49.quotaUser ? void 0 : $jscomp$destructuring$var49.quotaUser, uploadType = void 0 === $jscomp$destructuring$var49.uploadType ? void 0 : $jscomp$destructuring$var49.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var49.upload_protocol ? void 0 : $jscomp$destructuring$var49.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.maps.create", path:"/" + this.gapiVersion + "/" + parent + "/maps", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_EarthEngineMap});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.maps.create", path:"/" + this.gapiVersion + "/" + parent + "/maps", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineMap});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsMapsApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsMapsApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsMapsTilesApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsMapsTilesApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsMapsTilesApiClient$XgafvEnum = {get 1() {
@@ -11039,18 +11058,17 @@ module$exports$eeapiclient$ee_api_client.ProjectsMapsTilesApiClientAltEnum = {ge
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsMapsTilesApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsMapsTilesApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsMapsTilesApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsMapsTilesApiClientImpl.prototype.get = function(parent, zoom, x, y, $jscomp$destructuring$var50) {
+module$exports$eeapiclient$ee_api_client.ProjectsMapsTilesApiClientImpl.prototype.get = function(parent, zoom, x, y, $jscomp$destructuring$var50) {
   var $jscomp$destructuring$var51 = void 0 === $jscomp$destructuring$var50 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var50, $Xgafv = void 0 === $jscomp$destructuring$var51.$Xgafv ? void 0 : $jscomp$destructuring$var51.$Xgafv, access_token = void 0 === $jscomp$destructuring$var51.access_token ? void 0 : $jscomp$destructuring$var51.access_token, 
   alt = void 0 === $jscomp$destructuring$var51.alt ? void 0 : $jscomp$destructuring$var51.alt, callback = void 0 === $jscomp$destructuring$var51.callback ? void 0 : $jscomp$destructuring$var51.callback, fields = void 0 === $jscomp$destructuring$var51.fields ? void 0 : $jscomp$destructuring$var51.fields, key = void 0 === $jscomp$destructuring$var51.key ? void 0 : $jscomp$destructuring$var51.key, oauth_token = void 0 === $jscomp$destructuring$var51.oauth_token ? void 0 : $jscomp$destructuring$var51.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var51.prettyPrint ? void 0 : $jscomp$destructuring$var51.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var51.quotaUser ? void 0 : $jscomp$destructuring$var51.quotaUser, uploadType = void 0 === $jscomp$destructuring$var51.uploadType ? void 0 : $jscomp$destructuring$var51.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var51.upload_protocol ? void 0 : $jscomp$destructuring$var51.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/maps\/[^/]+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.maps.tiles.get", path:"/" + this.gapiVersion + "/" + parent + "/tiles/" + zoom + "/" + x + "/" + y, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_HttpBody});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.maps.tiles.get", path:"/" + this.gapiVersion + "/" + parent + "/tiles/" + zoom + "/" + x + "/" + y, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsMapsTilesApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsMapsTilesApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsOperationsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsOperationsApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClient$XgafvEnum = {get 1() {
@@ -11073,47 +11091,46 @@ module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientAltEnum = {g
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsOperationsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsOperationsApiClientImpl.prototype.cancel = function(name, $requestBody, $jscomp$destructuring$var52) {
+module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype.cancel = function(name, $requestBody, $jscomp$destructuring$var52) {
   var $jscomp$destructuring$var53 = void 0 === $jscomp$destructuring$var52 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var52, $Xgafv = void 0 === $jscomp$destructuring$var53.$Xgafv ? void 0 : $jscomp$destructuring$var53.$Xgafv, access_token = void 0 === $jscomp$destructuring$var53.access_token ? void 0 : $jscomp$destructuring$var53.access_token, 
   alt = void 0 === $jscomp$destructuring$var53.alt ? void 0 : $jscomp$destructuring$var53.alt, callback = void 0 === $jscomp$destructuring$var53.callback ? void 0 : $jscomp$destructuring$var53.callback, fields = void 0 === $jscomp$destructuring$var53.fields ? void 0 : $jscomp$destructuring$var53.fields, key = void 0 === $jscomp$destructuring$var53.key ? void 0 : $jscomp$destructuring$var53.key, oauth_token = void 0 === $jscomp$destructuring$var53.oauth_token ? void 0 : $jscomp$destructuring$var53.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var53.prettyPrint ? void 0 : $jscomp$destructuring$var53.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var53.quotaUser ? void 0 : $jscomp$destructuring$var53.quotaUser, uploadType = void 0 === $jscomp$destructuring$var53.uploadType ? void 0 : $jscomp$destructuring$var53.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var53.upload_protocol ? void 0 : $jscomp$destructuring$var53.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/operations\/.+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.operations.cancel", path:"/" + this.gapiVersion + "/" + name + ":cancel", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Empty});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.operations.cancel", path:"/" + this.gapiVersion + "/" + name + ":cancel", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Empty});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsOperationsApiClientImpl.prototype["delete"] = function(name, $jscomp$destructuring$var54) {
+module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype["delete"] = function(name, $jscomp$destructuring$var54) {
   var $jscomp$destructuring$var55 = void 0 === $jscomp$destructuring$var54 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var54, $Xgafv = void 0 === $jscomp$destructuring$var55.$Xgafv ? void 0 : $jscomp$destructuring$var55.$Xgafv, access_token = void 0 === $jscomp$destructuring$var55.access_token ? void 0 : $jscomp$destructuring$var55.access_token, 
   alt = void 0 === $jscomp$destructuring$var55.alt ? void 0 : $jscomp$destructuring$var55.alt, callback = void 0 === $jscomp$destructuring$var55.callback ? void 0 : $jscomp$destructuring$var55.callback, fields = void 0 === $jscomp$destructuring$var55.fields ? void 0 : $jscomp$destructuring$var55.fields, key = void 0 === $jscomp$destructuring$var55.key ? void 0 : $jscomp$destructuring$var55.key, oauth_token = void 0 === $jscomp$destructuring$var55.oauth_token ? void 0 : $jscomp$destructuring$var55.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var55.prettyPrint ? void 0 : $jscomp$destructuring$var55.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var55.quotaUser ? void 0 : $jscomp$destructuring$var55.quotaUser, uploadType = void 0 === $jscomp$destructuring$var55.uploadType ? void 0 : $jscomp$destructuring$var55.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var55.upload_protocol ? void 0 : $jscomp$destructuring$var55.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/operations\/.+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"DELETE", methodId:"earthengine.projects.operations.delete", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Empty});
+  return this.$apiClient.$request({body:null, httpMethod:"DELETE", methodId:"earthengine.projects.operations.delete", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Empty});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsOperationsApiClientImpl.prototype.get = function(name, $jscomp$destructuring$var56) {
+module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype.get = function(name, $jscomp$destructuring$var56) {
   var $jscomp$destructuring$var57 = void 0 === $jscomp$destructuring$var56 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var56, $Xgafv = void 0 === $jscomp$destructuring$var57.$Xgafv ? void 0 : $jscomp$destructuring$var57.$Xgafv, access_token = void 0 === $jscomp$destructuring$var57.access_token ? void 0 : $jscomp$destructuring$var57.access_token, 
   alt = void 0 === $jscomp$destructuring$var57.alt ? void 0 : $jscomp$destructuring$var57.alt, callback = void 0 === $jscomp$destructuring$var57.callback ? void 0 : $jscomp$destructuring$var57.callback, fields = void 0 === $jscomp$destructuring$var57.fields ? void 0 : $jscomp$destructuring$var57.fields, key = void 0 === $jscomp$destructuring$var57.key ? void 0 : $jscomp$destructuring$var57.key, oauth_token = void 0 === $jscomp$destructuring$var57.oauth_token ? void 0 : $jscomp$destructuring$var57.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var57.prettyPrint ? void 0 : $jscomp$destructuring$var57.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var57.quotaUser ? void 0 : $jscomp$destructuring$var57.quotaUser, uploadType = void 0 === $jscomp$destructuring$var57.uploadType ? void 0 : $jscomp$destructuring$var57.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var57.upload_protocol ? void 0 : $jscomp$destructuring$var57.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/operations\/.+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.operations.get", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Operation});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.operations.get", path:"/" + this.gapiVersion + "/" + name, queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsOperationsApiClientImpl.prototype.list = function(name, $jscomp$destructuring$var58) {
+module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype.list = function(name, $jscomp$destructuring$var58) {
   var $jscomp$destructuring$var59 = void 0 === $jscomp$destructuring$var58 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, filter:void 0, key:void 0, oauth_token:void 0, pageSize:void 0, pageToken:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var58, $Xgafv = void 0 === $jscomp$destructuring$var59.$Xgafv ? void 0 : $jscomp$destructuring$var59.$Xgafv, access_token = void 0 === $jscomp$destructuring$var59.access_token ? 
   void 0 : $jscomp$destructuring$var59.access_token, alt = void 0 === $jscomp$destructuring$var59.alt ? void 0 : $jscomp$destructuring$var59.alt, callback = void 0 === $jscomp$destructuring$var59.callback ? void 0 : $jscomp$destructuring$var59.callback, fields = void 0 === $jscomp$destructuring$var59.fields ? void 0 : $jscomp$destructuring$var59.fields, filter = void 0 === $jscomp$destructuring$var59.filter ? void 0 : $jscomp$destructuring$var59.filter, key = void 0 === $jscomp$destructuring$var59.key ? 
   void 0 : $jscomp$destructuring$var59.key, oauth_token = void 0 === $jscomp$destructuring$var59.oauth_token ? void 0 : $jscomp$destructuring$var59.oauth_token, pageSize = void 0 === $jscomp$destructuring$var59.pageSize ? void 0 : $jscomp$destructuring$var59.pageSize, pageToken = void 0 === $jscomp$destructuring$var59.pageToken ? void 0 : $jscomp$destructuring$var59.pageToken, prettyPrint = void 0 === $jscomp$destructuring$var59.prettyPrint ? void 0 : $jscomp$destructuring$var59.prettyPrint, quotaUser = 
   void 0 === $jscomp$destructuring$var59.quotaUser ? void 0 : $jscomp$destructuring$var59.quotaUser, uploadType = void 0 === $jscomp$destructuring$var59.uploadType ? void 0 : $jscomp$destructuring$var59.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var59.upload_protocol ? void 0 : $jscomp$destructuring$var59.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.operations.list", path:"/" + this.gapiVersion + "/" + name + "/operations", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, filter:filter, key:key, oauth_token:oauth_token, pageSize:pageSize, pageToken:pageToken, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_ListOperationsResponse});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.operations.list", path:"/" + this.gapiVersion + "/" + name + "/operations", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, filter:filter, key:key, oauth_token:oauth_token, pageSize:pageSize, pageToken:pageToken, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.ListOperationsResponse});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsOperationsApiClientImpl.prototype.wait = function(name, $requestBody, $jscomp$destructuring$var60) {
+module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype.wait = function(name, $requestBody, $jscomp$destructuring$var60) {
   var $jscomp$destructuring$var61 = void 0 === $jscomp$destructuring$var60 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var60, $Xgafv = void 0 === $jscomp$destructuring$var61.$Xgafv ? void 0 : $jscomp$destructuring$var61.$Xgafv, access_token = void 0 === $jscomp$destructuring$var61.access_token ? void 0 : $jscomp$destructuring$var61.access_token, 
   alt = void 0 === $jscomp$destructuring$var61.alt ? void 0 : $jscomp$destructuring$var61.alt, callback = void 0 === $jscomp$destructuring$var61.callback ? void 0 : $jscomp$destructuring$var61.callback, fields = void 0 === $jscomp$destructuring$var61.fields ? void 0 : $jscomp$destructuring$var61.fields, key = void 0 === $jscomp$destructuring$var61.key ? void 0 : $jscomp$destructuring$var61.key, oauth_token = void 0 === $jscomp$destructuring$var61.oauth_token ? void 0 : $jscomp$destructuring$var61.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var61.prettyPrint ? void 0 : $jscomp$destructuring$var61.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var61.quotaUser ? void 0 : $jscomp$destructuring$var61.quotaUser, uploadType = void 0 === $jscomp$destructuring$var61.uploadType ? void 0 : $jscomp$destructuring$var61.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var61.upload_protocol ? void 0 : $jscomp$destructuring$var61.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/operations\/.+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.operations.wait", path:"/" + this.gapiVersion + "/" + name + ":wait", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Operation});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.operations.wait", path:"/" + this.gapiVersion + "/" + name + ":wait", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsOperationsApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsTableApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsTableApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsTableApiClient$XgafvEnum = {get 1() {
@@ -11136,32 +11153,31 @@ module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientAltEnum = {get JS
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsTableApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsTableApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsTableApiClientImpl.prototype.computeFeatures = function(project, $requestBody, $jscomp$destructuring$var62) {
+module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientImpl.prototype.computeFeatures = function(project, $requestBody, $jscomp$destructuring$var62) {
   var $jscomp$destructuring$var63 = void 0 === $jscomp$destructuring$var62 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var62, $Xgafv = void 0 === $jscomp$destructuring$var63.$Xgafv ? void 0 : $jscomp$destructuring$var63.$Xgafv, access_token = void 0 === $jscomp$destructuring$var63.access_token ? void 0 : $jscomp$destructuring$var63.access_token, 
   alt = void 0 === $jscomp$destructuring$var63.alt ? void 0 : $jscomp$destructuring$var63.alt, callback = void 0 === $jscomp$destructuring$var63.callback ? void 0 : $jscomp$destructuring$var63.callback, fields = void 0 === $jscomp$destructuring$var63.fields ? void 0 : $jscomp$destructuring$var63.fields, key = void 0 === $jscomp$destructuring$var63.key ? void 0 : $jscomp$destructuring$var63.key, oauth_token = void 0 === $jscomp$destructuring$var63.oauth_token ? void 0 : $jscomp$destructuring$var63.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var63.prettyPrint ? void 0 : $jscomp$destructuring$var63.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var63.quotaUser ? void 0 : $jscomp$destructuring$var63.quotaUser, uploadType = void 0 === $jscomp$destructuring$var63.uploadType ? void 0 : $jscomp$destructuring$var63.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var63.upload_protocol ? void 0 : $jscomp$destructuring$var63.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.table.computeFeatures", path:"/" + this.gapiVersion + "/" + project + "/table:computeFeatures", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponse});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.table.computeFeatures", path:"/" + this.gapiVersion + "/" + project + "/table:computeFeatures", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponse});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsTableApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var64) {
+module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var64) {
   var $jscomp$destructuring$var65 = void 0 === $jscomp$destructuring$var64 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var64, $Xgafv = void 0 === $jscomp$destructuring$var65.$Xgafv ? void 0 : $jscomp$destructuring$var65.$Xgafv, access_token = void 0 === $jscomp$destructuring$var65.access_token ? void 0 : $jscomp$destructuring$var65.access_token, 
   alt = void 0 === $jscomp$destructuring$var65.alt ? void 0 : $jscomp$destructuring$var65.alt, callback = void 0 === $jscomp$destructuring$var65.callback ? void 0 : $jscomp$destructuring$var65.callback, fields = void 0 === $jscomp$destructuring$var65.fields ? void 0 : $jscomp$destructuring$var65.fields, key = void 0 === $jscomp$destructuring$var65.key ? void 0 : $jscomp$destructuring$var65.key, oauth_token = void 0 === $jscomp$destructuring$var65.oauth_token ? void 0 : $jscomp$destructuring$var65.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var65.prettyPrint ? void 0 : $jscomp$destructuring$var65.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var65.quotaUser ? void 0 : $jscomp$destructuring$var65.quotaUser, uploadType = void 0 === $jscomp$destructuring$var65.uploadType ? void 0 : $jscomp$destructuring$var65.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var65.upload_protocol ? void 0 : $jscomp$destructuring$var65.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.table.export", path:"/" + this.gapiVersion + "/" + project + "/table:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Operation});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.table.export", path:"/" + this.gapiVersion + "/" + project + "/table:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsTableApiClientImpl.prototype["import"] = function(project, $requestBody, $jscomp$destructuring$var66) {
+module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientImpl.prototype["import"] = function(project, $requestBody, $jscomp$destructuring$var66) {
   var $jscomp$destructuring$var67 = void 0 === $jscomp$destructuring$var66 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var66, $Xgafv = void 0 === $jscomp$destructuring$var67.$Xgafv ? void 0 : $jscomp$destructuring$var67.$Xgafv, access_token = void 0 === $jscomp$destructuring$var67.access_token ? void 0 : $jscomp$destructuring$var67.access_token, 
   alt = void 0 === $jscomp$destructuring$var67.alt ? void 0 : $jscomp$destructuring$var67.alt, callback = void 0 === $jscomp$destructuring$var67.callback ? void 0 : $jscomp$destructuring$var67.callback, fields = void 0 === $jscomp$destructuring$var67.fields ? void 0 : $jscomp$destructuring$var67.fields, key = void 0 === $jscomp$destructuring$var67.key ? void 0 : $jscomp$destructuring$var67.key, oauth_token = void 0 === $jscomp$destructuring$var67.oauth_token ? void 0 : $jscomp$destructuring$var67.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var67.prettyPrint ? void 0 : $jscomp$destructuring$var67.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var67.quotaUser ? void 0 : $jscomp$destructuring$var67.quotaUser, uploadType = void 0 === $jscomp$destructuring$var67.uploadType ? void 0 : $jscomp$destructuring$var67.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var67.upload_protocol ? void 0 : $jscomp$destructuring$var67.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.table.import", path:"/" + this.gapiVersion + "/" + project + "/table:import", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Operation});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.table.import", path:"/" + this.gapiVersion + "/" + project + "/table:import", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsTableApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsThumbnailsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsThumbnailsApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClient$XgafvEnum = {get 1() {
@@ -11184,25 +11200,24 @@ module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClientAltEnum = {g
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsThumbnailsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var68) {
+module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var68) {
   var $jscomp$destructuring$var69 = void 0 === $jscomp$destructuring$var68 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var68, $Xgafv = void 0 === $jscomp$destructuring$var69.$Xgafv ? void 0 : $jscomp$destructuring$var69.$Xgafv, access_token = void 0 === $jscomp$destructuring$var69.access_token ? void 0 : $jscomp$destructuring$var69.access_token, 
   alt = void 0 === $jscomp$destructuring$var69.alt ? void 0 : $jscomp$destructuring$var69.alt, callback = void 0 === $jscomp$destructuring$var69.callback ? void 0 : $jscomp$destructuring$var69.callback, fields = void 0 === $jscomp$destructuring$var69.fields ? void 0 : $jscomp$destructuring$var69.fields, key = void 0 === $jscomp$destructuring$var69.key ? void 0 : $jscomp$destructuring$var69.key, oauth_token = void 0 === $jscomp$destructuring$var69.oauth_token ? void 0 : $jscomp$destructuring$var69.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var69.prettyPrint ? void 0 : $jscomp$destructuring$var69.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var69.quotaUser ? void 0 : $jscomp$destructuring$var69.quotaUser, uploadType = void 0 === $jscomp$destructuring$var69.uploadType ? void 0 : $jscomp$destructuring$var69.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var69.upload_protocol ? void 0 : $jscomp$destructuring$var69.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.thumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/thumbnails", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Thumbnail});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.thumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/thumbnails", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Thumbnail});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsThumbnailsApiClientImpl.prototype.getPixels = function(name, $jscomp$destructuring$var70) {
+module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClientImpl.prototype.getPixels = function(name, $jscomp$destructuring$var70) {
   var $jscomp$destructuring$var71 = void 0 === $jscomp$destructuring$var70 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var70, $Xgafv = void 0 === $jscomp$destructuring$var71.$Xgafv ? void 0 : $jscomp$destructuring$var71.$Xgafv, access_token = void 0 === $jscomp$destructuring$var71.access_token ? void 0 : $jscomp$destructuring$var71.access_token, 
   alt = void 0 === $jscomp$destructuring$var71.alt ? void 0 : $jscomp$destructuring$var71.alt, callback = void 0 === $jscomp$destructuring$var71.callback ? void 0 : $jscomp$destructuring$var71.callback, fields = void 0 === $jscomp$destructuring$var71.fields ? void 0 : $jscomp$destructuring$var71.fields, key = void 0 === $jscomp$destructuring$var71.key ? void 0 : $jscomp$destructuring$var71.key, oauth_token = void 0 === $jscomp$destructuring$var71.oauth_token ? void 0 : $jscomp$destructuring$var71.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var71.prettyPrint ? void 0 : $jscomp$destructuring$var71.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var71.quotaUser ? void 0 : $jscomp$destructuring$var71.quotaUser, uploadType = void 0 === $jscomp$destructuring$var71.uploadType ? void 0 : $jscomp$destructuring$var71.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var71.upload_protocol ? void 0 : $jscomp$destructuring$var71.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/thumbnails\/[^/]+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.thumbnails.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_HttpBody});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.thumbnails.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsThumbnailsApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsValueApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsValueApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsValueApiClient$XgafvEnum = {get 1() {
@@ -11225,18 +11240,17 @@ module$exports$eeapiclient$ee_api_client.ProjectsValueApiClientAltEnum = {get JS
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsValueApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsValueApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsValueApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsValueApiClientImpl.prototype.compute = function(project, $requestBody, $jscomp$destructuring$var72) {
+module$exports$eeapiclient$ee_api_client.ProjectsValueApiClientImpl.prototype.compute = function(project, $requestBody, $jscomp$destructuring$var72) {
   var $jscomp$destructuring$var73 = void 0 === $jscomp$destructuring$var72 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var72, $Xgafv = void 0 === $jscomp$destructuring$var73.$Xgafv ? void 0 : $jscomp$destructuring$var73.$Xgafv, access_token = void 0 === $jscomp$destructuring$var73.access_token ? void 0 : $jscomp$destructuring$var73.access_token, 
   alt = void 0 === $jscomp$destructuring$var73.alt ? void 0 : $jscomp$destructuring$var73.alt, callback = void 0 === $jscomp$destructuring$var73.callback ? void 0 : $jscomp$destructuring$var73.callback, fields = void 0 === $jscomp$destructuring$var73.fields ? void 0 : $jscomp$destructuring$var73.fields, key = void 0 === $jscomp$destructuring$var73.key ? void 0 : $jscomp$destructuring$var73.key, oauth_token = void 0 === $jscomp$destructuring$var73.oauth_token ? void 0 : $jscomp$destructuring$var73.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var73.prettyPrint ? void 0 : $jscomp$destructuring$var73.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var73.quotaUser ? void 0 : $jscomp$destructuring$var73.quotaUser, uploadType = void 0 === $jscomp$destructuring$var73.uploadType ? void 0 : $jscomp$destructuring$var73.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var73.upload_protocol ? void 0 : $jscomp$destructuring$var73.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.value.compute", path:"/" + this.gapiVersion + "/" + project + "/value:compute", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_ComputeValueResponse});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.value.compute", path:"/" + this.gapiVersion + "/" + project + "/value:compute", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.ComputeValueResponse});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsValueApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsValueApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsVideoApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsVideoApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsVideoApiClient$XgafvEnum = {get 1() {
@@ -11259,18 +11273,17 @@ module$exports$eeapiclient$ee_api_client.ProjectsVideoApiClientAltEnum = {get JS
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsVideoApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsVideoApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsVideoApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsVideoApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var74) {
+module$exports$eeapiclient$ee_api_client.ProjectsVideoApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var74) {
   var $jscomp$destructuring$var75 = void 0 === $jscomp$destructuring$var74 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var74, $Xgafv = void 0 === $jscomp$destructuring$var75.$Xgafv ? void 0 : $jscomp$destructuring$var75.$Xgafv, access_token = void 0 === $jscomp$destructuring$var75.access_token ? void 0 : $jscomp$destructuring$var75.access_token, 
   alt = void 0 === $jscomp$destructuring$var75.alt ? void 0 : $jscomp$destructuring$var75.alt, callback = void 0 === $jscomp$destructuring$var75.callback ? void 0 : $jscomp$destructuring$var75.callback, fields = void 0 === $jscomp$destructuring$var75.fields ? void 0 : $jscomp$destructuring$var75.fields, key = void 0 === $jscomp$destructuring$var75.key ? void 0 : $jscomp$destructuring$var75.key, oauth_token = void 0 === $jscomp$destructuring$var75.oauth_token ? void 0 : $jscomp$destructuring$var75.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var75.prettyPrint ? void 0 : $jscomp$destructuring$var75.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var75.quotaUser ? void 0 : $jscomp$destructuring$var75.quotaUser, uploadType = void 0 === $jscomp$destructuring$var75.uploadType ? void 0 : $jscomp$destructuring$var75.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var75.upload_protocol ? void 0 : $jscomp$destructuring$var75.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.video.export", path:"/" + this.gapiVersion + "/" + project + "/video:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Operation});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.video.export", path:"/" + this.gapiVersion + "/" + project + "/video:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsVideoApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsVideoApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsVideoMapApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsVideoMapApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsVideoMapApiClient$XgafvEnum = {get 1() {
@@ -11293,18 +11306,17 @@ module$exports$eeapiclient$ee_api_client.ProjectsVideoMapApiClientAltEnum = {get
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsVideoMapApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsVideoMapApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsVideoMapApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsVideoMapApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var76) {
+module$exports$eeapiclient$ee_api_client.ProjectsVideoMapApiClientImpl.prototype["export"] = function(project, $requestBody, $jscomp$destructuring$var76) {
   var $jscomp$destructuring$var77 = void 0 === $jscomp$destructuring$var76 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var76, $Xgafv = void 0 === $jscomp$destructuring$var77.$Xgafv ? void 0 : $jscomp$destructuring$var77.$Xgafv, access_token = void 0 === $jscomp$destructuring$var77.access_token ? void 0 : $jscomp$destructuring$var77.access_token, 
   alt = void 0 === $jscomp$destructuring$var77.alt ? void 0 : $jscomp$destructuring$var77.alt, callback = void 0 === $jscomp$destructuring$var77.callback ? void 0 : $jscomp$destructuring$var77.callback, fields = void 0 === $jscomp$destructuring$var77.fields ? void 0 : $jscomp$destructuring$var77.fields, key = void 0 === $jscomp$destructuring$var77.key ? void 0 : $jscomp$destructuring$var77.key, oauth_token = void 0 === $jscomp$destructuring$var77.oauth_token ? void 0 : $jscomp$destructuring$var77.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var77.prettyPrint ? void 0 : $jscomp$destructuring$var77.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var77.quotaUser ? void 0 : $jscomp$destructuring$var77.quotaUser, uploadType = void 0 === $jscomp$destructuring$var77.uploadType ? void 0 : $jscomp$destructuring$var77.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var77.upload_protocol ? void 0 : $jscomp$destructuring$var77.upload_protocol;
   this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.videoMap.export", path:"/" + this.gapiVersion + "/" + project + "/videoMap:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_Operation});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.videoMap.export", path:"/" + this.gapiVersion + "/" + project + "/videoMap:export", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsVideoMapApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsVideoMapApiClientImpl;
 module$exports$eeapiclient$ee_api_client.IProjectsVideoThumbnailsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsVideoThumbnailsApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClient$XgafvEnum = {get 1() {
@@ -11327,52 +11339,25 @@ module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClientAltEnum
 }};
 module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClient = function() {
 };
-var module$contents$eeapiclient$ee_api_client_ProjectsVideoThumbnailsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
   this.gapiVersion = gapiVersion;
-  this.$apiClient = new module$contents$eeapiclient$promise_api_client_PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
 };
-module$contents$eeapiclient$ee_api_client_ProjectsVideoThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var78) {
+module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, $jscomp$destructuring$var78) {
   var $jscomp$destructuring$var79 = void 0 === $jscomp$destructuring$var78 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var78, $Xgafv = void 0 === $jscomp$destructuring$var79.$Xgafv ? void 0 : $jscomp$destructuring$var79.$Xgafv, access_token = void 0 === $jscomp$destructuring$var79.access_token ? void 0 : $jscomp$destructuring$var79.access_token, 
   alt = void 0 === $jscomp$destructuring$var79.alt ? void 0 : $jscomp$destructuring$var79.alt, callback = void 0 === $jscomp$destructuring$var79.callback ? void 0 : $jscomp$destructuring$var79.callback, fields = void 0 === $jscomp$destructuring$var79.fields ? void 0 : $jscomp$destructuring$var79.fields, key = void 0 === $jscomp$destructuring$var79.key ? void 0 : $jscomp$destructuring$var79.key, oauth_token = void 0 === $jscomp$destructuring$var79.oauth_token ? void 0 : $jscomp$destructuring$var79.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var79.prettyPrint ? void 0 : $jscomp$destructuring$var79.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var79.quotaUser ? void 0 : $jscomp$destructuring$var79.quotaUser, uploadType = void 0 === $jscomp$destructuring$var79.uploadType ? void 0 : $jscomp$destructuring$var79.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var79.upload_protocol ? void 0 : $jscomp$destructuring$var79.upload_protocol;
   this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
-  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.videoThumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/videoThumbnails", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_VideoThumbnail});
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.videoThumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/videoThumbnails", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.VideoThumbnail});
 };
-module$contents$eeapiclient$ee_api_client_ProjectsVideoThumbnailsApiClientImpl.prototype.getPixels = function(name, $jscomp$destructuring$var80) {
+module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClientImpl.prototype.getPixels = function(name, $jscomp$destructuring$var80) {
   var $jscomp$destructuring$var81 = void 0 === $jscomp$destructuring$var80 ? {$Xgafv:void 0, access_token:void 0, alt:void 0, callback:void 0, fields:void 0, key:void 0, oauth_token:void 0, prettyPrint:void 0, quotaUser:void 0, uploadType:void 0, upload_protocol:void 0} : $jscomp$destructuring$var80, $Xgafv = void 0 === $jscomp$destructuring$var81.$Xgafv ? void 0 : $jscomp$destructuring$var81.$Xgafv, access_token = void 0 === $jscomp$destructuring$var81.access_token ? void 0 : $jscomp$destructuring$var81.access_token, 
   alt = void 0 === $jscomp$destructuring$var81.alt ? void 0 : $jscomp$destructuring$var81.alt, callback = void 0 === $jscomp$destructuring$var81.callback ? void 0 : $jscomp$destructuring$var81.callback, fields = void 0 === $jscomp$destructuring$var81.fields ? void 0 : $jscomp$destructuring$var81.fields, key = void 0 === $jscomp$destructuring$var81.key ? void 0 : $jscomp$destructuring$var81.key, oauth_token = void 0 === $jscomp$destructuring$var81.oauth_token ? void 0 : $jscomp$destructuring$var81.oauth_token, 
   prettyPrint = void 0 === $jscomp$destructuring$var81.prettyPrint ? void 0 : $jscomp$destructuring$var81.prettyPrint, quotaUser = void 0 === $jscomp$destructuring$var81.quotaUser ? void 0 : $jscomp$destructuring$var81.quotaUser, uploadType = void 0 === $jscomp$destructuring$var81.uploadType ? void 0 : $jscomp$destructuring$var81.uploadType, upload_protocol = void 0 === $jscomp$destructuring$var81.upload_protocol ? void 0 : $jscomp$destructuring$var81.upload_protocol;
   this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/videoThumbnails\/[^/]+$/);
-  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.videoThumbnails.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$contents$eeapiclient$ee_api_client_HttpBody});
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.videoThumbnails.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:{"$.xgafv":$Xgafv, access_token:access_token, alt:alt, callback:callback, fields:fields, key:key, oauth_token:oauth_token, prettyPrint:prettyPrint, quotaUser:quotaUser, uploadType:uploadType, upload_protocol:upload_protocol}, responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
-module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClientImpl = module$contents$eeapiclient$ee_api_client_ProjectsVideoThumbnailsApiClientImpl;
 ee.api = module$exports$eeapiclient$ee_api_client;
-goog.async = {};
-goog.async.FreeList = function(create, reset, limit) {
-  this.limit_ = limit;
-  this.create_ = create;
-  this.reset_ = reset;
-  this.occupants_ = 0;
-  this.head_ = null;
-};
-goog.async.FreeList.prototype.get = function() {
-  if (0 < this.occupants_) {
-    this.occupants_--;
-    var item = this.head_;
-    this.head_ = item.next;
-    item.next = null;
-  } else {
-    item = this.create_();
-  }
-  return item;
-};
-goog.async.FreeList.prototype.put = function(item) {
-  this.reset_(item);
-  this.occupants_ < this.limit_ && (this.occupants_++, item.next = this.head_, this.head_ = item);
-};
-goog.async.FreeList.prototype.occupants = function() {
-  return this.occupants_;
-};
 goog.dom.BrowserFeature = {};
 goog.dom.BrowserFeature.ASSUME_NO_OFFSCREEN_CANVAS = !1;
 goog.dom.BrowserFeature.ASSUME_OFFSCREEN_CANVAS = !1;
@@ -12346,6 +12331,54 @@ goog.dom.DomHelper.prototype.getAncestorByTagNameAndClass = goog.dom.getAncestor
 goog.dom.DomHelper.prototype.getAncestorByClass = goog.dom.getAncestorByClass;
 goog.dom.DomHelper.prototype.getAncestor = goog.dom.getAncestor;
 goog.dom.DomHelper.prototype.getCanvasContext2D = goog.dom.getCanvasContext2D;
+goog.promise = {};
+goog.promise.Resolver = function() {
+};
+goog.Thenable = function() {
+};
+goog.Thenable.prototype.then = function(opt_onFulfilled, opt_onRejected, opt_context) {
+};
+goog.Thenable.IMPLEMENTED_BY_PROP = "$goog_Thenable";
+goog.Thenable.addImplementation = function(ctor) {
+  ctor.prototype[goog.Thenable.IMPLEMENTED_BY_PROP] = !0;
+};
+goog.Thenable.isImplementedBy = function(object) {
+  if (!object) {
+    return !1;
+  }
+  try {
+    return !!object[goog.Thenable.IMPLEMENTED_BY_PROP];
+    return !!object.$goog_Thenable;
+  } catch (e) {
+    return !1;
+  }
+};
+goog.async = {};
+goog.async.FreeList = function(create, reset, limit) {
+  this.limit_ = limit;
+  this.create_ = create;
+  this.reset_ = reset;
+  this.occupants_ = 0;
+  this.head_ = null;
+};
+goog.async.FreeList.prototype.get = function() {
+  if (0 < this.occupants_) {
+    this.occupants_--;
+    var item = this.head_;
+    this.head_ = item.next;
+    item.next = null;
+  } else {
+    item = this.create_();
+  }
+  return item;
+};
+goog.async.FreeList.prototype.put = function(item) {
+  this.reset_(item);
+  this.occupants_ < this.limit_ && (this.occupants_++, item.next = this.head_, this.head_ = item);
+};
+goog.async.FreeList.prototype.occupants = function() {
+  return this.occupants_;
+};
 goog.async.throwException = function(exception) {
   goog.global.setTimeout(function() {
     throw exception;
@@ -12493,28 +12526,6 @@ goog.async.run.processWorkQueue = function() {
     goog.async.run.workQueue_.returnUnused(item);
   }
   goog.async.run.workQueueScheduled_ = !1;
-};
-goog.promise = {};
-goog.promise.Resolver = function() {
-};
-goog.Thenable = function() {
-};
-goog.Thenable.prototype.then = function(opt_onFulfilled, opt_onRejected, opt_context) {
-};
-goog.Thenable.IMPLEMENTED_BY_PROP = "$goog_Thenable";
-goog.Thenable.addImplementation = function(ctor) {
-  ctor.prototype[goog.Thenable.IMPLEMENTED_BY_PROP] = !0;
-};
-goog.Thenable.isImplementedBy = function(object) {
-  if (!object) {
-    return !1;
-  }
-  try {
-    return !!object[goog.Thenable.IMPLEMENTED_BY_PROP];
-    return !!object.$goog_Thenable;
-  } catch (e) {
-    return !1;
-  }
 };
 goog.Promise = function(resolver, opt_context) {
   this.state_ = goog.Promise.State_.PENDING;
@@ -12870,115 +12881,6 @@ goog.Promise.Resolver_ = function(promise, resolve, reject) {
   this.resolve = resolve;
   this.reject = reject;
 };
-goog.Timer = function(opt_interval, opt_timerObject) {
-  goog.events.EventTarget.call(this);
-  this.interval_ = opt_interval || 1;
-  this.timerObject_ = opt_timerObject || goog.Timer.defaultTimerObject;
-  this.boundTick_ = goog.bind(this.tick_, this);
-  this.last_ = goog.now();
-};
-goog.inherits(goog.Timer, goog.events.EventTarget);
-goog.Timer.MAX_TIMEOUT_ = 2147483647;
-goog.Timer.INVALID_TIMEOUT_ID_ = -1;
-goog.Timer.prototype.enabled = !1;
-goog.Timer.defaultTimerObject = goog.global;
-goog.Timer.intervalScale = 0.8;
-goog.Timer.prototype.timer_ = null;
-goog.Timer.prototype.getInterval = function() {
-  return this.interval_;
-};
-goog.Timer.prototype.setInterval = function(interval) {
-  this.interval_ = interval;
-  this.timer_ && this.enabled ? (this.stop(), this.start()) : this.timer_ && this.stop();
-};
-goog.Timer.prototype.tick_ = function() {
-  if (this.enabled) {
-    var elapsed = goog.now() - this.last_;
-    0 < elapsed && elapsed < this.interval_ * goog.Timer.intervalScale ? this.timer_ = this.timerObject_.setTimeout(this.boundTick_, this.interval_ - elapsed) : (this.timer_ && (this.timerObject_.clearTimeout(this.timer_), this.timer_ = null), this.dispatchTick(), this.enabled && (this.stop(), this.start()));
-  }
-};
-goog.Timer.prototype.dispatchTick = function() {
-  this.dispatchEvent(goog.Timer.TICK);
-};
-goog.Timer.prototype.start = function() {
-  this.enabled = !0;
-  this.timer_ || (this.timer_ = this.timerObject_.setTimeout(this.boundTick_, this.interval_), this.last_ = goog.now());
-};
-goog.Timer.prototype.stop = function() {
-  this.enabled = !1;
-  this.timer_ && (this.timerObject_.clearTimeout(this.timer_), this.timer_ = null);
-};
-goog.Timer.prototype.disposeInternal = function() {
-  goog.Timer.superClass_.disposeInternal.call(this);
-  this.stop();
-  delete this.timerObject_;
-};
-goog.Timer.TICK = "tick";
-goog.Timer.callOnce = function(listener, opt_delay, opt_handler) {
-  if (goog.isFunction(listener)) {
-    opt_handler && (listener = goog.bind(listener, opt_handler));
-  } else {
-    if (listener && "function" == typeof listener.handleEvent) {
-      listener = goog.bind(listener.handleEvent, listener);
-    } else {
-      throw Error("Invalid listener argument");
-    }
-  }
-  return Number(opt_delay) > goog.Timer.MAX_TIMEOUT_ ? goog.Timer.INVALID_TIMEOUT_ID_ : goog.Timer.defaultTimerObject.setTimeout(listener, opt_delay || 0);
-};
-goog.Timer.clear = function(timerId) {
-  goog.Timer.defaultTimerObject.clearTimeout(timerId);
-};
-goog.Timer.promise = function(delay, opt_result) {
-  var timerKey = null;
-  return (new goog.Promise(function(resolve, reject) {
-    timerKey = goog.Timer.callOnce(function() {
-      resolve(opt_result);
-    }, delay);
-    timerKey == goog.Timer.INVALID_TIMEOUT_ID_ && reject(Error("Failed to schedule timer."));
-  })).thenCatch(function(error) {
-    goog.Timer.clear(timerKey);
-    throw error;
-  });
-};
-goog.async.Throttle = function(listener, interval, opt_handler) {
-  goog.Disposable.call(this);
-  this.listener_ = null != opt_handler ? goog.bind(listener, opt_handler) : listener;
-  this.interval_ = interval;
-  this.callback_ = goog.bind(this.onTimer_, this);
-  this.args_ = [];
-};
-goog.inherits(goog.async.Throttle, goog.Disposable);
-goog.Throttle = goog.async.Throttle;
-goog.async.Throttle.prototype.shouldFire_ = !1;
-goog.async.Throttle.prototype.pauseCount_ = 0;
-goog.async.Throttle.prototype.timer_ = null;
-goog.async.Throttle.prototype.fire = function(var_args) {
-  this.args_ = arguments;
-  this.timer_ || this.pauseCount_ ? this.shouldFire_ = !0 : this.doAction_();
-};
-goog.async.Throttle.prototype.stop = function() {
-  this.timer_ && (goog.Timer.clear(this.timer_), this.timer_ = null, this.shouldFire_ = !1, this.args_ = []);
-};
-goog.async.Throttle.prototype.pause = function() {
-  this.pauseCount_++;
-};
-goog.async.Throttle.prototype.resume = function() {
-  this.pauseCount_--;
-  this.pauseCount_ || !this.shouldFire_ || this.timer_ || (this.shouldFire_ = !1, this.doAction_());
-};
-goog.async.Throttle.prototype.disposeInternal = function() {
-  goog.async.Throttle.superClass_.disposeInternal.call(this);
-  this.stop();
-};
-goog.async.Throttle.prototype.onTimer_ = function() {
-  this.timer_ = null;
-  this.shouldFire_ && !this.pauseCount_ && (this.shouldFire_ = !1, this.doAction_());
-};
-goog.async.Throttle.prototype.doAction_ = function() {
-  this.timer_ = goog.Timer.callOnce(this.callback_, this.interval_);
-  this.listener_.apply(null, this.args_);
-};
 /*
  Portions of this code are from MochiKit, received by
  The Closure Authors under the MIT license. All other code is Copyright
@@ -13299,6 +13201,128 @@ goog.net.jsloader.Error = function(code, opt_message) {
   this.code = code;
 };
 goog.inherits(goog.net.jsloader.Error, goog.debug.Error);
+goog.net.ErrorCode = {NO_ERROR:0, ACCESS_DENIED:1, FILE_NOT_FOUND:2, FF_SILENT_ERROR:3, CUSTOM_ERROR:4, EXCEPTION:5, HTTP_ERROR:6, ABORT:7, TIMEOUT:8, OFFLINE:9};
+goog.net.ErrorCode.getDebugMessage = function(errorCode) {
+  switch(errorCode) {
+    case goog.net.ErrorCode.NO_ERROR:
+      return "No Error";
+    case goog.net.ErrorCode.ACCESS_DENIED:
+      return "Access denied to content document";
+    case goog.net.ErrorCode.FILE_NOT_FOUND:
+      return "File not found";
+    case goog.net.ErrorCode.FF_SILENT_ERROR:
+      return "Firefox silently errored";
+    case goog.net.ErrorCode.CUSTOM_ERROR:
+      return "Application custom error";
+    case goog.net.ErrorCode.EXCEPTION:
+      return "An exception occurred";
+    case goog.net.ErrorCode.HTTP_ERROR:
+      return "Http response at 400 or 500 level";
+    case goog.net.ErrorCode.ABORT:
+      return "Request was aborted";
+    case goog.net.ErrorCode.TIMEOUT:
+      return "Request timed out";
+    case goog.net.ErrorCode.OFFLINE:
+      return "The resource is not available offline";
+    default:
+      return "Unrecognized error code";
+  }
+};
+goog.net.EventType = {COMPLETE:"complete", SUCCESS:"success", ERROR:"error", ABORT:"abort", READY:"ready", READY_STATE_CHANGE:"readystatechange", TIMEOUT:"timeout", INCREMENTAL_DATA:"incrementaldata", PROGRESS:"progress", DOWNLOAD_PROGRESS:"downloadprogress", UPLOAD_PROGRESS:"uploadprogress"};
+goog.net.HttpStatus = {CONTINUE:100, SWITCHING_PROTOCOLS:101, OK:200, CREATED:201, ACCEPTED:202, NON_AUTHORITATIVE_INFORMATION:203, NO_CONTENT:204, RESET_CONTENT:205, PARTIAL_CONTENT:206, MULTI_STATUS:207, MULTIPLE_CHOICES:300, MOVED_PERMANENTLY:301, FOUND:302, SEE_OTHER:303, NOT_MODIFIED:304, USE_PROXY:305, TEMPORARY_REDIRECT:307, PERMANENT_REDIRECT:308, BAD_REQUEST:400, UNAUTHORIZED:401, PAYMENT_REQUIRED:402, FORBIDDEN:403, NOT_FOUND:404, METHOD_NOT_ALLOWED:405, NOT_ACCEPTABLE:406, PROXY_AUTHENTICATION_REQUIRED:407, 
+REQUEST_TIMEOUT:408, CONFLICT:409, GONE:410, LENGTH_REQUIRED:411, PRECONDITION_FAILED:412, REQUEST_ENTITY_TOO_LARGE:413, REQUEST_URI_TOO_LONG:414, UNSUPPORTED_MEDIA_TYPE:415, REQUEST_RANGE_NOT_SATISFIABLE:416, EXPECTATION_FAILED:417, UNPROCESSABLE_ENTITY:422, LOCKED:423, FAILED_DEPENDENCY:424, PRECONDITION_REQUIRED:428, TOO_MANY_REQUESTS:429, REQUEST_HEADER_FIELDS_TOO_LARGE:431, INTERNAL_SERVER_ERROR:500, NOT_IMPLEMENTED:501, BAD_GATEWAY:502, SERVICE_UNAVAILABLE:503, GATEWAY_TIMEOUT:504, HTTP_VERSION_NOT_SUPPORTED:505, 
+INSUFFICIENT_STORAGE:507, NETWORK_AUTHENTICATION_REQUIRED:511, QUIRK_IE_NO_CONTENT:1223};
+goog.net.HttpStatus.isSuccess = function(status) {
+  switch(status) {
+    case goog.net.HttpStatus.OK:
+    case goog.net.HttpStatus.CREATED:
+    case goog.net.HttpStatus.ACCEPTED:
+    case goog.net.HttpStatus.NO_CONTENT:
+    case goog.net.HttpStatus.PARTIAL_CONTENT:
+    case goog.net.HttpStatus.NOT_MODIFIED:
+    case goog.net.HttpStatus.QUIRK_IE_NO_CONTENT:
+      return !0;
+    default:
+      return !1;
+  }
+};
+goog.net.XhrLike = function() {
+};
+goog.net.XhrLike.prototype.open = function(method, url, opt_async, opt_user, opt_password) {
+};
+goog.net.XhrLike.prototype.send = function(opt_data) {
+};
+goog.net.XhrLike.prototype.abort = function() {
+};
+goog.net.XhrLike.prototype.setRequestHeader = function(header, value) {
+};
+goog.net.XhrLike.prototype.getResponseHeader = function(header) {
+};
+goog.net.XhrLike.prototype.getAllResponseHeaders = function() {
+};
+goog.net.XmlHttpFactory = function() {
+};
+goog.net.XmlHttpFactory.prototype.cachedOptions_ = null;
+goog.net.XmlHttpFactory.prototype.getOptions = function() {
+  return this.cachedOptions_ || (this.cachedOptions_ = this.internalGetOptions());
+};
+goog.net.WrapperXmlHttpFactory = function(xhrFactory, optionsFactory) {
+  this.xhrFactory_ = xhrFactory;
+  this.optionsFactory_ = optionsFactory;
+};
+goog.inherits(goog.net.WrapperXmlHttpFactory, goog.net.XmlHttpFactory);
+goog.net.WrapperXmlHttpFactory.prototype.createInstance = function() {
+  return this.xhrFactory_();
+};
+goog.net.WrapperXmlHttpFactory.prototype.getOptions = function() {
+  return this.optionsFactory_();
+};
+goog.net.XmlHttp = function() {
+  return goog.net.XmlHttp.factory_.createInstance();
+};
+goog.net.XmlHttp.ASSUME_NATIVE_XHR = !1;
+goog.net.XmlHttpDefines = {};
+goog.net.XmlHttpDefines.ASSUME_NATIVE_XHR = !1;
+goog.net.XmlHttp.getOptions = function() {
+  return goog.net.XmlHttp.factory_.getOptions();
+};
+goog.net.XmlHttp.OptionType = {USE_NULL_FUNCTION:0, LOCAL_REQUEST_ERROR:1};
+goog.net.XmlHttp.ReadyState = {UNINITIALIZED:0, LOADING:1, LOADED:2, INTERACTIVE:3, COMPLETE:4};
+goog.net.XmlHttp.setFactory = function(factory, optionsFactory) {
+  goog.net.XmlHttp.setGlobalFactory(new goog.net.WrapperXmlHttpFactory(goog.asserts.assert(factory), goog.asserts.assert(optionsFactory)));
+};
+goog.net.XmlHttp.setGlobalFactory = function(factory) {
+  goog.net.XmlHttp.factory_ = factory;
+};
+goog.net.DefaultXmlHttpFactory = function() {
+};
+goog.inherits(goog.net.DefaultXmlHttpFactory, goog.net.XmlHttpFactory);
+goog.net.DefaultXmlHttpFactory.prototype.createInstance = function() {
+  var progId = this.getProgId_();
+  return progId ? new ActiveXObject(progId) : new XMLHttpRequest;
+};
+goog.net.DefaultXmlHttpFactory.prototype.internalGetOptions = function() {
+  var options = {};
+  this.getProgId_() && (options[goog.net.XmlHttp.OptionType.USE_NULL_FUNCTION] = !0, options[goog.net.XmlHttp.OptionType.LOCAL_REQUEST_ERROR] = !0);
+  return options;
+};
+goog.net.DefaultXmlHttpFactory.prototype.getProgId_ = function() {
+  if (goog.net.XmlHttp.ASSUME_NATIVE_XHR || goog.net.XmlHttpDefines.ASSUME_NATIVE_XHR) {
+    return "";
+  }
+  if (!this.ieProgId_ && "undefined" == typeof XMLHttpRequest && "undefined" != typeof ActiveXObject) {
+    for (var ACTIVE_X_IDENTS = ["MSXML2.XMLHTTP.6.0", "MSXML2.XMLHTTP.3.0", "MSXML2.XMLHTTP", "Microsoft.XMLHTTP"], i = 0; i < ACTIVE_X_IDENTS.length; i++) {
+      var candidate = ACTIVE_X_IDENTS[i];
+      try {
+        return new ActiveXObject(candidate), this.ieProgId_ = candidate;
+      } catch (e) {
+      }
+    }
+    throw Error("Could not create ActiveXObject. ActiveX might be disabled, or MSXML might not be installed");
+  }
+  return this.ieProgId_;
+};
+goog.net.XmlHttp.setGlobalFactory(new goog.net.DefaultXmlHttpFactory);
 goog.json = {};
 goog.json.USE_NATIVE_JSON = !1;
 goog.json.TRY_NATIVE_JSON = !1;
@@ -13751,128 +13775,77 @@ goog.log.info = function(logger, msg, opt_exception) {
 goog.log.fine = function(logger, msg, opt_exception) {
   goog.log.ENABLED && logger && logger.fine(msg, opt_exception);
 };
-goog.net.ErrorCode = {NO_ERROR:0, ACCESS_DENIED:1, FILE_NOT_FOUND:2, FF_SILENT_ERROR:3, CUSTOM_ERROR:4, EXCEPTION:5, HTTP_ERROR:6, ABORT:7, TIMEOUT:8, OFFLINE:9};
-goog.net.ErrorCode.getDebugMessage = function(errorCode) {
-  switch(errorCode) {
-    case goog.net.ErrorCode.NO_ERROR:
-      return "No Error";
-    case goog.net.ErrorCode.ACCESS_DENIED:
-      return "Access denied to content document";
-    case goog.net.ErrorCode.FILE_NOT_FOUND:
-      return "File not found";
-    case goog.net.ErrorCode.FF_SILENT_ERROR:
-      return "Firefox silently errored";
-    case goog.net.ErrorCode.CUSTOM_ERROR:
-      return "Application custom error";
-    case goog.net.ErrorCode.EXCEPTION:
-      return "An exception occurred";
-    case goog.net.ErrorCode.HTTP_ERROR:
-      return "Http response at 400 or 500 level";
-    case goog.net.ErrorCode.ABORT:
-      return "Request was aborted";
-    case goog.net.ErrorCode.TIMEOUT:
-      return "Request timed out";
-    case goog.net.ErrorCode.OFFLINE:
-      return "The resource is not available offline";
-    default:
-      return "Unrecognized error code";
+goog.Timer = function(opt_interval, opt_timerObject) {
+  goog.events.EventTarget.call(this);
+  this.interval_ = opt_interval || 1;
+  this.timerObject_ = opt_timerObject || goog.Timer.defaultTimerObject;
+  this.boundTick_ = goog.bind(this.tick_, this);
+  this.last_ = goog.now();
+};
+goog.inherits(goog.Timer, goog.events.EventTarget);
+goog.Timer.MAX_TIMEOUT_ = 2147483647;
+goog.Timer.INVALID_TIMEOUT_ID_ = -1;
+goog.Timer.prototype.enabled = !1;
+goog.Timer.defaultTimerObject = goog.global;
+goog.Timer.intervalScale = 0.8;
+goog.Timer.prototype.timer_ = null;
+goog.Timer.prototype.getInterval = function() {
+  return this.interval_;
+};
+goog.Timer.prototype.setInterval = function(interval) {
+  this.interval_ = interval;
+  this.timer_ && this.enabled ? (this.stop(), this.start()) : this.timer_ && this.stop();
+};
+goog.Timer.prototype.tick_ = function() {
+  if (this.enabled) {
+    var elapsed = goog.now() - this.last_;
+    0 < elapsed && elapsed < this.interval_ * goog.Timer.intervalScale ? this.timer_ = this.timerObject_.setTimeout(this.boundTick_, this.interval_ - elapsed) : (this.timer_ && (this.timerObject_.clearTimeout(this.timer_), this.timer_ = null), this.dispatchTick(), this.enabled && (this.stop(), this.start()));
   }
 };
-goog.net.EventType = {COMPLETE:"complete", SUCCESS:"success", ERROR:"error", ABORT:"abort", READY:"ready", READY_STATE_CHANGE:"readystatechange", TIMEOUT:"timeout", INCREMENTAL_DATA:"incrementaldata", PROGRESS:"progress", DOWNLOAD_PROGRESS:"downloadprogress", UPLOAD_PROGRESS:"uploadprogress"};
-goog.net.HttpStatus = {CONTINUE:100, SWITCHING_PROTOCOLS:101, OK:200, CREATED:201, ACCEPTED:202, NON_AUTHORITATIVE_INFORMATION:203, NO_CONTENT:204, RESET_CONTENT:205, PARTIAL_CONTENT:206, MULTI_STATUS:207, MULTIPLE_CHOICES:300, MOVED_PERMANENTLY:301, FOUND:302, SEE_OTHER:303, NOT_MODIFIED:304, USE_PROXY:305, TEMPORARY_REDIRECT:307, PERMANENT_REDIRECT:308, BAD_REQUEST:400, UNAUTHORIZED:401, PAYMENT_REQUIRED:402, FORBIDDEN:403, NOT_FOUND:404, METHOD_NOT_ALLOWED:405, NOT_ACCEPTABLE:406, PROXY_AUTHENTICATION_REQUIRED:407, 
-REQUEST_TIMEOUT:408, CONFLICT:409, GONE:410, LENGTH_REQUIRED:411, PRECONDITION_FAILED:412, REQUEST_ENTITY_TOO_LARGE:413, REQUEST_URI_TOO_LONG:414, UNSUPPORTED_MEDIA_TYPE:415, REQUEST_RANGE_NOT_SATISFIABLE:416, EXPECTATION_FAILED:417, UNPROCESSABLE_ENTITY:422, LOCKED:423, FAILED_DEPENDENCY:424, PRECONDITION_REQUIRED:428, TOO_MANY_REQUESTS:429, REQUEST_HEADER_FIELDS_TOO_LARGE:431, INTERNAL_SERVER_ERROR:500, NOT_IMPLEMENTED:501, BAD_GATEWAY:502, SERVICE_UNAVAILABLE:503, GATEWAY_TIMEOUT:504, HTTP_VERSION_NOT_SUPPORTED:505, 
-INSUFFICIENT_STORAGE:507, NETWORK_AUTHENTICATION_REQUIRED:511, QUIRK_IE_NO_CONTENT:1223};
-goog.net.HttpStatus.isSuccess = function(status) {
-  switch(status) {
-    case goog.net.HttpStatus.OK:
-    case goog.net.HttpStatus.CREATED:
-    case goog.net.HttpStatus.ACCEPTED:
-    case goog.net.HttpStatus.NO_CONTENT:
-    case goog.net.HttpStatus.PARTIAL_CONTENT:
-    case goog.net.HttpStatus.NOT_MODIFIED:
-    case goog.net.HttpStatus.QUIRK_IE_NO_CONTENT:
-      return !0;
-    default:
-      return !1;
-  }
+goog.Timer.prototype.dispatchTick = function() {
+  this.dispatchEvent(goog.Timer.TICK);
 };
-goog.net.XhrLike = function() {
+goog.Timer.prototype.start = function() {
+  this.enabled = !0;
+  this.timer_ || (this.timer_ = this.timerObject_.setTimeout(this.boundTick_, this.interval_), this.last_ = goog.now());
 };
-goog.net.XhrLike.prototype.open = function(method, url, opt_async, opt_user, opt_password) {
+goog.Timer.prototype.stop = function() {
+  this.enabled = !1;
+  this.timer_ && (this.timerObject_.clearTimeout(this.timer_), this.timer_ = null);
 };
-goog.net.XhrLike.prototype.send = function(opt_data) {
+goog.Timer.prototype.disposeInternal = function() {
+  goog.Timer.superClass_.disposeInternal.call(this);
+  this.stop();
+  delete this.timerObject_;
 };
-goog.net.XhrLike.prototype.abort = function() {
-};
-goog.net.XhrLike.prototype.setRequestHeader = function(header, value) {
-};
-goog.net.XhrLike.prototype.getResponseHeader = function(header) {
-};
-goog.net.XhrLike.prototype.getAllResponseHeaders = function() {
-};
-goog.net.XmlHttpFactory = function() {
-};
-goog.net.XmlHttpFactory.prototype.cachedOptions_ = null;
-goog.net.XmlHttpFactory.prototype.getOptions = function() {
-  return this.cachedOptions_ || (this.cachedOptions_ = this.internalGetOptions());
-};
-goog.net.WrapperXmlHttpFactory = function(xhrFactory, optionsFactory) {
-  this.xhrFactory_ = xhrFactory;
-  this.optionsFactory_ = optionsFactory;
-};
-goog.inherits(goog.net.WrapperXmlHttpFactory, goog.net.XmlHttpFactory);
-goog.net.WrapperXmlHttpFactory.prototype.createInstance = function() {
-  return this.xhrFactory_();
-};
-goog.net.WrapperXmlHttpFactory.prototype.getOptions = function() {
-  return this.optionsFactory_();
-};
-goog.net.XmlHttp = function() {
-  return goog.net.XmlHttp.factory_.createInstance();
-};
-goog.net.XmlHttp.ASSUME_NATIVE_XHR = !1;
-goog.net.XmlHttpDefines = {};
-goog.net.XmlHttpDefines.ASSUME_NATIVE_XHR = !1;
-goog.net.XmlHttp.getOptions = function() {
-  return goog.net.XmlHttp.factory_.getOptions();
-};
-goog.net.XmlHttp.OptionType = {USE_NULL_FUNCTION:0, LOCAL_REQUEST_ERROR:1};
-goog.net.XmlHttp.ReadyState = {UNINITIALIZED:0, LOADING:1, LOADED:2, INTERACTIVE:3, COMPLETE:4};
-goog.net.XmlHttp.setFactory = function(factory, optionsFactory) {
-  goog.net.XmlHttp.setGlobalFactory(new goog.net.WrapperXmlHttpFactory(goog.asserts.assert(factory), goog.asserts.assert(optionsFactory)));
-};
-goog.net.XmlHttp.setGlobalFactory = function(factory) {
-  goog.net.XmlHttp.factory_ = factory;
-};
-goog.net.DefaultXmlHttpFactory = function() {
-};
-goog.inherits(goog.net.DefaultXmlHttpFactory, goog.net.XmlHttpFactory);
-goog.net.DefaultXmlHttpFactory.prototype.createInstance = function() {
-  var progId = this.getProgId_();
-  return progId ? new ActiveXObject(progId) : new XMLHttpRequest;
-};
-goog.net.DefaultXmlHttpFactory.prototype.internalGetOptions = function() {
-  var options = {};
-  this.getProgId_() && (options[goog.net.XmlHttp.OptionType.USE_NULL_FUNCTION] = !0, options[goog.net.XmlHttp.OptionType.LOCAL_REQUEST_ERROR] = !0);
-  return options;
-};
-goog.net.DefaultXmlHttpFactory.prototype.getProgId_ = function() {
-  if (goog.net.XmlHttp.ASSUME_NATIVE_XHR || goog.net.XmlHttpDefines.ASSUME_NATIVE_XHR) {
-    return "";
-  }
-  if (!this.ieProgId_ && "undefined" == typeof XMLHttpRequest && "undefined" != typeof ActiveXObject) {
-    for (var ACTIVE_X_IDENTS = ["MSXML2.XMLHTTP.6.0", "MSXML2.XMLHTTP.3.0", "MSXML2.XMLHTTP", "Microsoft.XMLHTTP"], i = 0; i < ACTIVE_X_IDENTS.length; i++) {
-      var candidate = ACTIVE_X_IDENTS[i];
-      try {
-        return new ActiveXObject(candidate), this.ieProgId_ = candidate;
-      } catch (e) {
-      }
+goog.Timer.TICK = "tick";
+goog.Timer.callOnce = function(listener, opt_delay, opt_handler) {
+  if (goog.isFunction(listener)) {
+    opt_handler && (listener = goog.bind(listener, opt_handler));
+  } else {
+    if (listener && "function" == typeof listener.handleEvent) {
+      listener = goog.bind(listener.handleEvent, listener);
+    } else {
+      throw Error("Invalid listener argument");
     }
-    throw Error("Could not create ActiveXObject. ActiveX might be disabled, or MSXML might not be installed");
   }
-  return this.ieProgId_;
+  return Number(opt_delay) > goog.Timer.MAX_TIMEOUT_ ? goog.Timer.INVALID_TIMEOUT_ID_ : goog.Timer.defaultTimerObject.setTimeout(listener, opt_delay || 0);
 };
-goog.net.XmlHttp.setGlobalFactory(new goog.net.DefaultXmlHttpFactory);
+goog.Timer.clear = function(timerId) {
+  goog.Timer.defaultTimerObject.clearTimeout(timerId);
+};
+goog.Timer.promise = function(delay, opt_result) {
+  var timerKey = null;
+  return (new goog.Promise(function(resolve, reject) {
+    timerKey = goog.Timer.callOnce(function() {
+      resolve(opt_result);
+    }, delay);
+    timerKey == goog.Timer.INVALID_TIMEOUT_ID_ && reject(Error("Failed to schedule timer."));
+  })).thenCatch(function(error) {
+    goog.Timer.clear(timerKey);
+    throw error;
+  });
+};
 goog.uri = {};
 goog.uri.utils = {};
 goog.uri.utils.CharCode_ = {AMPERSAND:38, EQUAL:61, HASH:35, QUESTION:63};
@@ -13885,7 +13858,7 @@ goog.uri.utils.buildFromEncodedParts = function(opt_scheme, opt_userInfo, opt_do
   opt_fragment && (out += "#" + opt_fragment);
   return out;
 };
-goog.uri.utils.splitRe_ = /^(?:([^:/?#.]+):)?(?:\/\/(?:([^/?#]*)@)?([^/#?]*?)(?::([0-9]+))?(?=[/#?]|$))?([^?#]+)?(?:\?([^#]*))?(?:#([\s\S]*))?$/;
+goog.uri.utils.splitRe_ = /^(?:([^:/?#.]+):)?(?:\/\/(?:([^/?#]*)@)?([^/#?]*?)(?::([0-9]+))?(?=[/\\#?]|$))?([^?#]+)?(?:\?([^#]*))?(?:#([\s\S]*))?$/;
 goog.uri.utils.ComponentIndex = {SCHEME:1, USER_INFO:2, DOMAIN:3, PORT:4, PATH:5, QUERY_DATA:6, FRAGMENT:7};
 goog.uri.utils.split = function(uri) {
   return uri.match(goog.uri.utils.splitRe_);
@@ -14444,6 +14417,44 @@ goog.net.XhrIo.prototype.formatMsg_ = function(msg) {
 goog.debug.entryPointRegistry.register(function(transformer) {
   goog.net.XhrIo.prototype.onReadyStateChangeEntryPoint_ = transformer(goog.net.XhrIo.prototype.onReadyStateChangeEntryPoint_);
 });
+goog.async.Throttle = function(listener, interval, opt_handler) {
+  goog.Disposable.call(this);
+  this.listener_ = null != opt_handler ? goog.bind(listener, opt_handler) : listener;
+  this.interval_ = interval;
+  this.callback_ = goog.bind(this.onTimer_, this);
+  this.args_ = [];
+};
+goog.inherits(goog.async.Throttle, goog.Disposable);
+goog.Throttle = goog.async.Throttle;
+goog.async.Throttle.prototype.shouldFire_ = !1;
+goog.async.Throttle.prototype.pauseCount_ = 0;
+goog.async.Throttle.prototype.timer_ = null;
+goog.async.Throttle.prototype.fire = function(var_args) {
+  this.args_ = arguments;
+  this.timer_ || this.pauseCount_ ? this.shouldFire_ = !0 : this.doAction_();
+};
+goog.async.Throttle.prototype.stop = function() {
+  this.timer_ && (goog.Timer.clear(this.timer_), this.timer_ = null, this.shouldFire_ = !1, this.args_ = []);
+};
+goog.async.Throttle.prototype.pause = function() {
+  this.pauseCount_++;
+};
+goog.async.Throttle.prototype.resume = function() {
+  this.pauseCount_--;
+  this.pauseCount_ || !this.shouldFire_ || this.timer_ || (this.shouldFire_ = !1, this.doAction_());
+};
+goog.async.Throttle.prototype.disposeInternal = function() {
+  goog.async.Throttle.superClass_.disposeInternal.call(this);
+  this.stop();
+};
+goog.async.Throttle.prototype.onTimer_ = function() {
+  this.timer_ = null;
+  this.shouldFire_ && !this.pauseCount_ && (this.shouldFire_ = !1, this.doAction_());
+};
+goog.async.Throttle.prototype.doAction_ = function() {
+  this.timer_ = goog.Timer.callOnce(this.callback_, this.interval_);
+  this.listener_.apply(null, this.args_);
+};
 goog.Uri = function(opt_uri, opt_ignoreCase) {
   this.domain_ = this.userInfo_ = this.scheme_ = "";
   this.port_ = null;
@@ -14886,13 +14897,14 @@ goog.Uri.QueryData.prototype.extend = function(var_args) {
   }
 };
 ee.apiclient = {};
-var module$contents$ee$apiclient_apiclient = {}, module$contents$ee$apiclient_NULL_VALUE = module$exports$eeapiclient$domain_object.NULL_VALUE, module$contents$ee$apiclient_deserialize = module$exports$eeapiclient$domain_object.deserialize, module$contents$ee$apiclient_Serializable = module$exports$eeapiclient$domain_object.Serializable, module$contents$ee$apiclient_SerializableCtor = 
-module$exports$eeapiclient$domain_object.SerializableCtor, module$contents$ee$apiclient_MakeRequestParams = module$exports$eeapiclient$request_params.MakeRequestParams, module$contents$ee$apiclient_processParams = module$exports$eeapiclient$request_params.processParams, module$contents$ee$apiclient_PromiseRequestService = module$exports$eeapiclient$promise_request_service.PromiseRequestService;
+var module$contents$ee$apiclient_apiclient = {}, module$contents$ee$apiclient_LEGACY_DOWNLOAD_REGEX = /^\/(download|table).*/;
 ee.apiclient.VERSION = "v1alpha";
-ee.apiclient.NULL_VALUE = module$contents$ee$apiclient_NULL_VALUE;
-ee.apiclient.PromiseRequestService = module$contents$ee$apiclient_PromiseRequestService;
-ee.apiclient.MakeRequestParams = module$contents$ee$apiclient_MakeRequestParams;
-ee.apiclient.deserialize = module$contents$ee$apiclient_deserialize;
+ee.apiclient.API_CLIENT_VERSION = "0.1.213";
+ee.apiclient.NULL_VALUE = module$exports$eeapiclient$domain_object.NULL_VALUE;
+ee.apiclient.PromiseRequestService = module$exports$eeapiclient$promise_request_service.PromiseRequestService;
+ee.apiclient.MakeRequestParams = module$contents$eeapiclient$request_params_MakeRequestParams;
+ee.apiclient.deserialize = module$contents$eeapiclient$domain_object_deserialize;
+ee.apiclient.serialize = module$contents$eeapiclient$domain_object_serialize;
 var module$contents$ee$apiclient_Call = function(callback, retries) {
   module$contents$ee$apiclient_apiclient.initialize();
   this.callback = callback;
@@ -14955,19 +14967,16 @@ module$contents$ee$apiclient_Call.prototype.filmstripThumbnails = function() {
   return new module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClientImpl("v1alpha", this.requestService);
 };
 var module$contents$ee$apiclient_EERequestService = function(sync, retries) {
-  sync = void 0 === sync ? !1 : sync;
-  var $jscomp$super$this = module$contents$ee$apiclient_PromiseRequestService.call(this) || this;
-  $jscomp$super$this.sync = sync;
-  $jscomp$super$this.retries = null != retries ? retries : sync ? module$contents$ee$apiclient_apiclient.MAX_SYNC_RETRIES_ : module$contents$ee$apiclient_apiclient.MAX_ASYNC_RETRIES_;
-  return $jscomp$super$this;
+  this.sync = sync = void 0 === sync ? !1 : sync;
+  this.retries = null != retries ? retries : sync ? module$contents$ee$apiclient_apiclient.MAX_SYNC_RETRIES_ : module$contents$ee$apiclient_apiclient.MAX_ASYNC_RETRIES_;
 };
-$jscomp.inherits(module$contents$ee$apiclient_EERequestService, module$contents$ee$apiclient_PromiseRequestService);
+$jscomp.inherits(module$contents$ee$apiclient_EERequestService, module$exports$eeapiclient$promise_request_service.PromiseRequestService);
 module$contents$ee$apiclient_EERequestService.prototype.send = function(params, responseCtor) {
   var $jscomp$this = this;
-  module$contents$ee$apiclient_processParams(params);
+  module$contents$eeapiclient$request_params_processParams(params);
   var path = params.path || "", url = module$contents$ee$apiclient_apiclient.getSafeApiUrl() + path, args = module$contents$ee$apiclient_apiclient.makeRequest_(params.queryParams || {}), body = params.body ? JSON.stringify(params.body) : void 0;
   if (this.sync) {
-    var raw = module$contents$ee$apiclient_apiclient.send(url, args, void 0, params.httpMethod, body, this.retries), value$23 = responseCtor ? module$contents$ee$apiclient_deserialize(responseCtor, raw) : raw, thenable = function(v) {
+    var raw = module$contents$ee$apiclient_apiclient.send(url, args, void 0, params.httpMethod, body, this.retries), value$23 = responseCtor ? module$contents$eeapiclient$domain_object_deserialize(responseCtor, raw) : raw, thenable = function(v) {
       return {then:function(f) {
         return thenable(f(v));
       }};
@@ -14979,7 +14988,7 @@ module$contents$ee$apiclient_EERequestService.prototype.send = function(params, 
       error ? reject(error) : resolve(value);
     }, params.httpMethod, body, $jscomp$this.retries);
   })).then(function(r) {
-    return responseCtor ? module$contents$ee$apiclient_deserialize(responseCtor, r) : r;
+    return responseCtor ? module$contents$eeapiclient$domain_object_deserialize(responseCtor, r) : r;
   });
 };
 module$contents$ee$apiclient_EERequestService.prototype.makeRequest = function(params) {
@@ -14990,14 +14999,14 @@ var module$contents$ee$apiclient_BatchCall = function(callback) {
 };
 $jscomp.inherits(module$contents$ee$apiclient_BatchCall, module$contents$ee$apiclient_Call);
 module$contents$ee$apiclient_BatchCall.prototype.send = function(parts, getResponse) {
-  var $jscomp$this = this, batchUrl = module$contents$ee$apiclient_apiclient.getSafeApiUrl() + "/batch", body = parts.map(function($jscomp$destructuring$var85) {
-    var $jscomp$destructuring$var86 = $jscomp.makeIterator($jscomp$destructuring$var85), id = $jscomp$destructuring$var86.next().value, $jscomp$destructuring$var87 = $jscomp.makeIterator($jscomp$destructuring$var86.next().value), partBody = $jscomp$destructuring$var87.next().value, ctor = $jscomp$destructuring$var87.next().value;
+  var $jscomp$this = this, batchUrl = module$contents$ee$apiclient_apiclient.getSafeApiUrl() + "/batch", body = parts.map(function($jscomp$destructuring$var82) {
+    var $jscomp$destructuring$var83 = $jscomp.makeIterator($jscomp$destructuring$var82), id = $jscomp$destructuring$var83.next().value, $jscomp$destructuring$var84 = $jscomp.makeIterator($jscomp$destructuring$var83.next().value), partBody = $jscomp$destructuring$var84.next().value, ctor = $jscomp$destructuring$var84.next().value;
     return "--batch_EARTHENGINE_batch\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\nMIME-Version: 1.0\r\nContent-ID: <" + id + ">\r\n\r\n" + partBody + "\r\n";
   }).join("") + "--batch_EARTHENGINE_batch--\r\n", deserializeResponses = function(response) {
     var result = {};
-    parts.forEach(function($jscomp$destructuring$var88) {
-      var $jscomp$destructuring$var89 = $jscomp.makeIterator($jscomp$destructuring$var88), id = $jscomp$destructuring$var89.next().value, $jscomp$destructuring$var90 = $jscomp.makeIterator($jscomp$destructuring$var89.next().value), partBody = $jscomp$destructuring$var90.next().value, ctor = $jscomp$destructuring$var90.next().value;
-      null != response[id] && (result[id] = module$contents$ee$apiclient_deserialize(ctor, response[id]));
+    parts.forEach(function($jscomp$destructuring$var85) {
+      var $jscomp$destructuring$var86 = $jscomp.makeIterator($jscomp$destructuring$var85), id = $jscomp$destructuring$var86.next().value, $jscomp$destructuring$var87 = $jscomp.makeIterator($jscomp$destructuring$var86.next().value), partBody = $jscomp$destructuring$var87.next().value, ctor = $jscomp$destructuring$var87.next().value;
+      null != response[id] && (result[id] = module$contents$eeapiclient$domain_object_deserialize(ctor, response[id]));
     });
     return getResponse ? getResponse(result) : result;
   };
@@ -15006,9 +15015,8 @@ module$contents$ee$apiclient_BatchCall.prototype.send = function(parts, getRespo
   }, "multipart/mixed; boundary=batch_EARTHENGINE_batch", body), null) : deserializeResponses(module$contents$ee$apiclient_apiclient.send(batchUrl, null, void 0, "multipart/mixed; boundary=batch_EARTHENGINE_batch", body));
 };
 var module$contents$ee$apiclient_BatchRequestService = function() {
-  return module$contents$ee$apiclient_PromiseRequestService.apply(this, arguments) || this;
 };
-$jscomp.inherits(module$contents$ee$apiclient_BatchRequestService, module$contents$ee$apiclient_PromiseRequestService);
+$jscomp.inherits(module$contents$ee$apiclient_BatchRequestService, module$exports$eeapiclient$promise_request_service.PromiseRequestService);
 module$contents$ee$apiclient_BatchRequestService.prototype.send = function(params, responseCtor) {
   var request = [params.httpMethod + " " + params.path + " HTTP/1.1"];
   request.push("Content-Type: application/json; charset=utf-8");
@@ -15150,7 +15158,13 @@ module$contents$ee$apiclient_apiclient.send = function(path, params, callback, m
   var profileHookAtCallTime = module$contents$ee$apiclient_apiclient.profileHook_, contentType = "application/x-www-form-urlencoded";
   body && (contentType = "application/json", method && method.startsWith("multipart") && (contentType = method, method = "POST"));
   method = method || "POST";
-  var headers = {"Content-Type":contentType}, authToken = module$contents$ee$apiclient_apiclient.getAuthToken();
+  var headers = {"Content-Type":contentType}, forceLegacyApi = module$contents$ee$apiclient_LEGACY_DOWNLOAD_REGEX.test(path);
+  if (module$contents$ee$apiclient_apiclient.getCloudApiEnabled() && !forceLegacyApi) {
+    var version = "0.1.213";
+    "0.1.213" === version && (version = "latest");
+    headers[module$contents$ee$apiclient_apiclient.API_CLIENT_VERSION_HEADER] = "ee-js/" + version;
+  }
+  var authToken = module$contents$ee$apiclient_apiclient.getAuthToken();
   if (null != authToken) {
     headers.Authorization = authToken;
   } else {
@@ -15164,8 +15178,8 @@ module$contents$ee$apiclient_apiclient.send = function(path, params, callback, m
   }
   params = params ? params.clone() : new goog.Uri.QueryData;
   null != module$contents$ee$apiclient_apiclient.cloudApiKey_ && params.add("key", module$contents$ee$apiclient_apiclient.cloudApiKey_);
-  module$contents$ee$apiclient_apiclient.cloudApiEnabled_ ? (profileHookAtCallTime && (headers[module$contents$ee$apiclient_apiclient.PROFILE_REQUEST_HEADER] = "1"), module$contents$ee$apiclient_apiclient.getProject() && module$contents$ee$apiclient_apiclient.getProject() !== module$contents$ee$apiclient_apiclient.DEFAULT_PROJECT_ && (headers[module$contents$ee$apiclient_apiclient.USER_PROJECT_OVERRIDE_HEADER_] = module$contents$ee$apiclient_apiclient.getProject())) : profileHookAtCallTime && params.add("profiling", 
-  "1");
+  module$contents$ee$apiclient_apiclient.cloudApiEnabled_ ? (profileHookAtCallTime && (headers[module$contents$ee$apiclient_apiclient.PROFILE_REQUEST_HEADER] = "1"), module$contents$ee$apiclient_apiclient.getProject() && module$contents$ee$apiclient_apiclient.getProject() !== module$contents$ee$apiclient_apiclient.DEFAULT_PROJECT_ && !forceLegacyApi && (headers[module$contents$ee$apiclient_apiclient.USER_PROJECT_OVERRIDE_HEADER_] = module$contents$ee$apiclient_apiclient.getProject())) : profileHookAtCallTime && 
+  params.add("profiling", "1");
   params = module$contents$ee$apiclient_apiclient.paramAugmenter_(params, path);
   null != module$contents$ee$apiclient_apiclient.xsrfToken_ && (headers["X-XSRF-Token"] = module$contents$ee$apiclient_apiclient.xsrfToken_);
   null != module$contents$ee$apiclient_apiclient.appIdToken_ && (headers[module$contents$ee$apiclient_apiclient.APP_ID_TOKEN_HEADER_] = module$contents$ee$apiclient_apiclient.appIdToken_);
@@ -15301,14 +15315,14 @@ module$contents$ee$apiclient_apiclient.handleAuthResult_ = function(success, err
 };
 module$contents$ee$apiclient_apiclient.makeRequest_ = function(params) {
   for (var request = new goog.Uri.QueryData, $jscomp$iter$9 = $jscomp.makeIterator(Object.entries(params)), $jscomp$key$ = $jscomp$iter$9.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$9.next()) {
-    var $jscomp$destructuring$var92 = $jscomp.makeIterator($jscomp$key$.value), name = $jscomp$destructuring$var92.next().value, item = $jscomp$destructuring$var92.next().value;
+    var $jscomp$destructuring$var89 = $jscomp.makeIterator($jscomp$key$.value), name = $jscomp$destructuring$var89.next().value, item = $jscomp$destructuring$var89.next().value;
     request.set(name, item);
   }
   return request;
 };
 module$contents$ee$apiclient_apiclient.setupMockSend = function(calls) {
   function getResponse(url, method, data) {
-    url = url.replace(apiBaseUrl, "");
+    url = url.replace(apiBaseUrl, "").replace("v1alpha/projects/" + module$contents$ee$apiclient_apiclient.DEFAULT_PROJECT_ + "/", "");
     if (url in calls) {
       var response = calls[url];
     } else {
@@ -15401,7 +15415,7 @@ module$contents$ee$apiclient_apiclient.CLOUD_PLATFORM_SCOPE_ = "https://www.goog
 module$contents$ee$apiclient_apiclient.AUTH_LIBRARY_URL_ = goog.string.Const.from("https://apis.google.com/js/client.js?onload=%{onload}");
 module$contents$ee$apiclient_apiclient.STORAGE_SCOPE_ = "https://www.googleapis.com/auth/devstorage.read_write";
 module$contents$ee$apiclient_apiclient.cloudApiKey_ = null;
-module$contents$ee$apiclient_apiclient.cloudApiEnabled_ = !1;
+module$contents$ee$apiclient_apiclient.cloudApiEnabled_ = !0;
 module$contents$ee$apiclient_apiclient.initialized_ = !1;
 module$contents$ee$apiclient_apiclient.deadlineMs_ = 0;
 module$contents$ee$apiclient_apiclient.profileHook_ = null;
@@ -15413,6 +15427,7 @@ module$contents$ee$apiclient_apiclient.APP_ID_TOKEN_HEADER_ = "X-Earth-Engine-Ap
 module$contents$ee$apiclient_apiclient.PROFILE_HEADER = "X-Earth-Engine-Computation-Profile";
 module$contents$ee$apiclient_apiclient.PROFILE_REQUEST_HEADER = "X-Earth-Engine-Computation-Profile";
 module$contents$ee$apiclient_apiclient.USER_PROJECT_OVERRIDE_HEADER_ = "X-Goog-User-Project";
+module$contents$ee$apiclient_apiclient.API_CLIENT_VERSION_HEADER = "x-goog-api-client";
 module$contents$ee$apiclient_apiclient.DEFAULT_API_BASE_URL_ = "https://earthengine.googleapis.com/api";
 module$contents$ee$apiclient_apiclient.DEFAULT_TILE_BASE_URL_ = "https://earthengine.googleapis.com";
 module$contents$ee$apiclient_apiclient.AuthArgs = function() {
@@ -15430,6 +15445,7 @@ ee.apiclient.getCloudApiEnabled = module$contents$ee$apiclient_apiclient.getClou
 ee.apiclient.DEFAULT_PROJECT = module$contents$ee$apiclient_apiclient.DEFAULT_PROJECT_;
 ee.apiclient.PROFILE_HEADER = module$contents$ee$apiclient_apiclient.PROFILE_HEADER;
 ee.apiclient.PROFILE_REQUEST_HEADER = module$contents$ee$apiclient_apiclient.PROFILE_REQUEST_HEADER;
+ee.apiclient.API_CLIENT_VERSION_HEADER = module$contents$ee$apiclient_apiclient.API_CLIENT_VERSION_HEADER;
 ee.apiclient.send = module$contents$ee$apiclient_apiclient.send;
 ee.apiclient.AUTH_SCOPE = module$contents$ee$apiclient_apiclient.AUTH_SCOPE_;
 ee.apiclient.CLOUD_PLATFORM_SCOPE = module$contents$ee$apiclient_apiclient.CLOUD_PLATFORM_SCOPE_;
@@ -15467,7 +15483,7 @@ ee.Encodable = function() {
 ee.rpc_node = {};
 ee.rpc_node.constant = function(obj) {
   if (void 0 === obj || null === obj) {
-    obj = module$contents$ee$apiclient_NULL_VALUE;
+    obj = module$exports$eeapiclient$domain_object.NULL_VALUE;
   }
   return new module$exports$eeapiclient$ee_api_client.ValueNode({constantValue:obj});
 };
@@ -15629,6 +15645,7 @@ ee.rpc_convert.algorithms = function(result) {
     null != algorithm.hidden && (internalAlgorithm.hidden = algorithm.hidden);
     algorithm.preview && (internalAlgorithm.preview = algorithm.preview);
     algorithm.deprecated && (internalAlgorithm.deprecated = algorithm.deprecationReason);
+    algorithm.sourceCodeUri && (internalAlgorithm.sourceCodeUri = algorithm.sourceCodeUri);
     return internalAlgorithm;
   }, internalAlgorithms = {}, $jscomp$iter$10 = $jscomp.makeIterator(result.algorithms || []), $jscomp$key$algorithm = $jscomp$iter$10.next(); !$jscomp$key$algorithm.done; $jscomp$key$algorithm = $jscomp$iter$10.next()) {
     var algorithm$jscomp$0 = $jscomp$key$algorithm.value, name = algorithm$jscomp$0.name.replace(/^algorithms\//, "");
@@ -15673,8 +15690,12 @@ ee.rpc_convert.listAssetsToGetList = function(result) {
 ee.rpc_convert.listImagesToGetList = function(result) {
   return (result.images || []).map(ee.rpc_convert.imageToLegacyResult);
 };
-ee.rpc_convert.assetListToDatasetResult = function(result) {
-  return (result.assets || []).map(ee.rpc_convert.assetToLegacyResult);
+ee.rpc_convert.assetListToDatasetResult = function(result$jscomp$0) {
+  return (result$jscomp$0.assets || []).map(ee.rpc_convert.assetToLegacyResult).map(function(result) {
+    var properties = result.properties;
+    delete result.properties;
+    return Object.assign({}, result, properties);
+  });
 };
 ee.rpc_convert.assetTypeToLegacyAssetType = function(type) {
   switch(type) {
@@ -15792,7 +15813,7 @@ ee.rpc_convert.iamPolicyToAcl = function(result) {
     bindingMap[binding.role] = binding.members;
   });
   var groups = new Set, toAcl = function(member) {
-    var email = member.replace(/^group:|^user:/, "");
+    var email = member.replace(/^group:|^user:|^serviceAccount:/, "");
     member.startsWith("group:") && groups.add(email);
     return email;
   }, readersWithAll = bindingMap["roles/viewer"] || [], readers = readersWithAll.filter(function(reader) {
@@ -15805,9 +15826,13 @@ ee.rpc_convert.iamPolicyToAcl = function(result) {
 ee.rpc_convert.aclToIamPolicy = function(acls) {
   var isGroup = function(email) {
     return acls.groups && acls.groups.has(email);
+  }, isServiceAccount = function(email) {
+    return email.match(/[@|\.]gserviceaccount\.com$/);
   }, asMembers = function(aclName) {
     return (acls[aclName] || []).map(function(email) {
-      return (isGroup(email) ? "group:" : "user:") + email;
+      var prefix = "user:";
+      isGroup(email) ? prefix = "group:" : isServiceAccount(email) && (prefix = "serviceAccount:");
+      return prefix + email;
     });
   }, all = acls.all_users_can_read ? ["allUsers"] : [], bindings = [{role:"roles/owner", members:asMembers("owners")}, {role:"roles/viewer", members:asMembers("readers").concat(all)}, {role:"roles/editor", members:asMembers("writers")}].map(function(params) {
     return new module$exports$eeapiclient$ee_api_client.Binding(params);
@@ -15843,7 +15868,7 @@ ee.rpc_convert.operationToTask = function(result) {
       default:
         return "UNKNOWN";
     }
-  }, metadata = module$contents$ee$apiclient_deserialize(module$exports$eeapiclient$ee_api_client.OperationMetadata, result.metadata || {});
+  }, metadata = module$contents$eeapiclient$domain_object_deserialize(module$exports$eeapiclient$ee_api_client.OperationMetadata, result.metadata || {});
   null != metadata.description && (internalTask.description = metadata.description);
   null != metadata.state && (internalTask.state = convertState(metadata.state));
   assignTimestamp("creation_timestamp_ms", metadata.createTime);
@@ -15867,18 +15892,18 @@ ee.rpc_convert.sourcePathsToUris = function(source) {
 };
 ee.rpc_convert.toImageManifest = function(params) {
   var convertImageSource = function(source) {
-    var apiSource = module$contents$ee$apiclient_deserialize(module$exports$eeapiclient$ee_api_client.ImageSource, source);
+    var apiSource = module$contents$eeapiclient$domain_object_deserialize(module$exports$eeapiclient$ee_api_client.ImageSource, source);
     apiSource.uris = ee.rpc_convert.sourcePathsToUris(source);
     return apiSource;
-  }, manifest = module$contents$ee$apiclient_deserialize(module$exports$eeapiclient$ee_api_client.ImageManifest, params);
+  }, manifest = module$contents$eeapiclient$domain_object_deserialize(module$exports$eeapiclient$ee_api_client.ImageManifest, params);
   manifest.name = ee.rpc_convert.assetIdToAssetName(params.id);
   manifest.tilesets = (params.tilesets || []).map(function(tileset) {
-    var apiTileset = module$contents$ee$apiclient_deserialize(module$exports$eeapiclient$ee_api_client.Tileset, tileset);
+    var apiTileset = module$contents$eeapiclient$domain_object_deserialize(module$exports$eeapiclient$ee_api_client.Tileset, tileset);
     apiTileset.sources = (tileset.sources || []).map(convertImageSource);
     return apiTileset;
   });
   manifest.bands = (params.bands || []).map(function(band) {
-    var apiBand = module$contents$ee$apiclient_deserialize(module$exports$eeapiclient$ee_api_client.TilesetBand, band);
+    var apiBand = module$contents$eeapiclient$domain_object_deserialize(module$exports$eeapiclient$ee_api_client.TilesetBand, band);
     apiBand.missingData = ee.rpc_convert.toOnePlatformMissingData(band.missingData);
     return apiBand;
   });
@@ -15917,10 +15942,10 @@ ee.rpc_convert.toOnePlatformMaskBands = function(tileset) {
   return maskBands;
 };
 ee.rpc_convert.toTableManifest = function(params) {
-  var manifest = module$contents$ee$apiclient_deserialize(module$exports$eeapiclient$ee_api_client.TableManifest, params);
+  var manifest = module$contents$eeapiclient$domain_object_deserialize(module$exports$eeapiclient$ee_api_client.TableManifest, params);
   manifest.name = ee.rpc_convert.assetIdToAssetName(params.id);
   manifest.sources = (params.sources || []).map(function(source) {
-    var apiSource = module$contents$ee$apiclient_deserialize(module$exports$eeapiclient$ee_api_client.TableSource, source);
+    var apiSource = module$contents$eeapiclient$domain_object_deserialize(module$exports$eeapiclient$ee_api_client.TableSource, source);
     apiSource.uris = ee.rpc_convert.sourcePathsToUris(source);
     source.maxError && (apiSource.maxErrorMeters = source.maxError);
     return apiSource;
@@ -16250,6 +16275,9 @@ ee.Serializer.computeHash = function(obj) {
   return ee.Serializer.hash_.digest().toString();
 };
 ee.Serializer.encodeCloudApi = function(obj) {
+  return ee.apiclient.serialize(ee.Serializer.encodeCloudApiExpression(obj));
+};
+ee.Serializer.encodeCloudApiExpression = function(obj) {
   return (new ee.Serializer(!0)).encodeForCloudApi_(obj);
 };
 ee.Serializer.encodeCloudApiPretty = function(obj) {
@@ -16258,8 +16286,9 @@ ee.Serializer.encodeCloudApiPretty = function(obj) {
       return object;
     }
     for (var ret = goog.isArray(object) ? [] : {}, isNode = object instanceof Object.getPrototypeOf(module$exports$eeapiclient$ee_api_client.ValueNode), $jscomp$iter$12 = $jscomp.makeIterator(Object.entries(isNode ? object.Serializable$values : object)), $jscomp$key$ = $jscomp$iter$12.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$12.next()) {
-      var $jscomp$destructuring$var94 = $jscomp.makeIterator($jscomp$key$.value), key = $jscomp$destructuring$var94.next().value, val = $jscomp$destructuring$var94.next().value;
-      isNode ? null !== val && (ret[key] = "functionDefinitionValue" === key && null != val.body ? {argumentNames:val.argumentNames, body:walkObject(values[val.body])} : "functionInvocationValue" === key && null != val.functionReference ? {arguments:goog.object.map(val.arguments, walkObject), functionReference:walkObject(values[val.functionReference])} : "constantValue" === key ? val === module$contents$ee$apiclient_NULL_VALUE ? null : val : walkObject(val)) : ret[key] = walkObject(val);
+      var $jscomp$destructuring$var91 = $jscomp.makeIterator($jscomp$key$.value), key = $jscomp$destructuring$var91.next().value, val = $jscomp$destructuring$var91.next().value;
+      isNode ? null !== val && (ret[key] = "functionDefinitionValue" === key && null != val.body ? {argumentNames:val.argumentNames, body:walkObject(values[val.body])} : "functionInvocationValue" === key && null != val.functionReference ? {arguments:goog.object.map(val.arguments, walkObject), functionReference:walkObject(values[val.functionReference])} : "constantValue" === key ? val === module$exports$eeapiclient$domain_object.NULL_VALUE ? null : val : walkObject(val)) : 
+      ret[key] = walkObject(val);
     }
     return ret;
   };
@@ -16345,7 +16374,7 @@ ExpressionOptimizer.prototype.optimizeValue = function(value, depth) {
   var $jscomp$this = this, isConst = function(v) {
     return null !== v.constantValue;
   }, serializeConst = function(v) {
-    return v === module$contents$ee$apiclient_NULL_VALUE ? null : v;
+    return v === module$exports$eeapiclient$domain_object.NULL_VALUE ? null : v;
   };
   if (isConst(value) || null != value.integerValue || null != value.bytesValue || null != value.argumentReference) {
     return value;
@@ -16364,7 +16393,7 @@ ExpressionOptimizer.prototype.optimizeValue = function(value, depth) {
   }
   if (null != value.dictionaryValue) {
     for (var values = {}, constantValues = {}, $jscomp$iter$13 = $jscomp.makeIterator(Object.entries(value.dictionaryValue.values || {})), $jscomp$key$ = $jscomp$iter$13.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$13.next()) {
-      var $jscomp$destructuring$var96 = $jscomp.makeIterator($jscomp$key$.value), k = $jscomp$destructuring$var96.next().value, v$jscomp$0 = $jscomp$destructuring$var96.next().value;
+      var $jscomp$destructuring$var93 = $jscomp.makeIterator($jscomp$key$.value), k = $jscomp$destructuring$var93.next().value, v$jscomp$0 = $jscomp$destructuring$var93.next().value;
       values[k] = this.optimizeValue(v$jscomp$0, depth + 3);
       null !== constantValues && isConst(values[k]) ? constantValues[k] = serializeConst(values[k].constantValue) : constantValues = null;
     }
@@ -16385,7 +16414,7 @@ ExpressionOptimizer.prototype.optimizeValue = function(value, depth) {
 };
 ExpressionOptimizer.isAlwaysLiftable = function(value) {
   var constant = value.constantValue;
-  return null !== constant ? constant === module$contents$ee$apiclient_NULL_VALUE || "number" === typeof constant || "boolean" === typeof constant : null != value.argumentReference;
+  return null !== constant ? constant === module$exports$eeapiclient$domain_object.NULL_VALUE || "number" === typeof constant || "boolean" === typeof constant : null != value.argumentReference;
 };
 ExpressionOptimizer.prototype.countReferences = function() {
   var $jscomp$this = this, counts = {}, visitReference = function(reference) {
@@ -16420,7 +16449,7 @@ ee.rpc_convert_batch.taskToExportImageRequest = function(params) {
   if (null == params.element) {
     throw Error('"element" not found in params ' + params);
   }
-  var result = new module$exports$eeapiclient$ee_api_client.ExportImageRequest({expression:ee.Serializer.encodeCloudApi(params.element), description:stringOrNull_(params.description), fileExportOptions:null, assetExportOptions:null, grid:null, maxPixels:stringOrNull_(params.maxPixels), requestId:stringOrNull_(params.id)}), destination = ee.rpc_convert_batch.guessDestination_(params);
+  var result = new module$exports$eeapiclient$ee_api_client.ExportImageRequest({expression:ee.Serializer.encodeCloudApiExpression(params.element), description:stringOrNull_(params.description), fileExportOptions:null, assetExportOptions:null, grid:null, maxPixels:stringOrNull_(params.maxPixels), requestId:stringOrNull_(params.id), maxWorkerCount:numberOrNull_(params.maxWorkers)}), destination = ee.rpc_convert_batch.guessDestination_(params);
   switch(destination) {
     case ee.rpc_convert_batch.ExportDestination.GCS:
     case ee.rpc_convert_batch.ExportDestination.DRIVE:
@@ -16440,7 +16469,7 @@ ee.rpc_convert_batch.taskToExportTableRequest = function(params) {
   }
   var selectors = params.selectors || null;
   null != selectors && "string" === typeof selectors && (selectors = selectors.split(","));
-  var result = new module$exports$eeapiclient$ee_api_client.ExportTableRequest({expression:ee.Serializer.encodeCloudApi(params.element), description:stringOrNull_(params.description), fileExportOptions:null, assetExportOptions:null, selectors:selectors, maxErrorMeters:numberOrNull_(params.maxErrorMeters), requestId:stringOrNull_(params.id)}), destination = ee.rpc_convert_batch.guessDestination_(params);
+  var result = new module$exports$eeapiclient$ee_api_client.ExportTableRequest({expression:ee.Serializer.encodeCloudApiExpression(params.element), description:stringOrNull_(params.description), fileExportOptions:null, assetExportOptions:null, selectors:selectors, maxErrorMeters:numberOrNull_(params.maxErrorMeters), requestId:stringOrNull_(params.id), maxWorkerCount:numberOrNull_(params.maxWorkers)}), destination = ee.rpc_convert_batch.guessDestination_(params);
   switch(destination) {
     case ee.rpc_convert_batch.ExportDestination.GCS:
     case ee.rpc_convert_batch.ExportDestination.DRIVE:
@@ -16458,7 +16487,7 @@ ee.rpc_convert_batch.taskToExportVideoRequest = function(params) {
   if (null == params.element) {
     throw Error('"element" not found in params ' + params);
   }
-  var result = new module$exports$eeapiclient$ee_api_client.ExportVideoRequest({expression:ee.Serializer.encodeCloudApi(params.element), description:stringOrNull_(params.description), videoOptions:ee.rpc_convert_batch.buildVideoOptions_(params), fileExportOptions:null, requestId:stringOrNull_(params.id)});
+  var result = new module$exports$eeapiclient$ee_api_client.ExportVideoRequest({expression:ee.Serializer.encodeCloudApiExpression(params.element), description:stringOrNull_(params.description), videoOptions:ee.rpc_convert_batch.buildVideoOptions_(params), fileExportOptions:null, requestId:stringOrNull_(params.id), maxWorkerCount:numberOrNull_(params.maxWorkers)});
   result.fileExportOptions = ee.rpc_convert_batch.buildVideoFileExportOptions_(params, ee.rpc_convert_batch.guessDestination_(params));
   return result;
 };
@@ -16466,13 +16495,14 @@ ee.rpc_convert_batch.taskToExportMapRequest = function(params) {
   if (null == params.element) {
     throw Error('"element" not found in params ' + params);
   }
-  return new module$exports$eeapiclient$ee_api_client.ExportMapRequest({expression:ee.Serializer.encodeCloudApi(params.element), description:stringOrNull_(params.description), tileOptions:ee.rpc_convert_batch.buildTileOptions_(params), tileExportOptions:ee.rpc_convert_batch.buildImageFileExportOptions_(params, ee.rpc_convert_batch.ExportDestination.GCS), requestId:stringOrNull_(params.id)});
+  return new module$exports$eeapiclient$ee_api_client.ExportMapRequest({expression:ee.Serializer.encodeCloudApiExpression(params.element), description:stringOrNull_(params.description), tileOptions:ee.rpc_convert_batch.buildTileOptions_(params), tileExportOptions:ee.rpc_convert_batch.buildImageFileExportOptions_(params, ee.rpc_convert_batch.ExportDestination.GCS), requestId:stringOrNull_(params.id), maxWorkerCount:numberOrNull_(params.maxWorkers)});
 };
 ee.rpc_convert_batch.taskToExportVideoMapRequest = function(params) {
   if (null == params.element) {
     throw Error('"element" not found in params ' + params);
   }
-  return new module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest({expression:ee.Serializer.encodeCloudApi(params.element), description:stringOrNull_(params.description), videoOptions:ee.rpc_convert_batch.buildVideoMapOptions_(params), tileOptions:ee.rpc_convert_batch.buildTileOptions_(params), tileExportOptions:ee.rpc_convert_batch.buildVideoFileExportOptions_(params, ee.rpc_convert_batch.ExportDestination.GCS), requestId:stringOrNull_(params.id), version:stringOrNull_(params.version)});
+  return new module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest({expression:ee.Serializer.encodeCloudApiExpression(params.element), description:stringOrNull_(params.description), videoOptions:ee.rpc_convert_batch.buildVideoMapOptions_(params), tileOptions:ee.rpc_convert_batch.buildTileOptions_(params), tileExportOptions:ee.rpc_convert_batch.buildVideoFileExportOptions_(params, ee.rpc_convert_batch.ExportDestination.GCS), requestId:stringOrNull_(params.id), version:stringOrNull_(params.version), 
+  maxWorkerCount:numberOrNull_(params.maxWorkers)});
 };
 function stringOrNull_(value) {
   return null != value ? String(value) : null;
@@ -16578,14 +16608,14 @@ ee.rpc_convert_batch.buildGridDimensions_ = function(dimensions) {
       }
     }
   } else {
-    if (goog.isNumber(dimensions) && !isNaN(dimensions)) {
-      result.height = dimensions, result.width = dimensions;
-    } else {
+    if ("number" !== typeof dimensions || isNaN(dimensions)) {
       if (goog.isObject(dimensions) && null != dimensions.height && null != dimensions.width) {
         result.height = dimensions.height, result.width = dimensions.width;
       } else {
         throw Error("Unable to construct grid from dimensions: " + dimensions);
       }
+    } else {
+      result.height = dimensions, result.width = dimensions;
     }
   }
   return result;
@@ -16651,6 +16681,29 @@ jspb.BinaryConstants.TWO_TO_52 = 4503599627370496;
 jspb.BinaryConstants.TWO_TO_63 = 9223372036854775808;
 jspb.BinaryConstants.TWO_TO_64 = 18446744073709551616;
 jspb.BinaryConstants.ZERO_HASH = "\x00\x00\x00\x00\x00\x00\x00\x00";
+goog.userAgent.product = {};
+goog.userAgent.product.ASSUME_FIREFOX = !1;
+goog.userAgent.product.ASSUME_IPHONE = !1;
+goog.userAgent.product.ASSUME_IPAD = !1;
+goog.userAgent.product.ASSUME_ANDROID = !1;
+goog.userAgent.product.ASSUME_CHROME = !1;
+goog.userAgent.product.ASSUME_SAFARI = !1;
+goog.userAgent.product.PRODUCT_KNOWN_ = goog.userAgent.ASSUME_IE || goog.userAgent.ASSUME_EDGE || goog.userAgent.ASSUME_OPERA || goog.userAgent.product.ASSUME_FIREFOX || goog.userAgent.product.ASSUME_IPHONE || goog.userAgent.product.ASSUME_IPAD || goog.userAgent.product.ASSUME_ANDROID || goog.userAgent.product.ASSUME_CHROME || goog.userAgent.product.ASSUME_SAFARI;
+goog.userAgent.product.OPERA = goog.userAgent.OPERA;
+goog.userAgent.product.IE = goog.userAgent.IE;
+goog.userAgent.product.EDGE = goog.userAgent.EDGE;
+goog.userAgent.product.FIREFOX = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_FIREFOX : goog.labs.userAgent.browser.isFirefox();
+goog.userAgent.product.isIphoneOrIpod_ = function() {
+  return goog.labs.userAgent.platform.isIphone() || goog.labs.userAgent.platform.isIpod();
+};
+goog.userAgent.product.IPHONE = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_IPHONE : goog.userAgent.product.isIphoneOrIpod_();
+goog.userAgent.product.IPAD = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_IPAD : goog.labs.userAgent.platform.isIpad();
+goog.userAgent.product.ANDROID = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_ANDROID : goog.labs.userAgent.browser.isAndroidBrowser();
+goog.userAgent.product.CHROME = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_CHROME : goog.labs.userAgent.browser.isChrome();
+goog.userAgent.product.isSafariDesktop_ = function() {
+  return goog.labs.userAgent.browser.isSafari() && !goog.labs.userAgent.platform.isIos();
+};
+goog.userAgent.product.SAFARI = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_SAFARI : goog.userAgent.product.isSafariDesktop_();
 goog.crypt.stringToByteArray = function(str) {
   for (var output = [], p = 0, i = 0; i < str.length; i++) {
     var c = str.charCodeAt(i);
@@ -16719,29 +16772,6 @@ goog.crypt.xorByteArray = function(bytes1, bytes2) {
   }
   return result;
 };
-goog.userAgent.product = {};
-goog.userAgent.product.ASSUME_FIREFOX = !1;
-goog.userAgent.product.ASSUME_IPHONE = !1;
-goog.userAgent.product.ASSUME_IPAD = !1;
-goog.userAgent.product.ASSUME_ANDROID = !1;
-goog.userAgent.product.ASSUME_CHROME = !1;
-goog.userAgent.product.ASSUME_SAFARI = !1;
-goog.userAgent.product.PRODUCT_KNOWN_ = goog.userAgent.ASSUME_IE || goog.userAgent.ASSUME_EDGE || goog.userAgent.ASSUME_OPERA || goog.userAgent.product.ASSUME_FIREFOX || goog.userAgent.product.ASSUME_IPHONE || goog.userAgent.product.ASSUME_IPAD || goog.userAgent.product.ASSUME_ANDROID || goog.userAgent.product.ASSUME_CHROME || goog.userAgent.product.ASSUME_SAFARI;
-goog.userAgent.product.OPERA = goog.userAgent.OPERA;
-goog.userAgent.product.IE = goog.userAgent.IE;
-goog.userAgent.product.EDGE = goog.userAgent.EDGE;
-goog.userAgent.product.FIREFOX = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_FIREFOX : goog.labs.userAgent.browser.isFirefox();
-goog.userAgent.product.isIphoneOrIpod_ = function() {
-  return goog.labs.userAgent.platform.isIphone() || goog.labs.userAgent.platform.isIpod();
-};
-goog.userAgent.product.IPHONE = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_IPHONE : goog.userAgent.product.isIphoneOrIpod_();
-goog.userAgent.product.IPAD = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_IPAD : goog.labs.userAgent.platform.isIpad();
-goog.userAgent.product.ANDROID = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_ANDROID : goog.labs.userAgent.browser.isAndroidBrowser();
-goog.userAgent.product.CHROME = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_CHROME : goog.labs.userAgent.browser.isChrome();
-goog.userAgent.product.isSafariDesktop_ = function() {
-  return goog.labs.userAgent.browser.isSafari() && !goog.labs.userAgent.platform.isIos();
-};
-goog.userAgent.product.SAFARI = goog.userAgent.product.PRODUCT_KNOWN_ ? goog.userAgent.product.ASSUME_SAFARI : goog.userAgent.product.isSafariDesktop_();
 goog.crypt.base64 = {};
 goog.crypt.base64.DEFAULT_ALPHABET_COMMON_ = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 goog.crypt.base64.ENCODED_VALS = goog.crypt.base64.DEFAULT_ALPHABET_COMMON_ + "+/=";
@@ -17145,7 +17175,7 @@ jspb.utils.debugBytesToTextFormat = function(byteSource) {
   return s + '"';
 };
 jspb.utils.debugScalarToTextFormat = function(scalar) {
-  return goog.isString(scalar) ? goog.string.quote(scalar) : scalar.toString();
+  return "string" === typeof scalar ? goog.string.quote(scalar) : scalar.toString();
 };
 jspb.utils.stringToByteArray = function(str) {
   for (var arr = new Uint8Array(str.length), i = 0; i < str.length; i++) {
@@ -17205,8 +17235,8 @@ jspb.BinaryDecoder.prototype.getBuffer = function() {
 };
 jspb.BinaryDecoder.prototype.setBlock = function(data, opt_start, opt_length) {
   this.bytes_ = jspb.utils.byteSourceToUint8Array(data);
-  this.start_ = goog.isDef(opt_start) ? opt_start : 0;
-  this.end_ = goog.isDef(opt_length) ? this.start_ + opt_length : this.bytes_.length;
+  this.start_ = void 0 !== opt_start ? opt_start : 0;
+  this.end_ = void 0 !== opt_length ? this.start_ + opt_length : this.bytes_.length;
   this.cursor_ = this.start_;
 };
 jspb.BinaryDecoder.prototype.getEnd = function() {
@@ -17600,16 +17630,16 @@ jspb.BinaryReader.prototype.skipField = function() {
       this.skipGroup();
       break;
     default:
-      goog.asserts.fail("Invalid wire encoding for field.");
+      this.error_ = !0, goog.asserts.fail("Invalid wire encoding for field.");
   }
 };
 jspb.BinaryReader.prototype.registerReadCallback = function(callbackName, callback) {
-  goog.isNull(this.readCallbacks_) && (this.readCallbacks_ = {});
+  null === this.readCallbacks_ && (this.readCallbacks_ = {});
   goog.asserts.assert(!this.readCallbacks_[callbackName]);
   this.readCallbacks_[callbackName] = callback;
 };
 jspb.BinaryReader.prototype.runReadCallback = function(callbackName) {
-  goog.asserts.assert(!goog.isNull(this.readCallbacks_));
+  goog.asserts.assert(null !== this.readCallbacks_);
   var callback = this.readCallbacks_[callbackName];
   goog.asserts.assert(callback);
   return callback(this);
@@ -18135,7 +18165,7 @@ jspb.BinaryEncoder.prototype.writeDouble = function(value) {
   this.writeUint32(jspb.utils.split64High);
 };
 jspb.BinaryEncoder.prototype.writeBool = function(value) {
-  goog.asserts.assert(goog.isBoolean(value) || goog.isNumber(value));
+  goog.asserts.assert("boolean" === typeof value || "number" === typeof value);
   this.buffer_.push(value ? 1 : 0);
 };
 jspb.BinaryEncoder.prototype.writeEnum = function(value) {
@@ -18421,7 +18451,7 @@ jspb.BinaryWriter.prototype.writeDouble = function(field, value) {
   null != value && (this.writeFieldHeader_(field, jspb.BinaryConstants.WireType.FIXED64), this.encoder_.writeDouble(value));
 };
 jspb.BinaryWriter.prototype.writeBool = function(field, value) {
-  null != value && (goog.asserts.assert(goog.isBoolean(value) || goog.isNumber(value)), this.writeFieldHeader_(field, jspb.BinaryConstants.WireType.VARINT), this.encoder_.writeBool(value));
+  null != value && (goog.asserts.assert("boolean" === typeof value || "number" === typeof value), this.writeFieldHeader_(field, jspb.BinaryConstants.WireType.VARINT), this.encoder_.writeBool(value));
 };
 jspb.BinaryWriter.prototype.writeEnum = function(field, value) {
   null != value && (goog.asserts.assert(value >= -jspb.BinaryConstants.TWO_TO_31 && value < jspb.BinaryConstants.TWO_TO_31), this.writeFieldHeader_(field, jspb.BinaryConstants.WireType.VARINT), this.encoder_.writeSignedVarint32(value));
@@ -19325,7 +19355,7 @@ jspb.Message.getRepeatedBooleanField = function(msg, fieldNumber) {
   return values;
 };
 jspb.Message.bytesAsB64 = function(value) {
-  if (null == value || goog.isString(value)) {
+  if (null == value || "string" === typeof value) {
     return value;
   }
   if (jspb.Message.SUPPORTS_UINT8ARRAY_ && value instanceof Uint8Array) {
@@ -19338,7 +19368,7 @@ jspb.Message.bytesAsU8 = function(value) {
   if (null == value || value instanceof Uint8Array) {
     return value;
   }
-  if (goog.isString(value)) {
+  if ("string" === typeof value) {
     return goog.crypt.base64.decodeStringToUint8Array(value);
   }
   goog.asserts.fail("Cannot coerce to Uint8Array: " + goog.typeOf(value));
@@ -19346,7 +19376,7 @@ jspb.Message.bytesAsU8 = function(value) {
 };
 jspb.Message.bytesListAsB64 = function(value) {
   jspb.Message.assertConsistentTypes_(value);
-  return !value.length || goog.isString(value[0]) ? value : goog.array.map(value, jspb.Message.bytesAsB64);
+  return value.length && "string" !== typeof value[0] ? goog.array.map(value, jspb.Message.bytesAsB64) : value;
 };
 jspb.Message.bytesListAsU8 = function(value) {
   jspb.Message.assertConsistentTypes_(value);
@@ -19581,7 +19611,7 @@ jspb.Message.prepareExtensionForSerialize_ = function(extension, msg) {
   return null;
 };
 jspb.Message.serializeSpecialNumbers_ = function(key, value) {
-  return goog.isNumber(value) && (isNaN(value) || Infinity === value || -Infinity === value) ? String(value) : value;
+  return "number" !== typeof value || !isNaN(value) && Infinity !== value && -Infinity !== value ? value : String(value);
 };
 jspb.Message.deserializeWithCtor = function(ctor, data) {
   var msg = new ctor(data ? JSON.parse(data) : null);
@@ -19655,7 +19685,7 @@ jspb.Message.compareFields = function(field1, field2) {
     return !0;
   }
   if (!goog.isObject(field1) || !goog.isObject(field2)) {
-    return goog.isNumber(field1) && isNaN(field1) || goog.isNumber(field2) && isNaN(field2) ? String(field1) == String(field2) : !1;
+    return "number" === typeof field1 && isNaN(field1) || "number" === typeof field2 && isNaN(field2) ? String(field1) == String(field2) : !1;
   }
   if (field1.constructor != field2.constructor) {
     return !1;
@@ -20134,18 +20164,25 @@ ee.data.setExpressionAugmenter = function(augmenter) {
 goog.exportSymbol("ee.data.setExpressionAugmenter", ee.data.setExpressionAugmenter);
 ee.data.expressionAugmenter_ = goog.functions.identity;
 ee.data.setAuthToken = module$contents$ee$apiclient_apiclient.setAuthToken;
+goog.exportSymbol("ee.data.setAuthToken", ee.data.setAuthToken);
 ee.data.refreshAuthToken = module$contents$ee$apiclient_apiclient.refreshAuthToken;
+goog.exportSymbol("ee.data.refreshAuthToken", ee.data.refreshAuthToken);
 ee.data.setAuthTokenRefresher = module$contents$ee$apiclient_apiclient.setAuthTokenRefresher;
+goog.exportSymbol("ee.data.setAuthTokenRefresher", ee.data.setAuthTokenRefresher);
 ee.data.getAuthToken = module$contents$ee$apiclient_apiclient.getAuthToken;
+goog.exportSymbol("ee.data.getAuthToken", ee.data.getAuthToken);
 ee.data.clearAuthToken = module$contents$ee$apiclient_apiclient.clearAuthToken;
+goog.exportSymbol("ee.data.clearAuthToken", ee.data.clearAuthToken);
 ee.data.getAuthClientId = module$contents$ee$apiclient_apiclient.getAuthClientId;
+goog.exportSymbol("ee.data.getAuthClientId", ee.data.getAuthClientId);
 ee.data.getAuthScopes = module$contents$ee$apiclient_apiclient.getAuthScopes;
-ee.data.initialize = module$contents$ee$apiclient_apiclient.initialize;
-ee.data.reset = module$contents$ee$apiclient_apiclient.reset;
+goog.exportSymbol("ee.data.getAuthScopes", ee.data.getAuthScopes);
 ee.data.setDeadline = module$contents$ee$apiclient_apiclient.setDeadline;
 goog.exportSymbol("ee.data.setDeadline", ee.data.setDeadline);
 ee.data.setParamAugmenter = module$contents$ee$apiclient_apiclient.setParamAugmenter;
 goog.exportSymbol("ee.data.setParamAugmenter", ee.data.setParamAugmenter);
+ee.data.initialize = module$contents$ee$apiclient_apiclient.initialize;
+ee.data.reset = module$contents$ee$apiclient_apiclient.reset;
 ee.data.PROFILE_HEADER = module$contents$ee$apiclient_apiclient.PROFILE_HEADER;
 ee.data.makeRequest_ = ee.apiclient.makeRequest;
 ee.data.send_ = module$contents$ee$apiclient_apiclient.send;
@@ -20167,7 +20204,7 @@ ee.data.getMapId = function(params, opt_callback) {
     if (void 0 !== params.version) {
       throw Error("Image version specification not supported.");
     }
-    var map = new module$exports$eeapiclient$ee_api_client.EarthEngineMap({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApi(params.image)), fileFormat:ee.rpc_convert.fileFormat(params.format), bandIds:ee.rpc_convert.bandList(params.bands), visualizationOptions:ee.rpc_convert.visualizationOptions(params)}), call = new module$contents$ee$apiclient_Call(opt_callback);
+    var map = new module$exports$eeapiclient$ee_api_client.EarthEngineMap({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.image)), fileFormat:ee.rpc_convert.fileFormat(params.format), bandIds:ee.rpc_convert.bandList(params.bands), visualizationOptions:ee.rpc_convert.visualizationOptions(params)}), call = new module$contents$ee$apiclient_Call(opt_callback);
     return call.handle(call.maps().create(call.projectsPath(), map, {fields:["name"]}).then(function(response) {
       var apiKey = module$contents$ee$apiclient_apiclient.getApiKey();
       return ee.data.makeMapId_(response.name, "", "/v1alpha/{}/tiles", apiKey ? "?key=" + apiKey : "");
@@ -20201,7 +20238,7 @@ ee.data.getValue = function(params, opt_callback) {
 };
 ee.data.computeValue = function(obj, opt_callback) {
   if (ee.data.getCloudApiEnabled()) {
-    var expression = ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApi(obj)), call = new module$contents$ee$apiclient_Call(opt_callback);
+    var expression = ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(obj)), call = new module$contents$ee$apiclient_Call(opt_callback);
     return call.handle(call.value().compute(call.projectsPath(), new module$exports$eeapiclient$ee_api_client.ComputeValueRequest({expression:expression})).then(function(x) {
       return x.result;
     }));
@@ -20220,7 +20257,7 @@ ee.data.getThumbId = function(params, opt_callback) {
     if (void 0 !== params.region) {
       throw Error('"region" not supported in call to ee.data.getThumbId. Use ee.Image.getThumbURL.');
     }
-    var thumbnail = new module$exports$eeapiclient$ee_api_client.Thumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApi(params.image)), fileFormat:ee.rpc_convert.fileFormat(params.format), bandIds:ee.rpc_convert.bandList(params.bands), visualizationOptions:ee.rpc_convert.visualizationOptions(params), grid:null}), call = new module$contents$ee$apiclient_Call(opt_callback);
+    var thumbnail = new module$exports$eeapiclient$ee_api_client.Thumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.image)), fileFormat:ee.rpc_convert.fileFormat(params.format), filenamePrefix:params.name, bandIds:ee.rpc_convert.bandList(params.bands), visualizationOptions:ee.rpc_convert.visualizationOptions(params), grid:null}), call = new module$contents$ee$apiclient_Call(opt_callback);
     return call.handle(call.thumbnails().create(call.projectsPath(), thumbnail, {fields:["name"]}).then(function(response) {
       return {thumbid:response.name, token:""};
     }));
@@ -20238,8 +20275,8 @@ ee.data.getVideoThumbId = function(params, opt_callback) {
   if (!ee.data.getCloudApiEnabled()) {
     throw Error("getVideoThumbId is only supported in Cloud API mode.");
   }
-  var videoOptions = new module$exports$eeapiclient$ee_api_client.VideoOptions({framesPerSecond:params.framesPerSecond || null, maxFrames:params.maxFrames || null, maxPixelsPerFrame:params.maxPixelsPerFrame || null}), request = new module$exports$eeapiclient$ee_api_client.VideoThumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApi(params.imageCollection)), fileFormat:ee.rpc_convert.fileFormat(params.format), videoOptions:videoOptions, 
-  grid:null}), call = new module$contents$ee$apiclient_Call(opt_callback);
+  var videoOptions = new module$exports$eeapiclient$ee_api_client.VideoOptions({framesPerSecond:params.framesPerSecond || null, maxFrames:params.maxFrames || null, maxPixelsPerFrame:params.maxPixelsPerFrame || null}), request = new module$exports$eeapiclient$ee_api_client.VideoThumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.imageCollection)), fileFormat:ee.rpc_convert.fileFormat(params.format), 
+  videoOptions:videoOptions, grid:null}), call = new module$contents$ee$apiclient_Call(opt_callback);
   return call.handle(call.videoThumbnails().create(call.projectsPath(), request, {fields:["name"]}).then(function(response) {
     return {thumbid:response.name, token:""};
   }));
@@ -20249,7 +20286,7 @@ ee.data.getFilmstripThumbId = function(params, opt_callback) {
   if (!ee.data.getCloudApiEnabled()) {
     throw Error("getFilmstripThumbId is only supported in Cloud API mode.");
   }
-  var request = new module$exports$eeapiclient$ee_api_client.FilmstripThumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApi(params.imageCollection)), fileFormat:ee.rpc_convert.fileFormat(params.format), orientation:ee.rpc_convert.orientation(params.orientation), grid:null}), call = new module$contents$ee$apiclient_Call(opt_callback);
+  var request = new module$exports$eeapiclient$ee_api_client.FilmstripThumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.imageCollection)), fileFormat:ee.rpc_convert.fileFormat(params.format), orientation:ee.rpc_convert.orientation(params.orientation), grid:null}), call = new module$contents$ee$apiclient_Call(opt_callback);
   return call.handle(call.filmstripThumbnails().create(call.projectsPath(), request, {fields:["name"]}).then(function(response) {
     return {thumbid:response.name, token:""};
   }));
@@ -20559,7 +20596,7 @@ ee.data.getList = function(params, opt_callback) {
 ee.data.listAssets = function(parent, params, opt_callback) {
   params = void 0 === params ? {} : params;
   var isProjectAssetRoot = ee.rpc_convert.CLOUD_ASSET_ROOT_RE.test(parent), call = new module$contents$ee$apiclient_Call(opt_callback), methodRoot = isProjectAssetRoot ? call.projects() : call.assets();
-  parent = isProjectAssetRoot ? ee.rpc_convert.projectParentFromPath(parent) : parent;
+  parent = isProjectAssetRoot ? ee.rpc_convert.projectParentFromPath(parent) : ee.rpc_convert.assetIdToAssetName(parent);
   return call.handle(methodRoot.listAssets(parent, params));
 };
 ee.data.cloudApiSymbols.push("listAssets");
@@ -20723,11 +20760,11 @@ ee.data.getAssetRootQuota = function(rootId, opt_callback) {
   }
   return ee.data.send_("/quota", ee.data.makeRequest_({id:rootId}), opt_callback, "GET");
 };
-ee.data.AssetType = {ALGORITHM:"Algorithm", FOLDER:"Folder", IMAGE:"Image", IMAGE_COLLECTION:"ImageCollection", TABLE:"Table", UNKNOWN:"Unknown"};
-ee.data.TableType = {CSV:"CSV", SHAPE:"SHAPE", TF_RECORD:"TFRecord"};
+ee.data.AssetType = {ALGORITHM:"Algorithm", FOLDER:"Folder", FEATURE_COLLECTION:"FeatureCollection", IMAGE:"Image", IMAGE_COLLECTION:"ImageCollection", TABLE:"Table", UNKNOWN:"Unknown"};
 ee.data.ExportType = {IMAGE:"EXPORT_IMAGE", MAP:"EXPORT_TILES", TABLE:"EXPORT_FEATURES", VIDEO:"EXPORT_VIDEO", VIDEO_MAP:"EXPORT_VIDEO_MAP"};
 ee.data.ExportState = {UNSUBMITTED:"UNSUBMITTED", READY:"READY", RUNNING:"RUNNING", COMPLETED:"COMPLETED", FAILED:"FAILED", CANCEL_REQUESTED:"CANCEL_REQUESTED", CANCELLED:"CANCELLED"};
 ee.data.ExportDestination = {DRIVE:"DRIVE", GCS:"GOOGLE_CLOUD_STORAGE", ASSET:"ASSET"};
+ee.data.SystemPropertyPrefix = "system:";
 ee.data.SystemTimeProperty = {START:"system:time_start", END:"system:time_end"};
 ee.data.SYSTEM_ASSET_SIZE_PROPERTY = "system:asset_size";
 ee.data.AssetDetailsProperty = {TITLE:"system:title", DESCRIPTION:"system:description", TAGS:"system:tags"};
@@ -21524,7 +21561,9 @@ ee.Geometry.getEeApiArgs_ = function(jsConstructorFn, originalArgs) {
   delete args.coords;
   args.crs = args.proj;
   delete args.proj;
-  return goog.object.filter(args, goog.isDefAndNotNull);
+  return goog.object.filter(args, function(x) {
+    return null != x;
+  });
 };
 ee.Geometry.hasServerValue_ = function(coordinates) {
   return goog.isArray(coordinates) ? goog.array.some(coordinates, ee.Geometry.hasServerValue_) : coordinates instanceof ee.ComputedObject;
@@ -21533,7 +21572,9 @@ ee.Geometry.fixDepth_ = function(depth, coords) {
   if (1 > depth || 4 < depth) {
     throw Error("Unexpected nesting level.");
   }
-  goog.array.every(coords, goog.isNumber) && (coords = ee.Geometry.coordinatesToLine_(coords));
+  goog.array.every(coords, function(x) {
+    return "number" === typeof x;
+  }) && (coords = ee.Geometry.coordinatesToLine_(coords));
   for (var item = coords, count = 0; goog.isArray(item);) {
     item = item[0], count++;
   }
@@ -21790,11 +21831,11 @@ ee.data.images.applyTransformsToCollection = function(taskConfig) {
   return resultParams;
 };
 ee.data.images.applySelectionAndScale = function(image, params, outParams) {
-  var clipParams = {};
+  var clipParams = {}, SCALING_KEYS = ["maxDimension", "width", "height", "scale"];
   goog.object.forEach(params, function(value, key) {
     switch(key) {
       case "dimensions":
-        var dims = goog.isString(value) ? value.split("x").map(Number) : goog.isArray(value) ? value : goog.isNumber(value) ? [value] : [];
+        var dims = "string" === typeof value ? value.split("x").map(Number) : goog.isArray(value) ? value : "number" === typeof value ? [value] : [];
         if (1 === dims.length) {
           clipParams.maxDimension = dims[0];
         } else {
@@ -21806,11 +21847,11 @@ ee.data.images.applySelectionAndScale = function(image, params, outParams) {
         }
         break;
       case "bbox":
-        goog.isDefAndNotNull(clipParams.geometry) && console.warn("Multiple request parameters converted to region.");
+        null != clipParams.geometry && console.warn("Multiple request parameters converted to region.");
         clipParams.geometry = ee.data.images.bboxToGeometry(value);
         break;
       case "region":
-        goog.isDefAndNotNull(clipParams.geometry) && console.warn("Multiple request parameters converted to region.");
+        null != clipParams.geometry && console.warn("Multiple request parameters converted to region.");
         clipParams.geometry = ee.data.images.regionToGeometry(value);
         break;
       case "scale":
@@ -21820,7 +21861,9 @@ ee.data.images.applySelectionAndScale = function(image, params, outParams) {
         outParams[key] = value;
     }
   });
-  goog.object.isEmpty(clipParams) || (clipParams.input = image, image = ee.ApiFunction._apply("Image.clipToBoundsAndScale", clipParams));
+  goog.object.isEmpty(clipParams) || (clipParams.input = image, image = SCALING_KEYS.some(function(key) {
+    return key in clipParams;
+  }) ? ee.ApiFunction._apply("Image.clipToBoundsAndScale", clipParams) : ee.ApiFunction._apply("Image.clip", clipParams));
   return image;
 };
 ee.data.images.bboxToGeometry = function(bbox) {
@@ -21828,7 +21871,7 @@ ee.data.images.bboxToGeometry = function(bbox) {
     return bbox;
   }
   var bboxArray = bbox;
-  if (goog.isString(bbox)) {
+  if ("string" === typeof bbox) {
     try {
       bboxArray = JSON.parse(bbox);
     } catch ($jscomp$unused$catch) {
@@ -21848,7 +21891,7 @@ ee.data.images.regionToGeometry = function(region) {
     return region;
   }
   var regionObject = region;
-  if (goog.isString(region)) {
+  if ("string" === typeof region) {
     try {
       regionObject = JSON.parse(region);
     } catch (e) {
@@ -21862,7 +21905,7 @@ ee.data.images.regionToGeometry = function(region) {
 };
 ee.data.images.applyCrsAndTransform = function(image, params) {
   var crs = params.crs || "", crsTransform = params.crsTransform || params.crs_transform;
-  goog.isDefAndNotNull(crsTransform) && (crsTransform = ee.data.images.maybeConvertCrsTransformToArray_(crsTransform));
+  null != crsTransform && (crsTransform = ee.data.images.maybeConvertCrsTransformToArray_(crsTransform));
   if (!crs && !crsTransform) {
     return image;
   }
@@ -21870,9 +21913,9 @@ ee.data.images.applyCrsAndTransform = function(image, params) {
     throw Error('Must specify "crs" if "crsTransform" is specified.');
   }
   if (crsTransform) {
-    if (image = ee.ApiFunction._apply("Image.reproject", {image:image, crs:crs, crsTransform:crsTransform}), goog.isDefAndNotNull(params.dimensions) && !goog.isDefAndNotNull(params.scale) && !goog.isDefAndNotNull(params.region)) {
+    if (image = ee.ApiFunction._apply("Image.reproject", {image:image, crs:crs, crsTransform:crsTransform}), null != params.dimensions && null == params.scale && null == params.region) {
       var dimensions = params.dimensions;
-      goog.isString(dimensions) && (dimensions = dimensions.split("x").map(Number));
+      "string" === typeof dimensions && (dimensions = dimensions.split("x").map(Number));
       if (2 === dimensions.length) {
         delete params.dimensions;
         var projection = (new ee.ApiFunction("Projection")).call(crs, crsTransform);
@@ -21886,14 +21929,16 @@ ee.data.images.applyCrsAndTransform = function(image, params) {
 };
 ee.data.images.maybeConvertCrsTransformToArray_ = function(crsTransform) {
   var transformArray = crsTransform;
-  if (goog.isString(transformArray)) {
+  if ("string" === typeof transformArray) {
     try {
       transformArray = JSON.parse(transformArray);
     } catch (e) {
     }
   }
   if (goog.isArray(transformArray)) {
-    if (6 === transformArray.length && goog.array.every(transformArray, goog.isNumber)) {
+    if (6 === transformArray.length && goog.array.every(transformArray, function(x) {
+      return "number" === typeof x;
+    })) {
       return transformArray;
     }
     throw Error("Invalid argument, crs transform must be a list of 6 numbers.");
@@ -21986,6 +22031,15 @@ ee.Image.prototype.getMap = function(opt_visParams, opt_callback) {
 };
 ee.Image.prototype.getDownloadURL = function(params, opt_callback) {
   var args = ee.arguments.extractFromFunction(ee.Image.prototype.getDownloadURL, arguments), request = args.params ? goog.object.clone(args.params) : {};
+  if (ee.data.getCloudApiEnabled()) {
+    request.format = request.filePerBand ? "ZIPPED_GEO_TIFF_PER_BAND" : "ZIPPED_GEO_TIFF";
+    delete request.filePerBand;
+    if (args.callback) {
+      this.getThumbURL(request, args.callback);
+      return;
+    }
+    return this.getThumbURL(request);
+  }
   request.image = this.serialize();
   if (args.callback) {
     var callback = args.callback;
@@ -21996,13 +22050,14 @@ ee.Image.prototype.getDownloadURL = function(params, opt_callback) {
     return ee.data.makeDownloadUrl(ee.data.getDownloadId(request));
   }
 };
-ee.Image.prototype.getThumbURL = function(params, opt_callback) {
-  var args = ee.arguments.extractFromFunction(ee.Image.prototype.getThumbURL, arguments);
+ee.Image.prototype.getThumbId = function(params, opt_callback) {
+  var args = ee.arguments.extractFromFunction(ee.Image.prototype.getDownloadURL, arguments), request = args.params ? goog.object.clone(args.params) : {};
   if (ee.data.getCloudApiEnabled()) {
-    var extra = {}, image = ee.data.images.applySelectionAndScale(this, args.params, extra);
-    var request = ee.data.images.applyVisualization(image, extra);
+    var extra = {}, image = ee.data.images.applyCrsAndTransform(this, request);
+    image = ee.data.images.applySelectionAndScale(image, request, extra);
+    request = ee.data.images.applyVisualization(image, extra);
   } else {
-    if (request = ee.data.images.applyVisualization(this, args.params), request.region) {
+    if (request = ee.data.images.applyVisualization(this, request), request.region) {
       if (request.region instanceof ee.Geometry && (request.region = request.region.toGeoJSON()), goog.isArray(request.region) || ee.Types.isRegularObject(request.region)) {
         request.region = goog.json.serialize(request.region);
       } else {
@@ -22012,8 +22067,12 @@ ee.Image.prototype.getThumbURL = function(params, opt_callback) {
       }
     }
   }
+  return args.callback ? (ee.data.getThumbId(request, args.callback), null) : ee.data.getThumbId(request);
+};
+ee.Image.prototype.getThumbURL = function(params, opt_callback) {
+  var args = ee.arguments.extractFromFunction(ee.Image.prototype.getThumbURL, arguments);
   if (args.callback) {
-    ee.data.getThumbId(request, function(thumbId, opt_error) {
+    this.getThumbId(args.params, function(thumbId, opt_error) {
       var thumbUrl = "";
       if (void 0 === opt_error) {
         try {
@@ -22025,7 +22084,7 @@ ee.Image.prototype.getThumbURL = function(params, opt_callback) {
       args.callback(thumbUrl, opt_error);
     });
   } else {
-    return ee.data.makeThumbUrl(ee.data.getThumbId(request));
+    return ee.data.makeThumbUrl(this.getThumbId(args.params));
   }
 };
 ee.Image.rgb = function(r, g, b) {
@@ -22351,8 +22410,13 @@ ee.ImageCollection.prototype.elementType = function() {
   return ee.Image;
 };
 ee.batch = {};
+ee.batch.Export = {};
 var ComputedObject = ee.ComputedObject, ExportDestination = ee.data.ExportDestination, ExportType = ee.data.ExportType, GoogPromise = goog.Promise, googArray = goog.array, googObject = goog.object, json = goog.json;
-ee.batch.Export = {image:{}, map:{}, table:{}, video:{}, videoMap:{}};
+ee.batch.Export.image = {};
+ee.batch.Export.map = {};
+ee.batch.Export.table = {};
+ee.batch.Export.video = {};
+ee.batch.Export.videoMap = {};
 ee.batch.ExportTask = function(config) {
   this.config_ = config;
   this.id = null;
@@ -22360,7 +22424,9 @@ ee.batch.ExportTask = function(config) {
 ee.batch.ExportTask.create = function(exportArgs) {
   var config = {element:ee.batch.Export.extractElement(exportArgs)};
   Object.assign(config, exportArgs);
-  config = goog.object.filter(config, goog.isDefAndNotNull);
+  config = goog.object.filter(config, function(x) {
+    return null != x;
+  });
   return new ee.batch.ExportTask(config);
 };
 ee.batch.ExportTask.prototype.start = function(opt_success, opt_error) {
@@ -22616,7 +22682,7 @@ ee.batch.Export.prefixImageFormatOptions_ = function(taskConfig, imageFormat) {
     throw Error("Parameter specified at least twice: once in config, and once in config format options.");
   }
   for (var prefix = FORMAT_PREFIX_MAP[imageFormat], validOptionKeys = FORMAT_OPTIONS_MAP[imageFormat], prefixedOptions = {}, $jscomp$iter$15 = $jscomp.makeIterator(Object.entries(formatOptions)), $jscomp$key$ = $jscomp$iter$15.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$15.next()) {
-    var $jscomp$destructuring$var98 = $jscomp.makeIterator($jscomp$key$.value), key$jscomp$0 = $jscomp$destructuring$var98.next().value, value = $jscomp$destructuring$var98.next().value;
+    var $jscomp$destructuring$var95 = $jscomp.makeIterator($jscomp$key$.value), key$jscomp$0 = $jscomp$destructuring$var95.next().value, value = $jscomp$destructuring$var95.next().value;
     if (!goog.array.contains(validOptionKeys, key$jscomp$0)) {
       var validKeysMsg = validOptionKeys.join(", ");
       throw Error('"' + key$jscomp$0 + '" is not a valid option, the image format "' + imageFormat + '""may have the following options: ' + (validKeysMsg + '".'));
@@ -23391,126 +23457,6 @@ goog.events.EventHandler.prototype.disposeInternal = function() {
 };
 goog.events.EventHandler.prototype.handleEvent = function(e) {
   throw Error("EventHandler.handleEvent not implemented");
-};
-goog.fs.DOMErrorLike = function() {
-};
-goog.fs.Error = function(error, action) {
-  if (void 0 !== error.name) {
-    this.name = error.name, this.code = goog.fs.Error.getCodeFromName_(error.name);
-  } else {
-    var code = goog.asserts.assertNumber(error.code);
-    this.code = code;
-    this.name = goog.fs.Error.getNameFromCode_(code);
-  }
-  goog.debug.Error.call(this, goog.string.subs("%s %s", this.name, action));
-};
-goog.inherits(goog.fs.Error, goog.debug.Error);
-goog.fs.Error.ErrorName = {ABORT:"AbortError", ENCODING:"EncodingError", INVALID_MODIFICATION:"InvalidModificationError", INVALID_STATE:"InvalidStateError", NOT_FOUND:"NotFoundError", NOT_READABLE:"NotReadableError", NO_MODIFICATION_ALLOWED:"NoModificationAllowedError", PATH_EXISTS:"PathExistsError", QUOTA_EXCEEDED:"QuotaExceededError", SECURITY:"SecurityError", SYNTAX:"SyntaxError", TYPE_MISMATCH:"TypeMismatchError"};
-goog.fs.Error.ErrorCode = {NOT_FOUND:1, SECURITY:2, ABORT:3, NOT_READABLE:4, ENCODING:5, NO_MODIFICATION_ALLOWED:6, INVALID_STATE:7, SYNTAX:8, INVALID_MODIFICATION:9, QUOTA_EXCEEDED:10, TYPE_MISMATCH:11, PATH_EXISTS:12};
-goog.fs.Error.getNameFromCode_ = function(code) {
-  var name = goog.object.findKey(goog.fs.Error.NameToCodeMap_, function(c) {
-    return code == c;
-  });
-  if (void 0 === name) {
-    throw Error("Invalid code: " + code);
-  }
-  return name;
-};
-goog.fs.Error.getCodeFromName_ = function(name) {
-  return goog.fs.Error.NameToCodeMap_[name];
-};
-goog.fs.Error.NameToCodeMap_ = goog.object.create(goog.fs.Error.ErrorName.ABORT, goog.fs.Error.ErrorCode.ABORT, goog.fs.Error.ErrorName.ENCODING, goog.fs.Error.ErrorCode.ENCODING, goog.fs.Error.ErrorName.INVALID_MODIFICATION, goog.fs.Error.ErrorCode.INVALID_MODIFICATION, goog.fs.Error.ErrorName.INVALID_STATE, goog.fs.Error.ErrorCode.INVALID_STATE, goog.fs.Error.ErrorName.NOT_FOUND, goog.fs.Error.ErrorCode.NOT_FOUND, goog.fs.Error.ErrorName.NOT_READABLE, goog.fs.Error.ErrorCode.NOT_READABLE, goog.fs.Error.ErrorName.NO_MODIFICATION_ALLOWED, 
-goog.fs.Error.ErrorCode.NO_MODIFICATION_ALLOWED, goog.fs.Error.ErrorName.PATH_EXISTS, goog.fs.Error.ErrorCode.PATH_EXISTS, goog.fs.Error.ErrorName.QUOTA_EXCEEDED, goog.fs.Error.ErrorCode.QUOTA_EXCEEDED, goog.fs.Error.ErrorName.SECURITY, goog.fs.Error.ErrorCode.SECURITY, goog.fs.Error.ErrorName.SYNTAX, goog.fs.Error.ErrorCode.SYNTAX, goog.fs.Error.ErrorName.TYPE_MISMATCH, goog.fs.Error.ErrorCode.TYPE_MISMATCH);
-goog.fs.ProgressEvent = function(event, target) {
-  goog.events.Event.call(this, event.type, target);
-  this.event_ = event;
-};
-goog.inherits(goog.fs.ProgressEvent, goog.events.Event);
-goog.fs.ProgressEvent.prototype.isLengthComputable = function() {
-  return this.event_.lengthComputable;
-};
-goog.fs.ProgressEvent.prototype.getLoaded = function() {
-  return this.event_.loaded;
-};
-goog.fs.ProgressEvent.prototype.getTotal = function() {
-  return this.event_.total;
-};
-goog.fs.FileReader = function() {
-  goog.events.EventTarget.call(this);
-  this.reader_ = new FileReader;
-  this.reader_.onloadstart = goog.bind(this.dispatchProgressEvent_, this);
-  this.reader_.onprogress = goog.bind(this.dispatchProgressEvent_, this);
-  this.reader_.onload = goog.bind(this.dispatchProgressEvent_, this);
-  this.reader_.onabort = goog.bind(this.dispatchProgressEvent_, this);
-  this.reader_.onerror = goog.bind(this.dispatchProgressEvent_, this);
-  this.reader_.onloadend = goog.bind(this.dispatchProgressEvent_, this);
-};
-goog.inherits(goog.fs.FileReader, goog.events.EventTarget);
-goog.fs.FileReader.ReadyState = {INIT:0, LOADING:1, DONE:2};
-goog.fs.FileReader.EventType = {LOAD_START:"loadstart", PROGRESS:"progress", LOAD:"load", ABORT:"abort", ERROR:"error", LOAD_END:"loadend"};
-goog.fs.FileReader.prototype.abort = function() {
-  try {
-    this.reader_.abort();
-  } catch (e) {
-    throw new goog.fs.Error(e, "aborting read");
-  }
-};
-goog.fs.FileReader.prototype.getReadyState = function() {
-  return this.reader_.readyState;
-};
-goog.fs.FileReader.prototype.getResult = function() {
-  return this.reader_.result;
-};
-goog.fs.FileReader.prototype.getError = function() {
-  return this.reader_.error && new goog.fs.Error(this.reader_.error, "reading file");
-};
-goog.fs.FileReader.prototype.dispatchProgressEvent_ = function(event) {
-  this.dispatchEvent(new goog.fs.ProgressEvent(event, this));
-};
-goog.fs.FileReader.prototype.disposeInternal = function() {
-  goog.fs.FileReader.superClass_.disposeInternal.call(this);
-  delete this.reader_;
-};
-goog.fs.FileReader.prototype.readAsBinaryString = function(blob) {
-  this.reader_.readAsBinaryString(blob);
-};
-goog.fs.FileReader.readAsBinaryString = function(blob) {
-  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
-  reader.readAsBinaryString(blob);
-  return d;
-};
-goog.fs.FileReader.prototype.readAsArrayBuffer = function(blob) {
-  this.reader_.readAsArrayBuffer(blob);
-};
-goog.fs.FileReader.readAsArrayBuffer = function(blob) {
-  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
-  reader.readAsArrayBuffer(blob);
-  return d;
-};
-goog.fs.FileReader.prototype.readAsText = function(blob, opt_encoding) {
-  this.reader_.readAsText(blob, opt_encoding);
-};
-goog.fs.FileReader.readAsText = function(blob, opt_encoding) {
-  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
-  reader.readAsText(blob, opt_encoding);
-  return d;
-};
-goog.fs.FileReader.prototype.readAsDataUrl = function(blob) {
-  this.reader_.readAsDataURL(blob);
-};
-goog.fs.FileReader.readAsDataUrl = function(blob) {
-  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
-  reader.readAsDataUrl(blob);
-  return d;
-};
-goog.fs.FileReader.createDeferred_ = function(reader) {
-  var deferred = new goog.async.Deferred;
-  reader.listen(goog.fs.FileReader.EventType.LOAD_END, goog.partial(function(d, r, e) {
-    var result = r.getResult(), error = r.getError();
-    null == result || error ? d.errback(error) : d.callback(result);
-    r.dispose();
-  }, deferred, reader));
-  return deferred;
 };
 goog.dom.vendor = {};
 goog.dom.vendor.getVendorJsPrefix = function() {
@@ -24354,6 +24300,126 @@ goog.style.getCssTranslation = function(element) {
   }
   var matches = transform.match(goog.style.MATRIX_TRANSLATION_REGEX_);
   return matches ? new goog.math.Coordinate(parseFloat(matches[1]), parseFloat(matches[2])) : new goog.math.Coordinate(0, 0);
+};
+goog.fs.DOMErrorLike = function() {
+};
+goog.fs.Error = function(error, action) {
+  if (void 0 !== error.name) {
+    this.name = error.name, this.code = goog.fs.Error.getCodeFromName_(error.name);
+  } else {
+    var code = goog.asserts.assertNumber(error.code);
+    this.code = code;
+    this.name = goog.fs.Error.getNameFromCode_(code);
+  }
+  goog.debug.Error.call(this, goog.string.subs("%s %s", this.name, action));
+};
+goog.inherits(goog.fs.Error, goog.debug.Error);
+goog.fs.Error.ErrorName = {ABORT:"AbortError", ENCODING:"EncodingError", INVALID_MODIFICATION:"InvalidModificationError", INVALID_STATE:"InvalidStateError", NOT_FOUND:"NotFoundError", NOT_READABLE:"NotReadableError", NO_MODIFICATION_ALLOWED:"NoModificationAllowedError", PATH_EXISTS:"PathExistsError", QUOTA_EXCEEDED:"QuotaExceededError", SECURITY:"SecurityError", SYNTAX:"SyntaxError", TYPE_MISMATCH:"TypeMismatchError"};
+goog.fs.Error.ErrorCode = {NOT_FOUND:1, SECURITY:2, ABORT:3, NOT_READABLE:4, ENCODING:5, NO_MODIFICATION_ALLOWED:6, INVALID_STATE:7, SYNTAX:8, INVALID_MODIFICATION:9, QUOTA_EXCEEDED:10, TYPE_MISMATCH:11, PATH_EXISTS:12};
+goog.fs.Error.getNameFromCode_ = function(code) {
+  var name = goog.object.findKey(goog.fs.Error.NameToCodeMap_, function(c) {
+    return code == c;
+  });
+  if (void 0 === name) {
+    throw Error("Invalid code: " + code);
+  }
+  return name;
+};
+goog.fs.Error.getCodeFromName_ = function(name) {
+  return goog.fs.Error.NameToCodeMap_[name];
+};
+goog.fs.Error.NameToCodeMap_ = goog.object.create(goog.fs.Error.ErrorName.ABORT, goog.fs.Error.ErrorCode.ABORT, goog.fs.Error.ErrorName.ENCODING, goog.fs.Error.ErrorCode.ENCODING, goog.fs.Error.ErrorName.INVALID_MODIFICATION, goog.fs.Error.ErrorCode.INVALID_MODIFICATION, goog.fs.Error.ErrorName.INVALID_STATE, goog.fs.Error.ErrorCode.INVALID_STATE, goog.fs.Error.ErrorName.NOT_FOUND, goog.fs.Error.ErrorCode.NOT_FOUND, goog.fs.Error.ErrorName.NOT_READABLE, goog.fs.Error.ErrorCode.NOT_READABLE, goog.fs.Error.ErrorName.NO_MODIFICATION_ALLOWED, 
+goog.fs.Error.ErrorCode.NO_MODIFICATION_ALLOWED, goog.fs.Error.ErrorName.PATH_EXISTS, goog.fs.Error.ErrorCode.PATH_EXISTS, goog.fs.Error.ErrorName.QUOTA_EXCEEDED, goog.fs.Error.ErrorCode.QUOTA_EXCEEDED, goog.fs.Error.ErrorName.SECURITY, goog.fs.Error.ErrorCode.SECURITY, goog.fs.Error.ErrorName.SYNTAX, goog.fs.Error.ErrorCode.SYNTAX, goog.fs.Error.ErrorName.TYPE_MISMATCH, goog.fs.Error.ErrorCode.TYPE_MISMATCH);
+goog.fs.ProgressEvent = function(event, target) {
+  goog.events.Event.call(this, event.type, target);
+  this.event_ = event;
+};
+goog.inherits(goog.fs.ProgressEvent, goog.events.Event);
+goog.fs.ProgressEvent.prototype.isLengthComputable = function() {
+  return this.event_.lengthComputable;
+};
+goog.fs.ProgressEvent.prototype.getLoaded = function() {
+  return this.event_.loaded;
+};
+goog.fs.ProgressEvent.prototype.getTotal = function() {
+  return this.event_.total;
+};
+goog.fs.FileReader = function() {
+  goog.events.EventTarget.call(this);
+  this.reader_ = new FileReader;
+  this.reader_.onloadstart = goog.bind(this.dispatchProgressEvent_, this);
+  this.reader_.onprogress = goog.bind(this.dispatchProgressEvent_, this);
+  this.reader_.onload = goog.bind(this.dispatchProgressEvent_, this);
+  this.reader_.onabort = goog.bind(this.dispatchProgressEvent_, this);
+  this.reader_.onerror = goog.bind(this.dispatchProgressEvent_, this);
+  this.reader_.onloadend = goog.bind(this.dispatchProgressEvent_, this);
+};
+goog.inherits(goog.fs.FileReader, goog.events.EventTarget);
+goog.fs.FileReader.ReadyState = {INIT:0, LOADING:1, DONE:2};
+goog.fs.FileReader.EventType = {LOAD_START:"loadstart", PROGRESS:"progress", LOAD:"load", ABORT:"abort", ERROR:"error", LOAD_END:"loadend"};
+goog.fs.FileReader.prototype.abort = function() {
+  try {
+    this.reader_.abort();
+  } catch (e) {
+    throw new goog.fs.Error(e, "aborting read");
+  }
+};
+goog.fs.FileReader.prototype.getReadyState = function() {
+  return this.reader_.readyState;
+};
+goog.fs.FileReader.prototype.getResult = function() {
+  return this.reader_.result;
+};
+goog.fs.FileReader.prototype.getError = function() {
+  return this.reader_.error && new goog.fs.Error(this.reader_.error, "reading file");
+};
+goog.fs.FileReader.prototype.dispatchProgressEvent_ = function(event) {
+  this.dispatchEvent(new goog.fs.ProgressEvent(event, this));
+};
+goog.fs.FileReader.prototype.disposeInternal = function() {
+  goog.fs.FileReader.superClass_.disposeInternal.call(this);
+  delete this.reader_;
+};
+goog.fs.FileReader.prototype.readAsBinaryString = function(blob) {
+  this.reader_.readAsBinaryString(blob);
+};
+goog.fs.FileReader.readAsBinaryString = function(blob) {
+  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
+  reader.readAsBinaryString(blob);
+  return d;
+};
+goog.fs.FileReader.prototype.readAsArrayBuffer = function(blob) {
+  this.reader_.readAsArrayBuffer(blob);
+};
+goog.fs.FileReader.readAsArrayBuffer = function(blob) {
+  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
+  reader.readAsArrayBuffer(blob);
+  return d;
+};
+goog.fs.FileReader.prototype.readAsText = function(blob, opt_encoding) {
+  this.reader_.readAsText(blob, opt_encoding);
+};
+goog.fs.FileReader.readAsText = function(blob, opt_encoding) {
+  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
+  reader.readAsText(blob, opt_encoding);
+  return d;
+};
+goog.fs.FileReader.prototype.readAsDataUrl = function(blob) {
+  this.reader_.readAsDataURL(blob);
+};
+goog.fs.FileReader.readAsDataUrl = function(blob) {
+  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
+  reader.readAsDataUrl(blob);
+  return d;
+};
+goog.fs.FileReader.createDeferred_ = function(reader) {
+  var deferred = new goog.async.Deferred;
+  reader.listen(goog.fs.FileReader.EventType.LOAD_END, goog.partial(function(d, r, e) {
+    var result = r.getResult(), error = r.getError();
+    null == result || error ? d.errback(error) : d.callback(result);
+    r.dispose();
+  }, deferred, reader));
+  return deferred;
 };
 ee.layers.AbstractOverlay = function(tileSource, opt_options) {
   goog.events.EventTarget.call(this);
@@ -25736,26 +25802,26 @@ ee.data.Profiler.Format.prototype.toString = function() {
 ee.data.Profiler.Format.TEXT = new ee.data.Profiler.Format("text");
 ee.data.Profiler.Format.JSON = new ee.data.Profiler.Format("json");
 (function() {
-  var exportedFnInfo = {}, orderedFnNames = "ee.ApiFunction._apply ee.ApiFunction._call ee.ApiFunction.lookup ee.batch.Export.table.toDrive ee.batch.Export.video.toDrive ee.batch.Export.table.toAsset ee.batch.Export.videoMap.toCloudStorage ee.batch.Export.image.toDrive ee.batch.Export.image.toCloudStorage ee.batch.Export.map.toCloudStorage ee.batch.Export.video.toCloudStorage ee.batch.Export.table.toCloudStorage ee.batch.Export.image.toAsset ee.Collection.prototype.filterDate ee.Collection.prototype.sort ee.Collection.prototype.map ee.Collection.prototype.filter ee.Collection.prototype.iterate ee.Collection.prototype.limit ee.Collection.prototype.filterBounds ee.Collection.prototype.filterMetadata ee.ComputedObject.prototype.serialize ee.ComputedObject.prototype.aside ee.ComputedObject.prototype.evaluate ee.ComputedObject.prototype.getInfo ee.data.createAsset ee.data.getList ee.data.createFolder ee.data.startIngestion ee.data.listAssets ee.data.getMapId ee.data.getTileUrl ee.data.listImages ee.data.renameAsset ee.data.copyAsset ee.data.listBuckets ee.data.authenticate ee.data.startTableIngestion ee.data.getAssetRoots ee.data.deleteAsset ee.data.authenticateViaPopup ee.data.getAsset ee.data.getInfo ee.data.createAssetHome ee.data.getAssetAcl ee.data.authenticateViaPrivateKey ee.data.getValue ee.data.cancelTask ee.data.getTableDownloadId ee.data.getOperation ee.data.getThumbId ee.data.newTaskId ee.data.makeTableDownloadUrl ee.data.makeDownloadUrl ee.data.updateAsset ee.data.getVideoThumbId ee.data.getTaskStatus ee.data.updateTask ee.data.getFilmstripThumbId ee.data.setAssetProperties ee.data.setAssetAcl ee.data.getDownloadId ee.data.makeThumbUrl ee.data.startProcessing ee.data.authenticateViaOauth ee.data.getTaskList ee.data.cancelOperation ee.data.getTaskListWithLimit ee.data.getAssetRootQuota ee.Date ee.Deserializer.decode ee.Deserializer.fromJSON ee.Dictionary ee.call ee.reset ee.apply ee.Algorithms ee.InitState ee.TILE_SIZE ee.initialize ee.Element.prototype.set ee.Feature ee.Feature.prototype.getMap ee.Feature.prototype.getInfo ee.FeatureCollection ee.FeatureCollection.prototype.getMap ee.FeatureCollection.prototype.getDownloadURL ee.FeatureCollection.prototype.getInfo ee.FeatureCollection.prototype.select ee.Filter.prototype.not ee.Filter.lt ee.Filter.lte ee.Filter.and ee.Filter.neq ee.Filter.bounds ee.Filter ee.Filter.gte ee.Filter.metadata ee.Filter.inList ee.Filter.date ee.Filter.or ee.Filter.gt ee.Filter.eq ee.Function.prototype.apply ee.Function.prototype.call ee.Geometry.MultiLineString ee.Geometry.prototype.toGeoJSON ee.Geometry.Polygon ee.Geometry.prototype.toGeoJSONString ee.Geometry.Point ee.Geometry.LineString ee.Geometry ee.Geometry.MultiPoint ee.Geometry.LinearRing ee.Geometry.MultiPolygon ee.Geometry.Rectangle ee.Geometry.prototype.serialize ee.Image.prototype.rename ee.Image.prototype.getInfo ee.Image ee.Image.prototype.select ee.Image.prototype.expression ee.Image.prototype.getDownloadURL ee.Image.cat ee.Image.prototype.getMap ee.Image.rgb ee.Image.prototype.clip ee.Image.prototype.getThumbURL ee.ImageCollection.prototype.select ee.ImageCollection.prototype.getMap ee.ImageCollection.prototype.getInfo ee.ImageCollection.prototype.first ee.ImageCollection.prototype.getFilmstripThumbURL ee.ImageCollection.prototype.getVideoThumbURL ee.ImageCollection ee.List ee.Number ee.Serializer.encode ee.Serializer.toReadableCloudApiJSON ee.Serializer.encodeCloudApiPretty ee.Serializer.encodeCloudApi ee.Serializer.toReadableJSON ee.Serializer.toJSON ee.String ee.Terrain".split(" "), 
-  orderedParamLists = [["name", "namedArgs"], ["name", "var_args"], ["name"], "collection opt_description opt_folder opt_fileNamePrefix opt_fileFormat opt_selectors".split(" "), "collection opt_description opt_folder opt_fileNamePrefix opt_framesPerSecond opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_maxFrames".split(" "), ["collection", "opt_description", "opt_assetId"], "collection opt_description opt_bucket opt_fileNamePrefix opt_framesPerSecond opt_writePublicTiles opt_minZoom opt_maxZoom opt_scale opt_region opt_skipEmptyTiles opt_minTimeMachineZoomSubset opt_maxTimeMachineZoomSubset opt_tileWidth opt_tileHeight opt_tileStride opt_videoFormat opt_version opt_mapsApiKey opt_bucketCorsUris".split(" "), 
-  "image opt_description opt_folder opt_fileNamePrefix opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize opt_fileDimensions opt_skipEmptyTiles opt_fileFormat opt_formatOptions".split(" "), "image opt_description opt_bucket opt_fileNamePrefix opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize opt_fileDimensions opt_skipEmptyTiles opt_fileFormat opt_formatOptions".split(" "), "image opt_description opt_bucket opt_fileFormat opt_path opt_writePublicTiles opt_scale opt_maxZoom opt_minZoom opt_region opt_skipEmptyTiles opt_mapsApiKey".split(" "), 
-  "collection opt_description opt_bucket opt_fileNamePrefix opt_framesPerSecond opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_maxFrames".split(" "), "collection opt_description opt_bucket opt_fileNamePrefix opt_fileFormat opt_selectors".split(" "), "image opt_description opt_assetId opt_pyramidingPolicy opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels".split(" "), ["start", "opt_end"], ["property", "opt_ascending"], ["algorithm", "opt_dropNulls"], 
-  ["filter"], ["algorithm", "opt_first"], ["max", "opt_property", "opt_ascending"], ["geometry"], ["name", "operator", "value"], [], ["func", "var_args"], ["callback"], ["opt_callback"], ["value", "opt_path", "opt_force", "opt_properties", "opt_callback"], ["params", "opt_callback"], ["path", "opt_force", "opt_callback"], ["taskId", "request", "opt_callback"], ["parent", "params", "opt_callback"], ["params", "opt_callback"], ["mapid", "x", "y", "z"], ["parent", "params", "opt_callback"], ["sourceId", 
-  "destinationId", "opt_callback"], ["sourceId", "destinationId", "opt_overwrite", "opt_callback"], ["project", "opt_callback"], ["clientId", "success", "opt_error", "opt_extraScopes", "opt_onImmediateFailed"], ["taskId", "request", "opt_callback"], ["opt_callback"], ["assetId", "opt_callback"], ["opt_success", "opt_error"], ["id", "opt_callback"], ["id", "opt_callback"], ["requestedId", "opt_callback"], ["assetId", "opt_callback"], ["privateKey", "opt_success", "opt_error", "opt_extraScopes"], ["params", 
-  "opt_callback"], ["taskId", "opt_callback"], ["params", "opt_callback"], ["operationName", "opt_callback"], ["params", "opt_callback"], ["opt_count", "opt_callback"], ["id"], ["id"], ["assetId", "asset", "updateFields", "opt_callback"], ["params", "opt_callback"], ["taskId", "opt_callback"], ["taskId", "action", "opt_callback"], ["params", "opt_callback"], ["assetId", "properties", "opt_callback"], ["assetId", "aclUpdate", "opt_callback"], ["params", "opt_callback"], ["id"], ["taskId", "params", 
-  "opt_callback"], ["clientId", "success", "opt_error", "opt_extraScopes", "opt_onImmediateFailed"], ["opt_callback"], ["operationName", "opt_callback"], ["opt_limit", "opt_callback"], ["rootId", "opt_callback"], ["date", "opt_tz"], ["json"], ["json"], ["opt_dict"], ["func", "var_args"], [], ["func", "namedArgs"], [], [], [], ["opt_baseurl", "opt_tileurl", "opt_successCallback", "opt_errorCallback", "opt_xsrfToken"], ["var_args"], ["geometry", "opt_properties"], ["opt_visParams", "opt_callback"], 
-  ["opt_callback"], ["args", "opt_column"], ["opt_visParams", "opt_callback"], ["opt_format", "opt_selectors", "opt_filename", "opt_callback"], ["opt_callback"], ["propertySelectors", "opt_newProperties", "opt_retainGeometry"], [], ["name", "value"], ["name", "value"], ["var_args"], ["name", "value"], ["geometry", "opt_errorMargin"], ["opt_filter"], ["name", "value"], ["name", "operator", "value"], ["opt_leftField", "opt_rightValue", "opt_rightField", "opt_leftValue"], ["start", "opt_end"], ["var_args"], 
-  ["name", "value"], ["name", "value"], ["namedArgs"], ["var_args"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], [], ["coords", "opt_proj", "opt_geodesic", "opt_maxError", "opt_evenOdd"], [], ["coords", "opt_proj"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], ["geoJson", "opt_proj", "opt_geodesic", "opt_evenOdd"], ["coords", "opt_proj"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError", "opt_evenOdd"], ["coords", 
-  "opt_proj", "opt_geodesic", "opt_evenOdd"], [], ["var_args"], ["opt_callback"], ["opt_args"], ["var_args"], ["expression", "opt_map"], ["params", "opt_callback"], ["var_args"], ["opt_visParams", "opt_callback"], ["r", "g", "b"], ["geometry"], ["params", "opt_callback"], ["selectors", "opt_names"], ["opt_visParams", "opt_callback"], ["opt_callback"], [], ["params", "opt_callback"], ["params", "opt_callback"], ["args"], ["list"], ["number"], ["obj", "opt_isCompound"], ["obj"], ["obj"], ["obj"], ["obj"], 
-  ["obj"], ["string"], []];
-  [ee.ApiFunction._apply, ee.ApiFunction._call, ee.ApiFunction.lookup, ee.batch.Export.table.toDrive, ee.batch.Export.video.toDrive, ee.batch.Export.table.toAsset, ee.batch.Export.videoMap.toCloudStorage, ee.batch.Export.image.toDrive, ee.batch.Export.image.toCloudStorage, ee.batch.Export.map.toCloudStorage, ee.batch.Export.video.toCloudStorage, ee.batch.Export.table.toCloudStorage, ee.batch.Export.image.toAsset, ee.Collection.prototype.filterDate, ee.Collection.prototype.sort, ee.Collection.prototype.map, 
-  ee.Collection.prototype.filter, ee.Collection.prototype.iterate, ee.Collection.prototype.limit, ee.Collection.prototype.filterBounds, ee.Collection.prototype.filterMetadata, ee.ComputedObject.prototype.serialize, ee.ComputedObject.prototype.aside, ee.ComputedObject.prototype.evaluate, ee.ComputedObject.prototype.getInfo, ee.data.createAsset, ee.data.getList, ee.data.createFolder, ee.data.startIngestion, ee.data.listAssets, ee.data.getMapId, ee.data.getTileUrl, ee.data.listImages, ee.data.renameAsset, 
-  ee.data.copyAsset, ee.data.listBuckets, ee.data.authenticate, ee.data.startTableIngestion, ee.data.getAssetRoots, ee.data.deleteAsset, ee.data.authenticateViaPopup, ee.data.getAsset, ee.data.getInfo, ee.data.createAssetHome, ee.data.getAssetAcl, ee.data.authenticateViaPrivateKey, ee.data.getValue, ee.data.cancelTask, ee.data.getTableDownloadId, ee.data.getOperation, ee.data.getThumbId, ee.data.newTaskId, ee.data.makeTableDownloadUrl, ee.data.makeDownloadUrl, ee.data.updateAsset, ee.data.getVideoThumbId, 
-  ee.data.getTaskStatus, ee.data.updateTask, ee.data.getFilmstripThumbId, ee.data.setAssetProperties, ee.data.setAssetAcl, ee.data.getDownloadId, ee.data.makeThumbUrl, ee.data.startProcessing, ee.data.authenticateViaOauth, ee.data.getTaskList, ee.data.cancelOperation, ee.data.getTaskListWithLimit, ee.data.getAssetRootQuota, ee.Date, ee.Deserializer.decode, ee.Deserializer.fromJSON, ee.Dictionary, ee.call, ee.reset, ee.apply, ee.Algorithms, ee.InitState, ee.TILE_SIZE, ee.initialize, ee.Element.prototype.set, 
-  ee.Feature, ee.Feature.prototype.getMap, ee.Feature.prototype.getInfo, ee.FeatureCollection, ee.FeatureCollection.prototype.getMap, ee.FeatureCollection.prototype.getDownloadURL, ee.FeatureCollection.prototype.getInfo, ee.FeatureCollection.prototype.select, ee.Filter.prototype.not, ee.Filter.lt, ee.Filter.lte, ee.Filter.and, ee.Filter.neq, ee.Filter.bounds, ee.Filter, ee.Filter.gte, ee.Filter.metadata, ee.Filter.inList, ee.Filter.date, ee.Filter.or, ee.Filter.gt, ee.Filter.eq, ee.Function.prototype.apply, 
-  ee.Function.prototype.call, ee.Geometry.MultiLineString, ee.Geometry.prototype.toGeoJSON, ee.Geometry.Polygon, ee.Geometry.prototype.toGeoJSONString, ee.Geometry.Point, ee.Geometry.LineString, ee.Geometry, ee.Geometry.MultiPoint, ee.Geometry.LinearRing, ee.Geometry.MultiPolygon, ee.Geometry.Rectangle, ee.Geometry.prototype.serialize, ee.Image.prototype.rename, ee.Image.prototype.getInfo, ee.Image, ee.Image.prototype.select, ee.Image.prototype.expression, ee.Image.prototype.getDownloadURL, ee.Image.cat, 
-  ee.Image.prototype.getMap, ee.Image.rgb, ee.Image.prototype.clip, ee.Image.prototype.getThumbURL, ee.ImageCollection.prototype.select, ee.ImageCollection.prototype.getMap, ee.ImageCollection.prototype.getInfo, ee.ImageCollection.prototype.first, ee.ImageCollection.prototype.getFilmstripThumbURL, ee.ImageCollection.prototype.getVideoThumbURL, ee.ImageCollection, ee.List, ee.Number, ee.Serializer.encode, ee.Serializer.toReadableCloudApiJSON, ee.Serializer.encodeCloudApiPretty, ee.Serializer.encodeCloudApi, 
-  ee.Serializer.toReadableJSON, ee.Serializer.toJSON, ee.String, ee.Terrain].forEach(function(fn, i) {
+  var exportedFnInfo = {}, orderedFnNames = "ee.ApiFunction._apply ee.ApiFunction._call ee.ApiFunction.lookup ee.batch.Export.table.toDrive ee.batch.Export.video.toDrive ee.batch.Export.videoMap.toCloudStorage ee.batch.Export.image.toDrive ee.batch.Export.image.toAsset ee.batch.Export.image.toCloudStorage ee.batch.Export.map.toCloudStorage ee.batch.Export.table.toAsset ee.batch.Export.video.toCloudStorage ee.batch.Export.table.toCloudStorage ee.Collection.prototype.filterDate ee.Collection.prototype.sort ee.Collection.prototype.map ee.Collection.prototype.filter ee.Collection.prototype.iterate ee.Collection.prototype.limit ee.Collection.prototype.filterBounds ee.Collection.prototype.filterMetadata ee.ComputedObject.prototype.serialize ee.ComputedObject.prototype.aside ee.ComputedObject.prototype.evaluate ee.ComputedObject.prototype.getInfo ee.data.cancelOperation ee.data.listOperations ee.data.computeValue ee.data.createAssetHome ee.data.getThumbId ee.data.createAsset ee.data.getOperation ee.data.getFilmstripThumbId ee.data.getVideoThumbId ee.data.getMapId ee.data.createFolder ee.data.startIngestion ee.data.cancelTask ee.data.makeThumbUrl ee.data.getTileUrl ee.data.authenticateViaOauth ee.data.updateTask ee.data.getDownloadId ee.data.renameAsset ee.data.startProcessing ee.data.startTableIngestion ee.data.makeDownloadUrl ee.data.deleteAsset ee.data.copyAsset ee.data.getValue ee.data.getAssetRootQuota ee.data.getAsset ee.data.getTableDownloadId ee.data.getAssetAcl ee.data.newTaskId ee.data.makeTableDownloadUrl ee.data.getInfo ee.data.getTaskStatus ee.data.getList ee.data.updateAsset ee.data.listAssets ee.data.authenticate ee.data.listImages ee.data.setAssetAcl ee.data.getTaskList ee.data.listBuckets ee.data.authenticateViaPopup ee.data.setAssetProperties ee.data.getTaskListWithLimit ee.data.authenticateViaPrivateKey ee.data.getAssetRoots ee.Date ee.Deserializer.decode ee.Deserializer.fromJSON ee.Dictionary ee.InitState ee.TILE_SIZE ee.initialize ee.call ee.reset ee.apply ee.Algorithms ee.Element.prototype.set ee.Feature ee.Feature.prototype.getMap ee.Feature.prototype.getInfo ee.FeatureCollection.prototype.getDownloadURL ee.FeatureCollection.prototype.getInfo ee.FeatureCollection.prototype.select ee.FeatureCollection.prototype.getMap ee.FeatureCollection ee.Filter.lte ee.Filter.lt ee.Filter.or ee.Filter.metadata ee.Filter.gt ee.Filter.eq ee.Filter.prototype.not ee.Filter.and ee.Filter.bounds ee.Filter.neq ee.Filter ee.Filter.gte ee.Filter.inList ee.Filter.date ee.Function.prototype.apply ee.Function.prototype.call ee.Geometry ee.Geometry.prototype.serialize ee.Geometry.Rectangle ee.Geometry.MultiPolygon ee.Geometry.Point ee.Geometry.MultiLineString ee.Geometry.prototype.toGeoJSON ee.Geometry.Polygon ee.Geometry.LineString ee.Geometry.prototype.toGeoJSONString ee.Geometry.MultiPoint ee.Geometry.LinearRing ee.Image.prototype.expression ee.Image ee.Image.prototype.getThumbURL ee.Image.prototype.getInfo ee.Image.cat ee.Image.prototype.getDownloadURL ee.Image.rgb ee.Image.prototype.getThumbId ee.Image.prototype.select ee.Image.prototype.clip ee.Image.prototype.rename ee.Image.prototype.getMap ee.ImageCollection.prototype.first ee.ImageCollection.prototype.getFilmstripThumbURL ee.ImageCollection ee.ImageCollection.prototype.getInfo ee.ImageCollection.prototype.select ee.ImageCollection.prototype.getVideoThumbURL ee.ImageCollection.prototype.getMap ee.List ee.Number ee.Serializer.encodeCloudApi ee.Serializer.toJSON ee.Serializer.encode ee.Serializer.toReadableCloudApiJSON ee.Serializer.encodeCloudApiPretty ee.Serializer.toReadableJSON ee.String ee.Terrain".split(" "), 
+  orderedParamLists = [["name", "namedArgs"], ["name", "var_args"], ["name"], "collection opt_description opt_folder opt_fileNamePrefix opt_fileFormat opt_selectors".split(" "), "collection opt_description opt_folder opt_fileNamePrefix opt_framesPerSecond opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_maxFrames".split(" "), "collection opt_description opt_bucket opt_fileNamePrefix opt_framesPerSecond opt_writePublicTiles opt_minZoom opt_maxZoom opt_scale opt_region opt_skipEmptyTiles opt_minTimeMachineZoomSubset opt_maxTimeMachineZoomSubset opt_tileWidth opt_tileHeight opt_tileStride opt_videoFormat opt_version opt_mapsApiKey opt_bucketCorsUris".split(" "), 
+  "image opt_description opt_folder opt_fileNamePrefix opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize opt_fileDimensions opt_skipEmptyTiles opt_fileFormat opt_formatOptions".split(" "), "image opt_description opt_assetId opt_pyramidingPolicy opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels".split(" "), "image opt_description opt_bucket opt_fileNamePrefix opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize opt_fileDimensions opt_skipEmptyTiles opt_fileFormat opt_formatOptions".split(" "), 
+  "image opt_description opt_bucket opt_fileFormat opt_path opt_writePublicTiles opt_scale opt_maxZoom opt_minZoom opt_region opt_skipEmptyTiles opt_mapsApiKey".split(" "), ["collection", "opt_description", "opt_assetId"], "collection opt_description opt_bucket opt_fileNamePrefix opt_framesPerSecond opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_maxFrames".split(" "), "collection opt_description opt_bucket opt_fileNamePrefix opt_fileFormat opt_selectors".split(" "), 
+  ["start", "opt_end"], ["property", "opt_ascending"], ["algorithm", "opt_dropNulls"], ["filter"], ["algorithm", "opt_first"], ["max", "opt_property", "opt_ascending"], ["geometry"], ["name", "operator", "value"], [], ["func", "var_args"], ["callback"], ["opt_callback"], ["operationName", "opt_callback"], ["opt_limit", "opt_callback"], ["obj", "opt_callback"], ["requestedId", "opt_callback"], ["params", "opt_callback"], ["value", "opt_path", "opt_force", "opt_properties", "opt_callback"], ["operationName", 
+  "opt_callback"], ["params", "opt_callback"], ["params", "opt_callback"], ["params", "opt_callback"], ["path", "opt_force", "opt_callback"], ["taskId", "request", "opt_callback"], ["taskId", "opt_callback"], ["id"], ["mapid", "x", "y", "z"], ["clientId", "success", "opt_error", "opt_extraScopes", "opt_onImmediateFailed"], ["taskId", "action", "opt_callback"], ["params", "opt_callback"], ["sourceId", "destinationId", "opt_callback"], ["taskId", "params", "opt_callback"], ["taskId", "request", "opt_callback"], 
+  ["id"], ["assetId", "opt_callback"], ["sourceId", "destinationId", "opt_overwrite", "opt_callback"], ["params", "opt_callback"], ["rootId", "opt_callback"], ["id", "opt_callback"], ["params", "opt_callback"], ["assetId", "opt_callback"], ["opt_count", "opt_callback"], ["id"], ["id", "opt_callback"], ["taskId", "opt_callback"], ["params", "opt_callback"], ["assetId", "asset", "updateFields", "opt_callback"], ["parent", "params", "opt_callback"], ["clientId", "success", "opt_error", "opt_extraScopes", 
+  "opt_onImmediateFailed"], ["parent", "params", "opt_callback"], ["assetId", "aclUpdate", "opt_callback"], ["opt_callback"], ["project", "opt_callback"], ["opt_success", "opt_error"], ["assetId", "properties", "opt_callback"], ["opt_limit", "opt_callback"], ["privateKey", "opt_success", "opt_error", "opt_extraScopes"], ["opt_callback"], ["date", "opt_tz"], ["json"], ["json"], ["opt_dict"], [], [], ["opt_baseurl", "opt_tileurl", "opt_successCallback", "opt_errorCallback", "opt_xsrfToken"], ["func", 
+  "var_args"], [], ["func", "namedArgs"], [], ["var_args"], ["geometry", "opt_properties"], ["opt_visParams", "opt_callback"], ["opt_callback"], ["opt_format", "opt_selectors", "opt_filename", "opt_callback"], ["opt_callback"], ["propertySelectors", "opt_newProperties", "opt_retainGeometry"], ["opt_visParams", "opt_callback"], ["args", "opt_column"], ["name", "value"], ["name", "value"], ["var_args"], ["name", "operator", "value"], ["name", "value"], ["name", "value"], [], ["var_args"], ["geometry", 
+  "opt_errorMargin"], ["name", "value"], ["opt_filter"], ["name", "value"], ["opt_leftField", "opt_rightValue", "opt_rightField", "opt_leftValue"], ["start", "opt_end"], ["namedArgs"], ["var_args"], ["geoJson", "opt_proj", "opt_geodesic", "opt_evenOdd"], [], ["coords", "opt_proj", "opt_geodesic", "opt_evenOdd"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError", "opt_evenOdd"], ["coords", "opt_proj"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], [], ["coords", "opt_proj", "opt_geodesic", 
+  "opt_maxError", "opt_evenOdd"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], [], ["coords", "opt_proj"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], ["expression", "opt_map"], ["opt_args"], ["params", "opt_callback"], ["opt_callback"], ["var_args"], ["params", "opt_callback"], ["r", "g", "b"], ["params", "opt_callback"], ["var_args"], ["geometry"], ["var_args"], ["opt_visParams", "opt_callback"], [], ["params", "opt_callback"], ["args"], ["opt_callback"], ["selectors", "opt_names"], 
+  ["params", "opt_callback"], ["opt_visParams", "opt_callback"], ["list"], ["number"], ["obj"], ["obj"], ["obj", "opt_isCompound"], ["obj"], ["obj"], ["obj"], ["string"], []];
+  [ee.ApiFunction._apply, ee.ApiFunction._call, ee.ApiFunction.lookup, ee.batch.Export.table.toDrive, ee.batch.Export.video.toDrive, ee.batch.Export.videoMap.toCloudStorage, ee.batch.Export.image.toDrive, ee.batch.Export.image.toAsset, ee.batch.Export.image.toCloudStorage, ee.batch.Export.map.toCloudStorage, ee.batch.Export.table.toAsset, ee.batch.Export.video.toCloudStorage, ee.batch.Export.table.toCloudStorage, ee.Collection.prototype.filterDate, ee.Collection.prototype.sort, ee.Collection.prototype.map, 
+  ee.Collection.prototype.filter, ee.Collection.prototype.iterate, ee.Collection.prototype.limit, ee.Collection.prototype.filterBounds, ee.Collection.prototype.filterMetadata, ee.ComputedObject.prototype.serialize, ee.ComputedObject.prototype.aside, ee.ComputedObject.prototype.evaluate, ee.ComputedObject.prototype.getInfo, ee.data.cancelOperation, ee.data.listOperations, ee.data.computeValue, ee.data.createAssetHome, ee.data.getThumbId, ee.data.createAsset, ee.data.getOperation, ee.data.getFilmstripThumbId, 
+  ee.data.getVideoThumbId, ee.data.getMapId, ee.data.createFolder, ee.data.startIngestion, ee.data.cancelTask, ee.data.makeThumbUrl, ee.data.getTileUrl, ee.data.authenticateViaOauth, ee.data.updateTask, ee.data.getDownloadId, ee.data.renameAsset, ee.data.startProcessing, ee.data.startTableIngestion, ee.data.makeDownloadUrl, ee.data.deleteAsset, ee.data.copyAsset, ee.data.getValue, ee.data.getAssetRootQuota, ee.data.getAsset, ee.data.getTableDownloadId, ee.data.getAssetAcl, ee.data.newTaskId, ee.data.makeTableDownloadUrl, 
+  ee.data.getInfo, ee.data.getTaskStatus, ee.data.getList, ee.data.updateAsset, ee.data.listAssets, ee.data.authenticate, ee.data.listImages, ee.data.setAssetAcl, ee.data.getTaskList, ee.data.listBuckets, ee.data.authenticateViaPopup, ee.data.setAssetProperties, ee.data.getTaskListWithLimit, ee.data.authenticateViaPrivateKey, ee.data.getAssetRoots, ee.Date, ee.Deserializer.decode, ee.Deserializer.fromJSON, ee.Dictionary, ee.InitState, ee.TILE_SIZE, ee.initialize, ee.call, ee.reset, ee.apply, ee.Algorithms, 
+  ee.Element.prototype.set, ee.Feature, ee.Feature.prototype.getMap, ee.Feature.prototype.getInfo, ee.FeatureCollection.prototype.getDownloadURL, ee.FeatureCollection.prototype.getInfo, ee.FeatureCollection.prototype.select, ee.FeatureCollection.prototype.getMap, ee.FeatureCollection, ee.Filter.lte, ee.Filter.lt, ee.Filter.or, ee.Filter.metadata, ee.Filter.gt, ee.Filter.eq, ee.Filter.prototype.not, ee.Filter.and, ee.Filter.bounds, ee.Filter.neq, ee.Filter, ee.Filter.gte, ee.Filter.inList, ee.Filter.date, 
+  ee.Function.prototype.apply, ee.Function.prototype.call, ee.Geometry, ee.Geometry.prototype.serialize, ee.Geometry.Rectangle, ee.Geometry.MultiPolygon, ee.Geometry.Point, ee.Geometry.MultiLineString, ee.Geometry.prototype.toGeoJSON, ee.Geometry.Polygon, ee.Geometry.LineString, ee.Geometry.prototype.toGeoJSONString, ee.Geometry.MultiPoint, ee.Geometry.LinearRing, ee.Image.prototype.expression, ee.Image, ee.Image.prototype.getThumbURL, ee.Image.prototype.getInfo, ee.Image.cat, ee.Image.prototype.getDownloadURL, 
+  ee.Image.rgb, ee.Image.prototype.getThumbId, ee.Image.prototype.select, ee.Image.prototype.clip, ee.Image.prototype.rename, ee.Image.prototype.getMap, ee.ImageCollection.prototype.first, ee.ImageCollection.prototype.getFilmstripThumbURL, ee.ImageCollection, ee.ImageCollection.prototype.getInfo, ee.ImageCollection.prototype.select, ee.ImageCollection.prototype.getVideoThumbURL, ee.ImageCollection.prototype.getMap, ee.List, ee.Number, ee.Serializer.encodeCloudApi, ee.Serializer.toJSON, ee.Serializer.encode, 
+  ee.Serializer.toReadableCloudApiJSON, ee.Serializer.encodeCloudApiPretty, ee.Serializer.toReadableJSON, ee.String, ee.Terrain].forEach(function(fn, i) {
     fn && (exportedFnInfo[fn.toString()] = {name:orderedFnNames[i], paramNames:orderedParamLists[i]});
   });
   goog.global.EXPORTED_FN_INFO = exportedFnInfo;
