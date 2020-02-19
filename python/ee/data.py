@@ -11,6 +11,7 @@ from __future__ import print_function
 # pylint: disable=g-bad-import-order
 import contextlib
 import json
+import re
 import threading
 import time
 import uuid
@@ -20,6 +21,7 @@ import six
 from google_auth_httplib2 import AuthorizedHttp
 from six.moves.urllib import parse
 
+from . import __version__
 from . import _cloud_api_utils
 from . import deprecation
 from . import encodable
@@ -48,7 +50,7 @@ _cloud_api_base_url = None
 _cloud_api_key = None
 
 # Whether to use Cloud API when possible.
-_use_cloud_api = False
+_use_cloud_api = True
 
 # A resource object for making Cloud API calls.
 _cloud_api_resource = None
@@ -58,6 +60,9 @@ _cloud_api_resource_raw = None
 
 # The default user project to use when making Cloud API calls.
 _cloud_api_user_project = None
+
+# The API client version number to send when making requests.
+_cloud_api_client_version = None
 
 # The http_transport to use.
 _http_transport = None
@@ -98,6 +103,9 @@ _PROFILE_REQUEST_HEADER = 'X-Earth-Engine-Computation-Profile'
 
 # The HTTP header through which a user project override is provided.
 _USER_PROJECT_OVERRIDE_HEADER = 'X-Goog-User-Project'
+
+# The HTTP header used to indicate the version of the client library used.
+_API_CLIENT_VERSION_HEADER = 'X-Goog-Api-Client'
 
 # Maximum number of times to retry a rate-limited request.
 MAX_RETRIES = 5
@@ -166,6 +174,7 @@ def initialize(credentials=None,
   global _cloud_api_base_url, _use_cloud_api
   global _cloud_api_resource, _cloud_api_resource_raw, _cloud_api_key
   global _cloud_api_user_project, _http_transport
+  global _cloud_api_client_version
 
   # If already initialized, only replace the explicitly specified parts.
 
@@ -193,10 +202,13 @@ def initialize(credentials=None,
   if use_cloud_api is not None:
     _use_cloud_api = use_cloud_api
 
+  if __version__ is not None:
+    version = __version__
+    _cloud_api_client_version = version
+
   _http_transport = http_transport
 
-  if _cloud_api_resource is None or _cloud_api_resource_raw is None:
-    _install_cloud_api_resource()
+  _install_cloud_api_resource()
 
   if project is not None:
     _cloud_api_user_project = project
@@ -246,7 +258,7 @@ def reset():
   _api_base_url = None
   _tile_base_url = None
   _cloud_api_base_url = None
-  _use_cloud_api = False
+  _use_cloud_api = True
   _cloud_api_key = None
   _cloud_api_resource = None
   _cloud_api_resource_raw = None
@@ -291,8 +303,10 @@ def _install_cloud_api_resource():
 
 
 def _make_request_headers():
-  """Adds a header requesting profiling, if profiling is enabled."""
+  """Adds headers based on client context."""
   headers = {}
+  if _cloud_api_client_version is not None and _use_cloud_api:
+    headers[_API_CLIENT_VERSION_HEADER] = 'ee-py/' + _cloud_api_client_version
   if _thread_locals.profile_hook:
     headers[_PROFILE_REQUEST_HEADER] = '1'
   if _cloud_api_user_project is not None:
@@ -427,6 +441,7 @@ def getAsset(asset_id):
   Returns:
     The asset's information, as an EarthEngineAsset.
   """
+  _cloudApiOnly('getAsset')
   return _execute_cloud_call(_cloud_api_resource.projects().assets().get(
       name=_cloud_api_utils.convert_asset_id_to_asset_name(asset_id),
       prettyPrint=False))
@@ -470,6 +485,7 @@ def getList(params):
 
 def listImages(params):
   """Returns the images in an image collection or folder."""
+  _cloudApiOnly('listImages')
   images = {'images': []}
   request = _cloud_api_resource.projects().assets().listImages(**params)
   while request is not None:
@@ -487,13 +503,21 @@ def listImages(params):
 
 def listAssets(params):
   """Returns the assets in a folder."""
+  _cloudApiOnly('listAssets')
   assets = {'assets': []}
-  request = _cloud_api_resource.projects().assets().listAssets(**params)
+  if 'parent' in params and _cloud_api_utils.is_asset_root(params['parent']):
+    # If the asset name is 'projects/my-project/assets' we assume a user
+    # wants to list their cloud assets, to do this we call the alternative
+    # listAssets method and remove the trailing '/assets/?'
+    params['parent'] = re.sub('/assets/?$', '', params['parent'])
+    cloud_resource_root = _cloud_api_resource.projects()
+  else:
+    cloud_resource_root = _cloud_api_resource.projects().assets()
+  request = cloud_resource_root.listAssets(**params)
   while request is not None:
     response = _execute_cloud_call(request)
     assets['assets'].extend(response.get('assets', []))
-    request = _cloud_api_resource.projects().assets().listAssets_next(
-        request, response)
+    request = cloud_resource_root.listAssets_next(request, response)
     # We currently treat pageSize as a cap on the results, if this param was
     # provided we should break fast and not return more than the asked for
     # amount.
@@ -503,6 +527,7 @@ def listAssets(params):
 
 
 def listBuckets(project=None):
+  _cloudApiOnly('listBuckets')
   if project is None:
     project = _get_projects_path()
   return _execute_cloud_call(
@@ -779,6 +804,7 @@ def getThumbId(params, thumbType=None):
             serializer.encode(params['image'], for_cloud_api=True),
         'fileFormat':
             _cloud_api_utils.convert_to_image_file_format(params.get('format')),
+        'filenamePrefix': params.get('name'),
     }
     # Only add visualizationOptions to the request if it's non-empty, as
     # specifying it affects server behaviour.
@@ -940,11 +966,13 @@ def getAlgorithms():
                 is not specified.
   """
   if _use_cloud_api:
-    return _cloud_api_utils.convert_algorithms(
-        _execute_cloud_call(
-            _cloud_api_resource.projects().algorithms().list(
-                project=_get_projects_path(),
-                prettyPrint=False)))
+    try:
+      call = _cloud_api_resource.projects().algorithms().list(
+          parent=_get_projects_path(), prettyPrint=False)
+    except TypeError:
+      call = _cloud_api_resource.projects().algorithms().list(
+          project=_get_projects_path(), prettyPrint=False)
+    return _cloud_api_utils.convert_algorithms(_execute_cloud_call(call))
   return send_('/algorithms', {}, 'GET')
 
 
@@ -1110,6 +1138,7 @@ def listOperations(project=None):
     by the current user. These include currently running tasks as well as
     recently canceled or failed tasks.
   """
+  _cloudApiOnly('listOperations')
   if project is None:
     project = _get_projects_path()
   operations = []
@@ -1174,6 +1203,7 @@ def getOperation(operation_name):
   Returns:
     An Operation status dictionary for the requested operation.
   """
+  _cloudApiOnly('getOperation')
   return _execute_cloud_call(
       _cloud_api_resource.projects().operations().get(name=operation_name))
 
@@ -1187,6 +1217,7 @@ def cancelTask(taskId):
 
 
 def cancelOperation(operation_name):
+  _cloudApiOnly('cancelOperation')
   _execute_cloud_call(_cloud_api_resource.projects().operations().cancel(
       name=operation_name, body={}))
 
@@ -1333,7 +1364,16 @@ def _prepare_and_run_export(request_id, params, export_endpoint):
     An Operation with information about the created task.
   """
   if request_id:
-    params['requestId'] = request_id
+    if isinstance(request_id, six.string_types):
+      params['requestId'] = request_id
+    # If someone passes request_id via newTaskId() (which returns a list)
+    # try to do the right thing and use the first entry as a request ID.
+    elif (isinstance(request_id, list)
+          and len(request_id) == 1
+          and isinstance(request_id[0], six.string_types)):
+      params['requestId'] = request_id[0]
+    else:
+      raise ValueError('"requestId" must be a string.')
   if isinstance(params['expression'], encodable.Encodable):
     params['expression'] = serializer.encode(
         params['expression'], for_cloud_api=True)
@@ -1558,6 +1598,7 @@ def getIamPolicy(asset_id):
   Returns:
     The asset's ACL, as an IAM Policy.
   """
+  _cloudApiOnly('getIamPolicy')
   return _execute_cloud_call(
       _cloud_api_resource.projects().assets().getIamPolicy(
           resource=_cloud_api_utils.convert_asset_id_to_asset_name(asset_id),
@@ -1598,6 +1639,7 @@ def setIamPolicy(asset_id, policy):
   Returns:
     The new ACL, as an IAM Policy.
   """
+  _cloudApiOnly('setIamPolicy')
   return _execute_cloud_call(
       _cloud_api_resource.projects().assets().setIamPolicy(
           resource=_cloud_api_utils.convert_asset_id_to_asset_name(asset_id),
@@ -1644,6 +1686,7 @@ def updateAsset(asset_id, asset, update_mask):
       replaced, this should contain the string "properties". If this list is
       empty, all properties and both timestamps will be updated.
   """
+  _cloudApiOnly('updateAsset')
   name = _cloud_api_utils.convert_asset_id_to_asset_name(asset_id)
   _execute_cloud_call(_cloud_api_resource.projects().assets().patch(
       name=name, body={
@@ -1652,6 +1695,11 @@ def updateAsset(asset_id, asset, update_mask):
           },
           'asset': asset
       }))
+
+
+def _cloudApiOnly(func):
+  if not _use_cloud_api:
+    raise ee_exception.EEException('Enable the Cloud API to use %s.' % func)
 
 
 def createAssetHome(requestedId):
@@ -1814,17 +1862,17 @@ def create_assets(asset_ids, asset_type, mk_parents):
       continue
     if mk_parents:
       parts = asset_id.split('/')
-      # Don't check the top level - for some users, the 'users' meta-folder is
-      # invisible.
-      path = parts[0] + '/'
-      for part in parts[1:-1]:
-        path += part
-        if getInfo(path) is None:
-          if _use_cloud_api:
-            createAsset({'type': ASSET_TYPE_FOLDER_CLOUD}, path)
-          else:
-            createAsset({'type': ASSET_TYPE_FOLDER}, path)
-        path += '/'
+      # We don't need to create the namespace and the user's/project's folder.
+      if len(parts) > 2:
+        path = parts[0] + '/' + parts[1] + '/'
+        for part in parts[2:-1]:
+          path += part
+          if getInfo(path) is None:
+            if _use_cloud_api:
+              createAsset({'type': ASSET_TYPE_FOLDER_CLOUD}, path)
+            else:
+              createAsset({'type': ASSET_TYPE_FOLDER}, path)
+          path += '/'
     createAsset({'type': asset_type}, asset_id)
 
 

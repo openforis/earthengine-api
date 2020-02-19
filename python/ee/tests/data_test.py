@@ -11,6 +11,11 @@ from ee import apitestcase
 
 class DataTest(unittest.TestCase):
 
+  def setUp(self):
+    super(DataTest, self).setUp()
+    # Default this to false.  Eventually this should default to true.
+    ee.data._use_cloud_api = False
+
   def testGetTaskList(self):
 
     def Request(unused_self, url, method, body, headers):
@@ -246,6 +251,41 @@ class DataTest(unittest.TestCase):
       }
       expected_result = [{'id': 'id1', 'type': 'ImageCollection'}]
       cloud_api_resource.projects().assets().listAssets.assert_called_with(
+          **expected_params)
+      self.assertEqual(expected_result, actual_result)
+
+  def testGetListAssetRootViaCloudApi(self):
+    cloud_api_resource = mock.MagicMock()
+    with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+      mock_result = {'assets': [{'name': 'id1', 'type': 'IMAGE_COLLECTION'}]}
+      cloud_api_resource.projects().listAssets(
+      ).execute.return_value = mock_result
+      actual_result = ee.data.getList(
+          {'id': 'projects/my-project/assets/', 'num': 3})
+      expected_params = {
+
+          'parent': 'projects/my-project',
+          'pageSize': 3
+      }
+      expected_result = [{'id': 'id1', 'type': 'ImageCollection'}]
+      cloud_api_resource.projects().listAssets.assert_called_with(
+          **expected_params)
+      self.assertEqual(expected_result, actual_result)
+
+  def testGetListAssetRootViaCloudApiNoSlash(self):
+    cloud_api_resource = mock.MagicMock()
+    with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+      mock_result = {'assets': [{'name': 'id1', 'type': 'IMAGE_COLLECTION'}]}
+      cloud_api_resource.projects().listAssets(
+      ).execute.return_value = mock_result
+      actual_result = ee.data.getList(
+          {'id': 'projects/my-project/assets', 'num': 3})
+      expected_params = {
+          'parent': 'projects/my-project',
+          'pageSize': 3
+      }
+      expected_result = [{'id': 'id1', 'type': 'ImageCollection'}]
+      cloud_api_resource.projects().listAssets.assert_called_with(
           **expected_params)
       self.assertEqual(expected_result, actual_result)
 

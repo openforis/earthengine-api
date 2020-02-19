@@ -230,6 +230,7 @@ class Image(element.Element):
       - any remaining (non-selection/scale) parameters.
     """
     keys_to_extract = set(['region', 'dimensions', 'scale'])
+    scale_keys = ['maxDimension', 'height', 'width', 'scale']
     request = {}
     selection_params = {}
     if params:
@@ -256,6 +257,15 @@ class Image(element.Element):
             if isinstance(region, six.string_types):
               region = json.loads(region)
             # By default the Geometry should be planar.
+            if isinstance(region, list):
+              if (len(region) == 2
+                  or all(isinstance(e, (int, float)) for e in region)):
+                selection_params['geometry'] = geometry.Geometry.Rectangle(
+                    region, geodesic=False)
+              else:
+                selection_params['geometry'] = geometry.Geometry.Polygon(
+                    region, geodesic=False)
+              continue
             selection_params['geometry'] = geometry.Geometry(
                 region, opt_geodesic=False)
           else:
@@ -264,8 +274,15 @@ class Image(element.Element):
     image = self
     if selection_params:
       selection_params['input'] = image
-      image = apifunction.ApiFunction.apply_('Image.clipToBoundsAndScale',
-                                             selection_params)
+      if any(key in selection_params for key in scale_keys):
+        image = apifunction.ApiFunction.apply_(
+            'Image.clipToBoundsAndScale', selection_params)
+      else:
+        clip_params = {
+            'input': image,
+            'geometry': selection_params.get('geometry')
+        }
+        image = apifunction.ApiFunction.apply_('Image.clip', clip_params)
     return image, request
 
   def _apply_visualization(self, params):
@@ -354,6 +371,15 @@ class Image(element.Element):
     Returns:
       A URL to download the specified image.
     """
+    if data._use_cloud_api:  # pylint: disable=protected-access
+      # Only support downloading zipped geotiff.  Should use getThumbUrl
+      # otherwise.
+      if params.get('filePerBand', False):
+        params['format'] = 'ZIPPED_GEO_TIFF_PER_BAND'
+      else:
+        params['format'] = 'ZIPPED_GEO_TIFF'
+
+      return data.makeThumbUrl(self.getThumbId(params))
     request = params or {}
     request['image'] = self.serialize()
     return data.makeDownloadUrl(data.getDownloadId(request))
@@ -392,8 +418,11 @@ class Image(element.Element):
             dimensions of the thumbnail to render, in pixels. If only one number
             is passed, it is used as the maximum, and the other dimension is
             computed by proportional scaling.
-          region - (E,S,W,N or GeoJSON) Geospatial region of the image
-            to render. By default, the whole image.
+          region - (ee.Geometry, GeoJSON, list of numbers, list of points)
+            Geospatial region of the image to render. By default, the whole
+            image.  If given a list of min lon, min lat, max lon, max lat,
+            a planar rectangle is created.  If given a list of points a
+            planar polygon is created.
           format - (string) Either 'png' or 'jpg'.
 
     Returns:
@@ -410,8 +439,7 @@ class Image(element.Element):
     image, params = self._apply_visualization(params)
     params['image'] = image
     if 'region' in params:
-      if (isinstance(params['region'], dict) or
-          isinstance(params['region'], list)):
+      if isinstance(params['region'], (dict, list)):
         params['region'] = json.dumps(params['region'])
       elif not isinstance(params['region'], str):
         raise ee_exception.EEException(

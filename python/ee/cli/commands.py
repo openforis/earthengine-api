@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Lint as: python2, python3
 """Commands supported by the Earth Engine command line interface.
 
 Each command is implemented by extending the Command class. Each class
@@ -6,10 +7,12 @@ defines the supported positional and optional arguments, as well as
 the actions to be taken when the command is executed.
 """
 
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 # pylint: disable=g-bad-import-order
-from six.moves import xrange
+from six.moves import range
 import argparse
 import calendar
 from collections import Counter
@@ -28,24 +31,17 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # pylint: disable=g-import-not-at-top
 try:
-  import tensorflow as tf
-  from tensorflow.saved_model import utils as saved_model_utils
-  from tensorflow.saved_model import signature_constants
-  from tensorflow.saved_model import signature_def_utils
+  import tensorflow.compat.v1 as tf
+  from tensorflow.compat.v1.saved_model import utils as saved_model_utils
+  from tensorflow.compat.v1.saved_model import signature_constants
+  from tensorflow.compat.v1.saved_model import signature_def_utils
   # Prevent TensorFlow from logging anything at the python level.
-  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+  tf.logging.set_verbosity(tf.logging.ERROR)
   TENSORFLOW_INSTALLED = True
 except ImportError:
   TENSORFLOW_INSTALLED = False
 
 # pylint: disable=g-import-not-at-top
-try:
-  # Python 2.x
-  import urlparse
-except ImportError:
-  # Python 3.x
-  from urllib.parse import urlparse
-
 import ee
 from ee.cli import utils
 
@@ -463,16 +459,27 @@ class AclChCommand(object):
       raise ee.EEException('Multiple permission settings for "%s".' % user)
     permissions[prefixed_user] = 'D'
 
+  def _user_account_type(self, user):
+    """Returns the appropriate account type for a user email."""
+
+    # Here 'user' ends with ':R', ':W', or ':D', so we extract
+    # just the username.
+    if user.split(':')[0].endswith('iam.gserviceaccount.com'):
+      return 'serviceAccount:'
+    else:
+      return 'user:'
+
   def _parse_permissions(self, args):
     """Decodes and sanity-checks the permissions in the arguments."""
     # A dictionary mapping from user ids to one of 'R', 'W', or 'D'.
     permissions = {}
     if args.u:
-      for grant in args.u:
-        self._set_permission(permissions, grant, 'user:')
+      for user in args.u:
+        self._set_permission(permissions, user, self._user_account_type(user))
     if args.d:
       for user in args.d:
-        self._remove_permission(permissions, user, 'user:')
+        self._remove_permission(
+            permissions, user, self._user_account_type(user))
     if args.g:
       for group in args.g:
         self._set_permission(permissions, group, 'group:')
@@ -559,7 +566,7 @@ class AclSetCommand(object):
   def run(self, args, config):
     """Sets asset ACL to a canned ACL or one provided in a JSON file."""
     config.ee_init()
-    if args.file_or_acl_name in self.CANNED_ACLS.keys():
+    if args.file_or_acl_name in list(self.CANNED_ACLS.keys()):
       acl = self.CANNED_ACLS[args.file_or_acl_name]
     else:
       acl = json.load(open(args.file_or_acl_name))
@@ -1050,16 +1057,24 @@ class TaskListCommand(object):
 
   name = 'list'
 
-  def __init__(self, unused_parser):
-    pass
+  def __init__(self, parser):
+    parser.add_argument(
+        '--status', '-s', required=False, nargs='*',
+        choices=['READY', 'RUNNING', 'COMPLETED', 'FAILED',
+                 'CANCELLED', 'UNKNOWN'],
+        help=('List tasks only with a given status'))
 
-  def run(self, unused_args, config):
+  def run(self, args, config):
+    """Lists tasks present for a user, maybe filtering by state."""
     config.ee_init()
+    status = args.status
     tasks = ee.data.getTaskList()
     descs = [utils.truncate(task.get('description', ''), 40) for task in tasks]
     desc_length = max(len(word) for word in descs)
     format_str = '{:25s} {:13s} {:%ds} {:10s} {:s}' % (desc_length + 1)
     for task in tasks:
+      if status and task['state'] not in status:
+        continue
       truncated_desc = utils.truncate(task.get('description', ''), 40)
       task_type = TASK_TYPES.get(task['task_type'], 'Unknown')
       print(format_str.format(
@@ -1180,7 +1195,7 @@ class UploadImageCommand(object):
             'Inconsistent number of bands in --{}: expected {} but found {}.'
             .format(flag_name, len(bands), num_bands))
     else:
-      bands = ['b%d' % (i + 1) for i in xrange(num_bands)]
+      bands = ['b%d' % (i + 1) for i in range(num_bands)]
     return bands
 
   def run(self, args, config):
@@ -1550,7 +1565,7 @@ class UploadImageManifestCommand(_UploadManifestBase):
 
   def run(self, args, config):
     """Starts the upload task, and waits for completion if requested."""
-    print (
+    print(
         'This command is deprecated. '
         'Use "earthengine upload image --manifest".'
     )
@@ -1564,7 +1579,7 @@ class UploadTableManifestCommand(_UploadManifestBase):
   name = 'upload_table_manifest'
 
   def run(self, args, config):
-    print (
+    print(
         'This command is deprecated. '
         'Use "earthengine upload table --manifest".'
     )
@@ -1717,14 +1732,14 @@ class PrepareModelCommand(object):
     if len(spec) != len(input_names_set):
       raise ValueError(
           'Specified input ops were missing from graph: {}.'.format(
-              list(set(input_names_set).difference(spec.keys()))))
+              list(set(input_names_set).difference(list(spec.keys())))))
     return spec
 
   @staticmethod
   def _make_rpc_friendly(model_dir, tag, in_map, out_map, vars_path):
     """Wraps a SavedModel in EE RPC-friendly ops and saves a temporary copy."""
     out_dir = tempfile.mkdtemp()
-    builder = tf.compat.v1.saved_model.Builder(out_dir)
+    builder = tf.saved_model.Builder(out_dir)
 
     # Get a GraphDef from the saved model
     with tf.Session() as sesh:
@@ -1736,7 +1751,7 @@ class PrepareModelCommand(object):
     # graph when we load it and we don't know what those parts are yet.
     tf.reset_default_graph()
 
-    input_op_keys = in_map.keys()
+    input_op_keys = list(in_map.keys())
     input_new_keys = list(in_map.values())
 
     # Get the shape and type of the input tensors
@@ -1757,7 +1772,7 @@ class PrepareModelCommand(object):
     }
 
     # Okay now we're ready to import the graph again but remapped.
-    saver = tf.compat.v1.train.import_meta_graph(
+    saver = tf.train.import_meta_graph(
         meta_graph_or_file=meta_graph, input_map=decoded_op_map)
 
     # Boilerplate to build a signature def for our new graph

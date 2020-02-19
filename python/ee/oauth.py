@@ -12,14 +12,13 @@ Typical use-case consists of:
 from __future__ import print_function
 
 
-import datetime
 import errno
 import json
 import os
 import sys
 import webbrowser
-import builtins
 import six
+from six.moves import input
 from google.oauth2.credentials import Credentials
 from six.moves.urllib import parse
 from six.moves.urllib import request
@@ -98,7 +97,13 @@ def write_token(refresh_token):
     if e.errno != errno.EEXIST:
       raise Exception('Error creating directory %s: %s' % (dirname, e))
 
-  json.dump({'refresh_token': refresh_token}, open(credentials_path, 'w'))
+  file_content = json.dumps({'refresh_token': refresh_token})
+  if os.path.exists(credentials_path):
+    # Remove file because os.open will not change permissions of existing files
+    os.remove(credentials_path)
+  with os.fdopen(
+      os.open(credentials_path, os.O_WRONLY | os.O_CREAT, 0o600), 'w') as f:
+    f.write(file_content)
 
 
 def _in_colab_shell():
@@ -125,7 +130,7 @@ def _in_jupyter_shell():
 def _obtain_and_write_token(auth_code=None):
   """Obtains and writes credentials token based on a authorization code."""
   if not auth_code:
-    auth_code = builtins.input('Enter verification code: ')
+    auth_code = input('Enter verification code: ')
     assert isinstance(auth_code, six.string_types)
   token = request_token(auth_code)
   write_token(token)
@@ -207,7 +212,7 @@ def authenticate(
     _display_auth_instructions_with_print(auth_url)
   webbrowser.open_new(auth_url)
 
-  auth_code = builtins.input('Enter verification code: ')
+  auth_code = input('Enter verification code: ')
   assert isinstance(auth_code, six.string_types)
   _obtain_and_write_token(auth_code.strip())
 
