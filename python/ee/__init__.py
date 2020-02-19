@@ -87,9 +87,10 @@ def Credentials():
 def InitializeThread(credentials, opt_url=None):
     global _local_credentials
     if not _local_credentials:
-        _local_credentials = ThreadLocalCredentials()
-        _local_credentials.set(credentials)
-        Initialize(_local_credentials, opt_url)
+        local = ThreadLocalCredentials()
+        local.set(credentials)
+        Initialize(local, opt_url)
+        _local_credentials = local
     else:
         _local_credentials.set(credentials)
 
