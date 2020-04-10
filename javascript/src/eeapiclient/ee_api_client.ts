@@ -1027,6 +1027,51 @@ export const TableFileExportOptionsFileFormatEnum:
       }
     };
 
+export type TableFileFormat = 'TABLE_FILE_FORMAT_UNSPECIFIED'|'CSV'|'GEO_JSON'|
+    'KML'|'KMZ'|'SHP'|'TF_RECORD_TABLE';
+
+export interface ITableFileFormatEnum {
+  TABLE_FILE_FORMAT_UNSPECIFIED: TableFileFormat;
+  CSV: TableFileFormat;
+  GEO_JSON: TableFileFormat;
+  KML: TableFileFormat;
+  KMZ: TableFileFormat;
+  SHP: TableFileFormat;
+  TF_RECORD_TABLE: TableFileFormat;
+
+  values(): Array<TableFileFormat>;
+}
+
+export const TableFileFormatEnum: ITableFileFormatEnum = {
+  get CSV(): TableFileFormat {
+    return 'CSV';
+  },
+  get GEO_JSON(): TableFileFormat {
+    return 'GEO_JSON';
+  },
+  get KML(): TableFileFormat {
+    return 'KML';
+  },
+  get KMZ(): TableFileFormat {
+    return 'KMZ';
+  },
+  get SHP(): TableFileFormat {
+    return 'SHP';
+  },
+  get TABLE_FILE_FORMAT_UNSPECIFIED(): TableFileFormat {
+    return 'TABLE_FILE_FORMAT_UNSPECIFIED';
+  },
+  get TF_RECORD_TABLE(): TableFileFormat {
+    return 'TF_RECORD_TABLE';
+  },
+  values(): Array<TableFileFormat> {
+    return [
+      'TABLE_FILE_FORMAT_UNSPECIFIED', 'CSV', 'GEO_JSON', 'KML', 'KMZ', 'SHP',
+      'TF_RECORD_TABLE'
+    ];
+  }
+};
+
 export type ThumbnailFileFormat = 'IMAGE_FILE_FORMAT_UNSPECIFIED'|'JPEG'|'PNG'|
     'AUTO_JPEG_PNG'|'NPY'|'GEO_TIFF'|'TF_RECORD_IMAGE'|'MULTI_BAND_IMAGE_TILE'|
     'ZIPPED_GEO_TIFF'|'ZIPPED_GEO_TIFF_PER_BAND';
@@ -2931,7 +2976,8 @@ export class DataAccessOptions extends Serializable {
 
   /**
    * Whether Gin logging should happen in a fail-closed manner at the caller.
-   * This is relevant only in the LocalIAM implementation, for now.
+   * This is currently supported in the LocalIAM implementation, 
+   * and others. For Apps Framework, see go/af-audit-logging#failclosed.
    */
   set logMode(value: DataAccessOptionsLogMode|null) {
     this.Serializable$set('logMode', value);
@@ -3108,6 +3154,7 @@ export interface EarthEngineAssetParameters {
   sizeBytes?: string|null;
   quota?: FolderQuota|null;
   tilestoreEntry?: TilestoreEntry|null;
+  gcsLocation?: GcsLocation|null;
   expression?: Expression|null;
 }
 export class EarthEngineAsset extends Serializable {
@@ -3150,6 +3197,9 @@ export class EarthEngineAsset extends Serializable {
         'tilestoreEntry',
         (parameters.tilestoreEntry == null) ? (null) :
                                               (parameters.tilestoreEntry));
+    this.Serializable$set(
+        'gcsLocation',
+        (parameters.gcsLocation == null) ? (null) : (parameters.gcsLocation));
     this.Serializable$set(
         'expression',
         (parameters.expression == null) ? (null) : (parameters.expression));
@@ -3212,6 +3262,17 @@ export class EarthEngineAsset extends Serializable {
 
   set expression(value: Expression|null) {
     this.Serializable$set('expression', value);
+  }
+
+  get gcsLocation(): GcsLocation|null {
+    return (
+        (this.Serializable$has('gcsLocation')) ?
+            (this.Serializable$get('gcsLocation')) :
+            (null));
+  }
+
+  set gcsLocation(value: GcsLocation|null) {
+    this.Serializable$set('gcsLocation', value);
   }
 
   get geometry(): ApiClientObjectMap<any>|null {
@@ -3378,9 +3439,9 @@ export class EarthEngineAsset extends Serializable {
       arrays: {'bands': ImageBand},
       enums: {'type': EarthEngineAssetTypeEnum},
       keys: [
-        'bands', 'description', 'endTime', 'expression', 'geometry', 'id',
-        'name', 'properties', 'quota', 'sizeBytes', 'startTime',
-        'tilestoreEntry', 'title', 'type', 'updateTime'
+        'bands', 'description', 'endTime', 'expression', 'gcsLocation',
+        'geometry', 'id', 'name', 'properties', 'quota', 'sizeBytes',
+        'startTime', 'tilestoreEntry', 'title', 'type', 'updateTime'
       ],
       objectMaps: {
         'geometry': {
@@ -3398,6 +3459,7 @@ export class EarthEngineAsset extends Serializable {
       },
       objects: {
         'expression': Expression,
+        'gcsLocation': GcsLocation,
         'quota': FolderQuota,
         'tilestoreEntry': TilestoreEntry
       }
@@ -3910,9 +3972,10 @@ export interface ExportTableRequestParameters {
   fileExportOptions?: TableFileExportOptions|null;
   assetExportOptions?: TableAssetExportOptions|null;
   selectors?: Array<string>|null;
-  maxErrorMeters?: number|null;
   requestId?: string|null;
+  maxErrorMeters?: number|null;
   maxWorkerCount?: number|null;
+  maxVertices?: number|null;
 }
 export class ExportTableRequest extends Serializable {
   constructor(parameters: ExportTableRequestParameters = {}) {
@@ -3937,16 +4000,19 @@ export class ExportTableRequest extends Serializable {
         'selectors',
         (parameters.selectors == null) ? (null) : (parameters.selectors));
     this.Serializable$set(
+        'requestId',
+        (parameters.requestId == null) ? (null) : (parameters.requestId));
+    this.Serializable$set(
         'maxErrorMeters',
         (parameters.maxErrorMeters == null) ? (null) :
                                               (parameters.maxErrorMeters));
     this.Serializable$set(
-        'requestId',
-        (parameters.requestId == null) ? (null) : (parameters.requestId));
-    this.Serializable$set(
         'maxWorkerCount',
         (parameters.maxWorkerCount == null) ? (null) :
                                               (parameters.maxWorkerCount));
+    this.Serializable$set(
+        'maxVertices',
+        (parameters.maxVertices == null) ? (null) : (parameters.maxVertices));
   }
 
   get assetExportOptions(): TableAssetExportOptions|null {
@@ -4020,6 +4086,21 @@ export class ExportTableRequest extends Serializable {
     this.Serializable$set('maxErrorMeters', value);
   }
 
+  get maxVertices(): number|null {
+    return (
+        (this.Serializable$has('maxVertices')) ?
+            (this.Serializable$get('maxVertices')) :
+            (null));
+  }
+
+  /**
+   * Max number of uncut vertices per geometry; geometries with more vertices
+   * will be cut into pieces smaller than this size.
+   */
+  set maxVertices(value: number|null) {
+    this.Serializable$set('maxVertices', value);
+  }
+
   get maxWorkerCount(): number|null {
     return (
         (this.Serializable$has('maxWorkerCount')) ?
@@ -4074,7 +4155,8 @@ export class ExportTableRequest extends Serializable {
     return {
       keys: [
         'assetExportOptions', 'description', 'expression', 'fileExportOptions',
-        'maxErrorMeters', 'maxWorkerCount', 'requestId', 'selectors'
+        'maxErrorMeters', 'maxVertices', 'maxWorkerCount', 'requestId',
+        'selectors'
       ],
       objects: {
         'assetExportOptions': TableAssetExportOptions,
@@ -5081,6 +5163,41 @@ export class GcsDestination extends Serializable {
       enums: {'permissions': GcsDestinationPermissionsEnum},
       keys: ['bucket', 'bucketCorsUris', 'filenamePrefix', 'permissions']
     };
+  }
+}
+
+export interface GcsLocationParameters {
+  uris?: Array<string>|null;
+}
+export class GcsLocation extends Serializable {
+  constructor(parameters: GcsLocationParameters = {}) {
+    super();
+    this.Serializable$set(
+        'uris', (parameters.uris == null) ? (null) : (parameters.uris));
+  }
+
+  get uris(): Array<string>|null {
+    return (
+        (this.Serializable$has('uris')) ? (this.Serializable$get('uris')) :
+                                          (null));
+  }
+
+  /**
+   * The URIs of the data. Only Google Cloud Storage URIs are supported. Each
+   * URI must be specified in the following format:
+   * \"gs://bucket-id/object-id\". Only one URI is currently supported. If more
+   * than one URI is specified an `INALID_ARGUMENT` error is returned.
+   */
+  set uris(value: Array<string>|null) {
+    this.Serializable$set('uris', value);
+  }
+
+  getConstructor(): SerializableCtor<GcsLocation> {
+    return GcsLocation;
+  }
+
+  getPartialClassMetadata(): Partial<ClassMetadata> {
+    return {keys: ['uris']};
   }
 }
 
@@ -6677,6 +6794,43 @@ export class ImportTableRequest extends Serializable {
   }
 }
 
+export interface LinkAssetRequestParameters {
+  destinationName?: string|null;
+}
+export class LinkAssetRequest extends Serializable {
+  constructor(parameters: LinkAssetRequestParameters = {}) {
+    super();
+    this.Serializable$set(
+        'destinationName',
+        (parameters.destinationName == null) ? (null) :
+                                               (parameters.destinationName));
+  }
+
+  get destinationName(): string|null {
+    return (
+        (this.Serializable$has('destinationName')) ?
+            (this.Serializable$get('destinationName')) :
+            (null));
+  }
+
+  /**
+   * The destination name to which we are linking the asset.
+   * `name` is of the format \"projects/* /assets\"
+   * (e.g., \"projects/my-project/assets\").
+   */
+  set destinationName(value: string|null) {
+    this.Serializable$set('destinationName', value);
+  }
+
+  getConstructor(): SerializableCtor<LinkAssetRequest> {
+    return LinkAssetRequest;
+  }
+
+  getPartialClassMetadata(): Partial<ClassMetadata> {
+    return {keys: ['destinationName']};
+  }
+}
+
 export interface ListAlgorithmsResponseParameters {
   algorithms?: Array<Algorithm>|null;
 }
@@ -8190,6 +8344,84 @@ export class Status extends Serializable {
           isValueArray: false
         }
       }
+    };
+  }
+}
+
+export interface TableParameters {
+  name?: string|null;
+  expression?: Expression|null;
+  fileFormat?: TableFileFormat|null;
+}
+export class Table extends Serializable {
+  constructor(parameters: TableParameters = {}) {
+    super();
+    this.Serializable$set(
+        'name', (parameters.name == null) ? (null) : (parameters.name));
+    this.Serializable$set(
+        'expression',
+        (parameters.expression == null) ? (null) : (parameters.expression));
+    this.Serializable$set(
+        'fileFormat',
+        (parameters.fileFormat == null) ? (null) : (parameters.fileFormat));
+  }
+
+  static get FileFormat(): ITableFileFormatEnum {
+    return TableFileFormatEnum;
+  }
+
+  get expression(): Expression|null {
+    return (
+        (this.Serializable$has('expression')) ?
+            (this.Serializable$get('expression')) :
+            (null));
+  }
+
+  /**
+   * The expression to compute. Must evaluate to a FeatureCollection.
+   */
+  set expression(value: Expression|null) {
+    this.Serializable$set('expression', value);
+  }
+
+  get fileFormat(): TableFileFormat|null {
+    return (
+        (this.Serializable$has('fileFormat')) ?
+            (this.Serializable$get('fileFormat')) :
+            (null));
+  }
+
+  /**
+   * The output encoding in which to generate the resulting table.
+   */
+  set fileFormat(value: TableFileFormat|null) {
+    this.Serializable$set('fileFormat', value);
+  }
+
+  get name(): string|null {
+    return (
+        (this.Serializable$has('name')) ? (this.Serializable$get('name')) :
+                                          (null));
+  }
+
+  /**
+   * The resource name representing the thumbnail, of the form
+   * \"projects/* /tables/**\"
+   * (e.g. \"projects/earthengine-legacy/tables/<THUMBNAIL-ID>\").
+   */
+  set name(value: string|null) {
+    this.Serializable$set('name', value);
+  }
+
+  getConstructor(): SerializableCtor<Table> {
+    return Table;
+  }
+
+  getPartialClassMetadata(): Partial<ClassMetadata> {
+    return {
+      enums: {'fileFormat': TableFileFormatEnum},
+      keys: ['expression', 'fileFormat', 'name'],
+      objects: {'expression': Expression}
     };
   }
 }
@@ -10662,15 +10894,6 @@ export declare interface ProjectsAlgorithmsListNamedParameters {
   $Xgafv?: ProjectsAlgorithmsApiClient$Xgafv;
 }
 
-export abstract class ProjectsAlgorithmsApiClient {
-  constructor() {}
-
-  abstract list(
-      project: string,
-      __namedParams__?: ProjectsAlgorithmsListNamedParameters&
-      object): Promise<ListAlgorithmsResponse>;
-}
-
 export class ProjectsAlgorithmsApiClientImpl implements
     ProjectsAlgorithmsApiClient {
   private $apiClient: PromiseApiClient;
@@ -10731,6 +10954,15 @@ export class ProjectsAlgorithmsApiClientImpl implements
       responseCtor: ListAlgorithmsResponse
     });
   }
+}
+
+export abstract class ProjectsAlgorithmsApiClient {
+  constructor() {}
+
+  abstract list(
+      project: string,
+      __namedParams__?: ProjectsAlgorithmsListNamedParameters&
+      object): Promise<ListAlgorithmsResponse>;
 }
 
 export type ProjectsApiClient$Xgafv = '1'|'2';
@@ -10807,20 +11039,6 @@ export declare interface ProjectsListAssetsNamedParameters {
   $Xgafv?: ProjectsApiClient$Xgafv;
   pageSize?: number;
   pageToken?: string;
-}
-
-export abstract class ProjectsApiClient {
-  constructor() {}
-
-  abstract getCapabilities(
-      parent: string,
-      __namedParams__?: ProjectsGetCapabilitiesNamedParameters&
-      object): Promise<Capabilities>;
-
-  abstract listAssets(
-      parent: string,
-      __namedParams__?: ProjectsListAssetsNamedParameters&
-      object): Promise<ListAssetsResponse>;
 }
 
 export class ProjectsApiClientImpl implements ProjectsApiClient {
@@ -10938,6 +11156,20 @@ export class ProjectsApiClientImpl implements ProjectsApiClient {
       responseCtor: ListAssetsResponse
     });
   }
+}
+
+export abstract class ProjectsApiClient {
+  constructor() {}
+
+  abstract getCapabilities(
+      parent: string,
+      __namedParams__?: ProjectsGetCapabilitiesNamedParameters&
+      object): Promise<Capabilities>;
+
+  abstract listAssets(
+      parent: string,
+      __namedParams__?: ProjectsListAssetsNamedParameters&
+      object): Promise<ListAssetsResponse>;
 }
 
 export type ProjectsAssetsApiClient$Xgafv = '1'|'2';
@@ -11100,6 +11332,20 @@ export declare interface ProjectsAssetsGetPixelsNamedParameters {
   $Xgafv?: ProjectsAssetsApiClient$Xgafv;
 }
 
+export declare interface ProjectsAssetsLinkNamedParameters {
+  access_token?: string;
+  alt?: ProjectsAssetsApiClientAlt;
+  callback?: string;
+  fields?: string;
+  key?: string;
+  oauth_token?: string;
+  prettyPrint?: boolean;
+  quotaUser?: string;
+  upload_protocol?: string;
+  uploadType?: string;
+  $Xgafv?: ProjectsAssetsApiClient$Xgafv;
+}
+
 export declare interface ProjectsAssetsListAssetsNamedParameters {
   access_token?: string;
   alt?: ProjectsAssetsApiClientAlt;
@@ -11228,79 +11474,6 @@ export declare interface ProjectsAssetsTestIamPermissionsNamedParameters {
   $Xgafv?: ProjectsAssetsApiClient$Xgafv;
 }
 
-export abstract class ProjectsAssetsApiClient {
-  constructor() {}
-
-  abstract copy(
-      sourceName: string, $requestBody: CopyAssetRequest,
-      __namedParams__?: ProjectsAssetsCopyNamedParameters&
-      object): Promise<EarthEngineAsset>;
-
-  abstract create(
-      parent: string, $requestBody: EarthEngineAsset,
-      __namedParams__?: ProjectsAssetsCreateNamedParameters&
-      object): Promise<EarthEngineAsset>;
-
-  abstract delete(
-      name: string,
-      __namedParams__?: ProjectsAssetsDeleteNamedParameters&
-      object): Promise<Empty>;
-
-  abstract get(
-      name: string, __namedParams__?: ProjectsAssetsGetNamedParameters&object):
-      Promise<EarthEngineAsset>;
-
-  abstract getIamPolicy(
-      resource: string, $requestBody: GetIamPolicyRequest,
-      __namedParams__?: ProjectsAssetsGetIamPolicyNamedParameters&
-      object): Promise<Policy>;
-
-  abstract getPixels(
-      name: string, $requestBody: GetPixelsRequest,
-      __namedParams__?: ProjectsAssetsGetPixelsNamedParameters&
-      object): Promise<HttpBody>;
-
-  abstract listAssets(
-      parent: string,
-      __namedParams__?: ProjectsAssetsListAssetsNamedParameters&
-      object): Promise<ListAssetsResponse>;
-
-  abstract listFeatures(
-      parent: string,
-      __namedParams__?: ProjectsAssetsListFeaturesNamedParameters&
-      object): Promise<ListFeaturesResponse>;
-
-  abstract listImages(
-      parent: string,
-      __namedParams__?: ProjectsAssetsListImagesNamedParameters&
-      object): Promise<ListImagesResponse>;
-
-  abstract move(
-      sourceName: string, $requestBody: MoveAssetRequest,
-      __namedParams__?: ProjectsAssetsMoveNamedParameters&
-      object): Promise<EarthEngineAsset>;
-
-  abstract patch(
-      name: string, $requestBody: UpdateAssetRequest,
-      __namedParams__?: ProjectsAssetsPatchNamedParameters&
-      object): Promise<EarthEngineAsset>;
-
-  abstract search(
-      project: string,
-      __namedParams__?: ProjectsAssetsSearchNamedParameters&
-      object): Promise<SearchAssetsResponse>;
-
-  abstract setIamPolicy(
-      resource: string, $requestBody: SetIamPolicyRequest,
-      __namedParams__?: ProjectsAssetsSetIamPolicyNamedParameters&
-      object): Promise<Policy>;
-
-  abstract testIamPermissions(
-      resource: string, $requestBody: TestIamPermissionsRequest,
-      __namedParams__?: ProjectsAssetsTestIamPermissionsNamedParameters&
-      object): Promise<TestIamPermissionsResponse>;
-}
-
 export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
   private $apiClient: PromiseApiClient;
 
@@ -11337,7 +11510,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(
-        sourceName, new RegExp('^projects/[^/]+/assets/.+$'));
+        sourceName, new RegExp('^projects/[^/]+/assets/.*$'));
 
     return this.$apiClient.$request<EarthEngineAsset>({
       body: $requestBody,
@@ -11442,7 +11615,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<Empty> {
     this.$apiClient.$validateParameter(
-        name, new RegExp('^projects/[^/]+/assets/.+$'));
+        name, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
 
     return this.$apiClient.$request<Empty>({
@@ -11493,7 +11666,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(
-        name, new RegExp('^projects/[^/]+/assets/.+$'));
+        name, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
 
     return this.$apiClient.$request<EarthEngineAsset>({
@@ -11544,7 +11717,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<Policy> {
     this.$apiClient.$validateParameter(
-        resource, new RegExp('^projects/[^/]+/assets/.+$'));
+        resource, new RegExp('^projects/[^/]+/assets/.*$'));
 
     return this.$apiClient.$request<Policy>({
       body: $requestBody,
@@ -11594,7 +11767,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<HttpBody> {
     this.$apiClient.$validateParameter(
-        name, new RegExp('^projects/[^/]+/assets/.+$'));
+        name, new RegExp('^projects/[^/]+/assets/.*$'));
 
     return this.$apiClient.$request<HttpBody>({
       body: $requestBody,
@@ -11615,6 +11788,56 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
         'upload_protocol': upload_protocol
       },
       responseCtor: HttpBody
+    });
+  }
+
+  link(sourceName: string, $requestBody: LinkAssetRequest, {
+    $Xgafv = void 0,
+    access_token = void 0,
+    alt = void 0,
+    callback = void 0,
+    fields = void 0,
+    key = void 0,
+    oauth_token = void 0,
+    prettyPrint = void 0,
+    quotaUser = void 0,
+    uploadType = void 0,
+    upload_protocol = void 0
+  }: ProjectsAssetsLinkNamedParameters&object = {
+    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
+    access_token: <string|undefined>void 0,
+    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
+    callback: <string|undefined>void 0,
+    fields: <string|undefined>void 0,
+    key: <string|undefined>void 0,
+    oauth_token: <string|undefined>void 0,
+    prettyPrint: <boolean|undefined>void 0,
+    quotaUser: <string|undefined>void 0,
+    uploadType: <string|undefined>void 0,
+    upload_protocol: <string|undefined>void 0
+  }): Promise<EarthEngineAsset> {
+    this.$apiClient.$validateParameter(
+        sourceName, new RegExp('^projects/[^/]+/assets/.*$'));
+
+    return this.$apiClient.$request<EarthEngineAsset>({
+      body: $requestBody,
+      httpMethod: 'POST',
+      methodId: 'earthengine.projects.assets.link',
+      path: `/${this.gapiVersion}/${sourceName}:link`,
+      queryParams: {
+        '$.xgafv': $Xgafv,
+        'access_token': access_token,
+        'alt': alt,
+        'callback': callback,
+        'fields': fields,
+        'key': key,
+        'oauth_token': oauth_token,
+        'prettyPrint': prettyPrint,
+        'quotaUser': quotaUser,
+        'uploadType': uploadType,
+        'upload_protocol': upload_protocol
+      },
+      responseCtor: EarthEngineAsset
     });
   }
 
@@ -11648,7 +11871,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<ListAssetsResponse> {
     this.$apiClient.$validateParameter(
-        parent, new RegExp('^projects/[^/]+/assets/.+$'));
+        parent, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
 
     return this.$apiClient.$request<ListAssetsResponse>({
@@ -11709,7 +11932,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<ListFeaturesResponse> {
     this.$apiClient.$validateParameter(
-        parent, new RegExp('^projects/[^/]+/assets/.+$'));
+        parent, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
 
     return this.$apiClient.$request<ListFeaturesResponse>({
@@ -11778,7 +12001,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     view: <ProjectsAssetsApiClientView|undefined>void 0
   }): Promise<ListImagesResponse> {
     this.$apiClient.$validateParameter(
-        parent, new RegExp('^projects/[^/]+/assets/.+$'));
+        parent, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
 
     return this.$apiClient.$request<ListImagesResponse>({
@@ -11836,7 +12059,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(
-        sourceName, new RegExp('^projects/[^/]+/assets/.+$'));
+        sourceName, new RegExp('^projects/[^/]+/assets/.*$'));
 
     return this.$apiClient.$request<EarthEngineAsset>({
       body: $requestBody,
@@ -11886,7 +12109,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(
-        name, new RegExp('^projects/[^/]+/assets/.+$'));
+        name, new RegExp('^projects/[^/]+/assets/.*$'));
 
     return this.$apiClient.$request<EarthEngineAsset>({
       body: $requestBody,
@@ -11995,7 +12218,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
     upload_protocol: <string|undefined>void 0
   }): Promise<Policy> {
     this.$apiClient.$validateParameter(
-        resource, new RegExp('^projects/[^/]+/assets/.+$'));
+        resource, new RegExp('^projects/[^/]+/assets/.*$'));
 
     return this.$apiClient.$request<Policy>({
       body: $requestBody,
@@ -12046,7 +12269,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
         upload_protocol: <string|undefined>void 0
       }): Promise<TestIamPermissionsResponse> {
     this.$apiClient.$validateParameter(
-        resource, new RegExp('^projects/[^/]+/assets/.+$'));
+        resource, new RegExp('^projects/[^/]+/assets/.*$'));
 
     return this.$apiClient.$request<TestIamPermissionsResponse>({
       body: $requestBody,
@@ -12069,6 +12292,84 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       responseCtor: TestIamPermissionsResponse
     });
   }
+}
+
+export abstract class ProjectsAssetsApiClient {
+  constructor() {}
+
+  abstract copy(
+      sourceName: string, $requestBody: CopyAssetRequest,
+      __namedParams__?: ProjectsAssetsCopyNamedParameters&
+      object): Promise<EarthEngineAsset>;
+
+  abstract create(
+      parent: string, $requestBody: EarthEngineAsset,
+      __namedParams__?: ProjectsAssetsCreateNamedParameters&
+      object): Promise<EarthEngineAsset>;
+
+  abstract delete(
+      name: string,
+      __namedParams__?: ProjectsAssetsDeleteNamedParameters&
+      object): Promise<Empty>;
+
+  abstract get(
+      name: string, __namedParams__?: ProjectsAssetsGetNamedParameters&object):
+      Promise<EarthEngineAsset>;
+
+  abstract getIamPolicy(
+      resource: string, $requestBody: GetIamPolicyRequest,
+      __namedParams__?: ProjectsAssetsGetIamPolicyNamedParameters&
+      object): Promise<Policy>;
+
+  abstract getPixels(
+      name: string, $requestBody: GetPixelsRequest,
+      __namedParams__?: ProjectsAssetsGetPixelsNamedParameters&
+      object): Promise<HttpBody>;
+
+  abstract link(
+      sourceName: string, $requestBody: LinkAssetRequest,
+      __namedParams__?: ProjectsAssetsLinkNamedParameters&
+      object): Promise<EarthEngineAsset>;
+
+  abstract listAssets(
+      parent: string,
+      __namedParams__?: ProjectsAssetsListAssetsNamedParameters&
+      object): Promise<ListAssetsResponse>;
+
+  abstract listFeatures(
+      parent: string,
+      __namedParams__?: ProjectsAssetsListFeaturesNamedParameters&
+      object): Promise<ListFeaturesResponse>;
+
+  abstract listImages(
+      parent: string,
+      __namedParams__?: ProjectsAssetsListImagesNamedParameters&
+      object): Promise<ListImagesResponse>;
+
+  abstract move(
+      sourceName: string, $requestBody: MoveAssetRequest,
+      __namedParams__?: ProjectsAssetsMoveNamedParameters&
+      object): Promise<EarthEngineAsset>;
+
+  abstract patch(
+      name: string, $requestBody: UpdateAssetRequest,
+      __namedParams__?: ProjectsAssetsPatchNamedParameters&
+      object): Promise<EarthEngineAsset>;
+
+  abstract search(
+      project: string,
+      __namedParams__?: ProjectsAssetsSearchNamedParameters&
+      object): Promise<SearchAssetsResponse>;
+
+  abstract setIamPolicy(
+      resource: string, $requestBody: SetIamPolicyRequest,
+      __namedParams__?: ProjectsAssetsSetIamPolicyNamedParameters&
+      object): Promise<Policy>;
+
+  abstract testIamPermissions(
+      resource: string, $requestBody: TestIamPermissionsRequest,
+      __namedParams__?: ProjectsAssetsTestIamPermissionsNamedParameters&
+      object): Promise<TestIamPermissionsResponse>;
 }
 
 export type ProjectsFilmstripThumbnailsApiClient$Xgafv = '1'|'2';
@@ -12145,20 +12446,6 @@ export declare interface ProjectsFilmstripThumbnailsGetPixelsNamedParameters {
   upload_protocol?: string;
   uploadType?: string;
   $Xgafv?: ProjectsFilmstripThumbnailsApiClient$Xgafv;
-}
-
-export abstract class ProjectsFilmstripThumbnailsApiClient {
-  constructor() {}
-
-  abstract create(
-      parent: string, $requestBody: FilmstripThumbnail,
-      __namedParams__?: ProjectsFilmstripThumbnailsCreateNamedParameters&
-      object): Promise<FilmstripThumbnail>;
-
-  abstract getPixels(
-      name: string,
-      __namedParams__?: ProjectsFilmstripThumbnailsGetPixelsNamedParameters&
-      object): Promise<HttpBody>;
 }
 
 export class ProjectsFilmstripThumbnailsApiClientImpl implements
@@ -12273,6 +12560,20 @@ export class ProjectsFilmstripThumbnailsApiClientImpl implements
   }
 }
 
+export abstract class ProjectsFilmstripThumbnailsApiClient {
+  constructor() {}
+
+  abstract create(
+      parent: string, $requestBody: FilmstripThumbnail,
+      __namedParams__?: ProjectsFilmstripThumbnailsCreateNamedParameters&
+      object): Promise<FilmstripThumbnail>;
+
+  abstract getPixels(
+      name: string,
+      __namedParams__?: ProjectsFilmstripThumbnailsGetPixelsNamedParameters&
+      object): Promise<HttpBody>;
+}
+
 export type ProjectsImageApiClient$Xgafv = '1'|'2';
 
 export interface IProjectsImageApiClient$XgafvEnum {
@@ -12360,25 +12661,6 @@ export declare interface ProjectsImageImportNamedParameters {
   upload_protocol?: string;
   uploadType?: string;
   $Xgafv?: ProjectsImageApiClient$Xgafv;
-}
-
-export abstract class ProjectsImageApiClient {
-  constructor() {}
-
-  abstract computePixels(
-      project: string, $requestBody: ComputePixelsRequest,
-      __namedParams__?: ProjectsImageComputePixelsNamedParameters&
-      object): Promise<HttpBody>;
-
-  abstract export(
-      project: string, $requestBody: ExportImageRequest,
-      __namedParams__?: ProjectsImageExportNamedParameters&
-      object): Promise<Operation>;
-
-  abstract import(
-      project: string, $requestBody: ImportImageRequest,
-      __namedParams__?: ProjectsImageImportNamedParameters&
-      object): Promise<Operation>;
 }
 
 export class ProjectsImageApiClientImpl implements ProjectsImageApiClient {
@@ -12542,6 +12824,26 @@ export class ProjectsImageApiClientImpl implements ProjectsImageApiClient {
   }
 }
 
+export abstract class ProjectsImageApiClient {
+  constructor() {
+  }
+
+  abstract computePixels(
+      project: string,
+      $requestBody: ComputePixelsRequest,
+      __namedParams__?: ProjectsImageComputePixelsNamedParameters&object): Promise<HttpBody>;
+
+  abstract export(
+      project: string,
+      $requestBody: ExportImageRequest,
+      __namedParams__?: ProjectsImageExportNamedParameters&object): Promise<Operation>;
+
+  abstract import(
+      project: string,
+      $requestBody: ImportImageRequest,
+      __namedParams__?: ProjectsImageImportNamedParameters&object): Promise<Operation>;
+}
+
 export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
 
   export interface IProjectsImageCollectionApiClient$XgafvEnum {
@@ -12609,15 +12911,6 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
     $Xgafv?: ProjectsImageCollectionApiClient$Xgafv;
   }
 
-  export abstract class ProjectsImageCollectionApiClient {
-    constructor() {}
-
-    abstract computeImages(
-        project: string, $requestBody: ComputeImagesRequest,
-        __namedParams__?: ProjectsImageCollectionComputeImagesNamedParameters&
-        object): Promise<ComputeImagesResponse>;
-  }
-
   export class ProjectsImageCollectionApiClientImpl implements
       ProjectsImageCollectionApiClient {
     private $apiClient: PromiseApiClient;
@@ -12678,6 +12971,15 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         responseCtor: ComputeImagesResponse
       });
     }
+  }
+
+  export abstract class ProjectsImageCollectionApiClient {
+    constructor() {}
+
+    abstract computeImages(
+        project: string, $requestBody: ComputeImagesRequest,
+        __namedParams__?: ProjectsImageCollectionComputeImagesNamedParameters&
+        object): Promise<ComputeImagesResponse>;
   }
 
   export type ProjectsMapApiClient$Xgafv = '1'|'2';
@@ -12746,15 +13048,6 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
     $Xgafv?: ProjectsMapApiClient$Xgafv;
   }
 
-  export abstract class ProjectsMapApiClient {
-    constructor() {}
-
-    abstract export(
-        project: string, $requestBody: ExportMapRequest,
-        __namedParams__?: ProjectsMapExportNamedParameters&
-        object): Promise<Operation>;
-  }
-
   export class ProjectsMapApiClientImpl implements ProjectsMapApiClient {
     private $apiClient: PromiseApiClient;
 
@@ -12814,6 +13107,15 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         responseCtor: Operation
       });
     }
+  }
+
+  export abstract class ProjectsMapApiClient {
+    constructor() {}
+
+    abstract export(
+        project: string, $requestBody: ExportMapRequest,
+        __namedParams__?: ProjectsMapExportNamedParameters&
+        object): Promise<Operation>;
   }
 
   export type ProjectsMapsApiClient$Xgafv = '1'|'2';
@@ -12882,15 +13184,6 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
     $Xgafv?: ProjectsMapsApiClient$Xgafv;
   }
 
-  export abstract class ProjectsMapsApiClient {
-    constructor() {}
-
-    abstract create(
-        parent: string, $requestBody: EarthEngineMap,
-        __namedParams__?: ProjectsMapsCreateNamedParameters&
-        object): Promise<EarthEngineMap>;
-  }
-
   export class ProjectsMapsApiClientImpl implements ProjectsMapsApiClient {
     private $apiClient: PromiseApiClient;
 
@@ -12950,6 +13243,15 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         responseCtor: EarthEngineMap
       });
     }
+  }
+
+  export abstract class ProjectsMapsApiClient {
+    constructor() {}
+
+    abstract create(
+        parent: string, $requestBody: EarthEngineMap,
+        __namedParams__?: ProjectsMapsCreateNamedParameters&
+        object): Promise<EarthEngineMap>;
   }
 
   export type ProjectsMapsTilesApiClient$Xgafv = '1'|'2';
@@ -13019,15 +13321,6 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
     $Xgafv?: ProjectsMapsTilesApiClient$Xgafv;
   }
 
-  export abstract class ProjectsMapsTilesApiClient {
-    constructor() {}
-
-    abstract get(
-        parent: string, zoom: number, x: number, y: number,
-        __namedParams__?: ProjectsMapsTilesGetNamedParameters&
-        object): Promise<HttpBody>;
-  }
-
   export class ProjectsMapsTilesApiClientImpl implements
       ProjectsMapsTilesApiClient {
     private $apiClient: PromiseApiClient;
@@ -13089,6 +13382,15 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         responseCtor: HttpBody
       });
     }
+  }
+
+  export abstract class ProjectsMapsTilesApiClient {
+    constructor() {}
+
+    abstract get(
+        parent: string, zoom: number, x: number, y: number,
+        __namedParams__?: ProjectsMapsTilesGetNamedParameters&
+        object): Promise<HttpBody>;
   }
 
   export type ProjectsOperationsApiClient$Xgafv = '1'|'2';
@@ -13217,35 +13519,6 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
     $Xgafv?: ProjectsOperationsApiClient$Xgafv;
   }
 
-  export abstract class ProjectsOperationsApiClient {
-    constructor() {}
-
-    abstract cancel(
-        name: string, $requestBody: CancelOperationRequest,
-        __namedParams__?: ProjectsOperationsCancelNamedParameters&
-        object): Promise<Empty>;
-
-    abstract delete(
-        name: string,
-        __namedParams__?: ProjectsOperationsDeleteNamedParameters&
-        object): Promise<Empty>;
-
-    abstract get(
-        name: string,
-        __namedParams__?: ProjectsOperationsGetNamedParameters&
-        object): Promise<Operation>;
-
-    abstract list(
-        name: string,
-        __namedParams__?: ProjectsOperationsListNamedParameters&
-        object): Promise<ListOperationsResponse>;
-
-    abstract wait(
-        name: string, $requestBody: WaitOperationRequest,
-        __namedParams__?: ProjectsOperationsWaitNamedParameters&
-        object): Promise<Operation>;
-  }
-
   export class ProjectsOperationsApiClientImpl implements
       ProjectsOperationsApiClient {
     private $apiClient: PromiseApiClient;
@@ -13283,7 +13556,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
       upload_protocol: <string|undefined>void 0
     }): Promise<Empty> {
       this.$apiClient.$validateParameter(
-          name, new RegExp('^projects/[^/]+/operations/.+$'));
+          name, new RegExp('^projects/[^/]+/operations/.*$'));
 
       return this.$apiClient.$request<Empty>({
         body: $requestBody,
@@ -13333,7 +13606,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
       upload_protocol: <string|undefined>void 0
     }): Promise<Empty> {
       this.$apiClient.$validateParameter(
-          name, new RegExp('^projects/[^/]+/operations/.+$'));
+          name, new RegExp('^projects/[^/]+/operations/.*$'));
       let $requestBody = <Serializable|null>null;
 
       return this.$apiClient.$request<Empty>({
@@ -13384,7 +13657,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
       upload_protocol: <string|undefined>void 0
     }): Promise<Operation> {
       this.$apiClient.$validateParameter(
-          name, new RegExp('^projects/[^/]+/operations/.+$'));
+          name, new RegExp('^projects/[^/]+/operations/.*$'));
       let $requestBody = <Serializable|null>null;
 
       return this.$apiClient.$request<Operation>({
@@ -13494,7 +13767,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
       upload_protocol: <string|undefined>void 0
     }): Promise<Operation> {
       this.$apiClient.$validateParameter(
-          name, new RegExp('^projects/[^/]+/operations/.+$'));
+          name, new RegExp('^projects/[^/]+/operations/.*$'));
 
       return this.$apiClient.$request<Operation>({
         body: $requestBody,
@@ -13517,6 +13790,35 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         responseCtor: Operation
       });
     }
+  }
+
+  export abstract class ProjectsOperationsApiClient {
+    constructor() {}
+
+    abstract cancel(
+        name: string, $requestBody: CancelOperationRequest,
+        __namedParams__?: ProjectsOperationsCancelNamedParameters&
+        object): Promise<Empty>;
+
+    abstract delete(
+        name: string,
+        __namedParams__?: ProjectsOperationsDeleteNamedParameters&
+        object): Promise<Empty>;
+
+    abstract get(
+        name: string,
+        __namedParams__?: ProjectsOperationsGetNamedParameters&
+        object): Promise<Operation>;
+
+    abstract list(
+        name: string,
+        __namedParams__?: ProjectsOperationsListNamedParameters&
+        object): Promise<ListOperationsResponse>;
+
+    abstract wait(
+        name: string, $requestBody: WaitOperationRequest,
+        __namedParams__?: ProjectsOperationsWaitNamedParameters&
+        object): Promise<Operation>;
   }
 
   export type ProjectsTableApiClient$Xgafv = '1'|'2';
@@ -13611,25 +13913,6 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
     upload_protocol?: string;
     uploadType?: string;
     $Xgafv?: ProjectsTableApiClient$Xgafv;
-  }
-
-  export abstract class ProjectsTableApiClient {
-    constructor() {}
-
-    abstract computeFeatures(
-        project: string, $requestBody: ComputeFeaturesRequest,
-        __namedParams__?: ProjectsTableComputeFeaturesNamedParameters&
-        object): Promise<ComputeFeaturesResponse>;
-
-    abstract export(
-        project: string, $requestBody: ExportTableRequest,
-        __namedParams__?: ProjectsTableExportNamedParameters&
-        object): Promise<Operation>;
-
-    abstract import(
-        project: string, $requestBody: ImportTableRequest,
-        __namedParams__?: ProjectsTableImportNamedParameters&
-        object): Promise<Operation>;
   }
 
   export class ProjectsTableApiClientImpl implements ProjectsTableApiClient {
@@ -13795,7 +14078,234 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
   }
 }
 
-export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
+export abstract class ProjectsTableApiClient {
+  constructor() {
+  }
+
+  abstract computeFeatures(
+      project: string,
+      $requestBody: ComputeFeaturesRequest,
+      __namedParams__?: ProjectsTableComputeFeaturesNamedParameters&object): Promise<ComputeFeaturesResponse>;
+
+  abstract export(
+      project: string,
+      $requestBody: ExportTableRequest,
+      __namedParams__?: ProjectsTableExportNamedParameters&object): Promise<Operation>;
+
+  abstract import(
+      project: string,
+      $requestBody: ImportTableRequest,
+      __namedParams__?: ProjectsTableImportNamedParameters&object): Promise<Operation>;
+}
+
+export type ProjectsTablesApiClient$Xgafv = '1' | '2';
+
+  export interface IProjectsTablesApiClient$XgafvEnum {
+    1: ProjectsTablesApiClient$Xgafv;
+    2: ProjectsTablesApiClient$Xgafv;
+
+    values(): Array<ProjectsTablesApiClient$Xgafv>;
+  }
+
+  export const ProjectsTablesApiClient$XgafvEnum:
+      IProjectsTablesApiClient$XgafvEnum = {
+        get 1(): ProjectsTablesApiClient$Xgafv {
+          return '1';
+        },
+        get 2():
+            ProjectsTablesApiClient$Xgafv {
+              return '2';
+            },
+        values():
+            Array<ProjectsTablesApiClient$Xgafv> {
+              return ['1', '2'];
+            }
+      };
+
+  export type ProjectsTablesApiClientAlt = 'json'|'media'|'proto';
+
+  export interface IProjectsTablesApiClientAltEnum {
+    JSON: ProjectsTablesApiClientAlt;
+    MEDIA: ProjectsTablesApiClientAlt;
+    PROTO: ProjectsTablesApiClientAlt;
+
+    values(): Array<ProjectsTablesApiClientAlt>;
+  }
+
+  export const ProjectsTablesApiClientAltEnum:
+      IProjectsTablesApiClientAltEnum = {
+        get JSON(): ProjectsTablesApiClientAlt {
+          return 'json';
+        },
+        get MEDIA():
+            ProjectsTablesApiClientAlt {
+              return 'media';
+            },
+        get PROTO():
+            ProjectsTablesApiClientAlt {
+              return 'proto';
+            },
+        values():
+            Array<ProjectsTablesApiClientAlt> {
+              return ['json', 'media', 'proto'];
+            }
+      };
+
+  export declare interface ProjectsTablesCreateNamedParameters {
+    access_token?: string;
+    alt?: ProjectsTablesApiClientAlt;
+    callback?: string;
+    fields?: string;
+    key?: string;
+    oauth_token?: string;
+    prettyPrint?: boolean;
+    quotaUser?: string;
+    upload_protocol?: string;
+    uploadType?: string;
+    $Xgafv?: ProjectsTablesApiClient$Xgafv;
+  }
+
+  export declare interface ProjectsTablesGetFeaturesNamedParameters {
+    access_token?: string;
+    alt?: ProjectsTablesApiClientAlt;
+    callback?: string;
+    fields?: string;
+    key?: string;
+    oauth_token?: string;
+    prettyPrint?: boolean;
+    quotaUser?: string;
+    upload_protocol?: string;
+    uploadType?: string;
+    $Xgafv?: ProjectsTablesApiClient$Xgafv;
+  }
+
+  export class ProjectsTablesApiClientImpl implements ProjectsTablesApiClient {
+    private $apiClient: PromiseApiClient;
+
+    constructor(
+        private gapiVersion: string, gapiRequestService: PromiseRequestService,
+        apiClientHookFactory: ApiClientHookFactory|null = null) {
+      this.$apiClient =
+          new PromiseApiClient(gapiRequestService, apiClientHookFactory);
+    }
+
+    create(parent: string, $requestBody: Table, {
+      $Xgafv = void 0,
+      access_token = void 0,
+      alt = void 0,
+      callback = void 0,
+      fields = void 0,
+      key = void 0,
+      oauth_token = void 0,
+      prettyPrint = void 0,
+      quotaUser = void 0,
+      uploadType = void 0,
+      upload_protocol = void 0
+    }: ProjectsTablesCreateNamedParameters&object = {
+      $Xgafv: <ProjectsTablesApiClient$Xgafv|undefined>void 0,
+      access_token: <string|undefined>void 0,
+      alt: <ProjectsTablesApiClientAlt|undefined>void 0,
+      callback: <string|undefined>void 0,
+      fields: <string|undefined>void 0,
+      key: <string|undefined>void 0,
+      oauth_token: <string|undefined>void 0,
+      prettyPrint: <boolean|undefined>void 0,
+      quotaUser: <string|undefined>void 0,
+      uploadType: <string|undefined>void 0,
+      upload_protocol: <string|undefined>void 0
+    }): Promise<Table> {
+      this.$apiClient.$validateParameter(
+          parent, new RegExp('^projects/[^/]+$'));
+
+      return this.$apiClient.$request<Table>({
+        body: $requestBody,
+        httpMethod: 'POST',
+        methodId: 'earthengine.projects.tables.create',
+        path: `/${this.gapiVersion}/${parent}/tables`,
+        queryParams: {
+          '$.xgafv': $Xgafv,
+          'access_token': access_token,
+          'alt': alt,
+          'callback': callback,
+          'fields': fields,
+          'key': key,
+          'oauth_token': oauth_token,
+          'prettyPrint': prettyPrint,
+          'quotaUser': quotaUser,
+          'uploadType': uploadType,
+          'upload_protocol': upload_protocol
+        },
+        responseCtor: Table
+      });
+    }
+
+    getFeatures(name: string, {
+      $Xgafv = void 0,
+      access_token = void 0,
+      alt = void 0,
+      callback = void 0,
+      fields = void 0,
+      key = void 0,
+      oauth_token = void 0,
+      prettyPrint = void 0,
+      quotaUser = void 0,
+      uploadType = void 0,
+      upload_protocol = void 0
+    }: ProjectsTablesGetFeaturesNamedParameters&object = {
+      $Xgafv: <ProjectsTablesApiClient$Xgafv|undefined>void 0,
+      access_token: <string|undefined>void 0,
+      alt: <ProjectsTablesApiClientAlt|undefined>void 0,
+      callback: <string|undefined>void 0,
+      fields: <string|undefined>void 0,
+      key: <string|undefined>void 0,
+      oauth_token: <string|undefined>void 0,
+      prettyPrint: <boolean|undefined>void 0,
+      quotaUser: <string|undefined>void 0,
+      uploadType: <string|undefined>void 0,
+      upload_protocol: <string|undefined>void 0
+    }): Promise<HttpBody> {
+      this.$apiClient.$validateParameter(
+          name, new RegExp('^projects/[^/]+/tables/[^/]+$'));
+      let $requestBody = <Serializable|null>null;
+
+      return this.$apiClient.$request<HttpBody>({
+        body: $requestBody,
+        httpMethod: 'GET',
+        methodId: 'earthengine.projects.tables.getFeatures',
+        path: `/${this.gapiVersion}/${name}:getFeatures`,
+        queryParams: {
+          '$.xgafv': $Xgafv,
+          'access_token': access_token,
+          'alt': alt,
+          'callback': callback,
+          'fields': fields,
+          'key': key,
+          'oauth_token': oauth_token,
+          'prettyPrint': prettyPrint,
+          'quotaUser': quotaUser,
+          'uploadType': uploadType,
+          'upload_protocol': upload_protocol
+        },
+        responseCtor: HttpBody
+      });
+    }
+  }
+
+  export abstract class ProjectsTablesApiClient {
+    constructor() {}
+
+    abstract create(
+        parent: string, $requestBody: Table,
+        __namedParams__?: ProjectsTablesCreateNamedParameters&
+        object): Promise<Table>;
+
+    abstract getFeatures(
+        name: string,
+        __namedParams__?: ProjectsTablesGetFeaturesNamedParameters&
+        object): Promise<HttpBody>;
+  }
+
+  export type ProjectsThumbnailsApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsThumbnailsApiClient$XgafvEnum {
     1: ProjectsThumbnailsApiClient$Xgafv;
@@ -13874,20 +14384,6 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
     upload_protocol?: string;
     uploadType?: string;
     $Xgafv?: ProjectsThumbnailsApiClient$Xgafv;
-  }
-
-  export abstract class ProjectsThumbnailsApiClient {
-    constructor() {}
-
-    abstract create(
-        parent: string, $requestBody: Thumbnail,
-        __namedParams__?: ProjectsThumbnailsCreateNamedParameters&
-        object): Promise<Thumbnail>;
-
-    abstract getPixels(
-        name: string,
-        __namedParams__?: ProjectsThumbnailsGetPixelsNamedParameters&
-        object): Promise<HttpBody>;
   }
 
   export class ProjectsThumbnailsApiClientImpl implements
@@ -14003,6 +14499,20 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
     }
   }
 
+  export abstract class ProjectsThumbnailsApiClient {
+    constructor() {}
+
+    abstract create(
+        parent: string, $requestBody: Thumbnail,
+        __namedParams__?: ProjectsThumbnailsCreateNamedParameters&
+        object): Promise<Thumbnail>;
+
+    abstract getPixels(
+        name: string,
+        __namedParams__?: ProjectsThumbnailsGetPixelsNamedParameters&
+        object): Promise<HttpBody>;
+  }
+
   export type ProjectsValueApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsValueApiClient$XgafvEnum {
@@ -14069,15 +14579,6 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
     $Xgafv?: ProjectsValueApiClient$Xgafv;
   }
 
-  export abstract class ProjectsValueApiClient {
-    constructor() {}
-
-    abstract compute(
-        project: string, $requestBody: ComputeValueRequest,
-        __namedParams__?: ProjectsValueComputeNamedParameters&
-        object): Promise<ComputeValueResponse>;
-  }
-
   export class ProjectsValueApiClientImpl implements ProjectsValueApiClient {
     private $apiClient: PromiseApiClient;
 
@@ -14137,6 +14638,15 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
         responseCtor: ComputeValueResponse
       });
     }
+  }
+
+  export abstract class ProjectsValueApiClient {
+    constructor() {}
+
+    abstract compute(
+        project: string, $requestBody: ComputeValueRequest,
+        __namedParams__?: ProjectsValueComputeNamedParameters&
+        object): Promise<ComputeValueResponse>;
   }
 
   export type ProjectsVideoApiClient$Xgafv = '1'|'2';
@@ -14205,15 +14715,6 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
     $Xgafv?: ProjectsVideoApiClient$Xgafv;
   }
 
-  export abstract class ProjectsVideoApiClient {
-    constructor() {}
-
-    abstract export(
-        project: string, $requestBody: ExportVideoRequest,
-        __namedParams__?: ProjectsVideoExportNamedParameters&
-        object): Promise<Operation>;
-  }
-
   export class ProjectsVideoApiClientImpl implements ProjectsVideoApiClient {
     private $apiClient: PromiseApiClient;
 
@@ -14273,6 +14774,15 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
         responseCtor: Operation
       });
     }
+  }
+
+  export abstract class ProjectsVideoApiClient {
+    constructor() {}
+
+    abstract export(
+        project: string, $requestBody: ExportVideoRequest,
+        __namedParams__?: ProjectsVideoExportNamedParameters&
+        object): Promise<Operation>;
   }
 
   export type ProjectsVideoMapApiClient$Xgafv = '1'|'2';
@@ -14342,15 +14852,6 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
     $Xgafv?: ProjectsVideoMapApiClient$Xgafv;
   }
 
-  export abstract class ProjectsVideoMapApiClient {
-    constructor() {}
-
-    abstract export(
-        project: string, $requestBody: ExportVideoMapRequest,
-        __namedParams__?: ProjectsVideoMapExportNamedParameters&
-        object): Promise<Operation>;
-  }
-
   export class ProjectsVideoMapApiClientImpl implements
       ProjectsVideoMapApiClient {
     private $apiClient: PromiseApiClient;
@@ -14411,6 +14912,15 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
         responseCtor: Operation
       });
     }
+  }
+
+  export abstract class ProjectsVideoMapApiClient {
+    constructor() {}
+
+    abstract export(
+        project: string, $requestBody: ExportVideoMapRequest,
+        __namedParams__?: ProjectsVideoMapExportNamedParameters&
+        object): Promise<Operation>;
   }
 
   export type ProjectsVideoThumbnailsApiClient$Xgafv = '1'|'2';
@@ -14492,20 +15002,6 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
     upload_protocol?: string;
     uploadType?: string;
     $Xgafv?: ProjectsVideoThumbnailsApiClient$Xgafv;
-  }
-
-  export abstract class ProjectsVideoThumbnailsApiClient {
-    constructor() {}
-
-    abstract create(
-        parent: string, $requestBody: VideoThumbnail,
-        __namedParams__?: ProjectsVideoThumbnailsCreateNamedParameters&
-        object): Promise<VideoThumbnail>;
-
-    abstract getPixels(
-        name: string,
-        __namedParams__?: ProjectsVideoThumbnailsGetPixelsNamedParameters&
-        object): Promise<HttpBody>;
   }
 
   export class ProjectsVideoThumbnailsApiClientImpl implements
@@ -14619,4 +15115,18 @@ export type ProjectsThumbnailsApiClient$Xgafv = '1' | '2';
         responseCtor: HttpBody
       });
     }
+  }
+
+  export abstract class ProjectsVideoThumbnailsApiClient {
+    constructor() {}
+
+    abstract create(
+        parent: string, $requestBody: VideoThumbnail,
+        __namedParams__?: ProjectsVideoThumbnailsCreateNamedParameters&
+        object): Promise<VideoThumbnail>;
+
+    abstract getPixels(
+        name: string,
+        __namedParams__?: ProjectsVideoThumbnailsGetPixelsNamedParameters&
+        object): Promise<HttpBody>;
   }
