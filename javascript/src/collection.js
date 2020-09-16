@@ -1,7 +1,7 @@
 /**
  * @fileoverview Base class for ImageCollection and FeatureCollection.
  * This class is never intended to be instantiated by the user.
- *
+ * @suppress {missingRequire} TODO(b/152540451): this shouldn't be needed
  */
 
 goog.provide('ee.Collection');
@@ -112,7 +112,7 @@ ee.Collection.prototype.filterMetadata = function(name, operator, value) {
  * will be excluded.
  *
  * This is equivalent to this.filter(ee.Filter.bounds(...)).
- * @param {!ee.Feature|!ee.Geometry} geometry The geometry to filter to.
+ * @param {!ee.Geometry} geometry The geometry to filter to.
  * @return {ee.Collection} The filtered collection.
  * @export
  */

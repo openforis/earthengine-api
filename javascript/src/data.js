@@ -1,6 +1,7 @@
 /**
  * @fileoverview Singleton for all of the library's communication
  * with the Earth Engine API.
+ * @suppress {missingRequire} TODO(b/152540451): this shouldn't be needed
  */
 
 goog.provide('ee.data');
@@ -422,7 +423,7 @@ ee.data.getMapId = function(params, opt_callback) {
   params = /** @type {!ee.data.ImageVisualizationParameters} */ (
       goog.object.clone(params));
   if (typeof params.image !== 'string') {
-    params.image = params.image.serialize();
+    params.image = params.image.serialize(/* legacy = */ true);
   }
   const makeMapId = (result) => ee.data.makeMapId_(
       result['mapid'], result['token']);
@@ -572,7 +573,7 @@ ee.data.getThumbId = function(params, opt_callback) {
         .then(getResponse));
   }
   params = /** @type {!ee.data.ThumbnailOptions} */ (goog.object.clone(params));
-  if (goog.isArray(params.dimensions)) {
+  if (Array.isArray(params.dimensions)) {
     params.dimensions = params.dimensions.join('x');
   }
 
@@ -581,7 +582,7 @@ ee.data.getThumbId = function(params, opt_callback) {
   // if it exists.
   let image = params.image || params.imageCollection;
   if (typeof image !== 'string') {
-    image = image.serialize();
+    image = image.serialize(/* legacy = */ true);
   }
   params.image = image;
   delete params.imageCollection;
@@ -833,31 +834,63 @@ ee.data.makeDownloadUrl = function(id) {
  * Get a download ID.
  * @param {Object} params An object containing table download options with the
  *     following possible values:
- *   - format: The download format, CSV or JSON.
- *   - selectors: Comma separated string of selectors that can be used to
+ *   - table: The feature collection to download.
+ *   - format: The download format, CSV, JSON, KML, KMZ or TF_RECORD.
+ *   - selectors: List of strings of selectors that can be used to
  *          determine which attributes will be downloaded.
  *   - filename: The name of the file that will be downloaded.
- * @param {function(!ee.data.DownloadId, string=)=} opt_callback An optional
+ * @param {function(?ee.data.DownloadId, string=)=} opt_callback An optional
  *     callback. If not supplied, the call is made synchronously.
  * @return {?ee.data.DownloadId} A download id and token, or null if a
  *     callback is specified.
  * @export
  */
 ee.data.getTableDownloadId = function(params, opt_callback) {
-  // In cloud mode, handleResponse does not unwrap the data payload.
-  const unwrap = (id) => (/** @type {!Object} */(id) || {})['data'] || id;
-  if (ee.data.getCloudApiEnabled() && opt_callback) {
-    const orig_callback = opt_callback;
-    opt_callback = (id, error = undefined) => orig_callback(unwrap(id), error);
+  if (ee.data.getCloudApiEnabled()) {
+    const call = new ee.apiclient.Call(opt_callback);
+    const fileFormat = ee.rpc_convert.tableFileFormat(params['format']);
+    const expression = ee.data.expressionAugmenter_(
+        ee.Serializer.encodeCloudApiExpression(params['table']));
+
+    // Maybe convert selectors to an Array of strings.
+    // Previously a string with commas delimiting each selector was supported.
+    let selectors = null;
+    if (params['selectors'] != null) {
+      if (typeof params['selectors'] === 'string') {
+        selectors = params['selectors'].split(',');
+      } else if (
+          Array.isArray(params['selectors']) &&
+          params['selectors'].every((x) => typeof x === 'string')) {
+        selectors = params['selectors'];
+      } else {
+        throw new Error('\'selectors\' parameter must be an array of strings.');
+      }
+    }
+    const filename = params['filename'] || null;
+    const table = new ee.api.Table({
+      name: null,
+      expression,
+      fileFormat,
+      selectors,
+      filename,
+    });
+    const fields = ['name'];
+    /** @type {function(!ee.api.Table): !ee.data.DownloadId} */
+    const getResponse = (res) => {
+      /** @type {!ee.data.DownloadId} */
+      const ret = {docid: res.name || '', token: ''};
+      return ret;
+    };
+    return call.handle(call.tables()
+                           .create(call.projectsPath(), table, {fields})
+                           .then(getResponse));
   }
   params = goog.object.clone(params);
   const id = /** @type {?ee.data.DownloadId} */ (ee.data.send_(
       '/table',
       ee.data.makeRequest_(params),
       opt_callback));
-  if (ee.data.getCloudApiEnabled()) {
-    return unwrap(id);
-  }
+
   return id;
 };
 
@@ -869,6 +902,10 @@ ee.data.getTableDownloadId = function(params, opt_callback) {
  * @export
  */
 ee.data.makeTableDownloadUrl = function(id) {
+  if (ee.data.getCloudApiEnabled()) {
+    const base = ee.apiclient.getTileBaseUrl();
+    return base + '/v1alpha/' + id.docid + ':getFeatures';
+  }
   return ee.apiclient.getTileBaseUrl() + '/api/table?docid=' + id.docid +
       '&token=' + id.token;
 };
@@ -952,7 +989,7 @@ ee.data.getTaskStatus = function(taskId, opt_callback) {
 ee.data.makeStringArray_ = function(value) {
   if (typeof value === 'string') {
     return [value];
-  } else if (goog.isArray(value)) {
+  } else if (Array.isArray(value)) {
     return value;
   }
   throw new Error('Invalid value: expected a string or an array of strings.');
@@ -1145,7 +1182,7 @@ ee.data.cancelOperation = function(operationName, opt_callback) {
 ee.data.getOperation = function(operationName, opt_callback) {
   const opNames = ee.data.makeStringArray_(operationName).map(
       ee.rpc_convert.taskIdToOperationName);
-  if (!goog.isArray(operationName)) {
+  if (!Array.isArray(operationName)) {
     const call = new ee.apiclient.Call(opt_callback);
     return call.handle(call.operations().get(opNames[0]));
   }
@@ -1257,10 +1294,10 @@ ee.data.startProcessing = function(taskId, params, opt_callback) {
   }
   params = goog.object.clone(params);
   if (params['element'] != null) {
-    params['json'] = params['element'].serialize();
+    params['json'] = params['element'].serialize(/* legacy = */ true);
     delete params['element'];
   }
-  if (goog.isArray(params['crs_transform'])) {
+  if (Array.isArray(params['crs_transform'])) {
     params['crs_transform'] = params['crs_transform'].toString();
   }
   params['id'] = taskId;
@@ -1374,7 +1411,8 @@ ee.data.startIngestion = function(taskId, request, opt_callback) {
  *
  * @param {string} taskId ID for the task (obtained using newTaskId).
  * @param {!ee.api.ImageManifest} imageManifest The object that
- *     describes the ingestion.
+ *     describes the ingestion.  See
+ *     https://developers.google.com/s/results/earth-engine?q="ImageManifest"
  * @param {function(?ee.api.Operation, string=)} callback
  * @return {?ee.api.Operation}
  */
@@ -1396,7 +1434,8 @@ ee.data.ingestImage = function(taskId, imageManifest, callback) {
  *
  * @param {string} taskId ID for the task (obtained using newTaskId).
  * @param {!ee.api.TableManifest} tableManifest The object that
- *     describes the ingestion.
+ *     describes the ingestion. See
+ *     https://developers.google.com/s/results/earth-engine?q="TableManifest"
  * @param {function(?ee.api.Operation, string=)} callback
  * @return {?ee.api.Operation}
  */
@@ -1543,11 +1582,14 @@ ee.data.getList = function(params, opt_callback) {
  * Returns a list of the contents in an asset collection or folder.
  *
  * @param {string} parent
- * @param {!ee.api.ProjectsAssetsListAssetsNamedParameters=} params
+ * @param {!ee.api.ProjectsAssetsListAssetsNamedParameters=} params Options:
+ *     pageSize (defaults to 1000), pageToken, filter (see
+ *     https://google.aip.dev/160), view (default is 'FULL', may be 'BASIC').
  * @param {function(?ee.api.ListAssetsResponse, string=)=}
  *     opt_callback  If not supplied, the call is made synchronously.
  * @return {?ee.api.ListAssetsResponse}
- *     Results, or null if a callback is specified.
+ *     Results, or null if a callback is specified. Will include an `assets`
+ *     array and an optional `nextPageToken`.
  * @export
  */
 ee.data.listAssets = function(parent, params = {}, opt_callback = undefined) {
@@ -1565,11 +1607,14 @@ ee.data.listAssets = function(parent, params = {}, opt_callback = undefined) {
  * Returns a list of the contents in an asset collection or folder.
  *
  * @param {string} parent
- * @param {!ee.api.ProjectsAssetsListImagesNamedParameters=} params
+ * @param {!ee.api.ProjectsAssetsListImagesNamedParameters=} params Options:
+ *     pageSize (defaults to 1000), pageToken, filter (see
+ *     https://google.aip.dev/160), view (default is 'FULL', may be 'BASIC').
  * @param {function(?ee.api.ListImagesResponse, string=)=}
  *     opt_callback  If not supplied, the call is made synchronously.
  * @return {?ee.api.ListImagesResponse}
- *     Results, or null if a callback is specified.
+ *     Results, or null if a callback is specified. Will include an `images`
+ *     array and an optional `nextPageToken`.
  * @export
  */
 ee.data.listImages = function(parent, params = {}, opt_callback = undefined) {
@@ -1737,27 +1782,6 @@ ee.data.createFolder = function(path, opt_force, opt_callback) {
 
 
 /**
- * Retrieves a list of public assets matching a query.
- *
- * @param {string} query Search query for assets.
- * @param {function(?Array, string=)=} opt_callback An optional
- *     callback. If not supplied, the callback is made synchronously.
- * @return {?Array<!ee.data.AssetDescription>} An array of data set indices.
- */
-ee.data.search = function(query, opt_callback) {
-  if (ee.data.getCloudApiEnabled()) {
-    const call = new ee.apiclient.Call(opt_callback);
-    return call.handle(
-        call.assets().search('projects/earthengine-public', query)
-        .then(ee.rpc_convert.assetListToDatasetResult));
-  }
-  var params = {'q': query};
-  return /** @type {?Array<!ee.data.AssetDescription>} */ (
-      ee.data.send_('/search', ee.data.makeRequest_(params), opt_callback));
-};
-
-
-/**
  * Renames the asset from sourceId to destinationId.
  *
  * @param {string} sourceId The ID of the asset to rename.
@@ -1890,7 +1914,8 @@ ee.data.getIamPolicy = function(assetId, opt_callback) {
  * The authenticated user must be a writer or owner of an asset to set its ACL.
  *
  * @param {string} assetId The ID of the asset to check.
- * @param {!ee.api.Policy} policy actually google.iam.v1.Policy
+ * @param {!ee.api.Policy} policy See
+ *  https://cloud.google.com/resource-manager/reference/rest/Shared.Types/Policy
  * @param {function(?Object, string=)=} opt_callback
  *     An optional callback. If not supplied, the call is made synchronously.
  * @return {?ee.api.Policy} the policy

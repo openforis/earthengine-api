@@ -67,7 +67,7 @@ ee.Collection = function(func, args, opt_varName) {
 ee.Collection.prototype.filter = function(filter) {
 };
 /**
- * @param {(ee.Feature|ee.Geometry)} geometry
+ * @param {!ee.Geometry} geometry
  * @return {(ee.Collection|null)}
  */
 ee.Collection.prototype.filterBounds = function(geometry) {
@@ -147,9 +147,10 @@ ee.ComputedObject.prototype.evaluate = function(callback) {
 ee.ComputedObject.prototype.getInfo = function(opt_callback) {
 };
 /**
+ * @param {boolean=} legacy
  * @return {string}
  */
-ee.ComputedObject.prototype.serialize = function() {
+ee.ComputedObject.prototype.serialize = function(legacy) {
 };
 /**
  * @return {string}
@@ -184,6 +185,18 @@ ee.Deserializer = function() {
  * @return {*}
  */
 ee.Deserializer.decode = function(json) {
+};
+/**
+ * @param {*} json
+ * @return {*}
+ */
+ee.Deserializer.decodeCloudApi = function(json) {
+};
+/**
+ * @param {string} json
+ * @return {*}
+ */
+ee.Deserializer.fromCloudApiJSON = function(json) {
 };
 /**
  * @param {string} json
@@ -290,7 +303,7 @@ ee.Filter = function(opt_filter) {
 ee.Filter.and = function(var_args) {
 };
 /**
- * @param {!ee.ComputedObject} geometry
+ * @param {(ee.ComputedObject)} geometry
  * @param {(ee.ComputedObject|number)=} opt_errorMargin
  * @return {!ee.Filter}
  */
@@ -415,6 +428,17 @@ ee.Function.prototype.call = function(var_args) {
 ee.Geometry = function(geoJson, opt_proj, opt_geodesic, opt_evenOdd) {
 };
 /**
+ * @param {number} west
+ * @param {number} south
+ * @param {number} east
+ * @param {number} north
+ * @return {?}
+ * @extends {ee.Geometry.Rectangle}
+ * @constructor
+ */
+ee.Geometry.BBox = function(west, south, east, north) {
+};
+/**
  * @param {(Array<?>|null)} coords
  * @param {(ee.Projection|null)=} opt_proj
  * @param {boolean=} opt_geodesic
@@ -501,9 +525,10 @@ ee.Geometry.Polygon = function(coords, opt_proj, opt_geodesic, opt_maxError, opt
 ee.Geometry.Rectangle = function(coords, opt_proj, opt_geodesic, opt_evenOdd) {
 };
 /**
+ * @param {boolean=} legacy
  * @return {string}
  */
-ee.Geometry.prototype.serialize = function() {
+ee.Geometry.prototype.serialize = function(legacy) {
 };
 /**
  * @return {!ee.data.GeoJSONGeometry}
@@ -756,6 +781,12 @@ ee.Serializer.encodeCloudApiPretty = function(obj) {
  * @param {*} obj
  * @return {string}
  */
+ee.Serializer.toCloudApiJSON = function(obj) {
+};
+/**
+ * @param {*} obj
+ * @return {string}
+ */
 ee.Serializer.toJSON = function(obj) {
 };
 /**
@@ -781,6 +812,12 @@ ee.String = function(string) {
 ee.TILE_SIZE;
 /** @type {{}} */
 ee.Terrain = {};
+ee.api;
+ee.api.EarthEngineAsset;
+ee.api.Image;
+ee.api.ListAssetsResponse;
+ee.api.ListImagesResponse;
+ee.api.Operation;
 /**
  * @param {(ee.Function|null|string)} func
  * @param {(Object|null)} namedArgs
@@ -1140,7 +1177,7 @@ ee.data.getOperation = function(operationName, opt_callback) {
 };
 /**
  * @param {(Object|null)} params
- * @param {function(!ee.data.DownloadId, string=): ?=} opt_callback
+ * @param {function((ee.data.DownloadId|null), string=): ?=} opt_callback
  * @return {(ee.data.DownloadId|null)}
  */
 ee.data.getTableDownloadId = function(params, opt_callback) {

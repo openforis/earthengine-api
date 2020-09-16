@@ -18,10 +18,10 @@ import re
 import warnings
 
 from . import ee_exception
-from apiclient import discovery
-from apiclient import http
-from apiclient import model
 from google_auth_httplib2 import AuthorizedHttp
+from googleapiclient import discovery
+from googleapiclient import http
+from googleapiclient import model
 
 # We use the urllib3-aware shim if it's available.
 # It is not available by default if the package is installed via the conda-forge
@@ -325,12 +325,13 @@ def convert_get_list_params_to_list_images_params(params):
           'starttime': ('startTime', _convert_msec_to_timestamp),
           'endtime': ('endTime', _convert_msec_to_timestamp),
           'bbox': ('region', _convert_bounding_box_to_geo_json),
-          'region': 'region'
+          'region': 'region',
+          'filter': 'filter'
       },
       key_warnings=True)
   # getList returns minimal information; we can filter unneeded stuff out
   # server-side.
-  params['fields'] = 'images(name)'
+  params['view'] = 'BASIC'
   return params
 
 

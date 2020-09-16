@@ -26,7 +26,7 @@ const apiclient = {};
 
 
 const VERSION = 'v1alpha';
-const API_CLIENT_VERSION = '0.1.217';
+const API_CLIENT_VERSION = '0.1.234';
 const LEGACY_DOWNLOAD_REGEX = /^\/(table).*/;
 
 exports.VERSION = VERSION;
@@ -138,6 +138,10 @@ class Call {
 
   table() {
     return new api.ProjectsTableApiClientImpl(VERSION, this.requestService);
+  }
+
+  tables() {
+    return new api.ProjectsTablesApiClientImpl(VERSION, this.requestService);
   }
 
   video() {
@@ -1002,7 +1006,8 @@ apiclient.handleResponse_ = function(
       return 'Failed to contact Earth Engine servers. Please check ' +
           'your connection, firewall, or browser extension settings.';
     } else if (status < 200 || status >= 300) {
-      return 'Server returned HTTP code: ' + status;
+      return 'Server returned HTTP code: ' + status + ' for ' + method + ' ' +
+          url;
     }
   };
 
@@ -1040,9 +1045,6 @@ apiclient.handleResponse_ = function(
   }
 
   errorMessage = errorMessage || statusError(status) || typeError;
-  if (errorMessage && method && url) {
-    errorMessage += ' for ' + method + ' ' + url;
-  }
 
   if (callback) {
     callback(data, errorMessage);
@@ -1072,7 +1074,7 @@ apiclient.ensureAuthLibLoaded_ = function(callback) {
   };
   if (goog.isObject(goog.global['gapi']) &&
       goog.isObject(goog.global['gapi']['auth']) &&
-      goog.isFunction(goog.global['gapi']['auth']['authorize'])) {
+      typeof goog.global['gapi']['auth']['authorize'] === 'function') {
     done();
   } else {
     // The library is not loaded; load it now.
@@ -1189,7 +1191,7 @@ apiclient.setupMockSend = function(calls) {
     } else {
       throw new Error(url + ' mock response not specified');
     }
-    if (goog.isFunction(response)) {
+    if (typeof response === 'function') {
       response = response(url, method, data);
     }
     if (typeof response === 'string') {
@@ -1204,7 +1206,7 @@ apiclient.setupMockSend = function(calls) {
     }
 
     if (typeof response.status !== 'number' &&
-        !goog.isFunction(response.status)) {
+        typeof response.status !== 'function') {
       throw new Error(url + ' mock response missing/invalid status');
     }
     return response;
@@ -1223,7 +1225,7 @@ apiclient.setupMockSend = function(calls) {
     e.target.getResponseText = function() {
       return responseData.text;
     };
-    e.target.getStatus = goog.isFunction(responseData.status) ?
+    e.target.getStatus = typeof responseData.status === 'function' ?
         responseData.status :
         function() {
           return responseData.status;
@@ -1265,8 +1267,9 @@ apiclient.setupMockSend = function(calls) {
   fakeXmlHttp.prototype.send = function(data) {
     const responseData = getResponse(this.url, this.method, data);
     this.responseText = responseData.text;
-    this.status = goog.isFunction(responseData.status) ?
-        responseData.status() : responseData.status;
+    this.status = typeof responseData.status === 'function' ?
+        responseData.status() :
+        responseData.status;
     this.contentType_ = responseData.contentType;
   };
   XmlHttp.setGlobalFactory(/** @type {?} */({
@@ -1700,3 +1703,11 @@ exports.calculateRetryWait = apiclient.calculateRetryWait_;
 exports.MAX_ASYNC_RETRIES = apiclient.MAX_ASYNC_RETRIES_;
 exports.REQUEST_THROTTLE_INTERVAL_MS = apiclient.REQUEST_THROTTLE_INTERVAL_MS_;
 exports.isAuthTokenRefreshingEnabled = apiclient.isAuthTokenRefreshingEnabled_;
+
+// Expose Earth Engine API data types that are returned by the client
+// library methods visible to user code.
+goog.exportSymbol('ee.api.ListAssetsResponse', api.ListAssetsResponse);
+goog.exportSymbol('ee.api.EarthEngineAsset', api.EarthEngineAsset);
+goog.exportSymbol('ee.api.ListImagesResponse', api.ListImagesResponse);
+goog.exportSymbol('ee.api.Image', api.Image);
+goog.exportSymbol('ee.api.Operation', api.Operation);

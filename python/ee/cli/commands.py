@@ -29,17 +29,39 @@ import tempfile
 # pylint: disable=g-import-not-at-top
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+TENSORFLOW_INSTALLED = False
 # pylint: disable=g-import-not-at-top
 try:
   import tensorflow.compat.v1 as tf
   from tensorflow.compat.v1.saved_model import utils as saved_model_utils
   from tensorflow.compat.v1.saved_model import signature_constants
   from tensorflow.compat.v1.saved_model import signature_def_utils
+  tf.disable_v2_behavior()
   # Prevent TensorFlow from logging anything at the python level.
   tf.logging.set_verbosity(tf.logging.ERROR)
   TENSORFLOW_INSTALLED = True
 except ImportError:
-  TENSORFLOW_INSTALLED = False
+  pass
+
+TENSORFLOW_ADDONS_INSTALLED = False
+# pylint: disable=g-import-not-at-top
+if TENSORFLOW_INSTALLED:
+  try:
+    if sys.version_info[0] >= 3:
+      # This import is enough to register TFA ops though isn't directly used
+      # (for now).
+      # pylint: disable=unused-import
+      import tensorflow_addons as tfa
+      tfa.register_all(custom_kernels=False)
+      TENSORFLOW_ADDONS_INSTALLED = True
+  except ImportError:
+    pass
+  except AttributeError:
+    # This can be thrown by "tfa.register_all()" which means the
+    # tensorflow_addons version is registering ops the old way, i.e.
+    # automatically at import time. If this is the case, we've actually
+    # successfully registered TFA.
+    TENSORFLOW_ADDONS_INSTALLED = True
 
 # pylint: disable=g-import-not-at-top
 import ee
@@ -175,6 +197,10 @@ def _cloud_timestamp_for_timestamp_ms(timestamp_ms):
   # Desired format is like '2003-09-07T19:30:12.345Z'
   return datetime.datetime.utcfromtimestamp(
       timestamp_ms / 1000.0).isoformat() + 'Z'
+
+
+def _parse_millis(millis):
+  return datetime.datetime.fromtimestamp(millis / 1000)
 
 
 def _decode_date(string):
@@ -778,6 +804,9 @@ class ListCommand(object):
         '-r',
         action='store_true',
         help='List folders recursively.')
+    parser.add_argument(
+        '--filter', '-f', default='', type=str,
+        help='Filter string to pass to ee.ImageCollection.filter().')
 
   def run(self, args, config):
     config.ee_init()
@@ -791,8 +820,9 @@ class ListCommand(object):
     for asset in assets:
       if count > 0:
         print()
-      self._list_asset_content(asset, args.max_items,
-                               len(assets), args.long_format, args.recursive)
+      self._list_asset_content(
+          asset, args.max_items, len(assets), args.long_format,
+          args.recursive, args.filter)
       count += 1
 
   def _print_assets(self, assets, max_items, indent, long_format, recursive):
@@ -824,11 +854,13 @@ class ListCommand(object):
         self._print_assets(children, max_items, indent, long_format, recursive)
 
   def _list_asset_content(self, asset, max_items, total_assets, long_format,
-                          recursive):
+                          recursive, filter_string):
     try:
       list_req = {'id': asset}
       if max_items >= 0:
         list_req['num'] = max_items
+      if filter_string:
+        list_req['filter'] = filter_string
       children = ee.data.getList(list_req)
       indent = ''
       if total_assets > 1:
@@ -866,7 +898,11 @@ class SizeCommand(object):
     # If args.summarize is True, list size+name for every leaf child asset,
     # and show totals for non-leaf children.
     # If args.summarize is False, print sizes of all children.
-    for asset in assets:
+    for index, asset in enumerate(assets):
+      if args.asset_id and not asset:
+        asset_id = args.asset_id[index]
+        print('Asset does not exist or is not accessible: %s' % asset_id)
+        continue
       is_parent = asset['type'] in (
           ee.data.ASSET_TYPE_FOLDER,
           ee.data.ASSET_TYPE_IMAGE_COLL,
@@ -968,11 +1004,11 @@ class RmCommand(object):
 
   def _delete_asset(self, asset_id, recursive, verbose, dry_run):
     """Attempts to delete the specified asset or asset collection."""
-    info = ee.data.getInfo(asset_id)
-    if info is None:
-      print('Asset does not exist or is not accessible: %s' % asset_id)
-      return
     if recursive:
+      info = ee.data.getInfo(asset_id)
+      if info is None:
+        print('Asset does not exist or is not accessible: %s' % asset_id)
+        return
       if info['type'] in (ee.data.ASSET_TYPE_FOLDER,
                           ee.data.ASSET_TYPE_IMAGE_COLL,
                           ee.data.ASSET_TYPE_FOLDER_CLOUD,
@@ -1040,20 +1076,15 @@ class TaskInfoCommand(object):
         continue
       print('  Type: %s' % TASK_TYPES.get(status.get('task_type'), 'Unknown'))
       print('  Description: %s' % status.get('description'))
-      print('  Created: %s'
-            % self._format_time(status['creation_timestamp_ms']))
+      print('  Created: %s' % _parse_millis(status['creation_timestamp_ms']))
       if 'start_timestamp_ms' in status:
-        print('  Started: %s' % self._format_time(status['start_timestamp_ms']))
+        print('  Started: %s' % _parse_millis(status['start_timestamp_ms']))
       if 'update_timestamp_ms' in status:
-        print('  Updated: %s'
-              % self._format_time(status['update_timestamp_ms']))
+        print('  Updated: %s' % _parse_millis(status['update_timestamp_ms']))
       if 'error_message' in status:
         print('  Error: %s' % status['error_message'])
       if 'destination_uris' in status:
         print('  Destination URIs: %s' % ', '.join(status['destination_uris']))
-
-  def _format_time(self, millis):
-    return datetime.datetime.fromtimestamp(millis / 1000)
 
 
 class TaskListCommand(object):
@@ -1067,6 +1098,11 @@ class TaskListCommand(object):
         choices=['READY', 'RUNNING', 'COMPLETED', 'FAILED',
                  'CANCELLED', 'UNKNOWN'],
         help=('List tasks only with a given status'))
+    parser.add_argument(
+        '--long_format',
+        '-l',
+        action='store_true',
+        help='Print output in long format.')
 
   def run(self, args, config):
     """Lists tasks present for a user, maybe filtering by state."""
@@ -1081,9 +1117,17 @@ class TaskListCommand(object):
         continue
       truncated_desc = utils.truncate(task.get('description', ''), 40)
       task_type = TASK_TYPES.get(task['task_type'], 'Unknown')
+      extra = ''
+      if args.long_format:
+        show_date = lambda ms: _parse_millis(ms).strftime('%Y-%m-%d %H:%M:%S')
+        extra = ' {:20s} {:20s} {:20s} {}'.format(
+            show_date(task['creation_timestamp_ms']),
+            show_date(task['start_timestamp_ms']),
+            show_date(task['update_timestamp_ms']),
+            ' '.join(task.get('destination_uris', [])))
       print(format_str.format(
           task['id'], task_type, truncated_desc,
-          task['state'], task.get('error_message', '---')))
+          task['state'], task.get('error_message', '---')) + extra)
 
 
 class TaskWaitCommand(object):
@@ -1359,7 +1403,7 @@ class UploadTableCommand(object):
         '--max_error',
         help='Max allowed error in meters when transforming geometry '
              'between coordinate systems.',
-        type=int, nargs='?')
+        type=float, nargs='?')
     parser.add_argument(
         '--max_vertices',
         help='Max number of vertices per geometry. If set, geometry will be '
@@ -1854,6 +1898,7 @@ class ModelCommand(Dispatcher):
 
   @staticmethod
   def check_tensorflow_installed():
+    """Checks the status of TensorFlow installations."""
     if not TENSORFLOW_INSTALLED:
       raise ImportError(
           'By default, TensorFlow is not installed with Earth Engine client '
@@ -1861,6 +1906,16 @@ class ModelCommand(Dispatcher):
           '1.14 is installed; you can do this by executing \'pip install '
           'tensorflow\' in your shell.'
       )
+    else:
+      if not TENSORFLOW_ADDONS_INSTALLED:
+        if sys.version_info[0] < 3:
+          print(
+              'Warning: Python 3 required for TensorFlow Addons. Models that '
+              'use non-standard ops may not work.')
+        else:
+          print(
+              'Warning: TensorFlow Addons not found. Models that use '
+              'non-standard ops may not work.')
 
 
 

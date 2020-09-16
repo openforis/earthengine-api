@@ -98,7 +98,7 @@ goog.exportSymbol('ee.ComputedObject', ee.ComputedObject);
  * @export
  */
 ee.ComputedObject.prototype.evaluate = function(callback) {
-  if (!callback || !goog.isFunction(callback)) {
+  if (!callback || typeof callback !== 'function') {
     throw Error('evaluate() requires a callback function.');
   }
   ee.data.computeValue(this, callback);
@@ -153,12 +153,8 @@ ee.ComputedObject.prototype.encode = function(encoder) {
 /** @override */
 ee.ComputedObject.prototype.encodeCloudValue = function(encoder) {
   if (this.isVariable()) {
-    // Variable objects that are not yet inside a CustomFunction cannot be
-    // encoded.
-    if (this.varName === null) {
-      throw new Error('Internal error: function argument not initialized.');
-    }
-    return ee.rpc_node.argumentReference(this.varName);
+    // varName may be null for unbound variables; server will report the error.
+    return ee.rpc_node.argumentReference(this.varName || '');
   } else {
     /** @type {!Object<string,!ee.api.ValueNode>} */
     const encodedArgs = {};
@@ -176,10 +172,12 @@ ee.ComputedObject.prototype.encodeCloudValue = function(encoder) {
 
 /**
  * @return {string} The serialized representation of this object.
+ * @param {boolean=} legacy Enables legacy format.
  * @export
  */
-ee.ComputedObject.prototype.serialize = function() {
-  return ee.Serializer.toJSON(this);
+ee.ComputedObject.prototype.serialize = function(legacy = false) {
+  return legacy ? ee.Serializer.toJSON(this) :
+                  ee.Serializer.toCloudApiJSON(this);
 };
 
 

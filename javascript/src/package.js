@@ -35,6 +35,7 @@ goog.require('ee.CustomFunction');
 goog.require('ee.SavedFunction');
 goog.require('ee.arguments');
 goog.require('ee.data');
+goog.requireType('ee.Function.Signature');
 
 
 
@@ -203,7 +204,7 @@ ee.Package.save = function(pkg, path) {
     // Save everything that needs saving.
     for (var index = 0; index < custom.length; index++) {
       var name = custom[index]['name'];
-      var algorithm = custom[index]['algorithm'].serialize();
+      var algorithm = custom[index]['algorithm'].serialize(/* legacy = */ true);
       ee.data.createAsset(algorithm, path + '/' + name);
     }
   }

@@ -38,26 +38,26 @@ ee.Serializer = function(opt_isCompound) {
   this.isCompound_ = opt_isCompound !== false;
 
   /**
-   * A list of shared subtrees as [name, value] pairs.
+   * A list of shared subtrees as [reference name, encoded value] pairs.
    *
-   * @type {!Array}
+   * @type {!Array<?>}
    * @private
    */
   this.scope_ = [];
 
   /**
-   * A lookup table from object hashes to {name, object} pairs, where
-   * the name comes from the subtree stored in this.scope_.
+   * A lookup table from object hashes to reference names. The name is paired
+   * with an encoded value subtree in this.scope_.
    *
-   * @type {!Object.<string, string>}
+   * @type {!Object<string, string>}
    * @private
    */
-  this.encoded_ = /** @type {!Object.<string, string>} */ ({});
+  this.encoded_ = /** @type {!Object<string, string>} */ ({});
 
   /**
    * A list of objects that have to be cleared of hashes.
    *
-   * @type {!Array}
+   * @type {!Array<!Object>}
    * @private
    */
   this.withHashes_ = [];
@@ -167,7 +167,7 @@ ee.Serializer.prototype.encode_ = function(object) {
       delete obj[this.HASH_KEY];
     }, this));
     this.withHashes_ = [];
-    this.encoded_ = /** @type {!Object.<string, string>} */ ({});
+    this.encoded_ = /** @type {!Object<string, string>} */ ({});
   }
   return value;
 };
@@ -213,21 +213,21 @@ ee.Serializer.prototype.encodeValue_ = function(object) {
   } else if (object instanceof ee.Encodable) {
     // Some objects know how to encode themselves.
     result = object.encode(goog.bind(this.encodeValue_, this));
-    if (!goog.isArray(result) &&
+    if (!Array.isArray(result) &&
         (!goog.isObject(result) || result['type'] == 'ArgumentRef')) {
       // Optimization: simple enough that adding it to the scope is probably
       // not worth it.
       return result;
     }
-  } else if (goog.isArray(object)) {
+  } else if (Array.isArray(object)) {
     // Arrays are encoded recursively.
     result = goog.array.map(object, function(element) {
       return this.encodeValue_(element);
     }, this);
-  } else if (goog.isObject(object) && !goog.isFunction(object)) {
+  } else if (goog.isObject(object) && typeof object !== 'function') {
     // Regular objects are encoded recursively and wrapped in a type specifier.
     var encodedObject = goog.object.map(object, function(element) {
-      if (!goog.isFunction(element)) {
+      if (typeof element !== 'function') {
         return this.encodeValue_(element);
       }
     }, this);
@@ -311,7 +311,7 @@ ee.Serializer.encodeCloudApiPretty = function(obj) {
   // walk the tree as a raw object and return a raw object.
   const walkObject = function(object) {
     if (!goog.isObject(object)) return object;
-    const ret = goog.isArray(object) ? [] : {};
+    const ret = Array.isArray(object) ? [] : {};
     const isNode = object instanceof Object.getPrototypeOf(ee.api.ValueNode);
     const valueTable = isNode ? object.Serializable$values : object;
     for (const [key, val] of Object.entries(valueTable)) {
@@ -340,6 +340,18 @@ ee.Serializer.encodeCloudApiPretty = function(obj) {
     return ret;
   };
   return encoded.result && walkObject(values[encoded.result]);
+};
+
+
+/**
+ * Serializes an object to a JSON string appropriate for Cloud API calls.
+ * @param {*} obj The object to Serialize.
+ * @return {string} A JSON representation of the input.
+ * @export
+ */
+ee.Serializer.toCloudApiJSON = function(obj) {
+  return ee.Serializer.jsonSerializer_.serialize(
+      ee.Serializer.encodeCloudApi(obj));
 };
 
 
@@ -392,6 +404,10 @@ ee.Serializer.prototype.makeCloudApiReference_ = function(obj) {
    */
   const makeRef = (result) => {
     const hash = ee.Serializer.computeHash(result);
+    // Set first: we may have named this hash already, but not seen this obj.
+    if (goog.isObject(obj)) {
+      this.hashes_.set(obj, hash);
+    }
     if (this.encoded_[hash]) {
       return this.encoded_[hash];
     }
@@ -399,9 +415,6 @@ ee.Serializer.prototype.makeCloudApiReference_ = function(obj) {
     const name = String(this.scope_.length);
     this.scope_.push([name, result]);
     this.encoded_[hash] = name;
-    if (goog.isObject(obj)) {
-      this.hashes_.set(obj, hash);
-    }
     return name;
   };
   if (goog.isObject(obj) && this.encoded_[this.hashes_.get(obj)]) {
@@ -422,12 +435,12 @@ ee.Serializer.prototype.makeCloudApiReference_ = function(obj) {
   } else if (obj instanceof ee.Encodable) {
     // Some objects know how to encode themselves.
     return makeRef(obj.encodeCloudValue((x) => this.makeCloudApiReference_(x)));
-  } else if (goog.isArray(obj)) {
+  } else if (Array.isArray(obj)) {
     // Convince the type checker that the array is actually an array.
     const asArray = /** @type {!Array} */(/** @type {*} */(obj));
     return makeRef(ee.rpc_node.array(asArray.map(
         (x) => ee.rpc_node.reference(this.makeCloudApiReference_(x)))));
-  } else if (goog.isObject(obj) && !goog.isFunction(obj)) {
+  } else if (goog.isObject(obj) && typeof obj !== 'function') {
     const asObject = /** @type {!Object} */(/** @type {*} */(obj));
     /** @type {!Object<string,!ee.api.ValueNode>} */
     const values = {};

@@ -1,6 +1,7 @@
 import {ApiClientHookFactory} from './api_request_hook';
 import {ClassMetadata, Serializable, SerializableCtor} from './domain_object';
 import {ApiClientObjectMap} from './generated_types';
+import {buildQueryParams} from './request_params';
 import {PromiseApiClient} from './promise_api_client';
 import {PromiseRequestService} from './promise_request_service';
 
@@ -8,29 +9,25 @@ export type AuditLogConfigLogType =
     'LOG_TYPE_UNSPECIFIED'|'ADMIN_READ'|'DATA_WRITE'|'DATA_READ';
 
 export interface IAuditLogConfigLogTypeEnum {
-  LOG_TYPE_UNSPECIFIED: AuditLogConfigLogType;
-  ADMIN_READ: AuditLogConfigLogType;
-  DATA_WRITE: AuditLogConfigLogType;
-  DATA_READ: AuditLogConfigLogType;
+  readonly LOG_TYPE_UNSPECIFIED: AuditLogConfigLogType;
+  readonly ADMIN_READ: AuditLogConfigLogType;
+  readonly DATA_WRITE: AuditLogConfigLogType;
+  readonly DATA_READ: AuditLogConfigLogType;
 
   values(): Array<AuditLogConfigLogType>;
 }
 
 export const AuditLogConfigLogTypeEnum: IAuditLogConfigLogTypeEnum = {
-  get ADMIN_READ(): AuditLogConfigLogType {
-    return 'ADMIN_READ';
-  },
-  get DATA_READ(): AuditLogConfigLogType {
-    return 'DATA_READ';
-  },
-  get DATA_WRITE(): AuditLogConfigLogType {
-    return 'DATA_WRITE';
-  },
-  get LOG_TYPE_UNSPECIFIED(): AuditLogConfigLogType {
-    return 'LOG_TYPE_UNSPECIFIED';
-  },
+  ADMIN_READ: <AuditLogConfigLogType>'ADMIN_READ',
+  DATA_READ: <AuditLogConfigLogType>'DATA_READ',
+  DATA_WRITE: <AuditLogConfigLogType>'DATA_WRITE',
+  LOG_TYPE_UNSPECIFIED: <AuditLogConfigLogType>'LOG_TYPE_UNSPECIFIED',
   values(): Array<AuditLogConfigLogType> {
-    return ['LOG_TYPE_UNSPECIFIED', 'ADMIN_READ', 'DATA_WRITE', 'DATA_READ'];
+    return [
+      AuditLogConfigLogTypeEnum.LOG_TYPE_UNSPECIFIED,
+      AuditLogConfigLogTypeEnum.ADMIN_READ,
+      AuditLogConfigLogTypeEnum.DATA_WRITE, AuditLogConfigLogTypeEnum.DATA_READ
+    ];
   }
 };
 
@@ -39,37 +36,32 @@ export type AuthorizationLoggingOptionsPermissionType =
     'DATA_WRITE';
 
 export interface IAuthorizationLoggingOptionsPermissionTypeEnum {
-  PERMISSION_TYPE_UNSPECIFIED: AuthorizationLoggingOptionsPermissionType;
-  ADMIN_READ: AuthorizationLoggingOptionsPermissionType;
-  ADMIN_WRITE: AuthorizationLoggingOptionsPermissionType;
-  DATA_READ: AuthorizationLoggingOptionsPermissionType;
-  DATA_WRITE: AuthorizationLoggingOptionsPermissionType;
+  readonly PERMISSION_TYPE_UNSPECIFIED:
+      AuthorizationLoggingOptionsPermissionType;
+  readonly ADMIN_READ: AuthorizationLoggingOptionsPermissionType;
+  readonly ADMIN_WRITE: AuthorizationLoggingOptionsPermissionType;
+  readonly DATA_READ: AuthorizationLoggingOptionsPermissionType;
+  readonly DATA_WRITE: AuthorizationLoggingOptionsPermissionType;
 
   values(): Array<AuthorizationLoggingOptionsPermissionType>;
 }
 
 export const AuthorizationLoggingOptionsPermissionTypeEnum:
     IAuthorizationLoggingOptionsPermissionTypeEnum = {
-      get ADMIN_READ(): AuthorizationLoggingOptionsPermissionType {
-        return 'ADMIN_READ';
-      },
-      get ADMIN_WRITE(): AuthorizationLoggingOptionsPermissionType {
-        return 'ADMIN_WRITE';
-      },
-      get DATA_READ(): AuthorizationLoggingOptionsPermissionType {
-        return 'DATA_READ';
-      },
-      get DATA_WRITE(): AuthorizationLoggingOptionsPermissionType {
-        return 'DATA_WRITE';
-      },
-      get PERMISSION_TYPE_UNSPECIFIED():
-          AuthorizationLoggingOptionsPermissionType {
-            return 'PERMISSION_TYPE_UNSPECIFIED';
-          },
+      ADMIN_READ: <AuthorizationLoggingOptionsPermissionType>'ADMIN_READ',
+      ADMIN_WRITE: <AuthorizationLoggingOptionsPermissionType>'ADMIN_WRITE',
+      DATA_READ: <AuthorizationLoggingOptionsPermissionType>'DATA_READ',
+      DATA_WRITE: <AuthorizationLoggingOptionsPermissionType>'DATA_WRITE',
+      PERMISSION_TYPE_UNSPECIFIED: <
+          AuthorizationLoggingOptionsPermissionType>'PERMISSION_TYPE_UNSPECIFIED',
       values(): Array<AuthorizationLoggingOptionsPermissionType> {
         return [
-          'PERMISSION_TYPE_UNSPECIFIED', 'ADMIN_READ', 'ADMIN_WRITE',
-          'DATA_READ', 'DATA_WRITE'
+          AuthorizationLoggingOptionsPermissionTypeEnum
+              .PERMISSION_TYPE_UNSPECIFIED,
+          AuthorizationLoggingOptionsPermissionTypeEnum.ADMIN_READ,
+          AuthorizationLoggingOptionsPermissionTypeEnum.ADMIN_WRITE,
+          AuthorizationLoggingOptionsPermissionTypeEnum.DATA_READ,
+          AuthorizationLoggingOptionsPermissionTypeEnum.DATA_WRITE
         ];
       }
     };
@@ -78,47 +70,38 @@ export type CapabilitiesCapabilities = 'CAPABILITY_GROUP_UNSPECIFIED'|'PUBLIC'|
     'INTERNAL'|'EXTERNAL'|'LIMITED'|'PREAUTHORIZED'|'PREVIEW'|'CLOUD_ALPHA';
 
 export interface ICapabilitiesCapabilitiesEnum {
-  CAPABILITY_GROUP_UNSPECIFIED: CapabilitiesCapabilities;
-  PUBLIC: CapabilitiesCapabilities;
-  INTERNAL: CapabilitiesCapabilities;
-  EXTERNAL: CapabilitiesCapabilities;
-  LIMITED: CapabilitiesCapabilities;
-  PREAUTHORIZED: CapabilitiesCapabilities;
-  PREVIEW: CapabilitiesCapabilities;
-  CLOUD_ALPHA: CapabilitiesCapabilities;
+  readonly CAPABILITY_GROUP_UNSPECIFIED: CapabilitiesCapabilities;
+  readonly PUBLIC: CapabilitiesCapabilities;
+  readonly INTERNAL: CapabilitiesCapabilities;
+  readonly EXTERNAL: CapabilitiesCapabilities;
+  readonly LIMITED: CapabilitiesCapabilities;
+  readonly PREAUTHORIZED: CapabilitiesCapabilities;
+  readonly PREVIEW: CapabilitiesCapabilities;
+  readonly CLOUD_ALPHA: CapabilitiesCapabilities;
 
   values(): Array<CapabilitiesCapabilities>;
 }
 
 export const CapabilitiesCapabilitiesEnum: ICapabilitiesCapabilitiesEnum = {
-  get CAPABILITY_GROUP_UNSPECIFIED(): CapabilitiesCapabilities {
-    return 'CAPABILITY_GROUP_UNSPECIFIED';
-  },
-  get CLOUD_ALPHA(): CapabilitiesCapabilities {
-    return 'CLOUD_ALPHA';
-  },
-  get EXTERNAL(): CapabilitiesCapabilities {
-    return 'EXTERNAL';
-  },
-  get INTERNAL(): CapabilitiesCapabilities {
-    return 'INTERNAL';
-  },
-  get LIMITED(): CapabilitiesCapabilities {
-    return 'LIMITED';
-  },
-  get PREAUTHORIZED(): CapabilitiesCapabilities {
-    return 'PREAUTHORIZED';
-  },
-  get PREVIEW(): CapabilitiesCapabilities {
-    return 'PREVIEW';
-  },
-  get PUBLIC(): CapabilitiesCapabilities {
-    return 'PUBLIC';
-  },
+  CAPABILITY_GROUP_UNSPECIFIED:
+      <CapabilitiesCapabilities>'CAPABILITY_GROUP_UNSPECIFIED',
+  CLOUD_ALPHA: <CapabilitiesCapabilities>'CLOUD_ALPHA',
+  EXTERNAL: <CapabilitiesCapabilities>'EXTERNAL',
+  INTERNAL: <CapabilitiesCapabilities>'INTERNAL',
+  LIMITED: <CapabilitiesCapabilities>'LIMITED',
+  PREAUTHORIZED: <CapabilitiesCapabilities>'PREAUTHORIZED',
+  PREVIEW: <CapabilitiesCapabilities>'PREVIEW',
+  PUBLIC: <CapabilitiesCapabilities>'PUBLIC',
   values(): Array<CapabilitiesCapabilities> {
     return [
-      'CAPABILITY_GROUP_UNSPECIFIED', 'PUBLIC', 'INTERNAL', 'EXTERNAL',
-      'LIMITED', 'PREAUTHORIZED', 'PREVIEW', 'CLOUD_ALPHA'
+      CapabilitiesCapabilitiesEnum.CAPABILITY_GROUP_UNSPECIFIED,
+      CapabilitiesCapabilitiesEnum.PUBLIC,
+      CapabilitiesCapabilitiesEnum.INTERNAL,
+      CapabilitiesCapabilitiesEnum.EXTERNAL,
+      CapabilitiesCapabilitiesEnum.LIMITED,
+      CapabilitiesCapabilitiesEnum.PREAUTHORIZED,
+      CapabilitiesCapabilitiesEnum.PREVIEW,
+      CapabilitiesCapabilitiesEnum.CLOUD_ALPHA
     ];
   }
 };
@@ -127,129 +110,134 @@ export type CloudAuditOptionsLogName =
     'UNSPECIFIED_LOG_NAME'|'ADMIN_ACTIVITY'|'DATA_ACCESS';
 
 export interface ICloudAuditOptionsLogNameEnum {
-  UNSPECIFIED_LOG_NAME: CloudAuditOptionsLogName;
-  ADMIN_ACTIVITY: CloudAuditOptionsLogName;
-  DATA_ACCESS: CloudAuditOptionsLogName;
+  readonly UNSPECIFIED_LOG_NAME: CloudAuditOptionsLogName;
+  readonly ADMIN_ACTIVITY: CloudAuditOptionsLogName;
+  readonly DATA_ACCESS: CloudAuditOptionsLogName;
 
   values(): Array<CloudAuditOptionsLogName>;
 }
 
 export const CloudAuditOptionsLogNameEnum: ICloudAuditOptionsLogNameEnum = {
-  get ADMIN_ACTIVITY(): CloudAuditOptionsLogName {
-    return 'ADMIN_ACTIVITY';
-  },
-  get DATA_ACCESS(): CloudAuditOptionsLogName {
-    return 'DATA_ACCESS';
-  },
-  get UNSPECIFIED_LOG_NAME(): CloudAuditOptionsLogName {
-    return 'UNSPECIFIED_LOG_NAME';
-  },
+  ADMIN_ACTIVITY: <CloudAuditOptionsLogName>'ADMIN_ACTIVITY',
+  DATA_ACCESS: <CloudAuditOptionsLogName>'DATA_ACCESS',
+  UNSPECIFIED_LOG_NAME: <CloudAuditOptionsLogName>'UNSPECIFIED_LOG_NAME',
   values(): Array<CloudAuditOptionsLogName> {
-    return ['UNSPECIFIED_LOG_NAME', 'ADMIN_ACTIVITY', 'DATA_ACCESS'];
+    return [
+      CloudAuditOptionsLogNameEnum.UNSPECIFIED_LOG_NAME,
+      CloudAuditOptionsLogNameEnum.ADMIN_ACTIVITY,
+      CloudAuditOptionsLogNameEnum.DATA_ACCESS
+    ];
   }
 };
+
+export type CloudStorageDestinationPermissions =
+    'TILE_PERMISSIONS_UNSPECIFIED'|'PUBLIC'|'DEFAULT_OBJECT_ACL';
+
+export interface ICloudStorageDestinationPermissionsEnum {
+  readonly TILE_PERMISSIONS_UNSPECIFIED: CloudStorageDestinationPermissions;
+  readonly PUBLIC: CloudStorageDestinationPermissions;
+  readonly DEFAULT_OBJECT_ACL: CloudStorageDestinationPermissions;
+
+  values(): Array<CloudStorageDestinationPermissions>;
+}
+
+export const CloudStorageDestinationPermissionsEnum:
+    ICloudStorageDestinationPermissionsEnum = {
+      DEFAULT_OBJECT_ACL:
+          <CloudStorageDestinationPermissions>'DEFAULT_OBJECT_ACL',
+      PUBLIC: <CloudStorageDestinationPermissions>'PUBLIC',
+      TILE_PERMISSIONS_UNSPECIFIED:
+          <CloudStorageDestinationPermissions>'TILE_PERMISSIONS_UNSPECIFIED',
+      values(): Array<CloudStorageDestinationPermissions> {
+        return [
+          CloudStorageDestinationPermissionsEnum.TILE_PERMISSIONS_UNSPECIFIED,
+          CloudStorageDestinationPermissionsEnum.PUBLIC,
+          CloudStorageDestinationPermissionsEnum.DEFAULT_OBJECT_ACL
+        ];
+      }
+    };
 
 export type ComputePixelsRequestFileFormat = 'IMAGE_FILE_FORMAT_UNSPECIFIED'|
     'JPEG'|'PNG'|'AUTO_JPEG_PNG'|'NPY'|'GEO_TIFF'|'TF_RECORD_IMAGE'|
     'MULTI_BAND_IMAGE_TILE'|'ZIPPED_GEO_TIFF'|'ZIPPED_GEO_TIFF_PER_BAND';
 
 export interface IComputePixelsRequestFileFormatEnum {
-  IMAGE_FILE_FORMAT_UNSPECIFIED: ComputePixelsRequestFileFormat;
-  JPEG: ComputePixelsRequestFileFormat;
-  PNG: ComputePixelsRequestFileFormat;
-  AUTO_JPEG_PNG: ComputePixelsRequestFileFormat;
-  NPY: ComputePixelsRequestFileFormat;
-  GEO_TIFF: ComputePixelsRequestFileFormat;
-  TF_RECORD_IMAGE: ComputePixelsRequestFileFormat;
-  MULTI_BAND_IMAGE_TILE: ComputePixelsRequestFileFormat;
-  ZIPPED_GEO_TIFF: ComputePixelsRequestFileFormat;
-  ZIPPED_GEO_TIFF_PER_BAND: ComputePixelsRequestFileFormat;
+  readonly IMAGE_FILE_FORMAT_UNSPECIFIED: ComputePixelsRequestFileFormat;
+  readonly JPEG: ComputePixelsRequestFileFormat;
+  readonly PNG: ComputePixelsRequestFileFormat;
+  readonly AUTO_JPEG_PNG: ComputePixelsRequestFileFormat;
+  readonly NPY: ComputePixelsRequestFileFormat;
+  readonly GEO_TIFF: ComputePixelsRequestFileFormat;
+  readonly TF_RECORD_IMAGE: ComputePixelsRequestFileFormat;
+  readonly MULTI_BAND_IMAGE_TILE: ComputePixelsRequestFileFormat;
+  readonly ZIPPED_GEO_TIFF: ComputePixelsRequestFileFormat;
+  readonly ZIPPED_GEO_TIFF_PER_BAND: ComputePixelsRequestFileFormat;
 
   values(): Array<ComputePixelsRequestFileFormat>;
 }
 
 export const ComputePixelsRequestFileFormatEnum:
     IComputePixelsRequestFileFormatEnum = {
-      get AUTO_JPEG_PNG(): ComputePixelsRequestFileFormat {
-        return 'AUTO_JPEG_PNG';
-      },
-      get GEO_TIFF(): ComputePixelsRequestFileFormat {
-        return 'GEO_TIFF';
-      },
-      get IMAGE_FILE_FORMAT_UNSPECIFIED(): ComputePixelsRequestFileFormat {
-        return 'IMAGE_FILE_FORMAT_UNSPECIFIED';
-      },
-      get JPEG(): ComputePixelsRequestFileFormat {
-        return 'JPEG';
-      },
-      get MULTI_BAND_IMAGE_TILE(): ComputePixelsRequestFileFormat {
-        return 'MULTI_BAND_IMAGE_TILE';
-      },
-      get NPY(): ComputePixelsRequestFileFormat {
-        return 'NPY';
-      },
-      get PNG(): ComputePixelsRequestFileFormat {
-        return 'PNG';
-      },
-      get TF_RECORD_IMAGE(): ComputePixelsRequestFileFormat {
-        return 'TF_RECORD_IMAGE';
-      },
-      get ZIPPED_GEO_TIFF(): ComputePixelsRequestFileFormat {
-        return 'ZIPPED_GEO_TIFF';
-      },
-      get ZIPPED_GEO_TIFF_PER_BAND(): ComputePixelsRequestFileFormat {
-        return 'ZIPPED_GEO_TIFF_PER_BAND';
-      },
+      AUTO_JPEG_PNG: <ComputePixelsRequestFileFormat>'AUTO_JPEG_PNG',
+      GEO_TIFF: <ComputePixelsRequestFileFormat>'GEO_TIFF',
+      IMAGE_FILE_FORMAT_UNSPECIFIED:
+          <ComputePixelsRequestFileFormat>'IMAGE_FILE_FORMAT_UNSPECIFIED',
+      JPEG: <ComputePixelsRequestFileFormat>'JPEG',
+      MULTI_BAND_IMAGE_TILE:
+          <ComputePixelsRequestFileFormat>'MULTI_BAND_IMAGE_TILE',
+      NPY: <ComputePixelsRequestFileFormat>'NPY',
+      PNG: <ComputePixelsRequestFileFormat>'PNG',
+      TF_RECORD_IMAGE: <ComputePixelsRequestFileFormat>'TF_RECORD_IMAGE',
+      ZIPPED_GEO_TIFF: <ComputePixelsRequestFileFormat>'ZIPPED_GEO_TIFF',
+      ZIPPED_GEO_TIFF_PER_BAND:
+          <ComputePixelsRequestFileFormat>'ZIPPED_GEO_TIFF_PER_BAND',
       values(): Array<ComputePixelsRequestFileFormat> {
         return [
-          'IMAGE_FILE_FORMAT_UNSPECIFIED', 'JPEG', 'PNG', 'AUTO_JPEG_PNG',
-          'NPY', 'GEO_TIFF', 'TF_RECORD_IMAGE', 'MULTI_BAND_IMAGE_TILE',
-          'ZIPPED_GEO_TIFF', 'ZIPPED_GEO_TIFF_PER_BAND'
+          ComputePixelsRequestFileFormatEnum.IMAGE_FILE_FORMAT_UNSPECIFIED,
+          ComputePixelsRequestFileFormatEnum.JPEG,
+          ComputePixelsRequestFileFormatEnum.PNG,
+          ComputePixelsRequestFileFormatEnum.AUTO_JPEG_PNG,
+          ComputePixelsRequestFileFormatEnum.NPY,
+          ComputePixelsRequestFileFormatEnum.GEO_TIFF,
+          ComputePixelsRequestFileFormatEnum.TF_RECORD_IMAGE,
+          ComputePixelsRequestFileFormatEnum.MULTI_BAND_IMAGE_TILE,
+          ComputePixelsRequestFileFormatEnum.ZIPPED_GEO_TIFF,
+          ComputePixelsRequestFileFormatEnum.ZIPPED_GEO_TIFF_PER_BAND
         ];
       }
     };
 
 export type ConditionIam = 'NO_ATTR'|'AUTHORITY'|'ATTRIBUTION'|'SECURITY_REALM'|
-    'APPROVER'|'JUSTIFICATION_TYPE'|'CREDENTIALS_TYPE';
+    'APPROVER'|'JUSTIFICATION_TYPE'|'CREDENTIALS_TYPE'|'CREDS_ASSERTION';
 
 export interface IConditionIamEnum {
-  NO_ATTR: ConditionIam;
-  AUTHORITY: ConditionIam;
-  ATTRIBUTION: ConditionIam;
-  SECURITY_REALM: ConditionIam;
-  APPROVER: ConditionIam;
-  JUSTIFICATION_TYPE: ConditionIam;
-  CREDENTIALS_TYPE: ConditionIam;
+  readonly NO_ATTR: ConditionIam;
+  readonly AUTHORITY: ConditionIam;
+  readonly ATTRIBUTION: ConditionIam;
+  readonly SECURITY_REALM: ConditionIam;
+  readonly APPROVER: ConditionIam;
+  readonly JUSTIFICATION_TYPE: ConditionIam;
+  readonly CREDENTIALS_TYPE: ConditionIam;
+  readonly CREDS_ASSERTION: ConditionIam;
 
   values(): Array<ConditionIam>;
 }
 
 export const ConditionIamEnum: IConditionIamEnum = {
-  get APPROVER(): ConditionIam {
-    return 'APPROVER';
-  },
-  get ATTRIBUTION(): ConditionIam {
-    return 'ATTRIBUTION';
-  },
-  get AUTHORITY(): ConditionIam {
-    return 'AUTHORITY';
-  },
-  get CREDENTIALS_TYPE(): ConditionIam {
-    return 'CREDENTIALS_TYPE';
-  },
-  get JUSTIFICATION_TYPE(): ConditionIam {
-    return 'JUSTIFICATION_TYPE';
-  },
-  get NO_ATTR(): ConditionIam {
-    return 'NO_ATTR';
-  },
-  get SECURITY_REALM(): ConditionIam {
-    return 'SECURITY_REALM';
-  },
+  APPROVER: <ConditionIam>'APPROVER',
+  ATTRIBUTION: <ConditionIam>'ATTRIBUTION',
+  AUTHORITY: <ConditionIam>'AUTHORITY',
+  CREDENTIALS_TYPE: <ConditionIam>'CREDENTIALS_TYPE',
+  CREDS_ASSERTION: <ConditionIam>'CREDS_ASSERTION',
+  JUSTIFICATION_TYPE: <ConditionIam>'JUSTIFICATION_TYPE',
+  NO_ATTR: <ConditionIam>'NO_ATTR',
+  SECURITY_REALM: <ConditionIam>'SECURITY_REALM',
   values(): Array<ConditionIam> {
     return [
-      'NO_ATTR', 'AUTHORITY', 'ATTRIBUTION', 'SECURITY_REALM', 'APPROVER',
-      'JUSTIFICATION_TYPE', 'CREDENTIALS_TYPE'
+      ConditionIamEnum.NO_ATTR, ConditionIamEnum.AUTHORITY,
+      ConditionIamEnum.ATTRIBUTION, ConditionIamEnum.SECURITY_REALM,
+      ConditionIamEnum.APPROVER, ConditionIamEnum.JUSTIFICATION_TYPE,
+      ConditionIamEnum.CREDENTIALS_TYPE, ConditionIamEnum.CREDS_ASSERTION
     ];
   }
 };
@@ -258,91 +246,74 @@ export type ConditionOp =
     'NO_OP'|'EQUALS'|'NOT_EQUALS'|'IN'|'NOT_IN'|'DISCHARGED';
 
 export interface IConditionOpEnum {
-  NO_OP: ConditionOp;
-  EQUALS: ConditionOp;
-  NOT_EQUALS: ConditionOp;
-  IN: ConditionOp;
-  NOT_IN: ConditionOp;
-  DISCHARGED: ConditionOp;
+  readonly NO_OP: ConditionOp;
+  readonly EQUALS: ConditionOp;
+  readonly NOT_EQUALS: ConditionOp;
+  readonly IN: ConditionOp;
+  readonly NOT_IN: ConditionOp;
+  readonly DISCHARGED: ConditionOp;
 
   values(): Array<ConditionOp>;
 }
 
 export const ConditionOpEnum: IConditionOpEnum = {
-  get DISCHARGED(): ConditionOp {
-    return 'DISCHARGED';
-  },
-  get EQUALS(): ConditionOp {
-    return 'EQUALS';
-  },
-  get IN(): ConditionOp {
-    return 'IN';
-  },
-  get NOT_EQUALS(): ConditionOp {
-    return 'NOT_EQUALS';
-  },
-  get NOT_IN(): ConditionOp {
-    return 'NOT_IN';
-  },
-  get NO_OP(): ConditionOp {
-    return 'NO_OP';
-  },
+  DISCHARGED: <ConditionOp>'DISCHARGED',
+  EQUALS: <ConditionOp>'EQUALS',
+  IN: <ConditionOp>'IN',
+  NOT_EQUALS: <ConditionOp>'NOT_EQUALS',
+  NOT_IN: <ConditionOp>'NOT_IN',
+  NO_OP: <ConditionOp>'NO_OP',
   values(): Array<ConditionOp> {
-    return ['NO_OP', 'EQUALS', 'NOT_EQUALS', 'IN', 'NOT_IN', 'DISCHARGED'];
+    return [
+      ConditionOpEnum.NO_OP, ConditionOpEnum.EQUALS, ConditionOpEnum.NOT_EQUALS,
+      ConditionOpEnum.IN, ConditionOpEnum.NOT_IN, ConditionOpEnum.DISCHARGED
+    ];
   }
 };
 
 export type ConditionSys = 'NO_ATTR'|'REGION'|'SERVICE'|'NAME'|'IP';
 
 export interface IConditionSysEnum {
-  NO_ATTR: ConditionSys;
-  REGION: ConditionSys;
-  SERVICE: ConditionSys;
-  NAME: ConditionSys;
-  IP: ConditionSys;
+  readonly NO_ATTR: ConditionSys;
+  readonly REGION: ConditionSys;
+  readonly SERVICE: ConditionSys;
+  readonly NAME: ConditionSys;
+  readonly IP: ConditionSys;
 
   values(): Array<ConditionSys>;
 }
 
 export const ConditionSysEnum: IConditionSysEnum = {
-  get IP(): ConditionSys {
-    return 'IP';
-  },
-  get NAME(): ConditionSys {
-    return 'NAME';
-  },
-  get NO_ATTR(): ConditionSys {
-    return 'NO_ATTR';
-  },
-  get REGION(): ConditionSys {
-    return 'REGION';
-  },
-  get SERVICE(): ConditionSys {
-    return 'SERVICE';
-  },
+  IP: <ConditionSys>'IP',
+  NAME: <ConditionSys>'NAME',
+  NO_ATTR: <ConditionSys>'NO_ATTR',
+  REGION: <ConditionSys>'REGION',
+  SERVICE: <ConditionSys>'SERVICE',
   values(): Array<ConditionSys> {
-    return ['NO_ATTR', 'REGION', 'SERVICE', 'NAME', 'IP'];
+    return [
+      ConditionSysEnum.NO_ATTR, ConditionSysEnum.REGION,
+      ConditionSysEnum.SERVICE, ConditionSysEnum.NAME, ConditionSysEnum.IP
+    ];
   }
 };
 
 export type DataAccessOptionsLogMode = 'LOG_MODE_UNSPECIFIED'|'LOG_FAIL_CLOSED';
 
 export interface IDataAccessOptionsLogModeEnum {
-  LOG_MODE_UNSPECIFIED: DataAccessOptionsLogMode;
-  LOG_FAIL_CLOSED: DataAccessOptionsLogMode;
+  readonly LOG_MODE_UNSPECIFIED: DataAccessOptionsLogMode;
+  readonly LOG_FAIL_CLOSED: DataAccessOptionsLogMode;
 
   values(): Array<DataAccessOptionsLogMode>;
 }
 
 export const DataAccessOptionsLogModeEnum: IDataAccessOptionsLogModeEnum = {
-  get LOG_FAIL_CLOSED(): DataAccessOptionsLogMode {
-    return 'LOG_FAIL_CLOSED';
-  },
-  get LOG_MODE_UNSPECIFIED(): DataAccessOptionsLogMode {
-    return 'LOG_MODE_UNSPECIFIED';
-  },
+  LOG_FAIL_CLOSED: <DataAccessOptionsLogMode>'LOG_FAIL_CLOSED',
+  LOG_MODE_UNSPECIFIED: <DataAccessOptionsLogMode>'LOG_MODE_UNSPECIFIED',
   values(): Array<DataAccessOptionsLogMode> {
-    return ['LOG_MODE_UNSPECIFIED', 'LOG_FAIL_CLOSED'];
+    return [
+      DataAccessOptionsLogModeEnum.LOG_MODE_UNSPECIFIED,
+      DataAccessOptionsLogModeEnum.LOG_FAIL_CLOSED
+    ];
   }
 };
 
@@ -350,33 +321,27 @@ export type EarthEngineAssetType =
     'TYPE_UNSPECIFIED'|'IMAGE'|'IMAGE_COLLECTION'|'TABLE'|'FOLDER';
 
 export interface IEarthEngineAssetTypeEnum {
-  TYPE_UNSPECIFIED: EarthEngineAssetType;
-  IMAGE: EarthEngineAssetType;
-  IMAGE_COLLECTION: EarthEngineAssetType;
-  TABLE: EarthEngineAssetType;
-  FOLDER: EarthEngineAssetType;
+  readonly TYPE_UNSPECIFIED: EarthEngineAssetType;
+  readonly IMAGE: EarthEngineAssetType;
+  readonly IMAGE_COLLECTION: EarthEngineAssetType;
+  readonly TABLE: EarthEngineAssetType;
+  readonly FOLDER: EarthEngineAssetType;
 
   values(): Array<EarthEngineAssetType>;
 }
 
 export const EarthEngineAssetTypeEnum: IEarthEngineAssetTypeEnum = {
-  get FOLDER(): EarthEngineAssetType {
-    return 'FOLDER';
-  },
-  get IMAGE(): EarthEngineAssetType {
-    return 'IMAGE';
-  },
-  get IMAGE_COLLECTION(): EarthEngineAssetType {
-    return 'IMAGE_COLLECTION';
-  },
-  get TABLE(): EarthEngineAssetType {
-    return 'TABLE';
-  },
-  get TYPE_UNSPECIFIED(): EarthEngineAssetType {
-    return 'TYPE_UNSPECIFIED';
-  },
+  FOLDER: <EarthEngineAssetType>'FOLDER',
+  IMAGE: <EarthEngineAssetType>'IMAGE',
+  IMAGE_COLLECTION: <EarthEngineAssetType>'IMAGE_COLLECTION',
+  TABLE: <EarthEngineAssetType>'TABLE',
+  TYPE_UNSPECIFIED: <EarthEngineAssetType>'TYPE_UNSPECIFIED',
   values(): Array<EarthEngineAssetType> {
-    return ['TYPE_UNSPECIFIED', 'IMAGE', 'IMAGE_COLLECTION', 'TABLE', 'FOLDER'];
+    return [
+      EarthEngineAssetTypeEnum.TYPE_UNSPECIFIED, EarthEngineAssetTypeEnum.IMAGE,
+      EarthEngineAssetTypeEnum.IMAGE_COLLECTION, EarthEngineAssetTypeEnum.TABLE,
+      EarthEngineAssetTypeEnum.FOLDER
+    ];
   }
 };
 
@@ -385,56 +350,43 @@ export type EarthEngineMapFileFormat = 'IMAGE_FILE_FORMAT_UNSPECIFIED'|'JPEG'|
     'MULTI_BAND_IMAGE_TILE'|'ZIPPED_GEO_TIFF'|'ZIPPED_GEO_TIFF_PER_BAND';
 
 export interface IEarthEngineMapFileFormatEnum {
-  IMAGE_FILE_FORMAT_UNSPECIFIED: EarthEngineMapFileFormat;
-  JPEG: EarthEngineMapFileFormat;
-  PNG: EarthEngineMapFileFormat;
-  AUTO_JPEG_PNG: EarthEngineMapFileFormat;
-  NPY: EarthEngineMapFileFormat;
-  GEO_TIFF: EarthEngineMapFileFormat;
-  TF_RECORD_IMAGE: EarthEngineMapFileFormat;
-  MULTI_BAND_IMAGE_TILE: EarthEngineMapFileFormat;
-  ZIPPED_GEO_TIFF: EarthEngineMapFileFormat;
-  ZIPPED_GEO_TIFF_PER_BAND: EarthEngineMapFileFormat;
+  readonly IMAGE_FILE_FORMAT_UNSPECIFIED: EarthEngineMapFileFormat;
+  readonly JPEG: EarthEngineMapFileFormat;
+  readonly PNG: EarthEngineMapFileFormat;
+  readonly AUTO_JPEG_PNG: EarthEngineMapFileFormat;
+  readonly NPY: EarthEngineMapFileFormat;
+  readonly GEO_TIFF: EarthEngineMapFileFormat;
+  readonly TF_RECORD_IMAGE: EarthEngineMapFileFormat;
+  readonly MULTI_BAND_IMAGE_TILE: EarthEngineMapFileFormat;
+  readonly ZIPPED_GEO_TIFF: EarthEngineMapFileFormat;
+  readonly ZIPPED_GEO_TIFF_PER_BAND: EarthEngineMapFileFormat;
 
   values(): Array<EarthEngineMapFileFormat>;
 }
 
 export const EarthEngineMapFileFormatEnum: IEarthEngineMapFileFormatEnum = {
-  get AUTO_JPEG_PNG(): EarthEngineMapFileFormat {
-    return 'AUTO_JPEG_PNG';
-  },
-  get GEO_TIFF(): EarthEngineMapFileFormat {
-    return 'GEO_TIFF';
-  },
-  get IMAGE_FILE_FORMAT_UNSPECIFIED(): EarthEngineMapFileFormat {
-    return 'IMAGE_FILE_FORMAT_UNSPECIFIED';
-  },
-  get JPEG(): EarthEngineMapFileFormat {
-    return 'JPEG';
-  },
-  get MULTI_BAND_IMAGE_TILE(): EarthEngineMapFileFormat {
-    return 'MULTI_BAND_IMAGE_TILE';
-  },
-  get NPY(): EarthEngineMapFileFormat {
-    return 'NPY';
-  },
-  get PNG(): EarthEngineMapFileFormat {
-    return 'PNG';
-  },
-  get TF_RECORD_IMAGE(): EarthEngineMapFileFormat {
-    return 'TF_RECORD_IMAGE';
-  },
-  get ZIPPED_GEO_TIFF(): EarthEngineMapFileFormat {
-    return 'ZIPPED_GEO_TIFF';
-  },
-  get ZIPPED_GEO_TIFF_PER_BAND(): EarthEngineMapFileFormat {
-    return 'ZIPPED_GEO_TIFF_PER_BAND';
-  },
+  AUTO_JPEG_PNG: <EarthEngineMapFileFormat>'AUTO_JPEG_PNG',
+  GEO_TIFF: <EarthEngineMapFileFormat>'GEO_TIFF',
+  IMAGE_FILE_FORMAT_UNSPECIFIED:
+      <EarthEngineMapFileFormat>'IMAGE_FILE_FORMAT_UNSPECIFIED',
+  JPEG: <EarthEngineMapFileFormat>'JPEG',
+  MULTI_BAND_IMAGE_TILE: <EarthEngineMapFileFormat>'MULTI_BAND_IMAGE_TILE',
+  NPY: <EarthEngineMapFileFormat>'NPY',
+  PNG: <EarthEngineMapFileFormat>'PNG',
+  TF_RECORD_IMAGE: <EarthEngineMapFileFormat>'TF_RECORD_IMAGE',
+  ZIPPED_GEO_TIFF: <EarthEngineMapFileFormat>'ZIPPED_GEO_TIFF',
+  ZIPPED_GEO_TIFF_PER_BAND:
+      <EarthEngineMapFileFormat>'ZIPPED_GEO_TIFF_PER_BAND',
   values(): Array<EarthEngineMapFileFormat> {
     return [
-      'IMAGE_FILE_FORMAT_UNSPECIFIED', 'JPEG', 'PNG', 'AUTO_JPEG_PNG', 'NPY',
-      'GEO_TIFF', 'TF_RECORD_IMAGE', 'MULTI_BAND_IMAGE_TILE', 'ZIPPED_GEO_TIFF',
-      'ZIPPED_GEO_TIFF_PER_BAND'
+      EarthEngineMapFileFormatEnum.IMAGE_FILE_FORMAT_UNSPECIFIED,
+      EarthEngineMapFileFormatEnum.JPEG, EarthEngineMapFileFormatEnum.PNG,
+      EarthEngineMapFileFormatEnum.AUTO_JPEG_PNG,
+      EarthEngineMapFileFormatEnum.NPY, EarthEngineMapFileFormatEnum.GEO_TIFF,
+      EarthEngineMapFileFormatEnum.TF_RECORD_IMAGE,
+      EarthEngineMapFileFormatEnum.MULTI_BAND_IMAGE_TILE,
+      EarthEngineMapFileFormatEnum.ZIPPED_GEO_TIFF,
+      EarthEngineMapFileFormatEnum.ZIPPED_GEO_TIFF_PER_BAND
     ];
   }
 };
@@ -442,26 +394,24 @@ export const EarthEngineMapFileFormatEnum: IEarthEngineMapFileFormatEnum = {
 export type ExportVideoMapRequestVersion = 'VERSION_UNSPECIFIED'|'V1'|'V2';
 
 export interface IExportVideoMapRequestVersionEnum {
-  VERSION_UNSPECIFIED: ExportVideoMapRequestVersion;
-  V1: ExportVideoMapRequestVersion;
-  V2: ExportVideoMapRequestVersion;
+  readonly VERSION_UNSPECIFIED: ExportVideoMapRequestVersion;
+  readonly V1: ExportVideoMapRequestVersion;
+  readonly V2: ExportVideoMapRequestVersion;
 
   values(): Array<ExportVideoMapRequestVersion>;
 }
 
 export const ExportVideoMapRequestVersionEnum:
     IExportVideoMapRequestVersionEnum = {
-      get V1(): ExportVideoMapRequestVersion {
-        return 'V1';
-      },
-      get V2(): ExportVideoMapRequestVersion {
-        return 'V2';
-      },
-      get VERSION_UNSPECIFIED(): ExportVideoMapRequestVersion {
-        return 'VERSION_UNSPECIFIED';
-      },
+      V1: <ExportVideoMapRequestVersion>'V1',
+      V2: <ExportVideoMapRequestVersion>'V2',
+      VERSION_UNSPECIFIED: <ExportVideoMapRequestVersion>'VERSION_UNSPECIFIED',
       values(): Array<ExportVideoMapRequestVersion> {
-        return ['VERSION_UNSPECIFIED', 'V1', 'V2'];
+        return [
+          ExportVideoMapRequestVersionEnum.VERSION_UNSPECIFIED,
+          ExportVideoMapRequestVersionEnum.V1,
+          ExportVideoMapRequestVersionEnum.V2
+        ];
       }
     };
 
@@ -470,57 +420,47 @@ export type FilmstripThumbnailFileFormat = 'IMAGE_FILE_FORMAT_UNSPECIFIED'|
     'MULTI_BAND_IMAGE_TILE'|'ZIPPED_GEO_TIFF'|'ZIPPED_GEO_TIFF_PER_BAND';
 
 export interface IFilmstripThumbnailFileFormatEnum {
-  IMAGE_FILE_FORMAT_UNSPECIFIED: FilmstripThumbnailFileFormat;
-  JPEG: FilmstripThumbnailFileFormat;
-  PNG: FilmstripThumbnailFileFormat;
-  AUTO_JPEG_PNG: FilmstripThumbnailFileFormat;
-  NPY: FilmstripThumbnailFileFormat;
-  GEO_TIFF: FilmstripThumbnailFileFormat;
-  TF_RECORD_IMAGE: FilmstripThumbnailFileFormat;
-  MULTI_BAND_IMAGE_TILE: FilmstripThumbnailFileFormat;
-  ZIPPED_GEO_TIFF: FilmstripThumbnailFileFormat;
-  ZIPPED_GEO_TIFF_PER_BAND: FilmstripThumbnailFileFormat;
+  readonly IMAGE_FILE_FORMAT_UNSPECIFIED: FilmstripThumbnailFileFormat;
+  readonly JPEG: FilmstripThumbnailFileFormat;
+  readonly PNG: FilmstripThumbnailFileFormat;
+  readonly AUTO_JPEG_PNG: FilmstripThumbnailFileFormat;
+  readonly NPY: FilmstripThumbnailFileFormat;
+  readonly GEO_TIFF: FilmstripThumbnailFileFormat;
+  readonly TF_RECORD_IMAGE: FilmstripThumbnailFileFormat;
+  readonly MULTI_BAND_IMAGE_TILE: FilmstripThumbnailFileFormat;
+  readonly ZIPPED_GEO_TIFF: FilmstripThumbnailFileFormat;
+  readonly ZIPPED_GEO_TIFF_PER_BAND: FilmstripThumbnailFileFormat;
 
   values(): Array<FilmstripThumbnailFileFormat>;
 }
 
 export const FilmstripThumbnailFileFormatEnum:
     IFilmstripThumbnailFileFormatEnum = {
-      get AUTO_JPEG_PNG(): FilmstripThumbnailFileFormat {
-        return 'AUTO_JPEG_PNG';
-      },
-      get GEO_TIFF(): FilmstripThumbnailFileFormat {
-        return 'GEO_TIFF';
-      },
-      get IMAGE_FILE_FORMAT_UNSPECIFIED(): FilmstripThumbnailFileFormat {
-        return 'IMAGE_FILE_FORMAT_UNSPECIFIED';
-      },
-      get JPEG(): FilmstripThumbnailFileFormat {
-        return 'JPEG';
-      },
-      get MULTI_BAND_IMAGE_TILE(): FilmstripThumbnailFileFormat {
-        return 'MULTI_BAND_IMAGE_TILE';
-      },
-      get NPY(): FilmstripThumbnailFileFormat {
-        return 'NPY';
-      },
-      get PNG(): FilmstripThumbnailFileFormat {
-        return 'PNG';
-      },
-      get TF_RECORD_IMAGE(): FilmstripThumbnailFileFormat {
-        return 'TF_RECORD_IMAGE';
-      },
-      get ZIPPED_GEO_TIFF(): FilmstripThumbnailFileFormat {
-        return 'ZIPPED_GEO_TIFF';
-      },
-      get ZIPPED_GEO_TIFF_PER_BAND(): FilmstripThumbnailFileFormat {
-        return 'ZIPPED_GEO_TIFF_PER_BAND';
-      },
+      AUTO_JPEG_PNG: <FilmstripThumbnailFileFormat>'AUTO_JPEG_PNG',
+      GEO_TIFF: <FilmstripThumbnailFileFormat>'GEO_TIFF',
+      IMAGE_FILE_FORMAT_UNSPECIFIED:
+          <FilmstripThumbnailFileFormat>'IMAGE_FILE_FORMAT_UNSPECIFIED',
+      JPEG: <FilmstripThumbnailFileFormat>'JPEG',
+      MULTI_BAND_IMAGE_TILE:
+          <FilmstripThumbnailFileFormat>'MULTI_BAND_IMAGE_TILE',
+      NPY: <FilmstripThumbnailFileFormat>'NPY',
+      PNG: <FilmstripThumbnailFileFormat>'PNG',
+      TF_RECORD_IMAGE: <FilmstripThumbnailFileFormat>'TF_RECORD_IMAGE',
+      ZIPPED_GEO_TIFF: <FilmstripThumbnailFileFormat>'ZIPPED_GEO_TIFF',
+      ZIPPED_GEO_TIFF_PER_BAND:
+          <FilmstripThumbnailFileFormat>'ZIPPED_GEO_TIFF_PER_BAND',
       values(): Array<FilmstripThumbnailFileFormat> {
         return [
-          'IMAGE_FILE_FORMAT_UNSPECIFIED', 'JPEG', 'PNG', 'AUTO_JPEG_PNG',
-          'NPY', 'GEO_TIFF', 'TF_RECORD_IMAGE', 'MULTI_BAND_IMAGE_TILE',
-          'ZIPPED_GEO_TIFF', 'ZIPPED_GEO_TIFF_PER_BAND'
+          FilmstripThumbnailFileFormatEnum.IMAGE_FILE_FORMAT_UNSPECIFIED,
+          FilmstripThumbnailFileFormatEnum.JPEG,
+          FilmstripThumbnailFileFormatEnum.PNG,
+          FilmstripThumbnailFileFormatEnum.AUTO_JPEG_PNG,
+          FilmstripThumbnailFileFormatEnum.NPY,
+          FilmstripThumbnailFileFormatEnum.GEO_TIFF,
+          FilmstripThumbnailFileFormatEnum.TF_RECORD_IMAGE,
+          FilmstripThumbnailFileFormatEnum.MULTI_BAND_IMAGE_TILE,
+          FilmstripThumbnailFileFormatEnum.ZIPPED_GEO_TIFF,
+          FilmstripThumbnailFileFormatEnum.ZIPPED_GEO_TIFF_PER_BAND
         ];
       }
     };
@@ -529,26 +469,25 @@ export type FilmstripThumbnailOrientation =
     'ORIENTATION_UNSPECIFIED'|'HORIZONTAL'|'VERTICAL';
 
 export interface IFilmstripThumbnailOrientationEnum {
-  ORIENTATION_UNSPECIFIED: FilmstripThumbnailOrientation;
-  HORIZONTAL: FilmstripThumbnailOrientation;
-  VERTICAL: FilmstripThumbnailOrientation;
+  readonly ORIENTATION_UNSPECIFIED: FilmstripThumbnailOrientation;
+  readonly HORIZONTAL: FilmstripThumbnailOrientation;
+  readonly VERTICAL: FilmstripThumbnailOrientation;
 
   values(): Array<FilmstripThumbnailOrientation>;
 }
 
 export const FilmstripThumbnailOrientationEnum:
     IFilmstripThumbnailOrientationEnum = {
-      get HORIZONTAL(): FilmstripThumbnailOrientation {
-        return 'HORIZONTAL';
-      },
-      get ORIENTATION_UNSPECIFIED(): FilmstripThumbnailOrientation {
-        return 'ORIENTATION_UNSPECIFIED';
-      },
-      get VERTICAL(): FilmstripThumbnailOrientation {
-        return 'VERTICAL';
-      },
+      HORIZONTAL: <FilmstripThumbnailOrientation>'HORIZONTAL',
+      ORIENTATION_UNSPECIFIED:
+          <FilmstripThumbnailOrientation>'ORIENTATION_UNSPECIFIED',
+      VERTICAL: <FilmstripThumbnailOrientation>'VERTICAL',
       values(): Array<FilmstripThumbnailOrientation> {
-        return ['ORIENTATION_UNSPECIFIED', 'HORIZONTAL', 'VERTICAL'];
+        return [
+          FilmstripThumbnailOrientationEnum.ORIENTATION_UNSPECIFIED,
+          FilmstripThumbnailOrientationEnum.HORIZONTAL,
+          FilmstripThumbnailOrientationEnum.VERTICAL
+        ];
       }
     };
 
@@ -556,25 +495,24 @@ export type GcsDestinationPermissions =
     'TILE_PERMISSIONS_UNSPECIFIED'|'PUBLIC'|'DEFAULT_OBJECT_ACL';
 
 export interface IGcsDestinationPermissionsEnum {
-  TILE_PERMISSIONS_UNSPECIFIED: GcsDestinationPermissions;
-  PUBLIC: GcsDestinationPermissions;
-  DEFAULT_OBJECT_ACL: GcsDestinationPermissions;
+  readonly TILE_PERMISSIONS_UNSPECIFIED: GcsDestinationPermissions;
+  readonly PUBLIC: GcsDestinationPermissions;
+  readonly DEFAULT_OBJECT_ACL: GcsDestinationPermissions;
 
   values(): Array<GcsDestinationPermissions>;
 }
 
 export const GcsDestinationPermissionsEnum: IGcsDestinationPermissionsEnum = {
-  get DEFAULT_OBJECT_ACL(): GcsDestinationPermissions {
-    return 'DEFAULT_OBJECT_ACL';
-  },
-  get PUBLIC(): GcsDestinationPermissions {
-    return 'PUBLIC';
-  },
-  get TILE_PERMISSIONS_UNSPECIFIED(): GcsDestinationPermissions {
-    return 'TILE_PERMISSIONS_UNSPECIFIED';
-  },
+  DEFAULT_OBJECT_ACL: <GcsDestinationPermissions>'DEFAULT_OBJECT_ACL',
+  PUBLIC: <GcsDestinationPermissions>'PUBLIC',
+  TILE_PERMISSIONS_UNSPECIFIED:
+      <GcsDestinationPermissions>'TILE_PERMISSIONS_UNSPECIFIED',
   values(): Array<GcsDestinationPermissions> {
-    return ['TILE_PERMISSIONS_UNSPECIFIED', 'PUBLIC', 'DEFAULT_OBJECT_ACL'];
+    return [
+      GcsDestinationPermissionsEnum.TILE_PERMISSIONS_UNSPECIFIED,
+      GcsDestinationPermissionsEnum.PUBLIC,
+      GcsDestinationPermissionsEnum.DEFAULT_OBJECT_ACL
+    ];
   }
 };
 
@@ -583,56 +521,44 @@ export type GetPixelsRequestFileFormat = 'IMAGE_FILE_FORMAT_UNSPECIFIED'|'JPEG'|
     'MULTI_BAND_IMAGE_TILE'|'ZIPPED_GEO_TIFF'|'ZIPPED_GEO_TIFF_PER_BAND';
 
 export interface IGetPixelsRequestFileFormatEnum {
-  IMAGE_FILE_FORMAT_UNSPECIFIED: GetPixelsRequestFileFormat;
-  JPEG: GetPixelsRequestFileFormat;
-  PNG: GetPixelsRequestFileFormat;
-  AUTO_JPEG_PNG: GetPixelsRequestFileFormat;
-  NPY: GetPixelsRequestFileFormat;
-  GEO_TIFF: GetPixelsRequestFileFormat;
-  TF_RECORD_IMAGE: GetPixelsRequestFileFormat;
-  MULTI_BAND_IMAGE_TILE: GetPixelsRequestFileFormat;
-  ZIPPED_GEO_TIFF: GetPixelsRequestFileFormat;
-  ZIPPED_GEO_TIFF_PER_BAND: GetPixelsRequestFileFormat;
+  readonly IMAGE_FILE_FORMAT_UNSPECIFIED: GetPixelsRequestFileFormat;
+  readonly JPEG: GetPixelsRequestFileFormat;
+  readonly PNG: GetPixelsRequestFileFormat;
+  readonly AUTO_JPEG_PNG: GetPixelsRequestFileFormat;
+  readonly NPY: GetPixelsRequestFileFormat;
+  readonly GEO_TIFF: GetPixelsRequestFileFormat;
+  readonly TF_RECORD_IMAGE: GetPixelsRequestFileFormat;
+  readonly MULTI_BAND_IMAGE_TILE: GetPixelsRequestFileFormat;
+  readonly ZIPPED_GEO_TIFF: GetPixelsRequestFileFormat;
+  readonly ZIPPED_GEO_TIFF_PER_BAND: GetPixelsRequestFileFormat;
 
   values(): Array<GetPixelsRequestFileFormat>;
 }
 
 export const GetPixelsRequestFileFormatEnum: IGetPixelsRequestFileFormatEnum = {
-  get AUTO_JPEG_PNG(): GetPixelsRequestFileFormat {
-    return 'AUTO_JPEG_PNG';
-  },
-  get GEO_TIFF(): GetPixelsRequestFileFormat {
-    return 'GEO_TIFF';
-  },
-  get IMAGE_FILE_FORMAT_UNSPECIFIED(): GetPixelsRequestFileFormat {
-    return 'IMAGE_FILE_FORMAT_UNSPECIFIED';
-  },
-  get JPEG(): GetPixelsRequestFileFormat {
-    return 'JPEG';
-  },
-  get MULTI_BAND_IMAGE_TILE(): GetPixelsRequestFileFormat {
-    return 'MULTI_BAND_IMAGE_TILE';
-  },
-  get NPY(): GetPixelsRequestFileFormat {
-    return 'NPY';
-  },
-  get PNG(): GetPixelsRequestFileFormat {
-    return 'PNG';
-  },
-  get TF_RECORD_IMAGE(): GetPixelsRequestFileFormat {
-    return 'TF_RECORD_IMAGE';
-  },
-  get ZIPPED_GEO_TIFF(): GetPixelsRequestFileFormat {
-    return 'ZIPPED_GEO_TIFF';
-  },
-  get ZIPPED_GEO_TIFF_PER_BAND(): GetPixelsRequestFileFormat {
-    return 'ZIPPED_GEO_TIFF_PER_BAND';
-  },
+  AUTO_JPEG_PNG: <GetPixelsRequestFileFormat>'AUTO_JPEG_PNG',
+  GEO_TIFF: <GetPixelsRequestFileFormat>'GEO_TIFF',
+  IMAGE_FILE_FORMAT_UNSPECIFIED:
+      <GetPixelsRequestFileFormat>'IMAGE_FILE_FORMAT_UNSPECIFIED',
+  JPEG: <GetPixelsRequestFileFormat>'JPEG',
+  MULTI_BAND_IMAGE_TILE: <GetPixelsRequestFileFormat>'MULTI_BAND_IMAGE_TILE',
+  NPY: <GetPixelsRequestFileFormat>'NPY',
+  PNG: <GetPixelsRequestFileFormat>'PNG',
+  TF_RECORD_IMAGE: <GetPixelsRequestFileFormat>'TF_RECORD_IMAGE',
+  ZIPPED_GEO_TIFF: <GetPixelsRequestFileFormat>'ZIPPED_GEO_TIFF',
+  ZIPPED_GEO_TIFF_PER_BAND:
+      <GetPixelsRequestFileFormat>'ZIPPED_GEO_TIFF_PER_BAND',
   values(): Array<GetPixelsRequestFileFormat> {
     return [
-      'IMAGE_FILE_FORMAT_UNSPECIFIED', 'JPEG', 'PNG', 'AUTO_JPEG_PNG', 'NPY',
-      'GEO_TIFF', 'TF_RECORD_IMAGE', 'MULTI_BAND_IMAGE_TILE', 'ZIPPED_GEO_TIFF',
-      'ZIPPED_GEO_TIFF_PER_BAND'
+      GetPixelsRequestFileFormatEnum.IMAGE_FILE_FORMAT_UNSPECIFIED,
+      GetPixelsRequestFileFormatEnum.JPEG, GetPixelsRequestFileFormatEnum.PNG,
+      GetPixelsRequestFileFormatEnum.AUTO_JPEG_PNG,
+      GetPixelsRequestFileFormatEnum.NPY,
+      GetPixelsRequestFileFormatEnum.GEO_TIFF,
+      GetPixelsRequestFileFormatEnum.TF_RECORD_IMAGE,
+      GetPixelsRequestFileFormatEnum.MULTI_BAND_IMAGE_TILE,
+      GetPixelsRequestFileFormatEnum.ZIPPED_GEO_TIFF,
+      GetPixelsRequestFileFormatEnum.ZIPPED_GEO_TIFF_PER_BAND
     ];
   }
 };
@@ -641,41 +567,35 @@ export type ImageAssetExportOptionsPyramidingPolicy =
     'PYRAMIDING_POLICY_UNSPECIFIED'|'MEAN'|'SAMPLE'|'MIN'|'MAX'|'MODE';
 
 export interface IImageAssetExportOptionsPyramidingPolicyEnum {
-  PYRAMIDING_POLICY_UNSPECIFIED: ImageAssetExportOptionsPyramidingPolicy;
-  MEAN: ImageAssetExportOptionsPyramidingPolicy;
-  SAMPLE: ImageAssetExportOptionsPyramidingPolicy;
-  MIN: ImageAssetExportOptionsPyramidingPolicy;
-  MAX: ImageAssetExportOptionsPyramidingPolicy;
-  MODE: ImageAssetExportOptionsPyramidingPolicy;
+  readonly PYRAMIDING_POLICY_UNSPECIFIED:
+      ImageAssetExportOptionsPyramidingPolicy;
+  readonly MEAN: ImageAssetExportOptionsPyramidingPolicy;
+  readonly SAMPLE: ImageAssetExportOptionsPyramidingPolicy;
+  readonly MIN: ImageAssetExportOptionsPyramidingPolicy;
+  readonly MAX: ImageAssetExportOptionsPyramidingPolicy;
+  readonly MODE: ImageAssetExportOptionsPyramidingPolicy;
 
   values(): Array<ImageAssetExportOptionsPyramidingPolicy>;
 }
 
 export const ImageAssetExportOptionsPyramidingPolicyEnum:
     IImageAssetExportOptionsPyramidingPolicyEnum = {
-      get MAX(): ImageAssetExportOptionsPyramidingPolicy {
-        return 'MAX';
-      },
-      get MEAN(): ImageAssetExportOptionsPyramidingPolicy {
-        return 'MEAN';
-      },
-      get MIN(): ImageAssetExportOptionsPyramidingPolicy {
-        return 'MIN';
-      },
-      get MODE(): ImageAssetExportOptionsPyramidingPolicy {
-        return 'MODE';
-      },
-      get PYRAMIDING_POLICY_UNSPECIFIED():
-          ImageAssetExportOptionsPyramidingPolicy {
-            return 'PYRAMIDING_POLICY_UNSPECIFIED';
-          },
-      get SAMPLE(): ImageAssetExportOptionsPyramidingPolicy {
-        return 'SAMPLE';
-      },
+      MAX: <ImageAssetExportOptionsPyramidingPolicy>'MAX',
+      MEAN: <ImageAssetExportOptionsPyramidingPolicy>'MEAN',
+      MIN: <ImageAssetExportOptionsPyramidingPolicy>'MIN',
+      MODE: <ImageAssetExportOptionsPyramidingPolicy>'MODE',
+      PYRAMIDING_POLICY_UNSPECIFIED: <
+          ImageAssetExportOptionsPyramidingPolicy>'PYRAMIDING_POLICY_UNSPECIFIED',
+      SAMPLE: <ImageAssetExportOptionsPyramidingPolicy>'SAMPLE',
       values(): Array<ImageAssetExportOptionsPyramidingPolicy> {
         return [
-          'PYRAMIDING_POLICY_UNSPECIFIED', 'MEAN', 'SAMPLE', 'MIN', 'MAX',
-          'MODE'
+          ImageAssetExportOptionsPyramidingPolicyEnum
+              .PYRAMIDING_POLICY_UNSPECIFIED,
+          ImageAssetExportOptionsPyramidingPolicyEnum.MEAN,
+          ImageAssetExportOptionsPyramidingPolicyEnum.SAMPLE,
+          ImageAssetExportOptionsPyramidingPolicyEnum.MIN,
+          ImageAssetExportOptionsPyramidingPolicyEnum.MAX,
+          ImageAssetExportOptionsPyramidingPolicyEnum.MODE
         ];
       }
     };
@@ -684,42 +604,35 @@ export type ImageAssetExportOptionsPyramidingPolicyOverrides =
     'PYRAMIDING_POLICY_UNSPECIFIED'|'MEAN'|'SAMPLE'|'MIN'|'MAX'|'MODE';
 
 export interface IImageAssetExportOptionsPyramidingPolicyOverridesEnum {
-  PYRAMIDING_POLICY_UNSPECIFIED:
+  readonly PYRAMIDING_POLICY_UNSPECIFIED:
       ImageAssetExportOptionsPyramidingPolicyOverrides;
-  MEAN: ImageAssetExportOptionsPyramidingPolicyOverrides;
-  SAMPLE: ImageAssetExportOptionsPyramidingPolicyOverrides;
-  MIN: ImageAssetExportOptionsPyramidingPolicyOverrides;
-  MAX: ImageAssetExportOptionsPyramidingPolicyOverrides;
-  MODE: ImageAssetExportOptionsPyramidingPolicyOverrides;
+  readonly MEAN: ImageAssetExportOptionsPyramidingPolicyOverrides;
+  readonly SAMPLE: ImageAssetExportOptionsPyramidingPolicyOverrides;
+  readonly MIN: ImageAssetExportOptionsPyramidingPolicyOverrides;
+  readonly MAX: ImageAssetExportOptionsPyramidingPolicyOverrides;
+  readonly MODE: ImageAssetExportOptionsPyramidingPolicyOverrides;
 
   values(): Array<ImageAssetExportOptionsPyramidingPolicyOverrides>;
 }
 
 export const ImageAssetExportOptionsPyramidingPolicyOverridesEnum:
     IImageAssetExportOptionsPyramidingPolicyOverridesEnum = {
-      get MAX(): ImageAssetExportOptionsPyramidingPolicyOverrides {
-        return 'MAX';
-      },
-      get MEAN(): ImageAssetExportOptionsPyramidingPolicyOverrides {
-        return 'MEAN';
-      },
-      get MIN(): ImageAssetExportOptionsPyramidingPolicyOverrides {
-        return 'MIN';
-      },
-      get MODE(): ImageAssetExportOptionsPyramidingPolicyOverrides {
-        return 'MODE';
-      },
-      get PYRAMIDING_POLICY_UNSPECIFIED():
-          ImageAssetExportOptionsPyramidingPolicyOverrides {
-            return 'PYRAMIDING_POLICY_UNSPECIFIED';
-          },
-      get SAMPLE(): ImageAssetExportOptionsPyramidingPolicyOverrides {
-        return 'SAMPLE';
-      },
+      MAX: <ImageAssetExportOptionsPyramidingPolicyOverrides>'MAX',
+      MEAN: <ImageAssetExportOptionsPyramidingPolicyOverrides>'MEAN',
+      MIN: <ImageAssetExportOptionsPyramidingPolicyOverrides>'MIN',
+      MODE: <ImageAssetExportOptionsPyramidingPolicyOverrides>'MODE',
+      PYRAMIDING_POLICY_UNSPECIFIED: <
+          ImageAssetExportOptionsPyramidingPolicyOverrides>'PYRAMIDING_POLICY_UNSPECIFIED',
+      SAMPLE: <ImageAssetExportOptionsPyramidingPolicyOverrides>'SAMPLE',
       values(): Array<ImageAssetExportOptionsPyramidingPolicyOverrides> {
         return [
-          'PYRAMIDING_POLICY_UNSPECIFIED', 'MEAN', 'SAMPLE', 'MIN', 'MAX',
-          'MODE'
+          ImageAssetExportOptionsPyramidingPolicyOverridesEnum
+              .PYRAMIDING_POLICY_UNSPECIFIED,
+          ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MEAN,
+          ImageAssetExportOptionsPyramidingPolicyOverridesEnum.SAMPLE,
+          ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MIN,
+          ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MAX,
+          ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MODE
         ];
       }
     };
@@ -728,38 +641,30 @@ export type ImageBandPyramidingPolicy =
     'PYRAMIDING_POLICY_UNSPECIFIED'|'MEAN'|'SAMPLE'|'MIN'|'MAX'|'MODE';
 
 export interface IImageBandPyramidingPolicyEnum {
-  PYRAMIDING_POLICY_UNSPECIFIED: ImageBandPyramidingPolicy;
-  MEAN: ImageBandPyramidingPolicy;
-  SAMPLE: ImageBandPyramidingPolicy;
-  MIN: ImageBandPyramidingPolicy;
-  MAX: ImageBandPyramidingPolicy;
-  MODE: ImageBandPyramidingPolicy;
+  readonly PYRAMIDING_POLICY_UNSPECIFIED: ImageBandPyramidingPolicy;
+  readonly MEAN: ImageBandPyramidingPolicy;
+  readonly SAMPLE: ImageBandPyramidingPolicy;
+  readonly MIN: ImageBandPyramidingPolicy;
+  readonly MAX: ImageBandPyramidingPolicy;
+  readonly MODE: ImageBandPyramidingPolicy;
 
   values(): Array<ImageBandPyramidingPolicy>;
 }
 
 export const ImageBandPyramidingPolicyEnum: IImageBandPyramidingPolicyEnum = {
-  get MAX(): ImageBandPyramidingPolicy {
-    return 'MAX';
-  },
-  get MEAN(): ImageBandPyramidingPolicy {
-    return 'MEAN';
-  },
-  get MIN(): ImageBandPyramidingPolicy {
-    return 'MIN';
-  },
-  get MODE(): ImageBandPyramidingPolicy {
-    return 'MODE';
-  },
-  get PYRAMIDING_POLICY_UNSPECIFIED(): ImageBandPyramidingPolicy {
-    return 'PYRAMIDING_POLICY_UNSPECIFIED';
-  },
-  get SAMPLE(): ImageBandPyramidingPolicy {
-    return 'SAMPLE';
-  },
+  MAX: <ImageBandPyramidingPolicy>'MAX',
+  MEAN: <ImageBandPyramidingPolicy>'MEAN',
+  MIN: <ImageBandPyramidingPolicy>'MIN',
+  MODE: <ImageBandPyramidingPolicy>'MODE',
+  PYRAMIDING_POLICY_UNSPECIFIED:
+      <ImageBandPyramidingPolicy>'PYRAMIDING_POLICY_UNSPECIFIED',
+  SAMPLE: <ImageBandPyramidingPolicy>'SAMPLE',
   values(): Array<ImageBandPyramidingPolicy> {
     return [
-      'PYRAMIDING_POLICY_UNSPECIFIED', 'MEAN', 'SAMPLE', 'MIN', 'MAX', 'MODE'
+      ImageBandPyramidingPolicyEnum.PYRAMIDING_POLICY_UNSPECIFIED,
+      ImageBandPyramidingPolicyEnum.MEAN, ImageBandPyramidingPolicyEnum.SAMPLE,
+      ImageBandPyramidingPolicyEnum.MIN, ImageBandPyramidingPolicyEnum.MAX,
+      ImageBandPyramidingPolicyEnum.MODE
     ];
   }
 };
@@ -769,57 +674,47 @@ export type ImageFileExportOptionsFileFormat = 'IMAGE_FILE_FORMAT_UNSPECIFIED'|
     'MULTI_BAND_IMAGE_TILE'|'ZIPPED_GEO_TIFF'|'ZIPPED_GEO_TIFF_PER_BAND';
 
 export interface IImageFileExportOptionsFileFormatEnum {
-  IMAGE_FILE_FORMAT_UNSPECIFIED: ImageFileExportOptionsFileFormat;
-  JPEG: ImageFileExportOptionsFileFormat;
-  PNG: ImageFileExportOptionsFileFormat;
-  AUTO_JPEG_PNG: ImageFileExportOptionsFileFormat;
-  NPY: ImageFileExportOptionsFileFormat;
-  GEO_TIFF: ImageFileExportOptionsFileFormat;
-  TF_RECORD_IMAGE: ImageFileExportOptionsFileFormat;
-  MULTI_BAND_IMAGE_TILE: ImageFileExportOptionsFileFormat;
-  ZIPPED_GEO_TIFF: ImageFileExportOptionsFileFormat;
-  ZIPPED_GEO_TIFF_PER_BAND: ImageFileExportOptionsFileFormat;
+  readonly IMAGE_FILE_FORMAT_UNSPECIFIED: ImageFileExportOptionsFileFormat;
+  readonly JPEG: ImageFileExportOptionsFileFormat;
+  readonly PNG: ImageFileExportOptionsFileFormat;
+  readonly AUTO_JPEG_PNG: ImageFileExportOptionsFileFormat;
+  readonly NPY: ImageFileExportOptionsFileFormat;
+  readonly GEO_TIFF: ImageFileExportOptionsFileFormat;
+  readonly TF_RECORD_IMAGE: ImageFileExportOptionsFileFormat;
+  readonly MULTI_BAND_IMAGE_TILE: ImageFileExportOptionsFileFormat;
+  readonly ZIPPED_GEO_TIFF: ImageFileExportOptionsFileFormat;
+  readonly ZIPPED_GEO_TIFF_PER_BAND: ImageFileExportOptionsFileFormat;
 
   values(): Array<ImageFileExportOptionsFileFormat>;
 }
 
 export const ImageFileExportOptionsFileFormatEnum:
     IImageFileExportOptionsFileFormatEnum = {
-      get AUTO_JPEG_PNG(): ImageFileExportOptionsFileFormat {
-        return 'AUTO_JPEG_PNG';
-      },
-      get GEO_TIFF(): ImageFileExportOptionsFileFormat {
-        return 'GEO_TIFF';
-      },
-      get IMAGE_FILE_FORMAT_UNSPECIFIED(): ImageFileExportOptionsFileFormat {
-        return 'IMAGE_FILE_FORMAT_UNSPECIFIED';
-      },
-      get JPEG(): ImageFileExportOptionsFileFormat {
-        return 'JPEG';
-      },
-      get MULTI_BAND_IMAGE_TILE(): ImageFileExportOptionsFileFormat {
-        return 'MULTI_BAND_IMAGE_TILE';
-      },
-      get NPY(): ImageFileExportOptionsFileFormat {
-        return 'NPY';
-      },
-      get PNG(): ImageFileExportOptionsFileFormat {
-        return 'PNG';
-      },
-      get TF_RECORD_IMAGE(): ImageFileExportOptionsFileFormat {
-        return 'TF_RECORD_IMAGE';
-      },
-      get ZIPPED_GEO_TIFF(): ImageFileExportOptionsFileFormat {
-        return 'ZIPPED_GEO_TIFF';
-      },
-      get ZIPPED_GEO_TIFF_PER_BAND(): ImageFileExportOptionsFileFormat {
-        return 'ZIPPED_GEO_TIFF_PER_BAND';
-      },
+      AUTO_JPEG_PNG: <ImageFileExportOptionsFileFormat>'AUTO_JPEG_PNG',
+      GEO_TIFF: <ImageFileExportOptionsFileFormat>'GEO_TIFF',
+      IMAGE_FILE_FORMAT_UNSPECIFIED:
+          <ImageFileExportOptionsFileFormat>'IMAGE_FILE_FORMAT_UNSPECIFIED',
+      JPEG: <ImageFileExportOptionsFileFormat>'JPEG',
+      MULTI_BAND_IMAGE_TILE:
+          <ImageFileExportOptionsFileFormat>'MULTI_BAND_IMAGE_TILE',
+      NPY: <ImageFileExportOptionsFileFormat>'NPY',
+      PNG: <ImageFileExportOptionsFileFormat>'PNG',
+      TF_RECORD_IMAGE: <ImageFileExportOptionsFileFormat>'TF_RECORD_IMAGE',
+      ZIPPED_GEO_TIFF: <ImageFileExportOptionsFileFormat>'ZIPPED_GEO_TIFF',
+      ZIPPED_GEO_TIFF_PER_BAND:
+          <ImageFileExportOptionsFileFormat>'ZIPPED_GEO_TIFF_PER_BAND',
       values(): Array<ImageFileExportOptionsFileFormat> {
         return [
-          'IMAGE_FILE_FORMAT_UNSPECIFIED', 'JPEG', 'PNG', 'AUTO_JPEG_PNG',
-          'NPY', 'GEO_TIFF', 'TF_RECORD_IMAGE', 'MULTI_BAND_IMAGE_TILE',
-          'ZIPPED_GEO_TIFF', 'ZIPPED_GEO_TIFF_PER_BAND'
+          ImageFileExportOptionsFileFormatEnum.IMAGE_FILE_FORMAT_UNSPECIFIED,
+          ImageFileExportOptionsFileFormatEnum.JPEG,
+          ImageFileExportOptionsFileFormatEnum.PNG,
+          ImageFileExportOptionsFileFormatEnum.AUTO_JPEG_PNG,
+          ImageFileExportOptionsFileFormatEnum.NPY,
+          ImageFileExportOptionsFileFormatEnum.GEO_TIFF,
+          ImageFileExportOptionsFileFormatEnum.TF_RECORD_IMAGE,
+          ImageFileExportOptionsFileFormatEnum.MULTI_BAND_IMAGE_TILE,
+          ImageFileExportOptionsFileFormatEnum.ZIPPED_GEO_TIFF,
+          ImageFileExportOptionsFileFormatEnum.ZIPPED_GEO_TIFF_PER_BAND
         ];
       }
     };
@@ -828,40 +723,33 @@ export type ImageManifestPyramidingPolicy =
     'PYRAMIDING_POLICY_UNSPECIFIED'|'MEAN'|'SAMPLE'|'MIN'|'MAX'|'MODE';
 
 export interface IImageManifestPyramidingPolicyEnum {
-  PYRAMIDING_POLICY_UNSPECIFIED: ImageManifestPyramidingPolicy;
-  MEAN: ImageManifestPyramidingPolicy;
-  SAMPLE: ImageManifestPyramidingPolicy;
-  MIN: ImageManifestPyramidingPolicy;
-  MAX: ImageManifestPyramidingPolicy;
-  MODE: ImageManifestPyramidingPolicy;
+  readonly PYRAMIDING_POLICY_UNSPECIFIED: ImageManifestPyramidingPolicy;
+  readonly MEAN: ImageManifestPyramidingPolicy;
+  readonly SAMPLE: ImageManifestPyramidingPolicy;
+  readonly MIN: ImageManifestPyramidingPolicy;
+  readonly MAX: ImageManifestPyramidingPolicy;
+  readonly MODE: ImageManifestPyramidingPolicy;
 
   values(): Array<ImageManifestPyramidingPolicy>;
 }
 
 export const ImageManifestPyramidingPolicyEnum:
     IImageManifestPyramidingPolicyEnum = {
-      get MAX(): ImageManifestPyramidingPolicy {
-        return 'MAX';
-      },
-      get MEAN(): ImageManifestPyramidingPolicy {
-        return 'MEAN';
-      },
-      get MIN(): ImageManifestPyramidingPolicy {
-        return 'MIN';
-      },
-      get MODE(): ImageManifestPyramidingPolicy {
-        return 'MODE';
-      },
-      get PYRAMIDING_POLICY_UNSPECIFIED(): ImageManifestPyramidingPolicy {
-        return 'PYRAMIDING_POLICY_UNSPECIFIED';
-      },
-      get SAMPLE(): ImageManifestPyramidingPolicy {
-        return 'SAMPLE';
-      },
+      MAX: <ImageManifestPyramidingPolicy>'MAX',
+      MEAN: <ImageManifestPyramidingPolicy>'MEAN',
+      MIN: <ImageManifestPyramidingPolicy>'MIN',
+      MODE: <ImageManifestPyramidingPolicy>'MODE',
+      PYRAMIDING_POLICY_UNSPECIFIED:
+          <ImageManifestPyramidingPolicy>'PYRAMIDING_POLICY_UNSPECIFIED',
+      SAMPLE: <ImageManifestPyramidingPolicy>'SAMPLE',
       values(): Array<ImageManifestPyramidingPolicy> {
         return [
-          'PYRAMIDING_POLICY_UNSPECIFIED', 'MEAN', 'SAMPLE', 'MIN', 'MAX',
-          'MODE'
+          ImageManifestPyramidingPolicyEnum.PYRAMIDING_POLICY_UNSPECIFIED,
+          ImageManifestPyramidingPolicyEnum.MEAN,
+          ImageManifestPyramidingPolicyEnum.SAMPLE,
+          ImageManifestPyramidingPolicyEnum.MIN,
+          ImageManifestPyramidingPolicyEnum.MAX,
+          ImageManifestPyramidingPolicyEnum.MODE
         ];
       }
     };
@@ -870,43 +758,32 @@ export type OperationMetadataState = 'STATE_UNSPECIFIED'|'PENDING'|'RUNNING'|
     'CANCELLING'|'SUCCEEDED'|'CANCELLED'|'FAILED';
 
 export interface IOperationMetadataStateEnum {
-  STATE_UNSPECIFIED: OperationMetadataState;
-  PENDING: OperationMetadataState;
-  RUNNING: OperationMetadataState;
-  CANCELLING: OperationMetadataState;
-  SUCCEEDED: OperationMetadataState;
-  CANCELLED: OperationMetadataState;
-  FAILED: OperationMetadataState;
+  readonly STATE_UNSPECIFIED: OperationMetadataState;
+  readonly PENDING: OperationMetadataState;
+  readonly RUNNING: OperationMetadataState;
+  readonly CANCELLING: OperationMetadataState;
+  readonly SUCCEEDED: OperationMetadataState;
+  readonly CANCELLED: OperationMetadataState;
+  readonly FAILED: OperationMetadataState;
 
   values(): Array<OperationMetadataState>;
 }
 
 export const OperationMetadataStateEnum: IOperationMetadataStateEnum = {
-  get CANCELLED(): OperationMetadataState {
-    return 'CANCELLED';
-  },
-  get CANCELLING(): OperationMetadataState {
-    return 'CANCELLING';
-  },
-  get FAILED(): OperationMetadataState {
-    return 'FAILED';
-  },
-  get PENDING(): OperationMetadataState {
-    return 'PENDING';
-  },
-  get RUNNING(): OperationMetadataState {
-    return 'RUNNING';
-  },
-  get STATE_UNSPECIFIED(): OperationMetadataState {
-    return 'STATE_UNSPECIFIED';
-  },
-  get SUCCEEDED(): OperationMetadataState {
-    return 'SUCCEEDED';
-  },
+  CANCELLED: <OperationMetadataState>'CANCELLED',
+  CANCELLING: <OperationMetadataState>'CANCELLING',
+  FAILED: <OperationMetadataState>'FAILED',
+  PENDING: <OperationMetadataState>'PENDING',
+  RUNNING: <OperationMetadataState>'RUNNING',
+  STATE_UNSPECIFIED: <OperationMetadataState>'STATE_UNSPECIFIED',
+  SUCCEEDED: <OperationMetadataState>'SUCCEEDED',
   values(): Array<OperationMetadataState> {
     return [
-      'STATE_UNSPECIFIED', 'PENDING', 'RUNNING', 'CANCELLING', 'SUCCEEDED',
-      'CANCELLED', 'FAILED'
+      OperationMetadataStateEnum.STATE_UNSPECIFIED,
+      OperationMetadataStateEnum.PENDING, OperationMetadataStateEnum.RUNNING,
+      OperationMetadataStateEnum.CANCELLING,
+      OperationMetadataStateEnum.SUCCEEDED,
+      OperationMetadataStateEnum.CANCELLED, OperationMetadataStateEnum.FAILED
     ];
   }
 };
@@ -915,29 +792,25 @@ export type PixelDataTypePrecision =
     'PRECISION_UNSPECIFIED'|'INT'|'FLOAT'|'DOUBLE';
 
 export interface IPixelDataTypePrecisionEnum {
-  PRECISION_UNSPECIFIED: PixelDataTypePrecision;
-  INT: PixelDataTypePrecision;
-  FLOAT: PixelDataTypePrecision;
-  DOUBLE: PixelDataTypePrecision;
+  readonly PRECISION_UNSPECIFIED: PixelDataTypePrecision;
+  readonly INT: PixelDataTypePrecision;
+  readonly FLOAT: PixelDataTypePrecision;
+  readonly DOUBLE: PixelDataTypePrecision;
 
   values(): Array<PixelDataTypePrecision>;
 }
 
 export const PixelDataTypePrecisionEnum: IPixelDataTypePrecisionEnum = {
-  get DOUBLE(): PixelDataTypePrecision {
-    return 'DOUBLE';
-  },
-  get FLOAT(): PixelDataTypePrecision {
-    return 'FLOAT';
-  },
-  get INT(): PixelDataTypePrecision {
-    return 'INT';
-  },
-  get PRECISION_UNSPECIFIED(): PixelDataTypePrecision {
-    return 'PRECISION_UNSPECIFIED';
-  },
+  DOUBLE: <PixelDataTypePrecision>'DOUBLE',
+  FLOAT: <PixelDataTypePrecision>'FLOAT',
+  INT: <PixelDataTypePrecision>'INT',
+  PRECISION_UNSPECIFIED: <PixelDataTypePrecision>'PRECISION_UNSPECIFIED',
   values(): Array<PixelDataTypePrecision> {
-    return ['PRECISION_UNSPECIFIED', 'INT', 'FLOAT', 'DOUBLE'];
+    return [
+      PixelDataTypePrecisionEnum.PRECISION_UNSPECIFIED,
+      PixelDataTypePrecisionEnum.INT, PixelDataTypePrecisionEnum.FLOAT,
+      PixelDataTypePrecisionEnum.DOUBLE
+    ];
   }
 };
 
@@ -945,38 +818,28 @@ export type RuleAction =
     'NO_ACTION'|'ALLOW'|'ALLOW_WITH_LOG'|'DENY'|'DENY_WITH_LOG'|'LOG';
 
 export interface IRuleActionEnum {
-  NO_ACTION: RuleAction;
-  ALLOW: RuleAction;
-  ALLOW_WITH_LOG: RuleAction;
-  DENY: RuleAction;
-  DENY_WITH_LOG: RuleAction;
-  LOG: RuleAction;
+  readonly NO_ACTION: RuleAction;
+  readonly ALLOW: RuleAction;
+  readonly ALLOW_WITH_LOG: RuleAction;
+  readonly DENY: RuleAction;
+  readonly DENY_WITH_LOG: RuleAction;
+  readonly LOG: RuleAction;
 
   values(): Array<RuleAction>;
 }
 
 export const RuleActionEnum: IRuleActionEnum = {
-  get ALLOW(): RuleAction {
-    return 'ALLOW';
-  },
-  get ALLOW_WITH_LOG(): RuleAction {
-    return 'ALLOW_WITH_LOG';
-  },
-  get DENY(): RuleAction {
-    return 'DENY';
-  },
-  get DENY_WITH_LOG(): RuleAction {
-    return 'DENY_WITH_LOG';
-  },
-  get LOG(): RuleAction {
-    return 'LOG';
-  },
-  get NO_ACTION(): RuleAction {
-    return 'NO_ACTION';
-  },
+  ALLOW: <RuleAction>'ALLOW',
+  ALLOW_WITH_LOG: <RuleAction>'ALLOW_WITH_LOG',
+  DENY: <RuleAction>'DENY',
+  DENY_WITH_LOG: <RuleAction>'DENY_WITH_LOG',
+  LOG: <RuleAction>'LOG',
+  NO_ACTION: <RuleAction>'NO_ACTION',
   values(): Array<RuleAction> {
     return [
-      'NO_ACTION', 'ALLOW', 'ALLOW_WITH_LOG', 'DENY', 'DENY_WITH_LOG', 'LOG'
+      RuleActionEnum.NO_ACTION, RuleActionEnum.ALLOW,
+      RuleActionEnum.ALLOW_WITH_LOG, RuleActionEnum.DENY,
+      RuleActionEnum.DENY_WITH_LOG, RuleActionEnum.LOG
     ];
   }
 };
@@ -985,44 +848,36 @@ export type TableFileExportOptionsFileFormat = 'TABLE_FILE_FORMAT_UNSPECIFIED'|
     'CSV'|'GEO_JSON'|'KML'|'KMZ'|'SHP'|'TF_RECORD_TABLE';
 
 export interface ITableFileExportOptionsFileFormatEnum {
-  TABLE_FILE_FORMAT_UNSPECIFIED: TableFileExportOptionsFileFormat;
-  CSV: TableFileExportOptionsFileFormat;
-  GEO_JSON: TableFileExportOptionsFileFormat;
-  KML: TableFileExportOptionsFileFormat;
-  KMZ: TableFileExportOptionsFileFormat;
-  SHP: TableFileExportOptionsFileFormat;
-  TF_RECORD_TABLE: TableFileExportOptionsFileFormat;
+  readonly TABLE_FILE_FORMAT_UNSPECIFIED: TableFileExportOptionsFileFormat;
+  readonly CSV: TableFileExportOptionsFileFormat;
+  readonly GEO_JSON: TableFileExportOptionsFileFormat;
+  readonly KML: TableFileExportOptionsFileFormat;
+  readonly KMZ: TableFileExportOptionsFileFormat;
+  readonly SHP: TableFileExportOptionsFileFormat;
+  readonly TF_RECORD_TABLE: TableFileExportOptionsFileFormat;
 
   values(): Array<TableFileExportOptionsFileFormat>;
 }
 
 export const TableFileExportOptionsFileFormatEnum:
     ITableFileExportOptionsFileFormatEnum = {
-      get CSV(): TableFileExportOptionsFileFormat {
-        return 'CSV';
-      },
-      get GEO_JSON(): TableFileExportOptionsFileFormat {
-        return 'GEO_JSON';
-      },
-      get KML(): TableFileExportOptionsFileFormat {
-        return 'KML';
-      },
-      get KMZ(): TableFileExportOptionsFileFormat {
-        return 'KMZ';
-      },
-      get SHP(): TableFileExportOptionsFileFormat {
-        return 'SHP';
-      },
-      get TABLE_FILE_FORMAT_UNSPECIFIED(): TableFileExportOptionsFileFormat {
-        return 'TABLE_FILE_FORMAT_UNSPECIFIED';
-      },
-      get TF_RECORD_TABLE(): TableFileExportOptionsFileFormat {
-        return 'TF_RECORD_TABLE';
-      },
+      CSV: <TableFileExportOptionsFileFormat>'CSV',
+      GEO_JSON: <TableFileExportOptionsFileFormat>'GEO_JSON',
+      KML: <TableFileExportOptionsFileFormat>'KML',
+      KMZ: <TableFileExportOptionsFileFormat>'KMZ',
+      SHP: <TableFileExportOptionsFileFormat>'SHP',
+      TABLE_FILE_FORMAT_UNSPECIFIED:
+          <TableFileExportOptionsFileFormat>'TABLE_FILE_FORMAT_UNSPECIFIED',
+      TF_RECORD_TABLE: <TableFileExportOptionsFileFormat>'TF_RECORD_TABLE',
       values(): Array<TableFileExportOptionsFileFormat> {
         return [
-          'TABLE_FILE_FORMAT_UNSPECIFIED', 'CSV', 'GEO_JSON', 'KML', 'KMZ',
-          'SHP', 'TF_RECORD_TABLE'
+          TableFileExportOptionsFileFormatEnum.TABLE_FILE_FORMAT_UNSPECIFIED,
+          TableFileExportOptionsFileFormatEnum.CSV,
+          TableFileExportOptionsFileFormatEnum.GEO_JSON,
+          TableFileExportOptionsFileFormatEnum.KML,
+          TableFileExportOptionsFileFormatEnum.KMZ,
+          TableFileExportOptionsFileFormatEnum.SHP,
+          TableFileExportOptionsFileFormatEnum.TF_RECORD_TABLE
         ];
       }
     };
@@ -1031,43 +886,32 @@ export type TableFileFormat = 'TABLE_FILE_FORMAT_UNSPECIFIED'|'CSV'|'GEO_JSON'|
     'KML'|'KMZ'|'SHP'|'TF_RECORD_TABLE';
 
 export interface ITableFileFormatEnum {
-  TABLE_FILE_FORMAT_UNSPECIFIED: TableFileFormat;
-  CSV: TableFileFormat;
-  GEO_JSON: TableFileFormat;
-  KML: TableFileFormat;
-  KMZ: TableFileFormat;
-  SHP: TableFileFormat;
-  TF_RECORD_TABLE: TableFileFormat;
+  readonly TABLE_FILE_FORMAT_UNSPECIFIED: TableFileFormat;
+  readonly CSV: TableFileFormat;
+  readonly GEO_JSON: TableFileFormat;
+  readonly KML: TableFileFormat;
+  readonly KMZ: TableFileFormat;
+  readonly SHP: TableFileFormat;
+  readonly TF_RECORD_TABLE: TableFileFormat;
 
   values(): Array<TableFileFormat>;
 }
 
 export const TableFileFormatEnum: ITableFileFormatEnum = {
-  get CSV(): TableFileFormat {
-    return 'CSV';
-  },
-  get GEO_JSON(): TableFileFormat {
-    return 'GEO_JSON';
-  },
-  get KML(): TableFileFormat {
-    return 'KML';
-  },
-  get KMZ(): TableFileFormat {
-    return 'KMZ';
-  },
-  get SHP(): TableFileFormat {
-    return 'SHP';
-  },
-  get TABLE_FILE_FORMAT_UNSPECIFIED(): TableFileFormat {
-    return 'TABLE_FILE_FORMAT_UNSPECIFIED';
-  },
-  get TF_RECORD_TABLE(): TableFileFormat {
-    return 'TF_RECORD_TABLE';
-  },
+  CSV: <TableFileFormat>'CSV',
+  GEO_JSON: <TableFileFormat>'GEO_JSON',
+  KML: <TableFileFormat>'KML',
+  KMZ: <TableFileFormat>'KMZ',
+  SHP: <TableFileFormat>'SHP',
+  TABLE_FILE_FORMAT_UNSPECIFIED:
+      <TableFileFormat>'TABLE_FILE_FORMAT_UNSPECIFIED',
+  TF_RECORD_TABLE: <TableFileFormat>'TF_RECORD_TABLE',
   values(): Array<TableFileFormat> {
     return [
-      'TABLE_FILE_FORMAT_UNSPECIFIED', 'CSV', 'GEO_JSON', 'KML', 'KMZ', 'SHP',
-      'TF_RECORD_TABLE'
+      TableFileFormatEnum.TABLE_FILE_FORMAT_UNSPECIFIED,
+      TableFileFormatEnum.CSV, TableFileFormatEnum.GEO_JSON,
+      TableFileFormatEnum.KML, TableFileFormatEnum.KMZ, TableFileFormatEnum.SHP,
+      TableFileFormatEnum.TF_RECORD_TABLE
     ];
   }
 };
@@ -1077,56 +921,41 @@ export type ThumbnailFileFormat = 'IMAGE_FILE_FORMAT_UNSPECIFIED'|'JPEG'|'PNG'|
     'ZIPPED_GEO_TIFF'|'ZIPPED_GEO_TIFF_PER_BAND';
 
 export interface IThumbnailFileFormatEnum {
-  IMAGE_FILE_FORMAT_UNSPECIFIED: ThumbnailFileFormat;
-  JPEG: ThumbnailFileFormat;
-  PNG: ThumbnailFileFormat;
-  AUTO_JPEG_PNG: ThumbnailFileFormat;
-  NPY: ThumbnailFileFormat;
-  GEO_TIFF: ThumbnailFileFormat;
-  TF_RECORD_IMAGE: ThumbnailFileFormat;
-  MULTI_BAND_IMAGE_TILE: ThumbnailFileFormat;
-  ZIPPED_GEO_TIFF: ThumbnailFileFormat;
-  ZIPPED_GEO_TIFF_PER_BAND: ThumbnailFileFormat;
+  readonly IMAGE_FILE_FORMAT_UNSPECIFIED: ThumbnailFileFormat;
+  readonly JPEG: ThumbnailFileFormat;
+  readonly PNG: ThumbnailFileFormat;
+  readonly AUTO_JPEG_PNG: ThumbnailFileFormat;
+  readonly NPY: ThumbnailFileFormat;
+  readonly GEO_TIFF: ThumbnailFileFormat;
+  readonly TF_RECORD_IMAGE: ThumbnailFileFormat;
+  readonly MULTI_BAND_IMAGE_TILE: ThumbnailFileFormat;
+  readonly ZIPPED_GEO_TIFF: ThumbnailFileFormat;
+  readonly ZIPPED_GEO_TIFF_PER_BAND: ThumbnailFileFormat;
 
   values(): Array<ThumbnailFileFormat>;
 }
 
 export const ThumbnailFileFormatEnum: IThumbnailFileFormatEnum = {
-  get AUTO_JPEG_PNG(): ThumbnailFileFormat {
-    return 'AUTO_JPEG_PNG';
-  },
-  get GEO_TIFF(): ThumbnailFileFormat {
-    return 'GEO_TIFF';
-  },
-  get IMAGE_FILE_FORMAT_UNSPECIFIED(): ThumbnailFileFormat {
-    return 'IMAGE_FILE_FORMAT_UNSPECIFIED';
-  },
-  get JPEG(): ThumbnailFileFormat {
-    return 'JPEG';
-  },
-  get MULTI_BAND_IMAGE_TILE(): ThumbnailFileFormat {
-    return 'MULTI_BAND_IMAGE_TILE';
-  },
-  get NPY(): ThumbnailFileFormat {
-    return 'NPY';
-  },
-  get PNG(): ThumbnailFileFormat {
-    return 'PNG';
-  },
-  get TF_RECORD_IMAGE(): ThumbnailFileFormat {
-    return 'TF_RECORD_IMAGE';
-  },
-  get ZIPPED_GEO_TIFF(): ThumbnailFileFormat {
-    return 'ZIPPED_GEO_TIFF';
-  },
-  get ZIPPED_GEO_TIFF_PER_BAND(): ThumbnailFileFormat {
-    return 'ZIPPED_GEO_TIFF_PER_BAND';
-  },
+  AUTO_JPEG_PNG: <ThumbnailFileFormat>'AUTO_JPEG_PNG',
+  GEO_TIFF: <ThumbnailFileFormat>'GEO_TIFF',
+  IMAGE_FILE_FORMAT_UNSPECIFIED:
+      <ThumbnailFileFormat>'IMAGE_FILE_FORMAT_UNSPECIFIED',
+  JPEG: <ThumbnailFileFormat>'JPEG',
+  MULTI_BAND_IMAGE_TILE: <ThumbnailFileFormat>'MULTI_BAND_IMAGE_TILE',
+  NPY: <ThumbnailFileFormat>'NPY',
+  PNG: <ThumbnailFileFormat>'PNG',
+  TF_RECORD_IMAGE: <ThumbnailFileFormat>'TF_RECORD_IMAGE',
+  ZIPPED_GEO_TIFF: <ThumbnailFileFormat>'ZIPPED_GEO_TIFF',
+  ZIPPED_GEO_TIFF_PER_BAND: <ThumbnailFileFormat>'ZIPPED_GEO_TIFF_PER_BAND',
   values(): Array<ThumbnailFileFormat> {
     return [
-      'IMAGE_FILE_FORMAT_UNSPECIFIED', 'JPEG', 'PNG', 'AUTO_JPEG_PNG', 'NPY',
-      'GEO_TIFF', 'TF_RECORD_IMAGE', 'MULTI_BAND_IMAGE_TILE', 'ZIPPED_GEO_TIFF',
-      'ZIPPED_GEO_TIFF_PER_BAND'
+      ThumbnailFileFormatEnum.IMAGE_FILE_FORMAT_UNSPECIFIED,
+      ThumbnailFileFormatEnum.JPEG, ThumbnailFileFormatEnum.PNG,
+      ThumbnailFileFormatEnum.AUTO_JPEG_PNG, ThumbnailFileFormatEnum.NPY,
+      ThumbnailFileFormatEnum.GEO_TIFF, ThumbnailFileFormatEnum.TF_RECORD_IMAGE,
+      ThumbnailFileFormatEnum.MULTI_BAND_IMAGE_TILE,
+      ThumbnailFileFormatEnum.ZIPPED_GEO_TIFF,
+      ThumbnailFileFormatEnum.ZIPPED_GEO_TIFF_PER_BAND
     ];
   }
 };
@@ -1135,40 +964,33 @@ export type TilesetBandPyramidingPolicy =
     'PYRAMIDING_POLICY_UNSPECIFIED'|'MEAN'|'SAMPLE'|'MIN'|'MAX'|'MODE';
 
 export interface ITilesetBandPyramidingPolicyEnum {
-  PYRAMIDING_POLICY_UNSPECIFIED: TilesetBandPyramidingPolicy;
-  MEAN: TilesetBandPyramidingPolicy;
-  SAMPLE: TilesetBandPyramidingPolicy;
-  MIN: TilesetBandPyramidingPolicy;
-  MAX: TilesetBandPyramidingPolicy;
-  MODE: TilesetBandPyramidingPolicy;
+  readonly PYRAMIDING_POLICY_UNSPECIFIED: TilesetBandPyramidingPolicy;
+  readonly MEAN: TilesetBandPyramidingPolicy;
+  readonly SAMPLE: TilesetBandPyramidingPolicy;
+  readonly MIN: TilesetBandPyramidingPolicy;
+  readonly MAX: TilesetBandPyramidingPolicy;
+  readonly MODE: TilesetBandPyramidingPolicy;
 
   values(): Array<TilesetBandPyramidingPolicy>;
 }
 
 export const TilesetBandPyramidingPolicyEnum:
     ITilesetBandPyramidingPolicyEnum = {
-      get MAX(): TilesetBandPyramidingPolicy {
-        return 'MAX';
-      },
-      get MEAN(): TilesetBandPyramidingPolicy {
-        return 'MEAN';
-      },
-      get MIN(): TilesetBandPyramidingPolicy {
-        return 'MIN';
-      },
-      get MODE(): TilesetBandPyramidingPolicy {
-        return 'MODE';
-      },
-      get PYRAMIDING_POLICY_UNSPECIFIED(): TilesetBandPyramidingPolicy {
-        return 'PYRAMIDING_POLICY_UNSPECIFIED';
-      },
-      get SAMPLE(): TilesetBandPyramidingPolicy {
-        return 'SAMPLE';
-      },
+      MAX: <TilesetBandPyramidingPolicy>'MAX',
+      MEAN: <TilesetBandPyramidingPolicy>'MEAN',
+      MIN: <TilesetBandPyramidingPolicy>'MIN',
+      MODE: <TilesetBandPyramidingPolicy>'MODE',
+      PYRAMIDING_POLICY_UNSPECIFIED:
+          <TilesetBandPyramidingPolicy>'PYRAMIDING_POLICY_UNSPECIFIED',
+      SAMPLE: <TilesetBandPyramidingPolicy>'SAMPLE',
       values(): Array<TilesetBandPyramidingPolicy> {
         return [
-          'PYRAMIDING_POLICY_UNSPECIFIED', 'MEAN', 'SAMPLE', 'MIN', 'MAX',
-          'MODE'
+          TilesetBandPyramidingPolicyEnum.PYRAMIDING_POLICY_UNSPECIFIED,
+          TilesetBandPyramidingPolicyEnum.MEAN,
+          TilesetBandPyramidingPolicyEnum.SAMPLE,
+          TilesetBandPyramidingPolicyEnum.MIN,
+          TilesetBandPyramidingPolicyEnum.MAX,
+          TilesetBandPyramidingPolicyEnum.MODE
         ];
       }
     };
@@ -1177,51 +999,36 @@ export type TilesetDataType = 'DATA_TYPE_UNSPECIFIED'|'INT8'|'UINT8'|'INT16'|
     'UINT16'|'INT32'|'UINT32'|'FLOAT'|'DOUBLE';
 
 export interface ITilesetDataTypeEnum {
-  DATA_TYPE_UNSPECIFIED: TilesetDataType;
-  INT8: TilesetDataType;
-  UINT8: TilesetDataType;
-  INT16: TilesetDataType;
-  UINT16: TilesetDataType;
-  INT32: TilesetDataType;
-  UINT32: TilesetDataType;
-  FLOAT: TilesetDataType;
-  DOUBLE: TilesetDataType;
+  readonly DATA_TYPE_UNSPECIFIED: TilesetDataType;
+  readonly INT8: TilesetDataType;
+  readonly UINT8: TilesetDataType;
+  readonly INT16: TilesetDataType;
+  readonly UINT16: TilesetDataType;
+  readonly INT32: TilesetDataType;
+  readonly UINT32: TilesetDataType;
+  readonly FLOAT: TilesetDataType;
+  readonly DOUBLE: TilesetDataType;
 
   values(): Array<TilesetDataType>;
 }
 
 export const TilesetDataTypeEnum: ITilesetDataTypeEnum = {
-  get DATA_TYPE_UNSPECIFIED(): TilesetDataType {
-    return 'DATA_TYPE_UNSPECIFIED';
-  },
-  get DOUBLE(): TilesetDataType {
-    return 'DOUBLE';
-  },
-  get FLOAT(): TilesetDataType {
-    return 'FLOAT';
-  },
-  get INT16(): TilesetDataType {
-    return 'INT16';
-  },
-  get INT32(): TilesetDataType {
-    return 'INT32';
-  },
-  get INT8(): TilesetDataType {
-    return 'INT8';
-  },
-  get UINT16(): TilesetDataType {
-    return 'UINT16';
-  },
-  get UINT32(): TilesetDataType {
-    return 'UINT32';
-  },
-  get UINT8(): TilesetDataType {
-    return 'UINT8';
-  },
+  DATA_TYPE_UNSPECIFIED: <TilesetDataType>'DATA_TYPE_UNSPECIFIED',
+  DOUBLE: <TilesetDataType>'DOUBLE',
+  FLOAT: <TilesetDataType>'FLOAT',
+  INT16: <TilesetDataType>'INT16',
+  INT32: <TilesetDataType>'INT32',
+  INT8: <TilesetDataType>'INT8',
+  UINT16: <TilesetDataType>'UINT16',
+  UINT32: <TilesetDataType>'UINT32',
+  UINT8: <TilesetDataType>'UINT8',
   values(): Array<TilesetDataType> {
     return [
-      'DATA_TYPE_UNSPECIFIED', 'INT8', 'UINT8', 'INT16', 'UINT16', 'INT32',
-      'UINT32', 'FLOAT', 'DOUBLE'
+      TilesetDataTypeEnum.DATA_TYPE_UNSPECIFIED, TilesetDataTypeEnum.INT8,
+      TilesetDataTypeEnum.UINT8, TilesetDataTypeEnum.INT16,
+      TilesetDataTypeEnum.UINT16, TilesetDataTypeEnum.INT32,
+      TilesetDataTypeEnum.UINT32, TilesetDataTypeEnum.FLOAT,
+      TilesetDataTypeEnum.DOUBLE
     ];
   }
 };
@@ -1230,30 +1037,28 @@ export type VideoFileExportOptionsFileFormat =
     'VIDEO_FILE_FORMAT_UNSPECIFIED'|'MP4'|'GIF'|'VP9';
 
 export interface IVideoFileExportOptionsFileFormatEnum {
-  VIDEO_FILE_FORMAT_UNSPECIFIED: VideoFileExportOptionsFileFormat;
-  MP4: VideoFileExportOptionsFileFormat;
-  GIF: VideoFileExportOptionsFileFormat;
-  VP9: VideoFileExportOptionsFileFormat;
+  readonly VIDEO_FILE_FORMAT_UNSPECIFIED: VideoFileExportOptionsFileFormat;
+  readonly MP4: VideoFileExportOptionsFileFormat;
+  readonly GIF: VideoFileExportOptionsFileFormat;
+  readonly VP9: VideoFileExportOptionsFileFormat;
 
   values(): Array<VideoFileExportOptionsFileFormat>;
 }
 
 export const VideoFileExportOptionsFileFormatEnum:
     IVideoFileExportOptionsFileFormatEnum = {
-      get GIF(): VideoFileExportOptionsFileFormat {
-        return 'GIF';
-      },
-      get MP4(): VideoFileExportOptionsFileFormat {
-        return 'MP4';
-      },
-      get VIDEO_FILE_FORMAT_UNSPECIFIED(): VideoFileExportOptionsFileFormat {
-        return 'VIDEO_FILE_FORMAT_UNSPECIFIED';
-      },
-      get VP9(): VideoFileExportOptionsFileFormat {
-        return 'VP9';
-      },
+      GIF: <VideoFileExportOptionsFileFormat>'GIF',
+      MP4: <VideoFileExportOptionsFileFormat>'MP4',
+      VIDEO_FILE_FORMAT_UNSPECIFIED:
+          <VideoFileExportOptionsFileFormat>'VIDEO_FILE_FORMAT_UNSPECIFIED',
+      VP9: <VideoFileExportOptionsFileFormat>'VP9',
       values(): Array<VideoFileExportOptionsFileFormat> {
-        return ['VIDEO_FILE_FORMAT_UNSPECIFIED', 'MP4', 'GIF', 'VP9'];
+        return [
+          VideoFileExportOptionsFileFormatEnum.VIDEO_FILE_FORMAT_UNSPECIFIED,
+          VideoFileExportOptionsFileFormatEnum.MP4,
+          VideoFileExportOptionsFileFormatEnum.GIF,
+          VideoFileExportOptionsFileFormatEnum.VP9
+        ];
       }
     };
 
@@ -1261,29 +1066,26 @@ export type VideoThumbnailFileFormat =
     'VIDEO_FILE_FORMAT_UNSPECIFIED'|'MP4'|'GIF'|'VP9';
 
 export interface IVideoThumbnailFileFormatEnum {
-  VIDEO_FILE_FORMAT_UNSPECIFIED: VideoThumbnailFileFormat;
-  MP4: VideoThumbnailFileFormat;
-  GIF: VideoThumbnailFileFormat;
-  VP9: VideoThumbnailFileFormat;
+  readonly VIDEO_FILE_FORMAT_UNSPECIFIED: VideoThumbnailFileFormat;
+  readonly MP4: VideoThumbnailFileFormat;
+  readonly GIF: VideoThumbnailFileFormat;
+  readonly VP9: VideoThumbnailFileFormat;
 
   values(): Array<VideoThumbnailFileFormat>;
 }
 
 export const VideoThumbnailFileFormatEnum: IVideoThumbnailFileFormatEnum = {
-  get GIF(): VideoThumbnailFileFormat {
-    return 'GIF';
-  },
-  get MP4(): VideoThumbnailFileFormat {
-    return 'MP4';
-  },
-  get VIDEO_FILE_FORMAT_UNSPECIFIED(): VideoThumbnailFileFormat {
-    return 'VIDEO_FILE_FORMAT_UNSPECIFIED';
-  },
-  get VP9(): VideoThumbnailFileFormat {
-    return 'VP9';
-  },
+  GIF: <VideoThumbnailFileFormat>'GIF',
+  MP4: <VideoThumbnailFileFormat>'MP4',
+  VIDEO_FILE_FORMAT_UNSPECIFIED:
+      <VideoThumbnailFileFormat>'VIDEO_FILE_FORMAT_UNSPECIFIED',
+  VP9: <VideoThumbnailFileFormat>'VP9',
   values(): Array<VideoThumbnailFileFormat> {
-    return ['VIDEO_FILE_FORMAT_UNSPECIFIED', 'MP4', 'GIF', 'VP9'];
+    return [
+      VideoThumbnailFileFormatEnum.VIDEO_FILE_FORMAT_UNSPECIFIED,
+      VideoThumbnailFileFormatEnum.MP4, VideoThumbnailFileFormatEnum.GIF,
+      VideoThumbnailFileFormatEnum.VP9
+    ];
   }
 };
 
@@ -1512,8 +1314,8 @@ export class Algorithm extends Serializable {
   }
 
   /**
-   * Whether this algorithm should be hidden in client applications
-   * and not shown by default.
+   * Whether this algorithm should be hidden in client applications and not
+   * shown by default.
    */
   set hidden(value: boolean|null) {
     this.Serializable$set('hidden', value);
@@ -1540,8 +1342,8 @@ export class Algorithm extends Serializable {
   }
 
   /**
-   * Whether this algorithm is a preview feature and not yet widely
-   * available for a general audience.
+   * Whether this algorithm is a preview feature and not yet widely available
+   * for a general audience.
    */
   set preview(value: boolean|null) {
     this.Serializable$set('preview', value);
@@ -1783,9 +1585,9 @@ export class AuditConfig extends Serializable {
   }
 
   /**
-   * Specifies a service that will be enabled for audit logging.
-   * For example, `storage.googleapis.com`, `cloudsql.googleapis.com`.
-   * `allServices` is a special value that covers all services.
+   * Specifies a service that will be enabled for audit logging. For example,
+   * `storage.googleapis.com`, `cloudsql.googleapis.com`. `allServices` is a
+   * special value that covers all services.
    */
   set service(value: string|null) {
     this.Serializable$set('service', value);
@@ -1838,8 +1640,7 @@ export class AuditLogConfig extends Serializable {
 
   /**
    * Specifies the identities that do not cause logging for this type of
-   * permission.
-   * Follows the same format of Binding.members.
+   * permission. Follows the same format of Binding.members.
    */
   set exemptedMembers(value: Array<string>|null) {
     this.Serializable$set('exemptedMembers', value);
@@ -1928,6 +1729,7 @@ export interface BindingParameters {
   role?: string|null;
   members?: Array<string>|null;
   condition?: Expr|null;
+  bindingId?: string|null;
 }
 export class Binding extends Serializable {
   constructor(parameters: BindingParameters = {}) {
@@ -1940,6 +1742,24 @@ export class Binding extends Serializable {
     this.Serializable$set(
         'condition',
         (parameters.condition == null) ? (null) : (parameters.condition));
+    this.Serializable$set(
+        'bindingId',
+        (parameters.bindingId == null) ? (null) : (parameters.bindingId));
+  }
+
+  get bindingId(): string|null {
+    return (
+        (this.Serializable$has('bindingId')) ?
+            (this.Serializable$get('bindingId')) :
+            (null));
+  }
+
+  /**
+   * A client-specified ID for this binding. Expected to be globally unique to
+   * support the internal bindings-by-ID API.
+   */
+  set bindingId(value: string|null) {
+    this.Serializable$set('bindingId', value);
   }
 
   get condition(): Expr|null {
@@ -1950,10 +1770,13 @@ export class Binding extends Serializable {
   }
 
   /**
-   * The condition that is associated with this binding.
-   * NOTE: An unsatisfied condition will not allow user access via current
-   * binding. Different bindings, including their conditions, are examined
-   * independently.
+   * The condition that is associated with this binding. If the condition
+   * evaluates to `true`, then this binding applies to the current request. If
+   * the condition evaluates to `false`, then this binding does not apply to the
+   * current request. However, a different role binding might grant the same
+   * role to one or more of the members in this binding. To learn which
+   * resources support conditions in their IAM policies, see the [IAM
+   * documentation](https://cloud.google.com/iam/help/conditions/resource-policies).
    */
   set condition(value: Expr|null) {
     this.Serializable$set('condition', value);
@@ -1968,49 +1791,34 @@ export class Binding extends Serializable {
 
   /**
    * Specifies the identities requesting access for a Cloud Platform resource.
-   * `members` can have the following values:
-   *
-   * * `allUsers`: A special identifier that represents anyone who is
-   *    on the internet; with or without a Google account.
-   *
-   * * `allAuthenticatedUsers`: A special identifier that represents anyone
-   *    who is authenticated with a Google account or a service account.
-   *
-   * * `user:{emailid}`: An email address that represents a specific Google
-   *    account. For example, `alice@example.com` .
-   *
-   *
-   * * `serviceAccount:{emailid}`: An email address that represents a service
-   *    account. For example, `my-other-app@appspot.gserviceaccount.com`.
-   *
-   * * `group:{emailid}`: An email address that represents a Google group.
-   *    For example, `admins@example.com`.
-   *
+   * `members` can have the following values: * `allUsers`: A special identifier
+   * that represents anyone who is on the internet; with or without a Google
+   * account. * `allAuthenticatedUsers`: A special identifier that represents
+   * anyone who is authenticated with a Google account or a service account. *
+   * `user:{emailid}`: An email address that represents a specific Google
+   * account. For example, `alice@example.com` . * `serviceAccount:{emailid}`:
+   * An email address that represents a service account. For example,
+   * `my-other-app@appspot.gserviceaccount.com`. * `group:{emailid}`: An email
+   * address that represents a Google group. For example, `admins@example.com`.
    * * `deleted:user:{emailid}?uid={uniqueid}`: An email address (plus unique
-   *    identifier) representing a user that has been recently deleted. For
-   *    example, `alice@example.com?uid=123456789012345678901`. If the user is
-   *    recovered, this value reverts to `user:{emailid}` and the recovered user
-   *    retains the role in the binding.
-   *
-   * * `deleted:serviceAccount:{emailid}?uid={uniqueid}`: An email address (plus
-   *    unique identifier) representing a service account that has been recently
-   *    deleted. For example,
-   *    `my-other-app@appspot.gserviceaccount.com?uid=123456789012345678901`.
-   *    If the service account is undeleted, this value reverts to
-   *    `serviceAccount:{emailid}` and the undeleted service account retains the
-   *    role in the binding.
-   *
-   * * `deleted:group:{emailid}?uid={uniqueid}`: An email address (plus unique
-   *    identifier) representing a Google group that has been recently
-   *    deleted. For example, `admins@example.com?uid=123456789012345678901`. If
-   *    the group is recovered, this value reverts to `group:{emailid}` and the
-   *    recovered group retains the role in the binding.
-   *
-   *
-   * * `domain:{domain}`: The G Suite domain (primary) that represents all the
-   *    users of that domain. For example, `google.com` or `example.com`.
-   *
-   *
+   * identifier) representing a user that has been recently deleted. For
+   * example, `alice@example.com?uid=123456789012345678901`. If the user is
+   * recovered, this value reverts to `user:{emailid}` and the recovered user
+   * retains the role in the binding. *
+   * `deleted:serviceAccount:{emailid}?uid={uniqueid}`: An email address (plus
+   * unique identifier) representing a service account that has been recently
+   * deleted. For example,
+   * `my-other-app@appspot.gserviceaccount.com?uid=123456789012345678901`. If
+   * the service account is undeleted, this value reverts to
+   * `serviceAccount:{emailid}` and the undeleted service account retains the
+   * role in the binding. * `deleted:group:{emailid}?uid={uniqueid}`: An email
+   * address (plus unique identifier) representing a Google group that has been
+   * recently deleted. For example,
+   * `admins@example.com?uid=123456789012345678901`. If the group is recovered,
+   * this value reverts to `group:{emailid}` and the recovered group retains the
+   * role in the binding. * `domain:{domain}`: The G Suite domain (primary) that
+   * represents all the users of that domain. For example, `google.com` or
+   * `example.com`.
    */
   set members(value: Array<string>|null) {
     this.Serializable$set('members', value);
@@ -2023,8 +1831,8 @@ export class Binding extends Serializable {
   }
 
   /**
-   * Role that is assigned to `members`.
-   * For example, `roles/viewer`, `roles/editor`, or `roles/owner`.
+   * Role that is assigned to `members`. For example, `roles/viewer`,
+   * `roles/editor`, or `roles/owner`.
    */
   set role(value: string|null) {
     this.Serializable$set('role', value);
@@ -2036,7 +1844,7 @@ export class Binding extends Serializable {
 
   getPartialClassMetadata(): Partial<ClassMetadata> {
     return {
-      keys: ['condition', 'members', 'role'],
+      keys: ['bindingId', 'condition', 'members', 'role'],
       objects: {'condition': Expr}
     };
   }
@@ -2160,6 +1968,141 @@ export class CloudAuditOptions extends Serializable {
   }
 }
 
+export interface CloudStorageDestinationParameters {
+  bucket?: string|null;
+  filenamePrefix?: string|null;
+  permissions?: CloudStorageDestinationPermissions|null;
+  bucketCorsUris?: Array<string>|null;
+}
+export class CloudStorageDestination extends Serializable {
+  constructor(parameters: CloudStorageDestinationParameters = {}) {
+    super();
+    this.Serializable$set(
+        'bucket', (parameters.bucket == null) ? (null) : (parameters.bucket));
+    this.Serializable$set(
+        'filenamePrefix',
+        (parameters.filenamePrefix == null) ? (null) :
+                                              (parameters.filenamePrefix));
+    this.Serializable$set(
+        'permissions',
+        (parameters.permissions == null) ? (null) : (parameters.permissions));
+    this.Serializable$set(
+        'bucketCorsUris',
+        (parameters.bucketCorsUris == null) ? (null) :
+                                              (parameters.bucketCorsUris));
+  }
+
+  static get Permissions(): ICloudStorageDestinationPermissionsEnum {
+    return CloudStorageDestinationPermissionsEnum;
+  }
+
+  get bucket(): string|null {
+    return (
+        (this.Serializable$has('bucket')) ? (this.Serializable$get('bucket')) :
+                                            (null));
+  }
+
+  /**
+   * The Google Cloud Storage destination bucket.
+   */
+  set bucket(value: string|null) {
+    this.Serializable$set('bucket', value);
+  }
+
+  get bucketCorsUris(): Array<string>|null {
+    return (
+        (this.Serializable$has('bucketCorsUris')) ?
+            (this.Serializable$get('bucketCorsUris')) :
+            (null));
+  }
+
+  /**
+   * Optional list of URIs to whitelist for the CORS settings on the bucket.
+   * Used to enable websites to access exported files via JavaScript.
+   */
+  set bucketCorsUris(value: Array<string>|null) {
+    this.Serializable$set('bucketCorsUris', value);
+  }
+
+  get filenamePrefix(): string|null {
+    return (
+        (this.Serializable$has('filenamePrefix')) ?
+            (this.Serializable$get('filenamePrefix')) :
+            (null));
+  }
+
+  /**
+   * The string used as the prefix for each output file. A trailing \"/\"
+   * indicates a path. The filenames of the exported files will be constructed
+   * from this prefix, the coordinates of each file in a mosaic (if any), and a
+   * file extension corresponding to the file format.
+   */
+  set filenamePrefix(value: string|null) {
+    this.Serializable$set('filenamePrefix', value);
+  }
+
+  get permissions(): CloudStorageDestinationPermissions|null {
+    return (
+        (this.Serializable$has('permissions')) ?
+            (this.Serializable$get('permissions')) :
+            (null));
+  }
+
+  /**
+   * Specifies the permissions to set on the exported tiles. If unspecified,
+   * defaults to DEFAULT_OBJECT_ACL.
+   */
+  set permissions(value: CloudStorageDestinationPermissions|null) {
+    this.Serializable$set('permissions', value);
+  }
+
+  getConstructor(): SerializableCtor<CloudStorageDestination> {
+    return CloudStorageDestination;
+  }
+
+  getPartialClassMetadata(): Partial<ClassMetadata> {
+    return {
+      enums: {'permissions': CloudStorageDestinationPermissionsEnum},
+      keys: ['bucket', 'bucketCorsUris', 'filenamePrefix', 'permissions']
+    };
+  }
+}
+
+export interface CloudStorageLocationParameters {
+  uris?: Array<string>|null;
+}
+export class CloudStorageLocation extends Serializable {
+  constructor(parameters: CloudStorageLocationParameters = {}) {
+    super();
+    this.Serializable$set(
+        'uris', (parameters.uris == null) ? (null) : (parameters.uris));
+  }
+
+  get uris(): Array<string>|null {
+    return (
+        (this.Serializable$has('uris')) ? (this.Serializable$get('uris')) :
+                                          (null));
+  }
+
+  /**
+   * The URIs of the data. Only Google Cloud Storage URIs are supported. Each
+   * URI must be specified in the following format:
+   * \"gs://bucket-id/object-id\". Only one URI is currently supported. If more
+   * than one URI is specified an `INALID_ARGUMENT` error is returned.
+   */
+  set uris(value: Array<string>|null) {
+    this.Serializable$set('uris', value);
+  }
+
+  getConstructor(): SerializableCtor<CloudStorageLocation> {
+    return CloudStorageLocation;
+  }
+
+  getPartialClassMetadata(): Partial<ClassMetadata> {
+    return {keys: ['uris']};
+  }
+}
+
 export interface ComputeFeaturesRequestParameters {
   expression?: Expression|null;
   pageSize?: number|null;
@@ -2202,8 +2145,8 @@ export class ComputeFeaturesRequest extends Serializable {
 
   /**
    * An optional maximum number of results per page. The server may return fewer
-   * features than requested. If unspecified, server will pick an appropriate
-   * default.
+   * features than requested. If unspecified, the page size default is 1000
+   * reesults per page.
    */
   set pageSize(value: number|null) {
     this.Serializable$set('pageSize', value);
@@ -2218,8 +2161,7 @@ export class ComputeFeaturesRequest extends Serializable {
 
   /**
    * An optional token identifying a page of results the server should return.
-   * Typically, this is the value of
-   * ComputeFeaturesResponse.next_page_token
+   * Typically, this is the value of ComputeFeaturesResponse.next_page_token
    * returned from the previous call to the `ComputeFeatures` method.
    */
   set pageToken(value: string|null) {
@@ -2265,10 +2207,10 @@ export class ComputeFeaturesResponse extends Serializable {
   }
 
   /**
-   * The list of features matching the query, as a list of GeoJSON
-   * feature objects (see RFC 7946) containing the string \"Feature\" in
-   * a field named \"type\", the geometry in a field named \"geometry\",
-   * and key/value properties in a field named \"properties\".
+   * The list of features matching the query, as a list of GeoJSON feature
+   * objects (see RFC 7946) containing the string \"Feature\" in a field named
+   * \"type\", the geometry in a field named \"geometry\", and key/value
+   * properties in a field named \"properties\".
    */
   set features(value: Array<Feature>|null) {
     this.Serializable$set('features', value);
@@ -2283,9 +2225,8 @@ export class ComputeFeaturesResponse extends Serializable {
 
   /**
    * A token to retrieve the next page of results. Pass this value in the
-   * ComputeFeaturesRequest.page_token
-   * field in the subsequent call to the `ComputeFeatures` method
-   * to retrieve the next page of results.
+   * ComputeFeaturesRequest.page_token field in the subsequent call to the
+   * `ComputeFeatures` method to retrieve the next page of results.
    */
   set nextPageToken(value: string|null) {
     this.Serializable$set('nextPageToken', value);
@@ -2298,8 +2239,8 @@ export class ComputeFeaturesResponse extends Serializable {
   }
 
   /**
-   * Always contains the constant string \"FeatureCollection\", marking
-   * this as a GeoJSON FeatureCollection object.
+   * Always contains the constant string \"FeatureCollection\", marking this as
+   * a GeoJSON FeatureCollection object.
    */
   set type(value: string|null) {
     this.Serializable$set('type', value);
@@ -2359,8 +2300,8 @@ export class ComputeImagesRequest extends Serializable {
 
   /**
    * An optional maximum number of results per page. The server may return fewer
-   * images than requested. If unspecified, server will pick an appropriate
-   * default.
+   * images than requested. If unspecified, the page size default is 1000
+   * reesults per page.
    */
   set pageSize(value: number|null) {
     this.Serializable$set('pageSize', value);
@@ -2375,8 +2316,7 @@ export class ComputeImagesRequest extends Serializable {
 
   /**
    * An optional token identifying a page of results the server should return.
-   * Typically, this is the value of
-   * ComputeImagesResponse.next_page_token
+   * Typically, this is the value of ComputeImagesResponse.next_page_token
    * returned from the previous call to the `ComputeImages` method.
    */
   set pageToken(value: string|null) {
@@ -2396,7 +2336,7 @@ export class ComputeImagesRequest extends Serializable {
 }
 
 export interface ComputeImagesResponseParameters {
-  images?: Array<Image>|null;
+  images?: Array<EarthEngineAsset>|null;
   nextPageToken?: string|null;
 }
 export class ComputeImagesResponse extends Serializable {
@@ -2410,7 +2350,7 @@ export class ComputeImagesResponse extends Serializable {
                                              (parameters.nextPageToken));
   }
 
-  get images(): Array<Image>|null {
+  get images(): Array<EarthEngineAsset>|null {
     return (
         (this.Serializable$has('images')) ? (this.Serializable$get('images')) :
                                             (null));
@@ -2419,7 +2359,7 @@ export class ComputeImagesResponse extends Serializable {
   /**
    * The list of images matching the query.
    */
-  set images(value: Array<Image>|null) {
+  set images(value: Array<EarthEngineAsset>|null) {
     this.Serializable$set('images', value);
   }
 
@@ -2432,9 +2372,8 @@ export class ComputeImagesResponse extends Serializable {
 
   /**
    * A token to retrieve the next page of results. Pass this value in the
-   * ComputeImagesRequest.page_token
-   * field in the subsequent call to the `ComputeImages` method
-   * to retrieve the next page of results.
+   * ComputeImagesRequest.page_token field in the subsequent call to the
+   * `ComputeImages` method to retrieve the next page of results.
    */
   set nextPageToken(value: string|null) {
     this.Serializable$set('nextPageToken', value);
@@ -2445,7 +2384,10 @@ export class ComputeImagesResponse extends Serializable {
   }
 
   getPartialClassMetadata(): Partial<ClassMetadata> {
-    return {arrays: {'images': Image}, keys: ['images', 'nextPageToken']};
+    return {
+      arrays: {'images': EarthEngineAsset},
+      keys: ['images', 'nextPageToken']
+    };
   }
 }
 
@@ -2489,9 +2431,9 @@ export class ComputePixelsRequest extends Serializable {
   }
 
   /**
-   * If present, specifies a specific set of bands that will be
-   * selected from the result of evaluating `expression`. If not
-   * present, all bands resulting from `expression` will be selected.
+   * If present, specifies a specific set of bands that will be selected from
+   * the result of evaluating `expression`. If not present, all bands resulting
+   * from `expression` will be selected.
    */
   set bandIds(value: Array<string>|null) {
     this.Serializable$set('bandIds', value);
@@ -2532,9 +2474,9 @@ export class ComputePixelsRequest extends Serializable {
   }
 
   /**
-   * Optional parameters describing how the image computed by
-   * `expression` should be reprojected and clipped. If not present, the
-   * full computed image is returned in its native projection.
+   * Optional parameters describing how the image computed by `expression`
+   * should be reprojected and clipped. If not present, the full computed image
+   * is returned in its native projection.
    */
   set grid(value: PixelGrid|null) {
     this.Serializable$set('grid', value);
@@ -2548,8 +2490,8 @@ export class ComputePixelsRequest extends Serializable {
   }
 
   /**
-   * If present, a set of visualization options to apply to produce an
-   * 8-bit RGB visualization of the data.
+   * If present, a set of visualization options to apply to produce an 8-bit RGB
+   * visualization of the data.
    */
   set visualizationOptions(value: VisualizationOptions|null) {
     this.Serializable$set('visualizationOptions', value);
@@ -2719,8 +2661,8 @@ export class Condition extends Serializable {
   }
 
   /**
-   * Trusted attributes supplied by any service that owns resources and uses
-   * the IAM system for access control.
+   * Trusted attributes supplied by any service that owns resources and uses the
+   * IAM system for access control.
    */
   set sys(value: ConditionSys|null) {
     this.Serializable$set('sys', value);
@@ -2783,8 +2725,8 @@ export class CopyAssetRequest extends Serializable {
   }
 
   /**
-   * A list of bands to include in the copy. If omitted, all bands
-   * will be copied.
+   * A list of bands to include in the copy. If omitted, all bands will be
+   * copied.
    */
   set bandIds(value: Array<string>|null) {
     this.Serializable$set('bandIds', value);
@@ -2798,13 +2740,13 @@ export class CopyAssetRequest extends Serializable {
   }
 
   /**
-   * The destination name to which to copy the asset.
-   * `name` is of the format \"projects/* /assets/**\"
-   * (e.g., \"projects/earthengine-legacy/assets/users/[USER]/[ASSET]\").
-   * All user-owned assets are under the project \"earthengine-legacy\"
-   * (e.g., \"projects/earthengine-legacy/assets/users/foo/bar\").
-   * All other assets are under the project \"earthengine-public\"
-   * (e.g., \"projects/earthengine-public/assets/LANDSAT\").
+   * The destination name to which to copy the asset. `name` is of the format
+   * \"projects/* /assets/**\" (e.g.,
+   * \"projects/earthengine-legacy/assets/users/[USER]/[ASSET]\"). All
+   * user-owned assets are under the project \"earthengine-legacy\" (e.g.,
+   * \"projects/earthengine-legacy/assets/users/foo/bar\"). All other assets are
+   * under the project \"earthengine-public\" (e.g.,
+   * \"projects/earthengine-public/assets/LANDSAT\").
    */
   set destinationName(value: string|null) {
     this.Serializable$set('destinationName', value);
@@ -2936,8 +2878,8 @@ export class CustomField extends Serializable {
 
   /**
    * Value is the field value. It is important that in contrast to the
-   * CounterOptions.field, the value here is a constant that is not
-   * derived from the IAMContext.
+   * CounterOptions.field, the value here is a constant that is not derived from
+   * the IAMContext.
    */
   set value(value: string|null) {
     this.Serializable$set('value', value);
@@ -2974,11 +2916,6 @@ export class DataAccessOptions extends Serializable {
             (null));
   }
 
-  /**
-   * Whether Gin logging should happen in a fail-closed manner at the caller.
-   * This is currently supported in the LocalIAM implementation, 
-   * and others. For Apps Framework, see go/af-audit-logging#failclosed.
-   */
   set logMode(value: DataAccessOptionsLogMode|null) {
     this.Serializable$set('logMode', value);
   }
@@ -3109,9 +3046,9 @@ export class DriveDestination extends Serializable {
 
   /**
    * The string used as the prefix for each output filename. The filenames of
-   * the exported files will be constructed from this prefix, the coordinates
-   * of each file in a mosaic (if any), and a file extension corresponding to
-   * the file format.
+   * the exported files will be constructed from this prefix, the coordinates of
+   * each file in a mosaic (if any), and a file extension corresponding to the
+   * file format.
    */
   set filenamePrefix(value: string|null) {
     this.Serializable$set('filenamePrefix', value);
@@ -3140,6 +3077,10 @@ export class DriveDestination extends Serializable {
 }
 
 export interface EarthEngineAssetParameters {
+  tilestoreLocation?: TilestoreLocation|null;
+  cloudStorageLocation?: CloudStorageLocation|null;
+  tilestoreEntry?: TilestoreEntry|null;
+  gcsLocation?: GcsLocation|null;
   type?: EarthEngineAssetType|null;
   name?: string|null;
   id?: string|null;
@@ -3153,13 +3094,28 @@ export interface EarthEngineAssetParameters {
   bands?: Array<ImageBand>|null;
   sizeBytes?: string|null;
   quota?: FolderQuota|null;
-  tilestoreEntry?: TilestoreEntry|null;
-  gcsLocation?: GcsLocation|null;
   expression?: Expression|null;
 }
 export class EarthEngineAsset extends Serializable {
   constructor(parameters: EarthEngineAssetParameters = {}) {
     super();
+    this.Serializable$set(
+        'tilestoreLocation',
+        (parameters.tilestoreLocation == null) ?
+            (null) :
+            (parameters.tilestoreLocation));
+    this.Serializable$set(
+        'cloudStorageLocation',
+        (parameters.cloudStorageLocation == null) ?
+            (null) :
+            (parameters.cloudStorageLocation));
+    this.Serializable$set(
+        'tilestoreEntry',
+        (parameters.tilestoreEntry == null) ? (null) :
+                                              (parameters.tilestoreEntry));
+    this.Serializable$set(
+        'gcsLocation',
+        (parameters.gcsLocation == null) ? (null) : (parameters.gcsLocation));
     this.Serializable$set(
         'type', (parameters.type == null) ? (null) : (parameters.type));
     this.Serializable$set(
@@ -3194,13 +3150,6 @@ export class EarthEngineAsset extends Serializable {
     this.Serializable$set(
         'quota', (parameters.quota == null) ? (null) : (parameters.quota));
     this.Serializable$set(
-        'tilestoreEntry',
-        (parameters.tilestoreEntry == null) ? (null) :
-                                              (parameters.tilestoreEntry));
-    this.Serializable$set(
-        'gcsLocation',
-        (parameters.gcsLocation == null) ? (null) : (parameters.gcsLocation));
-    this.Serializable$set(
         'expression',
         (parameters.expression == null) ? (null) : (parameters.expression));
   }
@@ -3216,11 +3165,25 @@ export class EarthEngineAsset extends Serializable {
   }
 
   /**
-   * Information about the data bands of the image asset. Omitted for
-   * non-image assets.
+   * Information about the data bands of the image asset. Omitted for non-image
+   * assets.
    */
   set bands(value: Array<ImageBand>|null) {
     this.Serializable$set('bands', value);
+  }
+
+  get cloudStorageLocation(): CloudStorageLocation|null {
+    return (
+        (this.Serializable$has('cloudStorageLocation')) ?
+            (this.Serializable$get('cloudStorageLocation')) :
+            (null));
+  }
+
+  /**
+   * The location of this asset on Cloud Storage.
+   */
+  set cloudStorageLocation(value: CloudStorageLocation|null) {
+    this.Serializable$set('cloudStorageLocation', value);
   }
 
   get description(): string|null {
@@ -3271,6 +3234,9 @@ export class EarthEngineAsset extends Serializable {
             (null));
   }
 
+  /**
+   * The location of this asset on Cloud Storage.
+   */
   set gcsLocation(value: GcsLocation|null) {
     this.Serializable$set('gcsLocation', value);
   }
@@ -3297,9 +3263,9 @@ export class EarthEngineAsset extends Serializable {
 
   /**
    * The ID of the asset. Equivalent to `name` without the \"projects/*
-   * /assets/\" prefix (e.g. \"users/<USER>/<ASSET>\"). Note that this is
-   * intended for display purposes only. It should not be used as an input to
-   * another operation. Use `name` instead.
+   * /assets/\" prefix (e.g. \"users//\"). Note that this is intended for
+   * display purposes only. It should not be used as an input to another
+   * operation. Use `name` instead.
    */
   set id(value: string|null) {
     this.Serializable$set('id', value);
@@ -3313,7 +3279,7 @@ export class EarthEngineAsset extends Serializable {
 
   /**
    * The name of the asset. `name` is of the format \"projects/* /assets/**\"
-   * (e.g. \"projects/earthengine-legacy/assets/users/<USER>/<ASSET>\").
+   * (e.g. \"projects/earthengine-legacy/assets/users//\").
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -3390,6 +3356,17 @@ export class EarthEngineAsset extends Serializable {
     this.Serializable$set('tilestoreEntry', value);
   }
 
+  get tilestoreLocation(): TilestoreLocation|null {
+    return (
+        (this.Serializable$has('tilestoreLocation')) ?
+            (this.Serializable$get('tilestoreLocation')) :
+            (null));
+  }
+
+  set tilestoreLocation(value: TilestoreLocation|null) {
+    this.Serializable$set('tilestoreLocation', value);
+  }
+
   get title(): string|null {
     return (
         (this.Serializable$has('title')) ? (this.Serializable$get('title')) :
@@ -3439,9 +3416,10 @@ export class EarthEngineAsset extends Serializable {
       arrays: {'bands': ImageBand},
       enums: {'type': EarthEngineAssetTypeEnum},
       keys: [
-        'bands', 'description', 'endTime', 'expression', 'gcsLocation',
-        'geometry', 'id', 'name', 'properties', 'quota', 'sizeBytes',
-        'startTime', 'tilestoreEntry', 'title', 'type', 'updateTime'
+        'bands', 'cloudStorageLocation', 'description', 'endTime', 'expression',
+        'gcsLocation', 'geometry', 'id', 'name', 'properties', 'quota',
+        'sizeBytes', 'startTime', 'tilestoreEntry', 'tilestoreLocation',
+        'title', 'type', 'updateTime'
       ],
       objectMaps: {
         'geometry': {
@@ -3458,10 +3436,12 @@ export class EarthEngineAsset extends Serializable {
         }
       },
       objects: {
+        'cloudStorageLocation': CloudStorageLocation,
         'expression': Expression,
         'gcsLocation': GcsLocation,
         'quota': FolderQuota,
-        'tilestoreEntry': TilestoreEntry
+        'tilestoreEntry': TilestoreEntry,
+        'tilestoreLocation': TilestoreLocation
       }
     };
   }
@@ -3484,9 +3464,8 @@ export class EarthEngineDestination extends Serializable {
   }
 
   /**
-   * The name of the asset to be created.
-   * `name` is of the format \"projects/* /assets/**\"
-   * (e.g. \"projects/earthengine-legacy/assets/users/<USER>/<ASSET>\").
+   * The name of the asset to be created. `name` is of the format \"projects/*
+   * /assets/**\" (e.g. \"projects/earthengine-legacy/assets/users//\").
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -3584,8 +3563,8 @@ export class EarthEngineMap extends Serializable {
   }
 
   /**
-   * The resource name representing the map, of the form  \"projects/*
-   * /maps/**\" (e.g. \"projects/earthengine-legacy/maps/<MAP-ID>\").
+   * The resource name representing the map, of the form \"projects/* /maps/**\"
+   * (e.g. \"projects/earthengine-legacy/maps/\").
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -3599,8 +3578,8 @@ export class EarthEngineMap extends Serializable {
   }
 
   /**
-   * If present, a set of visualization options to apply to produce an
-   * 8-bit RGB visualization of the data.
+   * If present, a set of visualization options to apply to produce an 8-bit RGB
+   * visualization of the data.
    */
   set visualizationOptions(value: VisualizationOptions|null) {
     this.Serializable$set('visualizationOptions', value);
@@ -3640,24 +3619,19 @@ export class Empty extends Serializable {
 }
 
 export interface ExportImageRequestParameters {
-  expression?: Expression|null;
-  description?: string|null;
   fileExportOptions?: ImageFileExportOptions|null;
   assetExportOptions?: ImageAssetExportOptions|null;
+  expression?: Expression|null;
+  description?: string|null;
   maxPixels?: string|null;
   grid?: PixelGrid|null;
   requestId?: string|null;
+  maxWorkers?: number|null;
   maxWorkerCount?: number|null;
 }
 export class ExportImageRequest extends Serializable {
   constructor(parameters: ExportImageRequestParameters = {}) {
     super();
-    this.Serializable$set(
-        'expression',
-        (parameters.expression == null) ? (null) : (parameters.expression));
-    this.Serializable$set(
-        'description',
-        (parameters.description == null) ? (null) : (parameters.description));
     this.Serializable$set(
         'fileExportOptions',
         (parameters.fileExportOptions == null) ?
@@ -3669,6 +3643,12 @@ export class ExportImageRequest extends Serializable {
             (null) :
             (parameters.assetExportOptions));
     this.Serializable$set(
+        'expression',
+        (parameters.expression == null) ? (null) : (parameters.expression));
+    this.Serializable$set(
+        'description',
+        (parameters.description == null) ? (null) : (parameters.description));
+    this.Serializable$set(
         'maxPixels',
         (parameters.maxPixels == null) ? (null) : (parameters.maxPixels));
     this.Serializable$set(
@@ -3676,6 +3656,9 @@ export class ExportImageRequest extends Serializable {
     this.Serializable$set(
         'requestId',
         (parameters.requestId == null) ? (null) : (parameters.requestId));
+    this.Serializable$set(
+        'maxWorkers',
+        (parameters.maxWorkers == null) ? (null) : (parameters.maxWorkers));
     this.Serializable$set(
         'maxWorkerCount',
         (parameters.maxWorkerCount == null) ? (null) :
@@ -3745,9 +3728,9 @@ export class ExportImageRequest extends Serializable {
   }
 
   /**
-   * Optional parameters describing how the image computed by
-   * `expression` should be reprojected and clipped. If not present, the
-   * full computed image is returned in its native projection.
+   * Optional parameters describing how the image computed by `expression`
+   * should be reprojected and clipped. If not present, the full computed image
+   * is returned in its native projection.
    */
   set grid(value: PixelGrid|null) {
     this.Serializable$set('grid', value);
@@ -3784,6 +3767,20 @@ export class ExportImageRequest extends Serializable {
     this.Serializable$set('maxWorkerCount', value);
   }
 
+  get maxWorkers(): number|null {
+    return (
+        (this.Serializable$has('maxWorkers')) ?
+            (this.Serializable$get('maxWorkers')) :
+            (null));
+  }
+
+  /**
+   * Optional parameter setting the maximum amount of workers to use.
+   */
+  set maxWorkers(value: number|null) {
+    this.Serializable$set('maxWorkers', value);
+  }
+
   get requestId(): string|null {
     return (
         (this.Serializable$has('requestId')) ?
@@ -3793,8 +3790,8 @@ export class ExportImageRequest extends Serializable {
 
   /**
    * A unique string used to detect duplicated requests. If more than one
-   * request is made by the same user with the same non-empty `request_id`,
-   * only one of those requests may successfully start a long-running operation.
+   * request is made by the same user with the same non-empty `request_id`, only
+   * one of those requests may successfully start a long-running operation.
    * `request_id` may contain the characters a..z, A..Z, 0-9, or '-'.
    * `request_id` may be at most 60 characters long.
    */
@@ -3810,7 +3807,7 @@ export class ExportImageRequest extends Serializable {
     return {
       keys: [
         'assetExportOptions', 'description', 'expression', 'fileExportOptions',
-        'grid', 'maxPixels', 'maxWorkerCount', 'requestId'
+        'grid', 'maxPixels', 'maxWorkerCount', 'maxWorkers', 'requestId'
       ],
       objects: {
         'assetExportOptions': ImageAssetExportOptions,
@@ -3828,6 +3825,7 @@ export interface ExportMapRequestParameters {
   tileOptions?: TileOptions|null;
   tileExportOptions?: ImageFileExportOptions|null;
   requestId?: string|null;
+  maxWorkers?: number|null;
   maxWorkerCount?: number|null;
 }
 export class ExportMapRequest extends Serializable {
@@ -3850,6 +3848,9 @@ export class ExportMapRequest extends Serializable {
     this.Serializable$set(
         'requestId',
         (parameters.requestId == null) ? (null) : (parameters.requestId));
+    this.Serializable$set(
+        'maxWorkers',
+        (parameters.maxWorkers == null) ? (null) : (parameters.maxWorkers));
     this.Serializable$set(
         'maxWorkerCount',
         (parameters.maxWorkerCount == null) ? (null) :
@@ -3878,9 +3879,9 @@ export class ExportMapRequest extends Serializable {
   }
 
   /**
-   * An expression that evaluates to the image to compute and export. The
-   * bounds of the image will be used to determine the set of map tiles to
-   * render. To control the exported region, clip the image prior to exporting.
+   * An expression that evaluates to the image to compute and export. The bounds
+   * of the image will be used to determine the set of map tiles to render. To
+   * control the exported region, clip the image prior to exporting.
    */
   set expression(value: Expression|null) {
     this.Serializable$set('expression', value);
@@ -3900,6 +3901,20 @@ export class ExportMapRequest extends Serializable {
     this.Serializable$set('maxWorkerCount', value);
   }
 
+  get maxWorkers(): number|null {
+    return (
+        (this.Serializable$has('maxWorkers')) ?
+            (this.Serializable$get('maxWorkers')) :
+            (null));
+  }
+
+  /**
+   * Optional parameter setting the maximum amount of workers to use.
+   */
+  set maxWorkers(value: number|null) {
+    this.Serializable$set('maxWorkers', value);
+  }
+
   get requestId(): string|null {
     return (
         (this.Serializable$has('requestId')) ?
@@ -3909,8 +3924,8 @@ export class ExportMapRequest extends Serializable {
 
   /**
    * A unique string used to detect duplicated requests. If more than one
-   * request is made by the same user with the same non-empty `request_id`,
-   * only one of those requests may successfully start a long-running operation.
+   * request is made by the same user with the same non-empty `request_id`, only
+   * one of those requests may successfully start a long-running operation.
    * `request_id` may contain the characters a..z, A..Z, 0-9, or '-'.
    * `request_id` may be at most 60 characters long.
    */
@@ -3954,8 +3969,8 @@ export class ExportMapRequest extends Serializable {
   getPartialClassMetadata(): Partial<ClassMetadata> {
     return {
       keys: [
-        'description', 'expression', 'maxWorkerCount', 'requestId',
-        'tileExportOptions', 'tileOptions'
+        'description', 'expression', 'maxWorkerCount', 'maxWorkers',
+        'requestId', 'tileExportOptions', 'tileOptions'
       ],
       objects: {
         'expression': Expression,
@@ -3967,25 +3982,20 @@ export class ExportMapRequest extends Serializable {
 }
 
 export interface ExportTableRequestParameters {
-  expression?: Expression|null;
-  description?: string|null;
   fileExportOptions?: TableFileExportOptions|null;
   assetExportOptions?: TableAssetExportOptions|null;
+  expression?: Expression|null;
+  description?: string|null;
   selectors?: Array<string>|null;
   requestId?: string|null;
   maxErrorMeters?: number|null;
+  maxWorkers?: number|null;
   maxWorkerCount?: number|null;
   maxVertices?: number|null;
 }
 export class ExportTableRequest extends Serializable {
   constructor(parameters: ExportTableRequestParameters = {}) {
     super();
-    this.Serializable$set(
-        'expression',
-        (parameters.expression == null) ? (null) : (parameters.expression));
-    this.Serializable$set(
-        'description',
-        (parameters.description == null) ? (null) : (parameters.description));
     this.Serializable$set(
         'fileExportOptions',
         (parameters.fileExportOptions == null) ?
@@ -3997,6 +4007,12 @@ export class ExportTableRequest extends Serializable {
             (null) :
             (parameters.assetExportOptions));
     this.Serializable$set(
+        'expression',
+        (parameters.expression == null) ? (null) : (parameters.expression));
+    this.Serializable$set(
+        'description',
+        (parameters.description == null) ? (null) : (parameters.description));
+    this.Serializable$set(
         'selectors',
         (parameters.selectors == null) ? (null) : (parameters.selectors));
     this.Serializable$set(
@@ -4006,6 +4022,9 @@ export class ExportTableRequest extends Serializable {
         'maxErrorMeters',
         (parameters.maxErrorMeters == null) ? (null) :
                                               (parameters.maxErrorMeters));
+    this.Serializable$set(
+        'maxWorkers',
+        (parameters.maxWorkers == null) ? (null) : (parameters.maxWorkers));
     this.Serializable$set(
         'maxWorkerCount',
         (parameters.maxWorkerCount == null) ? (null) :
@@ -4115,6 +4134,20 @@ export class ExportTableRequest extends Serializable {
     this.Serializable$set('maxWorkerCount', value);
   }
 
+  get maxWorkers(): number|null {
+    return (
+        (this.Serializable$has('maxWorkers')) ?
+            (this.Serializable$get('maxWorkers')) :
+            (null));
+  }
+
+  /**
+   * Optional parameter setting the maximum amount of workers to use.
+   */
+  set maxWorkers(value: number|null) {
+    this.Serializable$set('maxWorkers', value);
+  }
+
   get requestId(): string|null {
     return (
         (this.Serializable$has('requestId')) ?
@@ -4124,8 +4157,8 @@ export class ExportTableRequest extends Serializable {
 
   /**
    * A unique string used to detect duplicated requests. If more than one
-   * request is made by the same user with the same non-empty `request_id`,
-   * only one of those requests may successfully start a long-running operation.
+   * request is made by the same user with the same non-empty `request_id`, only
+   * one of those requests may successfully start a long-running operation.
    * `request_id` may contain the characters a..z, A..Z, 0-9, or '-'.
    * `request_id` may be at most 60 characters long.
    */
@@ -4155,8 +4188,8 @@ export class ExportTableRequest extends Serializable {
     return {
       keys: [
         'assetExportOptions', 'description', 'expression', 'fileExportOptions',
-        'maxErrorMeters', 'maxVertices', 'maxWorkerCount', 'requestId',
-        'selectors'
+        'maxErrorMeters', 'maxVertices', 'maxWorkerCount', 'maxWorkers',
+        'requestId', 'selectors'
       ],
       objects: {
         'assetExportOptions': TableAssetExportOptions,
@@ -4175,6 +4208,7 @@ export interface ExportVideoMapRequestParameters {
   tileExportOptions?: VideoFileExportOptions|null;
   requestId?: string|null;
   version?: ExportVideoMapRequestVersion|null;
+  maxWorkers?: number|null;
   maxWorkerCount?: number|null;
 }
 export class ExportVideoMapRequest extends Serializable {
@@ -4203,6 +4237,9 @@ export class ExportVideoMapRequest extends Serializable {
     this.Serializable$set(
         'version',
         (parameters.version == null) ? (null) : (parameters.version));
+    this.Serializable$set(
+        'maxWorkers',
+        (parameters.maxWorkers == null) ? (null) : (parameters.maxWorkers));
     this.Serializable$set(
         'maxWorkerCount',
         (parameters.maxWorkerCount == null) ? (null) :
@@ -4236,8 +4273,8 @@ export class ExportVideoMapRequest extends Serializable {
 
   /**
    * An expression that evaluates to the image collection to compute and export
-   * as a video. The bounds of the first image will be used to determine the
-   * set of video map tiles to render. To control the exported region, clip the
+   * as a video. The bounds of the first image will be used to determine the set
+   * of video map tiles to render. To control the exported region, clip the
    * images prior to exporting.
    */
   set expression(value: Expression|null) {
@@ -4258,6 +4295,20 @@ export class ExportVideoMapRequest extends Serializable {
     this.Serializable$set('maxWorkerCount', value);
   }
 
+  get maxWorkers(): number|null {
+    return (
+        (this.Serializable$has('maxWorkers')) ?
+            (this.Serializable$get('maxWorkers')) :
+            (null));
+  }
+
+  /**
+   * Optional parameter setting the maximum amount of workers to use.
+   */
+  set maxWorkers(value: number|null) {
+    this.Serializable$set('maxWorkers', value);
+  }
+
   get requestId(): string|null {
     return (
         (this.Serializable$has('requestId')) ?
@@ -4267,8 +4318,8 @@ export class ExportVideoMapRequest extends Serializable {
 
   /**
    * A unique string used to detect duplicated requests. If more than one
-   * request is made by the same user with the same non-empty `request_id`,
-   * only one of those requests may successfully start a long-running operation.
+   * request is made by the same user with the same non-empty `request_id`, only
+   * one of those requests may successfully start a long-running operation.
    * `request_id` may contain the characters a..z, A..Z, 0-9, or '-'.
    * `request_id` may be at most 60 characters long.
    */
@@ -4284,8 +4335,8 @@ export class ExportVideoMapRequest extends Serializable {
   }
 
   /**
-   * Options for where and in what form to export the video tiles. Cloud
-   * Storage is currently the only supported destination for video map exports.
+   * Options for where and in what form to export the video tiles. Cloud Storage
+   * is currently the only supported destination for video map exports.
    */
   set tileExportOptions(value: VideoFileExportOptions|null) {
     this.Serializable$set('tileExportOptions', value);
@@ -4341,8 +4392,9 @@ export class ExportVideoMapRequest extends Serializable {
     return {
       enums: {'version': ExportVideoMapRequestVersionEnum},
       keys: [
-        'description', 'expression', 'maxWorkerCount', 'requestId',
-        'tileExportOptions', 'tileOptions', 'version', 'videoOptions'
+        'description', 'expression', 'maxWorkerCount', 'maxWorkers',
+        'requestId', 'tileExportOptions', 'tileOptions', 'version',
+        'videoOptions'
       ],
       objects: {
         'expression': Expression,
@@ -4360,6 +4412,7 @@ export interface ExportVideoRequestParameters {
   videoOptions?: VideoOptions|null;
   fileExportOptions?: VideoFileExportOptions|null;
   requestId?: string|null;
+  maxWorkers?: number|null;
   maxWorkerCount?: number|null;
 }
 export class ExportVideoRequest extends Serializable {
@@ -4382,6 +4435,9 @@ export class ExportVideoRequest extends Serializable {
     this.Serializable$set(
         'requestId',
         (parameters.requestId == null) ? (null) : (parameters.requestId));
+    this.Serializable$set(
+        'maxWorkers',
+        (parameters.maxWorkers == null) ? (null) : (parameters.maxWorkers));
     this.Serializable$set(
         'maxWorkerCount',
         (parameters.maxWorkerCount == null) ? (null) :
@@ -4445,6 +4501,20 @@ export class ExportVideoRequest extends Serializable {
     this.Serializable$set('maxWorkerCount', value);
   }
 
+  get maxWorkers(): number|null {
+    return (
+        (this.Serializable$has('maxWorkers')) ?
+            (this.Serializable$get('maxWorkers')) :
+            (null));
+  }
+
+  /**
+   * Optional parameter setting the maximum amount of workers to use.
+   */
+  set maxWorkers(value: number|null) {
+    this.Serializable$set('maxWorkers', value);
+  }
+
   get requestId(): string|null {
     return (
         (this.Serializable$has('requestId')) ?
@@ -4454,8 +4524,8 @@ export class ExportVideoRequest extends Serializable {
 
   /**
    * A unique string used to detect duplicated requests. If more than one
-   * request is made by the same user with the same non-empty `request_id`,
-   * only one of those requests may successfully start a long-running operation.
+   * request is made by the same user with the same non-empty `request_id`, only
+   * one of those requests may successfully start a long-running operation.
    * `request_id` may contain the characters a..z, A..Z, 0-9, or '-'.
    * `request_id` may be at most 60 characters long.
    */
@@ -4485,7 +4555,7 @@ export class ExportVideoRequest extends Serializable {
     return {
       keys: [
         'description', 'expression', 'fileExportOptions', 'maxWorkerCount',
-        'requestId', 'videoOptions'
+        'maxWorkers', 'requestId', 'videoOptions'
       ],
       objects: {
         'expression': Expression,
@@ -4570,9 +4640,8 @@ export class Expr extends Serializable {
   }
 
   /**
-   * Optional. Title for the expression, i.e. a short string describing
-   * its purpose. This can be used e.g. in UIs which allow to enter the
-   * expression.
+   * Optional. Title for the expression, i.e. a short string describing its
+   * purpose. This can be used e.g. in UIs which allow to enter the expression.
    */
   set title(value: string|null) {
     this.Serializable$set('title', value);
@@ -4673,9 +4742,9 @@ export class Feature extends Serializable {
   }
 
   /**
-   * The geometry of the feature.
-   * This will contain a `google.protobuf.Struct` if geometry is present for
-   * this feature. Otherwise, it will hold a `google.protobuf.NullValue`.
+   * The geometry of the feature. This will contain a `google.protobuf.Struct`
+   * if geometry is present for this feature. Otherwise, it will hold a
+   * `google.protobuf.NullValue`.
    */
   set geometry(value: any|null) {
     this.Serializable$set('geometry', value);
@@ -4689,9 +4758,9 @@ export class Feature extends Serializable {
   }
 
   /**
-   * The properties of the feature.
-   * This will contain a `google.protobuf.Struct` if properties are present for
-   * this feature. Otherwise, it will hold a `google.protobuf.NullValue`.
+   * The properties of the feature. This will contain a `google.protobuf.Struct`
+   * if properties are present for this feature. Otherwise, it will hold a
+   * `google.protobuf.NullValue`.
    */
   set properties(value: any|null) {
     this.Serializable$set('properties', value);
@@ -4787,8 +4856,8 @@ export class FilmstripThumbnail extends Serializable {
   }
 
   /**
-   * An optional pixel grid describing how the images computed by
-   * `expression` are reprojected and clipped.
+   * An optional pixel grid describing how the images computed by `expression`
+   * are reprojected and clipped.
    */
   set grid(value: PixelGrid|null) {
     this.Serializable$set('grid', value);
@@ -4802,8 +4871,8 @@ export class FilmstripThumbnail extends Serializable {
 
   /**
    * The resource name representing the filmstrip thumbnail, of the form
-   * \"projects/* /filmstripThumbnails/**\"
-   * (e.g. \"projects/earthengine-legacy/filmstripThumbnails/<FILMSTRIP-ID>\").
+   * \"projects/* /filmstripThumbnails/**\" (e.g.
+   * \"projects/earthengine-legacy/filmstripThumbnails/\").
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -4843,6 +4912,7 @@ export interface FolderQuotaParameters {
   sizeBytes?: string|null;
   maxSizeBytes?: string|null;
   assetCount?: string|null;
+  maxAssets?: string|null;
   maxAssetCount?: string|null;
 }
 export class FolderQuota extends Serializable {
@@ -4857,6 +4927,9 @@ export class FolderQuota extends Serializable {
     this.Serializable$set(
         'assetCount',
         (parameters.assetCount == null) ? (null) : (parameters.assetCount));
+    this.Serializable$set(
+        'maxAssets',
+        (parameters.maxAssets == null) ? (null) : (parameters.maxAssets));
     this.Serializable$set(
         'maxAssetCount',
         (parameters.maxAssetCount == null) ? (null) :
@@ -4889,6 +4962,20 @@ export class FolderQuota extends Serializable {
    */
   set maxAssetCount(value: string|null) {
     this.Serializable$set('maxAssetCount', value);
+  }
+
+  get maxAssets(): string|null {
+    return (
+        (this.Serializable$has('maxAssets')) ?
+            (this.Serializable$get('maxAssets')) :
+            (null));
+  }
+
+  /**
+   * The maximum number of assets that can be stored in the folder.
+   */
+  set maxAssets(value: string|null) {
+    this.Serializable$set('maxAssets', value);
   }
 
   get maxSizeBytes(): string|null {
@@ -4924,7 +5011,11 @@ export class FolderQuota extends Serializable {
   }
 
   getPartialClassMetadata(): Partial<ClassMetadata> {
-    return {keys: ['assetCount', 'maxAssetCount', 'maxSizeBytes', 'sizeBytes']};
+    return {
+      keys: [
+        'assetCount', 'maxAssetCount', 'maxAssets', 'maxSizeBytes', 'sizeBytes'
+      ]
+    };
   }
 }
 
@@ -4965,8 +5056,8 @@ export class FunctionDefinition extends Serializable {
   }
 
   /**
-   * The function body itself, as a reference to one of the ValueNodes in
-   * the enclosing Expression.
+   * The function body itself, as a reference to one of the ValueNodes in the
+   * enclosing Expression.
    */
   set body(value: string|null) {
     this.Serializable$set('body', value);
@@ -5038,10 +5129,10 @@ export class FunctionInvocation extends Serializable {
   }
 
   /**
-   * A reference to a function-valued value. This is usually a direct
-   * reference to a FunctionDefinition value, but need not be: it could be a
-   * reference to a FunctionInvocation whose result is a function, or to a
-   * function-valued argument value.
+   * A reference to a function-valued value. This is usually a direct reference
+   * to a FunctionDefinition value, but need not be: it could be a reference to
+   * a FunctionInvocation whose result is a function, or to a function-valued
+   * argument value.
    */
   set functionReference(value: string|null) {
     this.Serializable$set('functionReference', value);
@@ -5132,8 +5223,8 @@ export class GcsDestination extends Serializable {
   /**
    * The string used as the prefix for each output file. A trailing \"/\"
    * indicates a path. The filenames of the exported files will be constructed
-   * from this prefix, the coordinates of each file in a mosaic (if any), and
-   * a file extension corresponding to the file format.
+   * from this prefix, the coordinates of each file in a mosaic (if any), and a
+   * file extension corresponding to the file format.
    */
   set filenamePrefix(value: string|null) {
     this.Serializable$set('filenamePrefix', value);
@@ -5299,7 +5390,7 @@ export class GetIamPolicyRequest extends Serializable {
 
   /**
    * OPTIONAL: A `GetPolicyOptions` object for specifying options to
-   * `GetIamPolicy`. This field is only used by Cloud IAM.
+   * `GetIamPolicy`.
    */
   set options(value: GetPolicyOptions|null) {
     this.Serializable$set('options', value);
@@ -5354,8 +5445,8 @@ export class GetPixelsRequest extends Serializable {
 
   /**
    * If present, specifies a specific set of bands from which to get pixels.
-   * Bands are identified by id, as indicated by the `id` field of an
-   * ImageBand proto.
+   * Bands are identified by id, as indicated by the `id` field of an ImageBand
+   * proto.
    */
   set bandIds(value: Array<string>|null) {
     this.Serializable$set('bandIds', value);
@@ -5382,8 +5473,8 @@ export class GetPixelsRequest extends Serializable {
   }
 
   /**
-   * Parameters describing the pixel grid in which to fetch data. Defaults to
-   * the native pixel grid of the data.
+   * Optional parameters describing the pixel grid in which to fetch data.
+   * Defaults to the native pixel grid of the data.
    */
   set grid(value: PixelGrid|null) {
     this.Serializable$set('grid', value);
@@ -5397,10 +5488,10 @@ export class GetPixelsRequest extends Serializable {
 
   /**
    * If present, the region of data to return, specified as a GeoJSON geometry
-   * object (see RFC 7946). Since the returned image is always rectangular,
-   * the bounding box of the given geometry in the output coordinate system
-   * will actually be used.  If `grid.dimensions` is also specified then the
-   * grid will finally be rescaled to the requested size.
+   * object (see RFC 7946). Since the returned image is always rectangular, the
+   * bounding box of the given geometry in the output coordinate system will
+   * actually be used. If `grid.dimensions` is also specified then the grid will
+   * finally be rescaled to the requested size.
    */
   set region(value: ApiClientObjectMap<any>|null) {
     this.Serializable$set('region', value);
@@ -5414,8 +5505,8 @@ export class GetPixelsRequest extends Serializable {
   }
 
   /**
-   * If present, a set of visualization options to apply to produce an
-   * 8-bit RGB visualization of the data, rather than returning the raw data.
+   * If present, a set of visualization options to apply to produce an 8-bit RGB
+   * visualization of the data, rather than returning the raw data.
    */
   set visualizationOptions(value: VisualizationOptions|null) {
     this.Serializable$set('visualizationOptions', value);
@@ -5463,14 +5554,13 @@ export class GetPolicyOptions extends Serializable {
   }
 
   /**
-   * Optional. The policy format version to be returned.
-   *
-   * Valid values are 0, 1, and 3. Requests specifying an invalid value will be
-   * rejected.
-   *
-   * Requests for policies with any conditional bindings must specify version 3.
-   * Policies without any conditional bindings may specify any valid value or
-   * leave the field unset.
+   * Optional. The policy format version to be returned. Valid values are 0, 1,
+   * and 3. Requests specifying an invalid value will be rejected. Requests for
+   * policies with any conditional bindings must specify version 3. Policies
+   * without any conditional bindings may specify any valid value or leave the
+   * field unset. To learn which resources support conditions in their IAM
+   * policies, see the [IAM
+   * documentation](https://cloud.google.com/iam/help/conditions/resource-policies).
    */
   set requestedPolicyVersion(value: number|null) {
     this.Serializable$set('requestedPolicyVersion', value);
@@ -5770,9 +5860,8 @@ export class Image extends Serializable {
 
   /**
    * The ID of the image, if present. Equivalent to `name` without the
-   * \"projects/* /assets/\" prefix (e.g. \"users/<USER>/<ASSET>\").
-   * This should typically be present for stored images, but will be the empty
-   * string for computed ones.
+   * \"projects/* /assets/\" prefix (e.g. \"users//\"). This should typically be
+   * present for stored images, but will be the empty string for computed ones.
    */
   set id(value: string|null) {
     this.Serializable$set('id', value);
@@ -5785,11 +5874,10 @@ export class Image extends Serializable {
   }
 
   /**
-   * The name of the image, if present. `name` is of the format
-   * \"projects/* /assets/**\"
-   * (e.g. \"projects/earthengine-legacy/assets/users/<USER>/<ASSET>\").
-   * This should typically be present for stored images, but will be the empty
-   * string for computed ones.
+   * The name of the image, if present. `name` is of the format \"projects/*
+   * /assets/**\" (e.g. \"projects/earthengine-legacy/assets/users//\"). This
+   * should typically be present for stored images, but will be the empty string
+   * for computed ones.
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -5817,9 +5905,8 @@ export class Image extends Serializable {
   }
 
   /**
-   * The size of a leaf asset (e.g. an image) in bytes.
-   * This should typically be non-zero for stored images, and zero for computed
-   * ones.
+   * The size of a leaf asset (e.g. an image) in bytes. This should typically be
+   * non-zero for stored images, and zero for computed ones.
    */
   set sizeBytes(value: string|null) {
     this.Serializable$set('sizeBytes', value);
@@ -5991,9 +6078,9 @@ export class ImageAssetExportOptions extends Serializable {
   }
 
   /**
-   * Tile size in the generated raster files.  The default (256) is appropriate
+   * Tile size in the generated raster files. The default (256) is appropriate
    * for scalar bands, but may need to be reduced for assets with array-valued
-   * pixels.  Note that a single value is used for all bands.
+   * pixels. Note that a single value is used for all bands.
    */
   set tileSize(value: number|null) {
     this.Serializable$set('tileSize', value);
@@ -6163,22 +6250,25 @@ export class ImageBand extends Serializable {
 }
 
 export interface ImageFileExportOptionsParameters {
-  fileFormat?: ImageFileExportOptionsFileFormat|null;
   driveDestination?: DriveDestination|null;
+  cloudStorageDestination?: CloudStorageDestination|null;
   gcsDestination?: GcsDestination|null;
   geoTiffOptions?: GeoTiffImageExportOptions|null;
   tfRecordOptions?: TfRecordImageExportOptions|null;
+  fileFormat?: ImageFileExportOptionsFileFormat|null;
 }
 export class ImageFileExportOptions extends Serializable {
   constructor(parameters: ImageFileExportOptionsParameters = {}) {
     super();
     this.Serializable$set(
-        'fileFormat',
-        (parameters.fileFormat == null) ? (null) : (parameters.fileFormat));
-    this.Serializable$set(
         'driveDestination',
         (parameters.driveDestination == null) ? (null) :
                                                 (parameters.driveDestination));
+    this.Serializable$set(
+        'cloudStorageDestination',
+        (parameters.cloudStorageDestination == null) ?
+            (null) :
+            (parameters.cloudStorageDestination));
     this.Serializable$set(
         'gcsDestination',
         (parameters.gcsDestination == null) ? (null) :
@@ -6191,10 +6281,27 @@ export class ImageFileExportOptions extends Serializable {
         'tfRecordOptions',
         (parameters.tfRecordOptions == null) ? (null) :
                                                (parameters.tfRecordOptions));
+    this.Serializable$set(
+        'fileFormat',
+        (parameters.fileFormat == null) ? (null) : (parameters.fileFormat));
   }
 
   static get FileFormat(): IImageFileExportOptionsFileFormatEnum {
     return ImageFileExportOptionsFileFormatEnum;
+  }
+
+  get cloudStorageDestination(): CloudStorageDestination|null {
+    return (
+        (this.Serializable$has('cloudStorageDestination')) ?
+            (this.Serializable$get('cloudStorageDestination')) :
+            (null));
+  }
+
+  /**
+   * If specified, configures export to Google Cloud Storage.
+   */
+  set cloudStorageDestination(value: CloudStorageDestination|null) {
+    this.Serializable$set('cloudStorageDestination', value);
   }
 
   get driveDestination(): DriveDestination|null {
@@ -6275,10 +6382,11 @@ export class ImageFileExportOptions extends Serializable {
     return {
       enums: {'fileFormat': ImageFileExportOptionsFileFormatEnum},
       keys: [
-        'driveDestination', 'fileFormat', 'gcsDestination', 'geoTiffOptions',
-        'tfRecordOptions'
+        'cloudStorageDestination', 'driveDestination', 'fileFormat',
+        'gcsDestination', 'geoTiffOptions', 'tfRecordOptions'
       ],
       objects: {
+        'cloudStorageDestination': CloudStorageDestination,
         'driveDestination': DriveDestination,
         'gcsDestination': GcsDestination,
         'geoTiffOptions': GeoTiffImageExportOptions,
@@ -6379,9 +6487,9 @@ export class ImageManifest extends Serializable {
   }
 
   /**
-   * The footprint in pixel coordinates (not in lat/lng coordinates).
-   * If empty, the footprint is by default the entire image.
-   * See `PixelGrid` for a more detailed description of pixel coordinates.
+   * The footprint in pixel coordinates (not in lat/lng coordinates). If empty,
+   * the footprint is by default the entire image. See `PixelGrid` for a more
+   * detailed description of pixel coordinates.
    */
   set footprint(value: PixelFootprint|null) {
     this.Serializable$set('footprint', value);
@@ -6423,13 +6531,12 @@ export class ImageManifest extends Serializable {
   }
 
   /**
-   * The name of the asset to be created.
-   * `name` is of the format \"projects/* /assets/**\"
-   * (e.g. \"projects/earthengine-legacy/assets/users/<USER>/<ASSET>\").
-   * All user-owned assets are under the project \"earthengine-legacy\"
-   * (e.g. \"projects/earthengine-legacy/assets/users/foo/bar\").
-   * All other assets are under the project \"earthengine-public\"
-   * (e.g. \"projects/earthengine-public/assets/LANDSAT\").
+   * The name of the asset to be created. `name` is of the format \"projects/*
+   * /assets/**\" (e.g. \"projects/earthengine-legacy/assets/users//\"). All
+   * user-owned assets are under the project \"earthengine-legacy\" (e.g.
+   * \"projects/earthengine-legacy/assets/users/foo/bar\"). All other assets are
+   * under the project \"earthengine-public\" (e.g.
+   * \"projects/earthengine-public/assets/LANDSAT\").
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -6506,8 +6613,7 @@ export class ImageManifest extends Serializable {
   }
 
   /**
-   * The optional prefix prepended to all `uri`s defined in this
-   * manifest.
+   * The optional prefix prepended to all `uri`s defined in this manifest.
    */
   set uriPrefix(value: string|null) {
     this.Serializable$set('uriPrefix', value);
@@ -6581,10 +6687,9 @@ export class ImageSource extends Serializable {
   /**
    * The URIs of the data to import. Currently, only Google Cloud Storage URIs
    * are supported. Each URI must be specified in the following format:
-   * \"gs://bucket-id/object-id\".
-   * The primary object should be the first element of the list, and sidecars
-   * listed afterwards. Each URI is prefixed with
-   * `ImageManifest.uri_prefix` if set.
+   * \"gs://bucket-id/object-id\". The primary object should be the first
+   * element of the list, and sidecars listed afterwards. Each URI is prefixed
+   * with `ImageManifest.uri_prefix` if set.
    */
   set uris(value: Array<string>|null) {
     this.Serializable$set('uris', value);
@@ -6677,8 +6782,8 @@ export class ImportImageRequest extends Serializable {
 
   /**
    * A unique string used to detect duplicated requests. If more than one
-   * request is made by the same user with the same non-empty `request_id`,
-   * only one of those requests may successfully start a long-running operation.
+   * request is made by the same user with the same non-empty `request_id`, only
+   * one of those requests may successfully start a long-running operation.
    * `request_id` may contain the characters a..z, A..Z, 0-9, or '-'.
    * `request_id` may be at most 60 characters long.
    */
@@ -6759,8 +6864,8 @@ export class ImportTableRequest extends Serializable {
 
   /**
    * A unique string used to detect duplicated requests. If more than one
-   * request is made by the same user with the same non-empty `request_id`,
-   * only one of those requests may successfully start a long-running operation.
+   * request is made by the same user with the same non-empty `request_id`, only
+   * one of those requests may successfully start a long-running operation.
    * `request_id` may contain the characters a..z, A..Z, 0-9, or '-'.
    * `request_id` may be at most 60 characters long.
    */
@@ -6814,9 +6919,8 @@ export class LinkAssetRequest extends Serializable {
   }
 
   /**
-   * The destination name to which we are linking the asset.
-   * `name` is of the format \"projects/* /assets\"
-   * (e.g., \"projects/my-project/assets\").
+   * The destination name to which we are linking the asset. `name` is of the
+   * format \"projects/* /assets\" (e.g., \"projects/my-project/assets\").
    */
   set destinationName(value: string|null) {
     this.Serializable$set('destinationName', value);
@@ -6903,9 +7007,8 @@ export class ListAssetsResponse extends Serializable {
 
   /**
    * A token to retrieve the next page of results. Pass this value in the
-   * ListAssetsRequest.page_token
-   * field in the subsequent call to the `ListAssets` method to
-   * retrieve the next page of results.
+   * ListAssetsRequest.page_token field in the subsequent call to the
+   * `ListAssets` method to retrieve the next page of results.
    */
   set nextPageToken(value: string|null) {
     this.Serializable$set('nextPageToken', value);
@@ -6950,10 +7053,10 @@ export class ListFeaturesResponse extends Serializable {
   }
 
   /**
-   * The list of features matching the query, as a list of GeoJSON
-   * feature objects (see RFC 7946) containing the string \"Feature\" in
-   * a field named \"type\", the geometry in a field named \"geometry\",
-   * and key/value properties in a field named \"properties\".
+   * The list of features matching the query, as a list of GeoJSON feature
+   * objects (see RFC 7946) containing the string \"Feature\" in a field named
+   * \"type\", the geometry in a field named \"geometry\", and key/value
+   * properties in a field named \"properties\".
    */
   set features(value: Array<Feature>|null) {
     this.Serializable$set('features', value);
@@ -6968,9 +7071,8 @@ export class ListFeaturesResponse extends Serializable {
 
   /**
    * A token to retrieve the next page of results. Pass this value in the
-   * ListFeaturesRequest.page_token
-   * field in the subsequent call to the `ListFeatures` method
-   * to retrieve the next page of results.
+   * ListFeaturesRequest.page_token field in the subsequent call to the
+   * `ListFeatures` method to retrieve the next page of results.
    */
   set nextPageToken(value: string|null) {
     this.Serializable$set('nextPageToken', value);
@@ -6983,8 +7085,8 @@ export class ListFeaturesResponse extends Serializable {
   }
 
   /**
-   * Always contains the constant string \"FeatureCollection\", marking
-   * this as a GeoJSON FeatureCollection object.
+   * Always contains the constant string \"FeatureCollection\", marking this as
+   * a GeoJSON FeatureCollection object.
    */
   set type(value: string|null) {
     this.Serializable$set('type', value);
@@ -7039,9 +7141,8 @@ export class ListImagesResponse extends Serializable {
 
   /**
    * A token to retrieve the next page of results. Pass this value in the
-   * ListImagesRequest.page_token
-   * field in the subsequent call to the `ListImages` method to retrieve the
-   * next page of results.
+   * ListImagesRequest.page_token field in the subsequent call to the
+   * `ListImages` method to retrieve the next page of results.
    */
   set nextPageToken(value: string|null) {
     this.Serializable$set('nextPageToken', value);
@@ -7241,13 +7342,13 @@ export class MoveAssetRequest extends Serializable {
   }
 
   /**
-   * The destination name to which to move the asset.
-   * `name` is of the format \"projects/* /assets/**\"
-   * (e.g., \"projects/earthengine-legacy/assets/users/[USER]/[ASSET]\").
-   * All user-owned assets are under the project \"earthengine-legacy\"
-   * (e.g., \"projects/earthengine-legacy/assets/users/foo/bar\").
-   * All other assets are under the project \"earthengine-public\"
-   * (e.g., \"projects/earthengine-public/assets/LANDSAT\").
+   * The destination name to which to move the asset. `name` is of the format
+   * \"projects/* /assets/**\" (e.g.,
+   * \"projects/earthengine-legacy/assets/users/[USER]/[ASSET]\"). All
+   * user-owned assets are under the project \"earthengine-legacy\" (e.g.,
+   * \"projects/earthengine-legacy/assets/users/foo/bar\"). All other assets are
+   * under the project \"earthengine-public\" (e.g.,
+   * \"projects/earthengine-public/assets/LANDSAT\").
    */
   set destinationName(value: string|null) {
     this.Serializable$set('destinationName', value);
@@ -7293,8 +7394,8 @@ export class Operation extends Serializable {
   }
 
   /**
-   * If the value is `false`, it means the operation is still in progress.
-   * If `true`, the operation is completed, and either `error` or `response` is
+   * If the value is `false`, it means the operation is still in progress. If
+   * `true`, the operation is completed, and either `error` or `response` is
    * available.
    */
   set done(value: boolean|null) {
@@ -7322,9 +7423,9 @@ export class Operation extends Serializable {
   }
 
   /**
-   * Service-specific metadata associated with the operation.  It typically
-   * contains progress information and common metadata such as create time.
-   * Some services might not provide such metadata.  Any method that returns a
+   * Service-specific metadata associated with the operation. It typically
+   * contains progress information and common metadata such as create time. Some
+   * services might not provide such metadata. Any method that returns a
    * long-running operation should document the metadata type, if any.
    */
   set metadata(value: ApiClientObjectMap<any>|null) {
@@ -7339,8 +7440,8 @@ export class Operation extends Serializable {
 
   /**
    * The server-assigned name, which is only unique within the same service that
-   * originally returns it. If you use the default HTTP mapping, the
-   * `name` should be a resource name ending with `operations/{unique_id}`.
+   * originally returns it. If you use the default HTTP mapping, the `name`
+   * should be a resource name ending with `operations/{unique_id}`.
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -7354,14 +7455,13 @@ export class Operation extends Serializable {
   }
 
   /**
-   * The normal response of the operation in case of success.  If the original
+   * The normal response of the operation in case of success. If the original
    * method returns no data on success, such as `Delete`, the response is
-   * `google.protobuf.Empty`.  If the original method is standard
-   * `Get`/`Create`/`Update`, the response should be the resource.  For other
-   * methods, the response should have the type `XxxResponse`, where `Xxx`
-   * is the original method name.  For example, if the original method name
-   * is `TakeSnapshot()`, the inferred response type is
-   * `TakeSnapshotResponse`.
+   * `google.protobuf.Empty`. If the original method is standard
+   * `Get`/`Create`/`Update`, the response should be the resource. For other
+   * methods, the response should have the type `XxxResponse`, where `Xxx` is
+   * the original method name. For example, if the original method name is
+   * `TakeSnapshot()`, the inferred response type is `TakeSnapshotResponse`.
    */
   set response(value: ApiClientObjectMap<any>|null) {
     this.Serializable$set('response', value);
@@ -7402,6 +7502,7 @@ export interface OperationMetadataParameters {
   updateTime?: string|null;
   startTime?: string|null;
   endTime?: string|null;
+  attempt?: number|null;
   scriptUri?: string|null;
   destinationUris?: Array<string>|null;
 }
@@ -7431,6 +7532,9 @@ export class OperationMetadata extends Serializable {
         'endTime',
         (parameters.endTime == null) ? (null) : (parameters.endTime));
     this.Serializable$set(
+        'attempt',
+        (parameters.attempt == null) ? (null) : (parameters.attempt));
+    this.Serializable$set(
         'scriptUri',
         (parameters.scriptUri == null) ? (null) : (parameters.scriptUri));
     this.Serializable$set(
@@ -7441,6 +7545,24 @@ export class OperationMetadata extends Serializable {
 
   static get State(): IOperationMetadataStateEnum {
     return OperationMetadataStateEnum;
+  }
+
+  get attempt(): number|null {
+    return (
+        (this.Serializable$has('attempt')) ?
+            (this.Serializable$get('attempt')) :
+            (null));
+  }
+
+  /**
+   * Current attempt number. If an operation is retried the attempt number will
+   * increase which can happen in the following siutations: - If an operation
+   * failed due to the memory limit (likely will cause all following attempts to
+   * fail and be permanent), - If resources had to be reallocated for other
+   * jobs. (likely to be transient)
+   */
+  set attempt(value: number|null) {
+    this.Serializable$set('attempt', value);
   }
 
   get createTime(): string|null {
@@ -7591,8 +7713,8 @@ export class OperationMetadata extends Serializable {
     return {
       enums: {'state': OperationMetadataStateEnum},
       keys: [
-        'createTime', 'description', 'destinationUris', 'endTime', 'priority',
-        'scriptUri', 'startTime', 'state', 'type', 'updateTime'
+        'attempt', 'createTime', 'description', 'destinationUris', 'endTime',
+        'priority', 'scriptUri', 'startTime', 'state', 'type', 'updateTime'
       ]
     };
   }
@@ -7697,8 +7819,8 @@ export class PixelFootprint extends Serializable {
   }
 
   /**
-   * The ID of the band whose CRS defines the coordinates of the footprint.
-   * If empty, the first band is used.
+   * The ID of the band whose CRS defines the coordinates of the footprint. If
+   * empty, the first band is used.
    */
   set bandId(value: string|null) {
     this.Serializable$set('bandId', value);
@@ -7714,22 +7836,17 @@ export class PixelFootprint extends Serializable {
    * A ring which forms the exterior of a simple polygon that must contain the
    * centers of all valid pixels of the image. This must be a linear ring: the
    * last point must be equal to the first. Coordinates are in the projection of
-   * the band specified by `band_id`.
-   *
-   * Note: Use non-integer coordinates such as the center of each pixel because
-   * footprint is taken to include a pixel iff the pixel (a 1x1 rectangle)
-   * intersects the footprint. To avoid accidentally selecting neighboring
-   * pixels, don't use integer-valued coordinates, because those are the
-   * boundaries between pixels. Drawing the footprint along the pixel centers
-   * prevents including unintended pixels, which can cause errors when
-   * intended pixels are abutting a map boundary such as the antimeridian
-   * or a pole.
-   *
-   * For example, for a 2x2 image with all 4 valid pixels the following is one
-   * possible ring:
-   * [{\"x\": 0.5, \"y\": 0.5}, {\"x\": 0.5, \"y\": 1.5}, {\"x\": 1.5,
-   * \"y\": 1.5},
-   *  {\"x\": 1.5, \"y\": 0.5}, {\"x\": 0.5, \"y\": 0.5}]
+   * the band specified by `band_id`. Note: Use non-integer coordinates such as
+   * the center of each pixel because footprint is taken to include a pixel iff
+   * the pixel (a 1x1 rectangle) intersects the footprint. To avoid accidentally
+   * selecting neighboring pixels, don't use integer-valued coordinates, because
+   * those are the boundaries between pixels. Drawing the footprint along the
+   * pixel centers prevents including unintended pixels, which can cause errors
+   * when intended pixels are abutting a map boundary such as the antimeridian
+   * or a pole. For example, for a 2x2 image with all 4 valid pixels the
+   * following is one possible ring: [{\"x\": 0.5, \"y\": 0.5}, {\"x\": 0.5,
+   * \"y\": 1.5}, {\"x\": 1.5, \"y\": 1.5}, {\"x\": 1.5, \"y\": 0.5}, {\"x\":
+   * 0.5, \"y\": 0.5}]
    */
   set points(value: Array<GridPoint>|null) {
     this.Serializable$set('points', value);
@@ -7901,14 +8018,13 @@ export class Policy extends Serializable {
   }
 
   /**
-   * `etag` is used for optimistic concurrency control as a way to help
-   * prevent simultaneous updates of a policy from overwriting each other.
-   * It is strongly suggested that systems make use of the `etag` in the
+   * `etag` is used for optimistic concurrency control as a way to help prevent
+   * simultaneous updates of a policy from overwriting each other. It is
+   * strongly suggested that systems make use of the `etag` in the
    * read-modify-write cycle to perform policy updates in order to avoid race
    * conditions: An `etag` is returned in the response to `getIamPolicy`, and
    * systems are expected to put that etag in the request to `setIamPolicy` to
    * ensure that their change will be applied to the same version of the policy.
-   *
    * **Important:** If you use IAM Conditions, you must include the `etag` field
    * whenever you call `setIamPolicy`. If you omit this field, then IAM allows
    * you to overwrite a version `3` policy with a version `1` policy, and all of
@@ -7937,14 +8053,12 @@ export class Policy extends Serializable {
 
   /**
    * If more than one rule is specified, the rules are applied in the following
-   * manner:
-   * - All matching LOG rules are always applied.
-   * - If any DENY/DENY_WITH_LOG rule matches, permission is denied.
-   *   Logging will be applied if one or more matching rule requires logging.
-   * - Otherwise, if any ALLOW/ALLOW_WITH_LOG rule matches, permission is
-   *   granted.
-   *   Logging will be applied if one or more matching rule requires logging.
-   * - Otherwise, if no rule applies, permission is denied.
+   * manner: - All matching LOG rules are always applied. - If any
+   * DENY/DENY_WITH_LOG rule matches, permission is denied. Logging will be
+   * applied if one or more matching rule requires logging. - Otherwise, if any
+   * ALLOW/ALLOW_WITH_LOG rule matches, permission is granted. Logging will be
+   * applied if one or more matching rule requires logging. - Otherwise, if no
+   * rule applies, permission is denied.
    */
   set rules(value: Array<Rule>|null) {
     this.Serializable$set('rules', value);
@@ -7958,27 +8072,21 @@ export class Policy extends Serializable {
   }
 
   /**
-   * Specifies the format of the policy.
-   *
-   * Valid values are `0`, `1`, and `3`. Requests that specify an invalid value
-   * are rejected.
-   *
-   * Any operation that affects conditional role bindings must specify version
-   * `3`. This requirement applies to the following operations:
-   *
-   * * Getting a policy that includes a conditional role binding
-   * * Adding a conditional role binding to a policy
-   * * Changing a conditional role binding in a policy
-   * * Removing any role binding, with or without a condition, from a policy
-   *   that includes conditions
-   *
-   * **Important:** If you use IAM Conditions, you must include the `etag` field
-   * whenever you call `setIamPolicy`. If you omit this field, then IAM allows
-   * you to overwrite a version `3` policy with a version `1` policy, and all of
-   * the conditions in the version `3` policy are lost.
-   *
-   * If a policy does not include any conditions, operations on that policy may
-   * specify any valid version or leave the field unset.
+   * Specifies the format of the policy. Valid values are `0`, `1`, and `3`.
+   * Requests that specify an invalid value are rejected. Any operation that
+   * affects conditional role bindings must specify version `3`. This
+   * requirement applies to the following operations: * Getting a policy that
+   * includes a conditional role binding * Adding a conditional role binding to
+   * a policy * Changing a conditional role binding in a policy * Removing any
+   * role binding, with or without a condition, from a policy that includes
+   * conditions **Important:** If you use IAM Conditions, you must include the
+   * `etag` field whenever you call `setIamPolicy`. If you omit this field, then
+   * IAM allows you to overwrite a version `3` policy with a version `1` policy,
+   * and all of the conditions in the version `3` policy are lost. If a policy
+   * does not include any conditions, operations on that policy may specify any
+   * valid version or leave the field unset. To learn which resources support
+   * conditions in their IAM policies, see the [IAM
+   * documentation](https://cloud.google.com/iam/help/conditions/resource-policies).
    */
   set version(value: number|null) {
     this.Serializable$set('version', value);
@@ -8080,8 +8188,8 @@ export class Rule extends Serializable {
   }
 
   /**
-   * If one or more 'in' clauses are specified, the rule matches if
-   * the PRINCIPAL/AUTHORITY_SELECTOR is in at least one of these entries.
+   * If one or more 'in' clauses are specified, the rule matches if the
+   * PRINCIPAL/AUTHORITY_SELECTOR is in at least one of these entries.
    */
   set in(value: Array<string>|null) {
     this.Serializable$set('in', value);
@@ -8109,10 +8217,10 @@ export class Rule extends Serializable {
   }
 
   /**
-   * If one or more 'not_in' clauses are specified, the rule matches
-   * if the PRINCIPAL/AUTHORITY_SELECTOR is in none of the entries.
-   * The format for in and not_in entries can be found at in the Local IAM
-   * documentation (see go/local-iam#features).
+   * If one or more 'not_in' clauses are specified, the rule matches if the
+   * PRINCIPAL/AUTHORITY_SELECTOR is in none of the entries. The format for in
+   * and not_in entries can be found at in the Local IAM documentation (see
+   * go/local-iam#features).
    */
   set notIn(value: Array<string>|null) {
     this.Serializable$set('notIn', value);
@@ -8126,9 +8234,9 @@ export class Rule extends Serializable {
   }
 
   /**
-   * A permission is a string of form '<service>.<resource type>.<verb>'
-   * (e.g., 'storage.buckets.list'). A value of '*' matches all permissions,
-   * and a verb part of '*' (e.g., 'storage.buckets.*') matches all verbs.
+   * A permission is a string of form '..' (e.g., 'storage.buckets.list'). A
+   * value of '*' matches all permissions, and a verb part of '*' (e.g.,
+   * 'storage.buckets.*') matches all verbs.
    */
   set permissions(value: Array<string>|null) {
     this.Serializable$set('permissions', value);
@@ -8146,66 +8254,6 @@ export class Rule extends Serializable {
         'action', 'conditions', 'description', 'in', 'logConfig', 'notIn',
         'permissions'
       ]
-    };
-  }
-}
-
-export interface SearchAssetsResponseParameters {
-  assets?: Array<EarthEngineAsset>|null;
-  nextPageToken?: string|null;
-}
-export class SearchAssetsResponse extends Serializable {
-  constructor(parameters: SearchAssetsResponseParameters = {}) {
-    super();
-    this.Serializable$set(
-        'assets', (parameters.assets == null) ? (null) : (parameters.assets));
-    this.Serializable$set(
-        'nextPageToken',
-        (parameters.nextPageToken == null) ? (null) :
-                                             (parameters.nextPageToken));
-  }
-
-  get assets(): Array<EarthEngineAsset>|null {
-    return (
-        (this.Serializable$has('assets')) ? (this.Serializable$get('assets')) :
-                                            (null));
-  }
-
-  /**
-   * The assets that match the request query.
-   * By default only metadata fields are populated.  Use
-   * SearchAssetsRequest.field_mask
-   * to request a specific selection of properties.
-   */
-  set assets(value: Array<EarthEngineAsset>|null) {
-    this.Serializable$set('assets', value);
-  }
-
-  get nextPageToken(): string|null {
-    return (
-        (this.Serializable$has('nextPageToken')) ?
-            (this.Serializable$get('nextPageToken')) :
-            (null));
-  }
-
-  /**
-   * A token to retrieve the next page of results. Pass this value in the
-   * SearchAssetsRequest.page_token
-   * field in the subsequent call to the `SearchAssets` method to
-   * retrieve the next page of results.
-   */
-  set nextPageToken(value: string|null) {
-    this.Serializable$set('nextPageToken', value);
-  }
-
-  getConstructor(): SerializableCtor<SearchAssetsResponse> {
-    return SearchAssetsResponse;
-  }
-
-  getPartialClassMetadata(): Partial<ClassMetadata> {
-    return {
-      arrays: {'assets': EarthEngineAsset},
-      keys: ['assets', 'nextPageToken']
     };
   }
 }
@@ -8232,9 +8280,8 @@ export class SetIamPolicyRequest extends Serializable {
 
   /**
    * REQUIRED: The complete policy to be applied to the `resource`. The size of
-   * the policy is limited to a few 10s of KB. An empty policy is a
-   * valid policy but certain Cloud Platform services (such as Projects)
-   * might reject them.
+   * the policy is limited to a few 10s of KB. An empty policy is a valid policy
+   * but certain Cloud Platform services (such as Projects) might reject them.
    */
   set policy(value: Policy|null) {
     this.Serializable$set('policy', value);
@@ -8250,9 +8297,7 @@ export class SetIamPolicyRequest extends Serializable {
   /**
    * OPTIONAL: A FieldMask specifying which fields of the policy to modify. Only
    * the fields in the mask will be modified. If no mask is provided, the
-   * following default mask is used:
-   * paths: \"bindings, etag\"
-   * This field is only used by Cloud IAM.
+   * following default mask is used: `paths: \"bindings, etag\"`
    */
   set updateMask(value: string|null) {
     this.Serializable$set('updateMask', value);
@@ -8306,7 +8351,7 @@ export class Status extends Serializable {
   }
 
   /**
-   * A list of messages that carry the error details.  There is a common set of
+   * A list of messages that carry the error details. There is a common set of
    * message types for APIs to use.
    */
   set details(value: Array<ApiClientObjectMap<any>>|null) {
@@ -8352,6 +8397,8 @@ export interface TableParameters {
   name?: string|null;
   expression?: Expression|null;
   fileFormat?: TableFileFormat|null;
+  selectors?: Array<string>|null;
+  filename?: string|null;
 }
 export class Table extends Serializable {
   constructor(parameters: TableParameters = {}) {
@@ -8364,6 +8411,12 @@ export class Table extends Serializable {
     this.Serializable$set(
         'fileFormat',
         (parameters.fileFormat == null) ? (null) : (parameters.fileFormat));
+    this.Serializable$set(
+        'selectors',
+        (parameters.selectors == null) ? (null) : (parameters.selectors));
+    this.Serializable$set(
+        'filename',
+        (parameters.filename == null) ? (null) : (parameters.filename));
   }
 
   static get FileFormat(): ITableFileFormatEnum {
@@ -8398,6 +8451,20 @@ export class Table extends Serializable {
     this.Serializable$set('fileFormat', value);
   }
 
+  get filename(): string|null {
+    return (
+        (this.Serializable$has('filename')) ?
+            (this.Serializable$get('filename')) :
+            (null));
+  }
+
+  /**
+   * Optional filename of the resulting table.
+   */
+  set filename(value: string|null) {
+    this.Serializable$set('filename', value);
+  }
+
   get name(): string|null {
     return (
         (this.Serializable$has('name')) ? (this.Serializable$get('name')) :
@@ -8405,12 +8472,25 @@ export class Table extends Serializable {
   }
 
   /**
-   * The resource name representing the thumbnail, of the form
-   * \"projects/* /tables/**\"
-   * (e.g. \"projects/earthengine-legacy/tables/<THUMBNAIL-ID>\").
+   * The resource name representing the thumbnail, of the form \"projects/*
+   * /tables/**\" (e.g. \"projects/earthengine-legacy/tables/\").
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
+  }
+
+  get selectors(): Array<string>|null {
+    return (
+        (this.Serializable$has('selectors')) ?
+            (this.Serializable$get('selectors')) :
+            (null));
+  }
+
+  /**
+   * Optional property fields to select from the specified table.
+   */
+  set selectors(value: Array<string>|null) {
+    this.Serializable$set('selectors', value);
   }
 
   getConstructor(): SerializableCtor<Table> {
@@ -8420,7 +8500,7 @@ export class Table extends Serializable {
   getPartialClassMetadata(): Partial<ClassMetadata> {
     return {
       enums: {'fileFormat': TableFileFormatEnum},
-      keys: ['expression', 'fileFormat', 'name'],
+      keys: ['expression', 'fileFormat', 'filename', 'name', 'selectors'],
       objects: {'expression': Expression}
     };
   }
@@ -8466,28 +8546,48 @@ export class TableAssetExportOptions extends Serializable {
 }
 
 export interface TableFileExportOptionsParameters {
-  fileFormat?: TableFileExportOptionsFileFormat|null;
   driveDestination?: DriveDestination|null;
+  cloudStorageDestination?: CloudStorageDestination|null;
   gcsDestination?: GcsDestination|null;
+  fileFormat?: TableFileExportOptionsFileFormat|null;
 }
 export class TableFileExportOptions extends Serializable {
   constructor(parameters: TableFileExportOptionsParameters = {}) {
     super();
     this.Serializable$set(
-        'fileFormat',
-        (parameters.fileFormat == null) ? (null) : (parameters.fileFormat));
-    this.Serializable$set(
         'driveDestination',
         (parameters.driveDestination == null) ? (null) :
                                                 (parameters.driveDestination));
     this.Serializable$set(
+        'cloudStorageDestination',
+        (parameters.cloudStorageDestination == null) ?
+            (null) :
+            (parameters.cloudStorageDestination));
+    this.Serializable$set(
         'gcsDestination',
         (parameters.gcsDestination == null) ? (null) :
                                               (parameters.gcsDestination));
+    this.Serializable$set(
+        'fileFormat',
+        (parameters.fileFormat == null) ? (null) : (parameters.fileFormat));
   }
 
   static get FileFormat(): ITableFileExportOptionsFileFormatEnum {
     return TableFileExportOptionsFileFormatEnum;
+  }
+
+  get cloudStorageDestination(): CloudStorageDestination|null {
+    return (
+        (this.Serializable$has('cloudStorageDestination')) ?
+            (this.Serializable$get('cloudStorageDestination')) :
+            (null));
+  }
+
+  /**
+   * If specified, configures export to Google Cloud Storage.
+   */
+  set cloudStorageDestination(value: CloudStorageDestination|null) {
+    this.Serializable$set('cloudStorageDestination', value);
   }
 
   get driveDestination(): DriveDestination|null {
@@ -8539,8 +8639,12 @@ export class TableFileExportOptions extends Serializable {
   getPartialClassMetadata(): Partial<ClassMetadata> {
     return {
       enums: {'fileFormat': TableFileExportOptionsFileFormatEnum},
-      keys: ['driveDestination', 'fileFormat', 'gcsDestination'],
+      keys: [
+        'cloudStorageDestination', 'driveDestination', 'fileFormat',
+        'gcsDestination'
+      ],
       objects: {
+        'cloudStorageDestination': CloudStorageDestination,
         'driveDestination': DriveDestination,
         'gcsDestination': GcsDestination
       }
@@ -8601,13 +8705,12 @@ export class TableManifest extends Serializable {
   }
 
   /**
-   * The name of the asset to be created.
-   * `name` is of the format \"projects/* /assets/**\"
-   * (e.g. \"projects/earthengine-legacy/assets/users/<USER>/<ASSET>\").
-   * All user-owned assets are under the project \"earthengine-legacy\"
-   * (e.g. \"projects/earthengine-legacy/assets/users/foo/bar\").
-   * All other assets are under the project \"earthengine-public\"
-   * (e.g. \"projects/earthengine-public/assets/LANDSAT\").
+   * The name of the asset to be created. `name` is of the format \"projects/*
+   * /assets/**\" (e.g. \"projects/earthengine-legacy/assets/users//\"). All
+   * user-owned assets are under the project \"earthengine-legacy\" (e.g.
+   * \"projects/earthengine-legacy/assets/users/foo/bar\"). All other assets are
+   * under the project \"earthengine-public\" (e.g.
+   * \"projects/earthengine-public/assets/LANDSAT\").
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -8668,8 +8771,7 @@ export class TableManifest extends Serializable {
   }
 
   /**
-   * The optional prefix prepended to all `uri`s defined in this
-   * manifest.
+   * The optional prefix prepended to all `uri`s defined in this manifest.
    */
   set uriPrefix(value: string|null) {
     this.Serializable$set('uriPrefix', value);
@@ -8761,8 +8863,8 @@ export class TableSource extends Serializable {
   }
 
   /**
-   * The name of the default charset to use for decoding strings. If empty,
-   * the charset \"utf-8\" is assumed by default.
+   * The name of the default charset to use for decoding strings. If empty, the
+   * charset \"utf-8\" is assumed by default.
    */
   set charset(value: string|null) {
     this.Serializable$set('charset', value);
@@ -8810,19 +8912,11 @@ export class TableSource extends Serializable {
   /**
    * When ingesting CSV files, a character that surrounds column values (a.k.a.
    * \"quote character\"). If left blank, defaults to '\"'. For CSV sources
-   * only.
-   *
-   * If a column value is not surrounded by qualifiers, leading and tailing
-   * whitespace is trimmed.
-   * For example:
-   *    ..., test,...            <== this value is not qualified
-   * becomes the string value:
-   *    \"test\"                   <== whitespace is stripped
-   *
-   * where:
-   *    ...,\" test\",...          <== this value IS qualified with quotes
-   * becomes the string value:
-   *    \" test\"                  <== whitespace remains!
+   * only. If a column value is not surrounded by qualifiers, leading and
+   * tailing whitespace is trimmed. For example: ..., test,... <== this value is
+   * not qualified becomes the string value: \"test\" <== whitespace is stripped
+   * where: ...,\" test\",... <== this value IS qualified with quotes becomes
+   * the string value: \" test\" <== whitespace remains!
    */
   set csvQualifier(value: string|null) {
     this.Serializable$set('csvQualifier', value);
@@ -8837,10 +8931,9 @@ export class TableSource extends Serializable {
 
   /**
    * A format with which to parse fields encoding dates. The format pattern must
-   * be as described at
-   * http://joda-time.sourceforge.net/apidocs/org/joda/time/format/DateTimeFormat.html.
-   * If left blank, dates will be imported as strings. For CSV/TFRecord sources
-   * only.
+   * be as described at http: //joda-time.sourceforge.net/apidocs/org/ //
+   * joda/time/format/DateTimeFormat.html. If left blank, dates will be imported
+   * as strings. For CSV/TFRecord sources only.
    */
   set dateFormat(value: string|null) {
     this.Serializable$set('dateFormat', value);
@@ -8903,10 +8996,9 @@ export class TableSource extends Serializable {
 
   /**
    * The geometry column to use as a row's primary geometry when there is more
-   * than one geometry column.
-   *
-   * If left blank and more than one geometry column exists, the first geometry
-   * column encountered is used. For CSV/TFRecord sources only.
+   * than one geometry column. If left blank and more than one geometry column
+   * exists, the first geometry column encountered is used. For CSV/TFRecord
+   * sources only.
    */
   set primaryGeometryColumn(value: string|null) {
     this.Serializable$set('primaryGeometryColumn', value);
@@ -8921,11 +9013,10 @@ export class TableSource extends Serializable {
   /**
    * The URIs of the data to import. Currently only Google Cloud Storage URIs
    * are supported. Each URI must be specified in the following format:
-   * \"gs://bucket-id/object-id\".
-   * The primary object should be the first element of the list, sidecar files
-   * are inferred from the filepath of the primary object. Only one URI is
-   * currently supported. If more than one URI is specified an
-   * `INALID_ARGUMENT` error is returned.
+   * \"gs://bucket-id/object-id\". The primary object should be the first
+   * element of the list, sidecar files are inferred from the filepath of the
+   * primary object. Only one URI is currently supported. If more than one URI
+   * is specified an `INALID_ARGUMENT` error is returned.
    */
   set uris(value: Array<string>|null) {
     this.Serializable$set('uris', value);
@@ -8945,10 +9036,9 @@ export class TableSource extends Serializable {
    * coordinate system given in 'crs'. If left blank and 'crs' does _not_
    * specify a projected coordinate system, defaults to \"longitude\". If left
    * blank and 'crs' _does_ specify a projected coordinate system, defaults to
-   * \"\" and no point geometry is generated.
-   *
-   * A generated point geometry column will be named {x_column}_{y_column}_N
-   * where N is appended such that {x_column}_{y_column}_N is unique if a column
+   * \"\" and no point geometry is generated. A generated point geometry column
+   * will be named {x_column}_{y_column}_N where N is appended such
+   * that {x_column}_{y_column}_N is unique if a column
    * named {x_column}_{y_column} already exists. For CSV/TFRecord sources only.
    */
   set xColumn(value: string|null) {
@@ -8969,10 +9059,9 @@ export class TableSource extends Serializable {
    * coordinate system given in 'crs'. If left blank and 'crs' does _not_
    * specify a projected coordinate system, defaults to \"latitude\". If left
    * blank and 'crs' _does_ specify a projected coordinate system, defaults to
-   * \"\" and no point geometry is generated.
-   *
-   * A generated point geometry column will be named {x_column}_{y_column}_N
-   * where N is appended such that {x_column}_{y_column}_N is unique if a column
+   * \"\" and no point geometry is generated. A generated point geometry column
+   * will be named {x_column}_{y_column}_N where N is appended such
+   * that {x_column}_{y_column}_N is unique if a column
    * named {x_column}_{y_column} already exists. For CSV/TFRecord sources only.
    */
   set yColumn(value: string|null) {
@@ -9015,8 +9104,8 @@ export class TestIamPermissionsRequest extends Serializable {
   /**
    * The set of permissions to check for the `resource`. Permissions with
    * wildcards (such as '*' or 'storage.*') are not allowed. For more
-   * information see
-   * [IAM Overview](https://cloud.google.com/iam/docs/overview#permissions).
+   * information see [IAM
+   * Overview](https://cloud.google.com/iam/docs/overview#permissions).
    */
   set permissions(value: Array<string>|null) {
     this.Serializable$set('permissions', value);
@@ -9337,9 +9426,9 @@ export class Thumbnail extends Serializable {
   }
 
   /**
-   * If present, specifies a specific set of bands that will be
-   * selected from the result of evaluating `expression`. If not
-   * present, all bands resulting from `expression` will be selected.
+   * If present, specifies a specific set of bands that will be selected from
+   * the result of evaluating `expression`. If not present, all bands resulting
+   * from `expression` will be selected.
    */
   set bandIds(value: Array<string>|null) {
     this.Serializable$set('bandIds', value);
@@ -9394,8 +9483,8 @@ export class Thumbnail extends Serializable {
   }
 
   /**
-   * An optional pixel grid describing how the image computed by
-   * `expression` is reprojected and clipped.
+   * An optional pixel grid describing how the image computed by `expression` is
+   * reprojected and clipped.
    */
   set grid(value: PixelGrid|null) {
     this.Serializable$set('grid', value);
@@ -9408,9 +9497,8 @@ export class Thumbnail extends Serializable {
   }
 
   /**
-   * The resource name representing the thumbnail, of the form
-   * \"projects/* /thumbnails/**\"
-   * (e.g. \"projects/earthengine-legacy/thumbnails/<THUMBNAIL-ID>\").
+   * The resource name representing the thumbnail, of the form \"projects/*
+   * /thumbnails/**\" (e.g. \"projects/earthengine-legacy/thumbnails/\").
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -9424,8 +9512,8 @@ export class Thumbnail extends Serializable {
   }
 
   /**
-   * If present, a set of visualization options to apply to produce an
-   * 8-bit RGB visualization of the data.
+   * If present, a set of visualization options to apply to produce an 8-bit RGB
+   * visualization of the data.
    */
   set visualizationOptions(value: VisualizationOptions|null) {
     this.Serializable$set('visualizationOptions', value);
@@ -9452,11 +9540,15 @@ export class Thumbnail extends Serializable {
 }
 
 export interface TileOptionsParameters {
+  endZoom?: number|null;
   maxZoom?: number|null;
   scale?: number|null;
+  startZoom?: number|null;
   minZoom?: number|null;
+  skipEmpty?: boolean|null;
   skipEmptyTiles?: boolean|null;
   mapsApiKey?: string|null;
+  dimensions?: GridDimensions|null;
   tileDimensions?: GridDimensions|null;
   stride?: number|null;
   zoomSubset?: ZoomSubset|null;
@@ -9465,13 +9557,22 @@ export class TileOptions extends Serializable {
   constructor(parameters: TileOptionsParameters = {}) {
     super();
     this.Serializable$set(
+        'endZoom',
+        (parameters.endZoom == null) ? (null) : (parameters.endZoom));
+    this.Serializable$set(
         'maxZoom',
         (parameters.maxZoom == null) ? (null) : (parameters.maxZoom));
     this.Serializable$set(
         'scale', (parameters.scale == null) ? (null) : (parameters.scale));
     this.Serializable$set(
+        'startZoom',
+        (parameters.startZoom == null) ? (null) : (parameters.startZoom));
+    this.Serializable$set(
         'minZoom',
         (parameters.minZoom == null) ? (null) : (parameters.minZoom));
+    this.Serializable$set(
+        'skipEmpty',
+        (parameters.skipEmpty == null) ? (null) : (parameters.skipEmpty));
     this.Serializable$set(
         'skipEmptyTiles',
         (parameters.skipEmptyTiles == null) ? (null) :
@@ -9479,6 +9580,9 @@ export class TileOptions extends Serializable {
     this.Serializable$set(
         'mapsApiKey',
         (parameters.mapsApiKey == null) ? (null) : (parameters.mapsApiKey));
+    this.Serializable$set(
+        'dimensions',
+        (parameters.dimensions == null) ? (null) : (parameters.dimensions));
     this.Serializable$set(
         'tileDimensions',
         (parameters.tileDimensions == null) ? (null) :
@@ -9488,6 +9592,35 @@ export class TileOptions extends Serializable {
     this.Serializable$set(
         'zoomSubset',
         (parameters.zoomSubset == null) ? (null) : (parameters.zoomSubset));
+  }
+
+  get dimensions(): GridDimensions|null {
+    return (
+        (this.Serializable$has('dimensions')) ?
+            (this.Serializable$get('dimensions')) :
+            (null));
+  }
+
+  /**
+   * The width and height of output video tiles, used only for exporting tiled
+   * video pyramids (ExportVideoMap).
+   */
+  set dimensions(value: GridDimensions|null) {
+    this.Serializable$set('dimensions', value);
+  }
+
+  get endZoom(): number|null {
+    return (
+        (this.Serializable$has('endZoom')) ?
+            (this.Serializable$get('endZoom')) :
+            (null));
+  }
+
+  /**
+   * The zoom level to stop generating map tiles for.
+   */
+  set endZoom(value: number|null) {
+    this.Serializable$set('endZoom', value);
   }
 
   get mapsApiKey(): string|null {
@@ -9512,7 +9645,7 @@ export class TileOptions extends Serializable {
   }
 
   /**
-   * The maximum zoom level of the map tiles to export.
+   * The zoom level to stop generating map tiles for.
    */
   set maxZoom(value: number|null) {
     this.Serializable$set('maxZoom', value);
@@ -9526,7 +9659,7 @@ export class TileOptions extends Serializable {
   }
 
   /**
-   * The minimum zoom level of the map tiles to export. Defaults to zero.
+   * The zoom level to start generating map tiles for export. Defaults to zero.
    */
   set minZoom(value: number|null) {
     this.Serializable$set('minZoom', value);
@@ -9546,6 +9679,20 @@ export class TileOptions extends Serializable {
     this.Serializable$set('scale', value);
   }
 
+  get skipEmpty(): boolean|null {
+    return (
+        (this.Serializable$has('skipEmpty')) ?
+            (this.Serializable$get('skipEmpty')) :
+            (null));
+  }
+
+  /**
+   * If true, skip writing empty (i.e. fully-transparent) map tiles.
+   */
+  set skipEmpty(value: boolean|null) {
+    this.Serializable$set('skipEmpty', value);
+  }
+
   get skipEmptyTiles(): boolean|null {
     return (
         (this.Serializable$has('skipEmptyTiles')) ?
@@ -9560,6 +9707,20 @@ export class TileOptions extends Serializable {
     this.Serializable$set('skipEmptyTiles', value);
   }
 
+  get startZoom(): number|null {
+    return (
+        (this.Serializable$has('startZoom')) ?
+            (this.Serializable$get('startZoom')) :
+            (null));
+  }
+
+  /**
+   * The zoom level to start generating map tiles for export. Defaults to zero.
+   */
+  set startZoom(value: number|null) {
+    this.Serializable$set('startZoom', value);
+  }
+
   get stride(): number|null {
     return (
         (this.Serializable$has('stride')) ? (this.Serializable$get('stride')) :
@@ -9567,9 +9728,8 @@ export class TileOptions extends Serializable {
   }
 
   /**
-   * Tile row and column stride. (ExportVideoMap)
-   * Set to 4 for sparse tiles (WebGL-only) or 1 (default) for maximum
-   * compatibility.
+   * Tile row and column stride. (ExportVideoMap) Set to 4 for sparse tiles
+   * (WebGL-only) or 1 (default) for maximum compatibility.
    */
   set stride(value: number|null) {
     this.Serializable$set('stride', value);
@@ -9612,10 +9772,15 @@ export class TileOptions extends Serializable {
   getPartialClassMetadata(): Partial<ClassMetadata> {
     return {
       keys: [
-        'mapsApiKey', 'maxZoom', 'minZoom', 'scale', 'skipEmptyTiles', 'stride',
-        'tileDimensions', 'zoomSubset'
+        'dimensions', 'endZoom', 'mapsApiKey', 'maxZoom', 'minZoom', 'scale',
+        'skipEmpty', 'skipEmptyTiles', 'startZoom', 'stride', 'tileDimensions',
+        'zoomSubset'
       ],
-      objects: {'tileDimensions': GridDimensions, 'zoomSubset': ZoomSubset}
+      objects: {
+        'dimensions': GridDimensions,
+        'tileDimensions': GridDimensions,
+        'zoomSubset': ZoomSubset
+      }
     };
   }
 }
@@ -9662,8 +9827,8 @@ export class Tileset extends Serializable {
   }
 
   /**
-   * The coordinate reference system of the pixel grid, specified as a
-   * standard code where possible, and in WKT format otherwise.
+   * The coordinate reference system of the pixel grid, specified as a standard
+   * code where possible, and in WKT format otherwise.
    */
   set crs(value: string|null) {
     this.Serializable$set('crs', value);
@@ -9677,10 +9842,10 @@ export class Tileset extends Serializable {
   }
 
   /**
-   * An optional data type for the band. If specified, no check is done
-   * to verify that the type of every input file matches.
-   * `data_type` must match the type of every input file, except for cases
-   * where the input type is ambiguous (e.g. `Byte` can be `INT8` or `UINT8`).
+   * An optional data type for the band. If specified, no check is done to
+   * verify that the type of every input file matches. `data_type` must match
+   * the type of every input file, except for cases where the input type is
+   * ambiguous (e.g. `Byte` can be `INT8` or `UINT8`).
    */
   set dataType(value: TilesetDataType|null) {
     this.Serializable$set('dataType', value);
@@ -9693,8 +9858,8 @@ export class Tileset extends Serializable {
 
   /**
    * The ID of the tileset. Must be unique among tilesets specified in the
-   * ImageManifest. This ID is discarded during the processing step; it is
-   * only used to link a Tileset to a band. The empty string is a valid ID.
+   * ImageManifest. This ID is discarded during the processing step; it is only
+   * used to link a Tileset to a band. The empty string is a valid ID.
    */
   set id(value: string|null) {
     this.Serializable$set('id', value);
@@ -9898,8 +10063,8 @@ export class TilesetMaskBand extends Serializable {
   }
 
   /**
-   * The IDs of bands that the mask band applies to. If empty, the mask band
-   * is applied to all bands in the asset. Each band may only have one
+   * The IDs of bands that the mask band applies to. If empty, the mask band is
+   * applied to all bands in the asset. Each band may only have one
    * corresponding mask band.
    */
   set bandIds(value: Array<string>|null) {
@@ -9953,8 +10118,8 @@ export class TilestoreEntry extends Serializable {
   }
 
   /**
-   * Prepend this to each of path in tilestore_files to get a file path
-   * relative to the tilestore root. Must end with a slash.
+   * Prepend this to each of path in tilestore_files to get a file path relative
+   * to the tilestore root. Must end with a slash.
    */
   set pathPrefix(value: string|null) {
     this.Serializable$set('pathPrefix', value);
@@ -9976,6 +10141,62 @@ export class TilestoreEntry extends Serializable {
 
   getConstructor(): SerializableCtor<TilestoreEntry> {
     return TilestoreEntry;
+  }
+
+  getPartialClassMetadata(): Partial<ClassMetadata> {
+    return {
+      arrays: {'sources': TilestoreSource},
+      keys: ['pathPrefix', 'sources']
+    };
+  }
+}
+
+export interface TilestoreLocationParameters {
+  sources?: Array<TilestoreSource>|null;
+  pathPrefix?: string|null;
+}
+export class TilestoreLocation extends Serializable {
+  constructor(parameters: TilestoreLocationParameters = {}) {
+    super();
+    this.Serializable$set(
+        'sources',
+        (parameters.sources == null) ? (null) : (parameters.sources));
+    this.Serializable$set(
+        'pathPrefix',
+        (parameters.pathPrefix == null) ? (null) : (parameters.pathPrefix));
+  }
+
+  get pathPrefix(): string|null {
+    return (
+        (this.Serializable$has('pathPrefix')) ?
+            (this.Serializable$get('pathPrefix')) :
+            (null));
+  }
+
+  /**
+   * Prepend this to each of path in tilestore_files to get a file path relative
+   * to the tilestore root. Must end with a slash.
+   */
+  set pathPrefix(value: string|null) {
+    this.Serializable$set('pathPrefix', value);
+  }
+
+  get sources(): Array<TilestoreSource>|null {
+    return (
+        (this.Serializable$has('sources')) ?
+            (this.Serializable$get('sources')) :
+            (null));
+  }
+
+  /**
+   * Container for all EER tile information.
+   */
+  set sources(value: Array<TilestoreSource>|null) {
+    this.Serializable$set('sources', value);
+  }
+
+  getConstructor(): SerializableCtor<TilestoreLocation> {
+    return TilestoreLocation;
   }
 
   getPartialClassMetadata(): Partial<ClassMetadata> {
@@ -10067,7 +10288,7 @@ export class TilestoreTileset extends Serializable {
   }
 
   /**
-   * Indexes into TilestoreEntry's raster_files array.
+   * Indexes into TilestoreLocation's raster_files array.
    */
   set fileIndexes(value: Array<number>|null) {
     this.Serializable$set('fileIndexes', value);
@@ -10223,9 +10444,8 @@ export class ValueNode extends Serializable {
   }
 
   /**
-   * A reference to an argument of some enclosing FunctionDefinition. Only
-   * valid inside the subgraph rooted at the \"body\" field of a
-   * FunctionDefinition.
+   * A reference to an argument of some enclosing FunctionDefinition. Only valid
+   * inside the subgraph rooted at the \"body\" field of a FunctionDefinition.
    */
   set argumentReference(value: string|null) {
     this.Serializable$set('argumentReference', value);
@@ -10267,8 +10487,8 @@ export class ValueNode extends Serializable {
   }
 
   /**
-   * A constant value. This is allowed to be of arbitrary complexity
-   * (i.e., may contain Structs and ListValues).
+   * A constant value. This is allowed to be of arbitrary complexity (i.e., may
+   * contain Structs and ListValues).
    */
   set constantValue(value: any|null) {
     this.Serializable$set('constantValue', value);
@@ -10338,8 +10558,8 @@ export class ValueNode extends Serializable {
   }
 
   /**
-   * A reference to a named ValueNode, defined in the enclosing
-   * Expression's \"values\" field.
+   * A reference to a named ValueNode, defined in the enclosing Expression's
+   * \"values\" field.
    */
   set valueReference(value: string|null) {
     this.Serializable$set('valueReference', value);
@@ -10367,28 +10587,48 @@ export class ValueNode extends Serializable {
 }
 
 export interface VideoFileExportOptionsParameters {
-  fileFormat?: VideoFileExportOptionsFileFormat|null;
   driveDestination?: DriveDestination|null;
+  cloudStorageDestination?: CloudStorageDestination|null;
   gcsDestination?: GcsDestination|null;
+  fileFormat?: VideoFileExportOptionsFileFormat|null;
 }
 export class VideoFileExportOptions extends Serializable {
   constructor(parameters: VideoFileExportOptionsParameters = {}) {
     super();
     this.Serializable$set(
-        'fileFormat',
-        (parameters.fileFormat == null) ? (null) : (parameters.fileFormat));
-    this.Serializable$set(
         'driveDestination',
         (parameters.driveDestination == null) ? (null) :
                                                 (parameters.driveDestination));
     this.Serializable$set(
+        'cloudStorageDestination',
+        (parameters.cloudStorageDestination == null) ?
+            (null) :
+            (parameters.cloudStorageDestination));
+    this.Serializable$set(
         'gcsDestination',
         (parameters.gcsDestination == null) ? (null) :
                                               (parameters.gcsDestination));
+    this.Serializable$set(
+        'fileFormat',
+        (parameters.fileFormat == null) ? (null) : (parameters.fileFormat));
   }
 
   static get FileFormat(): IVideoFileExportOptionsFileFormatEnum {
     return VideoFileExportOptionsFileFormatEnum;
+  }
+
+  get cloudStorageDestination(): CloudStorageDestination|null {
+    return (
+        (this.Serializable$has('cloudStorageDestination')) ?
+            (this.Serializable$get('cloudStorageDestination')) :
+            (null));
+  }
+
+  /**
+   * If specified, configures export to Google Cloud Storage.
+   */
+  set cloudStorageDestination(value: CloudStorageDestination|null) {
+    this.Serializable$set('cloudStorageDestination', value);
   }
 
   get driveDestination(): DriveDestination|null {
@@ -10413,8 +10653,8 @@ export class VideoFileExportOptions extends Serializable {
   }
 
   /**
-   * The file format in which to export the video(s). Currently only
-   * MP4 is supported.
+   * The file format in which to export the video(s). Currently only MP4 is
+   * supported.
    */
   set fileFormat(value: VideoFileExportOptionsFileFormat|null) {
     this.Serializable$set('fileFormat', value);
@@ -10441,8 +10681,12 @@ export class VideoFileExportOptions extends Serializable {
   getPartialClassMetadata(): Partial<ClassMetadata> {
     return {
       enums: {'fileFormat': VideoFileExportOptionsFileFormatEnum},
-      keys: ['driveDestination', 'fileFormat', 'gcsDestination'],
+      keys: [
+        'cloudStorageDestination', 'driveDestination', 'fileFormat',
+        'gcsDestination'
+      ],
       objects: {
+        'cloudStorageDestination': CloudStorageDestination,
         'driveDestination': DriveDestination,
         'gcsDestination': GcsDestination
       }
@@ -10581,8 +10825,8 @@ export class VideoThumbnail extends Serializable {
   }
 
   /**
-   * The output encoding in which to generate the resulting video
-   * thumbnail. Currently only GIF is supported.
+   * The output encoding in which to generate the resulting video thumbnail.
+   * Currently only GIF is supported.
    */
   set fileFormat(value: VideoThumbnailFileFormat|null) {
     this.Serializable$set('fileFormat', value);
@@ -10595,8 +10839,8 @@ export class VideoThumbnail extends Serializable {
   }
 
   /**
-   * An optional pixel grid describing how the images computed by
-   * `expression` are reprojected and clipped.
+   * An optional pixel grid describing how the images computed by `expression`
+   * are reprojected and clipped.
    */
   set grid(value: PixelGrid|null) {
     this.Serializable$set('grid', value);
@@ -10610,8 +10854,8 @@ export class VideoThumbnail extends Serializable {
 
   /**
    * The resource name representing the video thumbnail, of the form
-   * \"projects/* /videoThumbnails/**\"
-   * (e.g. \"projects/earthengine-legacy/videoThumbnails/<THUMBNAIL-ID>\").
+   * \"projects/* /videoThumbnails/**\" (e.g.
+   * \"projects/earthengine-legacy/videoThumbnails/\").
    */
   set name(value: string|null) {
     this.Serializable$set('name', value);
@@ -10723,7 +10967,7 @@ export class VisualizationOptions extends Serializable {
   /**
    * If present, specifies the range of data values to visualize. This range of
    * values will be mapped to 0-255 (black to white) in the resulting image, and
-   * values outside this range will be clamped.  May specify as one range for
+   * values outside this range will be clamped. May specify as one range for
    * each band being visualized or else a single range to be applied to all
    * bands.
    */
@@ -10763,8 +11007,8 @@ export class WaitOperationRequest extends Serializable {
 
   /**
    * The maximum duration to wait before timing out. If left blank, the wait
-   * will be at most the time permitted by the underlying HTTP/RPC protocol.
-   * If RPC context deadline is also specified, the shorter one will be used.
+   * will be at most the time permitted by the underlying HTTP/RPC protocol. If
+   * RPC context deadline is also specified, the shorter one will be used.
    */
   set timeout(value: string|null) {
     this.Serializable$set('timeout', value);
@@ -10780,6 +11024,8 @@ export class WaitOperationRequest extends Serializable {
 }
 
 export interface ZoomSubsetParameters {
+  start?: number|null;
+  end?: number|null;
   min?: number|null;
   max?: number|null;
 }
@@ -10787,9 +11033,29 @@ export class ZoomSubset extends Serializable {
   constructor(parameters: ZoomSubsetParameters = {}) {
     super();
     this.Serializable$set(
+        'start', (parameters.start == null) ? (null) : (parameters.start));
+    this.Serializable$set(
+        'end', (parameters.end == null) ? (null) : (parameters.end));
+    this.Serializable$set(
         'min', (parameters.min == null) ? (null) : (parameters.min));
     this.Serializable$set(
         'max', (parameters.max == null) ? (null) : (parameters.max));
+  }
+
+  get end(): number|null {
+    return (
+        (this.Serializable$has('end')) ? (this.Serializable$get('end')) :
+                                         (null));
+  }
+
+  /**
+   * Ending zoom level subset for which to generate tiles (ExportVideoMap),
+   * allowing you to render a zoom level incrementally, up to but not including
+   * the maximum subset (if provided) in some unspecified but deterministic
+   * order.
+   */
+  set end(value: number|null) {
+    this.Serializable$set('end', value);
   }
 
   get max(): number|null {
@@ -10799,7 +11065,7 @@ export class ZoomSubset extends Serializable {
   }
 
   /**
-   * Maximum zoom level subset for which to generate tiles (ExportVideoMap),
+   * Ending zoom level subset for which to generate tiles (ExportVideoMap),
    * allowing you to render a zoom level incrementally, up to but not including
    * the maximum subset (if provided) in some unspecified but deterministic
    * order.
@@ -10815,7 +11081,7 @@ export class ZoomSubset extends Serializable {
   }
 
   /**
-   * Minimum zoom level subset for which to generate tiles (ExportVideoMap)
+   * Starting zoom level subset for which to generate tiles (ExportVideoMap)
    * Here, subset is a double precision value, allowing you to render a zoom
    * level incrementally, so 12.1 for example is the first 10% of the tiles in
    * zoom 12 in some unspecified but deterministic order.
@@ -10824,59 +11090,95 @@ export class ZoomSubset extends Serializable {
     this.Serializable$set('min', value);
   }
 
+  get start(): number|null {
+    return (
+        (this.Serializable$has('start')) ? (this.Serializable$get('start')) :
+                                           (null));
+  }
+
+  /**
+   * Starting zoom level subset for which to generate tiles (ExportVideoMap)
+   * Here, subset is a double precision value, allowing you to render a zoom
+   * level incrementally, so 12.1 for example is the first 10% of the tiles in
+   * zoom 12 in some unspecified but deterministic order.
+   */
+  set start(value: number|null) {
+    this.Serializable$set('start', value);
+  }
+
   getConstructor(): SerializableCtor<ZoomSubset> {
     return ZoomSubset;
   }
 
   getPartialClassMetadata(): Partial<ClassMetadata> {
-    return {keys: ['max', 'min']};
+    return {keys: ['end', 'max', 'min', 'start']};
   }
 }
+const PARAM_MAP_0 = {
+  $Xgafv: '$.xgafv',
+  access_token: 'access_token',
+  alt: 'alt',
+  assetId: 'assetId',
+  callback: 'callback',
+  endTime: 'endTime',
+  fields: 'fields',
+  filter: 'filter',
+  key: 'key',
+  oauth_token: 'oauth_token',
+  overwrite: 'overwrite',
+  pageSize: 'pageSize',
+  pageToken: 'pageToken',
+  prettyPrint: 'prettyPrint',
+  quotaUser: 'quotaUser',
+  region: 'region',
+  startTime: 'startTime',
+  uploadType: 'uploadType',
+  upload_protocol: 'upload_protocol',
+  view: 'view'
+};
+
 export type ProjectsAlgorithmsApiClient$Xgafv = '1'|'2';
 
 export interface IProjectsAlgorithmsApiClient$XgafvEnum {
-  1: ProjectsAlgorithmsApiClient$Xgafv;
-  2: ProjectsAlgorithmsApiClient$Xgafv;
+  readonly 1: ProjectsAlgorithmsApiClient$Xgafv;
+  readonly 2: ProjectsAlgorithmsApiClient$Xgafv;
 
   values(): Array<ProjectsAlgorithmsApiClient$Xgafv>;
 }
 
 export const ProjectsAlgorithmsApiClient$XgafvEnum:
     IProjectsAlgorithmsApiClient$XgafvEnum = {
-      get 1(): ProjectsAlgorithmsApiClient$Xgafv {
-        return '1';
-      },
-      get 2(): ProjectsAlgorithmsApiClient$Xgafv {
-        return '2';
-      },
+      1: <ProjectsAlgorithmsApiClient$Xgafv>'1',
+      2: <ProjectsAlgorithmsApiClient$Xgafv>'2',
       values(): Array<ProjectsAlgorithmsApiClient$Xgafv> {
-        return ['1', '2'];
+        return [
+          ProjectsAlgorithmsApiClient$XgafvEnum[1],
+          ProjectsAlgorithmsApiClient$XgafvEnum[2]
+        ];
       }
     };
 
 export type ProjectsAlgorithmsApiClientAlt = 'json'|'media'|'proto';
 
 export interface IProjectsAlgorithmsApiClientAltEnum {
-  JSON: ProjectsAlgorithmsApiClientAlt;
-  MEDIA: ProjectsAlgorithmsApiClientAlt;
-  PROTO: ProjectsAlgorithmsApiClientAlt;
+  readonly JSON: ProjectsAlgorithmsApiClientAlt;
+  readonly MEDIA: ProjectsAlgorithmsApiClientAlt;
+  readonly PROTO: ProjectsAlgorithmsApiClientAlt;
 
   values(): Array<ProjectsAlgorithmsApiClientAlt>;
 }
 
 export const ProjectsAlgorithmsApiClientAltEnum:
     IProjectsAlgorithmsApiClientAltEnum = {
-      get JSON(): ProjectsAlgorithmsApiClientAlt {
-        return 'json';
-      },
-      get MEDIA(): ProjectsAlgorithmsApiClientAlt {
-        return 'media';
-      },
-      get PROTO(): ProjectsAlgorithmsApiClientAlt {
-        return 'proto';
-      },
+      JSON: <ProjectsAlgorithmsApiClientAlt>'json',
+      MEDIA: <ProjectsAlgorithmsApiClientAlt>'media',
+      PROTO: <ProjectsAlgorithmsApiClientAlt>'proto',
       values(): Array<ProjectsAlgorithmsApiClientAlt> {
-        return ['json', 'media', 'proto'];
+        return [
+          ProjectsAlgorithmsApiClientAltEnum.JSON,
+          ProjectsAlgorithmsApiClientAltEnum.MEDIA,
+          ProjectsAlgorithmsApiClientAltEnum.PROTO
+        ];
       }
     };
 
@@ -10905,52 +11207,19 @@ export class ProjectsAlgorithmsApiClientImpl implements
         new PromiseApiClient(gapiRequestService, apiClientHookFactory);
   }
 
-  list(project: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAlgorithmsListNamedParameters&object = {
-    $Xgafv: <ProjectsAlgorithmsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAlgorithmsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<ListAlgorithmsResponse> {
-    this.$apiClient.$validateParameter(project, new RegExp('^projects/[^/]+$'));
+  list(
+      parent: string,
+      namedParameters: ProjectsAlgorithmsListNamedParameters&
+      object = {}): Promise<ListAlgorithmsResponse> {
+    this.$apiClient.$validateParameter(parent, new RegExp('^projects/[^/]+$'));
     let $requestBody = <Serializable|null>null;
 
     return this.$apiClient.$request<ListAlgorithmsResponse>({
       body: $requestBody,
       httpMethod: 'GET',
       methodId: 'earthengine.projects.algorithms.list',
-      path: `/${this.gapiVersion}/${project}/algorithms`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      path: `/${this.gapiVersion}/${parent}/algorithms`,
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: ListAlgorithmsResponse
     });
   }
@@ -10960,54 +11229,71 @@ export abstract class ProjectsAlgorithmsApiClient {
   constructor() {}
 
   abstract list(
-      project: string,
-      __namedParams__?: ProjectsAlgorithmsListNamedParameters&
+      parent: string,
+      namedParameters?: ProjectsAlgorithmsListNamedParameters&
       object): Promise<ListAlgorithmsResponse>;
 }
 
 export type ProjectsApiClient$Xgafv = '1'|'2';
 
 export interface IProjectsApiClient$XgafvEnum {
-  1: ProjectsApiClient$Xgafv;
-  2: ProjectsApiClient$Xgafv;
+  readonly 1: ProjectsApiClient$Xgafv;
+  readonly 2: ProjectsApiClient$Xgafv;
 
   values(): Array<ProjectsApiClient$Xgafv>;
 }
 
 export const ProjectsApiClient$XgafvEnum: IProjectsApiClient$XgafvEnum = {
-  get 1(): ProjectsApiClient$Xgafv {
-    return '1';
-  },
-  get 2(): ProjectsApiClient$Xgafv {
-    return '2';
-  },
+  1: <ProjectsApiClient$Xgafv>'1',
+  2: <ProjectsApiClient$Xgafv>'2',
   values(): Array<ProjectsApiClient$Xgafv> {
-    return ['1', '2'];
+    return [ProjectsApiClient$XgafvEnum[1], ProjectsApiClient$XgafvEnum[2]];
   }
 };
 
 export type ProjectsApiClientAlt = 'json'|'media'|'proto';
 
 export interface IProjectsApiClientAltEnum {
-  JSON: ProjectsApiClientAlt;
-  MEDIA: ProjectsApiClientAlt;
-  PROTO: ProjectsApiClientAlt;
+  readonly JSON: ProjectsApiClientAlt;
+  readonly MEDIA: ProjectsApiClientAlt;
+  readonly PROTO: ProjectsApiClientAlt;
 
   values(): Array<ProjectsApiClientAlt>;
 }
 
 export const ProjectsApiClientAltEnum: IProjectsApiClientAltEnum = {
-  get JSON(): ProjectsApiClientAlt {
-    return 'json';
-  },
-  get MEDIA(): ProjectsApiClientAlt {
-    return 'media';
-  },
-  get PROTO(): ProjectsApiClientAlt {
-    return 'proto';
-  },
+  JSON: <ProjectsApiClientAlt>'json',
+  MEDIA: <ProjectsApiClientAlt>'media',
+  PROTO: <ProjectsApiClientAlt>'proto',
   values(): Array<ProjectsApiClientAlt> {
-    return ['json', 'media', 'proto'];
+    return [
+      ProjectsApiClientAltEnum.JSON, ProjectsApiClientAltEnum.MEDIA,
+      ProjectsApiClientAltEnum.PROTO
+    ];
+  }
+};
+
+export type ProjectsApiClientView =
+    'EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED'|'FULL'|'BASIC';
+
+export interface IProjectsApiClientViewEnum {
+  readonly EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED: ProjectsApiClientView;
+  readonly FULL: ProjectsApiClientView;
+  readonly BASIC: ProjectsApiClientView;
+
+  values(): Array<ProjectsApiClientView>;
+}
+
+export const ProjectsApiClientViewEnum: IProjectsApiClientViewEnum = {
+  BASIC: <ProjectsApiClientView>'BASIC',
+  EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED:
+      <ProjectsApiClientView>'EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED',
+  FULL: <ProjectsApiClientView>'FULL',
+  values(): Array<ProjectsApiClientView> {
+    return [
+      ProjectsApiClientViewEnum.EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED,
+      ProjectsApiClientViewEnum.FULL, ProjectsApiClientViewEnum.BASIC
+    ];
   }
 };
 
@@ -11039,6 +11325,8 @@ export declare interface ProjectsListAssetsNamedParameters {
   $Xgafv?: ProjectsApiClient$Xgafv;
   pageSize?: number;
   pageToken?: string;
+  filter?: string;
+  view?: ProjectsApiClientView;
 }
 
 export class ProjectsApiClientImpl implements ProjectsApiClient {
@@ -11051,31 +11339,10 @@ export class ProjectsApiClientImpl implements ProjectsApiClient {
         new PromiseApiClient(gapiRequestService, apiClientHookFactory);
   }
 
-  getCapabilities(parent: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsGetCapabilitiesNamedParameters&object = {
-    $Xgafv: <ProjectsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<Capabilities> {
+  getCapabilities(
+      parent: string,
+      namedParameters: ProjectsGetCapabilitiesNamedParameters&
+      object = {}): Promise<Capabilities> {
     this.$apiClient.$validateParameter(parent, new RegExp('^projects/[^/]+$'));
     let $requestBody = <Serializable|null>null;
 
@@ -11084,52 +11351,15 @@ export class ProjectsApiClientImpl implements ProjectsApiClient {
       httpMethod: 'GET',
       methodId: 'earthengine.projects.getCapabilities',
       path: `/${this.gapiVersion}/${parent}/capabilities`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: Capabilities
     });
   }
 
-  listAssets(parent: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    pageSize = void 0,
-    pageToken = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsListAssetsNamedParameters&object = {
-    $Xgafv: <ProjectsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    pageSize: <number|undefined>void 0,
-    pageToken: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<ListAssetsResponse> {
+  listAssets(
+      parent: string,
+      namedParameters: ProjectsListAssetsNamedParameters&
+      object = {}): Promise<ListAssetsResponse> {
     this.$apiClient.$validateParameter(parent, new RegExp('^projects/[^/]+$'));
     let $requestBody = <Serializable|null>null;
 
@@ -11138,21 +11368,7 @@ export class ProjectsApiClientImpl implements ProjectsApiClient {
       httpMethod: 'GET',
       methodId: 'earthengine.projects.listAssets',
       path: `/${this.gapiVersion}/${parent}:listAssets`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'pageSize': pageSize,
-        'pageToken': pageToken,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: ListAssetsResponse
     });
   }
@@ -11163,86 +11379,81 @@ export abstract class ProjectsApiClient {
 
   abstract getCapabilities(
       parent: string,
-      __namedParams__?: ProjectsGetCapabilitiesNamedParameters&
+      namedParameters?: ProjectsGetCapabilitiesNamedParameters&
       object): Promise<Capabilities>;
 
   abstract listAssets(
       parent: string,
-      __namedParams__?: ProjectsListAssetsNamedParameters&
+      namedParameters?: ProjectsListAssetsNamedParameters&
       object): Promise<ListAssetsResponse>;
 }
 
 export type ProjectsAssetsApiClient$Xgafv = '1'|'2';
 
 export interface IProjectsAssetsApiClient$XgafvEnum {
-  1: ProjectsAssetsApiClient$Xgafv;
-  2: ProjectsAssetsApiClient$Xgafv;
+  readonly 1: ProjectsAssetsApiClient$Xgafv;
+  readonly 2: ProjectsAssetsApiClient$Xgafv;
 
   values(): Array<ProjectsAssetsApiClient$Xgafv>;
 }
 
 export const ProjectsAssetsApiClient$XgafvEnum:
     IProjectsAssetsApiClient$XgafvEnum = {
-      get 1(): ProjectsAssetsApiClient$Xgafv {
-        return '1';
-      },
-      get 2(): ProjectsAssetsApiClient$Xgafv {
-        return '2';
-      },
+      1: <ProjectsAssetsApiClient$Xgafv>'1',
+      2: <ProjectsAssetsApiClient$Xgafv>'2',
       values(): Array<ProjectsAssetsApiClient$Xgafv> {
-        return ['1', '2'];
+        return [
+          ProjectsAssetsApiClient$XgafvEnum[1],
+          ProjectsAssetsApiClient$XgafvEnum[2]
+        ];
       }
     };
 
 export type ProjectsAssetsApiClientAlt = 'json'|'media'|'proto';
 
 export interface IProjectsAssetsApiClientAltEnum {
-  JSON: ProjectsAssetsApiClientAlt;
-  MEDIA: ProjectsAssetsApiClientAlt;
-  PROTO: ProjectsAssetsApiClientAlt;
+  readonly JSON: ProjectsAssetsApiClientAlt;
+  readonly MEDIA: ProjectsAssetsApiClientAlt;
+  readonly PROTO: ProjectsAssetsApiClientAlt;
 
   values(): Array<ProjectsAssetsApiClientAlt>;
 }
 
 export const ProjectsAssetsApiClientAltEnum: IProjectsAssetsApiClientAltEnum = {
-  get JSON(): ProjectsAssetsApiClientAlt {
-    return 'json';
-  },
-  get MEDIA(): ProjectsAssetsApiClientAlt {
-    return 'media';
-  },
-  get PROTO(): ProjectsAssetsApiClientAlt {
-    return 'proto';
-  },
+  JSON: <ProjectsAssetsApiClientAlt>'json',
+  MEDIA: <ProjectsAssetsApiClientAlt>'media',
+  PROTO: <ProjectsAssetsApiClientAlt>'proto',
   values(): Array<ProjectsAssetsApiClientAlt> {
-    return ['json', 'media', 'proto'];
+    return [
+      ProjectsAssetsApiClientAltEnum.JSON, ProjectsAssetsApiClientAltEnum.MEDIA,
+      ProjectsAssetsApiClientAltEnum.PROTO
+    ];
   }
 };
 
 export type ProjectsAssetsApiClientView =
-    'IMAGE_VIEW_UNSPECIFIED'|'FULL'|'BASIC';
+    'EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED'|'FULL'|'BASIC';
 
 export interface IProjectsAssetsApiClientViewEnum {
-  IMAGE_VIEW_UNSPECIFIED: ProjectsAssetsApiClientView;
-  FULL: ProjectsAssetsApiClientView;
-  BASIC: ProjectsAssetsApiClientView;
+  readonly EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED: ProjectsAssetsApiClientView;
+  readonly FULL: ProjectsAssetsApiClientView;
+  readonly BASIC: ProjectsAssetsApiClientView;
 
   values(): Array<ProjectsAssetsApiClientView>;
 }
 
 export const ProjectsAssetsApiClientViewEnum:
     IProjectsAssetsApiClientViewEnum = {
-      get BASIC(): ProjectsAssetsApiClientView {
-        return 'BASIC';
-      },
-      get FULL(): ProjectsAssetsApiClientView {
-        return 'FULL';
-      },
-      get IMAGE_VIEW_UNSPECIFIED(): ProjectsAssetsApiClientView {
-        return 'IMAGE_VIEW_UNSPECIFIED';
-      },
+      BASIC: <ProjectsAssetsApiClientView>'BASIC',
+      EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED:
+          <ProjectsAssetsApiClientView>'EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED',
+      FULL: <ProjectsAssetsApiClientView>'FULL',
       values(): Array<ProjectsAssetsApiClientView> {
-        return ['IMAGE_VIEW_UNSPECIFIED', 'FULL', 'BASIC'];
+        return [
+          ProjectsAssetsApiClientViewEnum.EARTH_ENGINE_ASSET_VIEW_UNSPECIFIED,
+          ProjectsAssetsApiClientViewEnum.FULL,
+          ProjectsAssetsApiClientViewEnum.BASIC
+        ];
       }
     };
 
@@ -11360,6 +11571,8 @@ export declare interface ProjectsAssetsListAssetsNamedParameters {
   $Xgafv?: ProjectsAssetsApiClient$Xgafv;
   pageSize?: number;
   pageToken?: string;
+  filter?: string;
+  view?: ProjectsAssetsApiClientView;
 }
 
 export declare interface ProjectsAssetsListFeaturesNamedParameters {
@@ -11429,23 +11642,6 @@ export declare interface ProjectsAssetsPatchNamedParameters {
   $Xgafv?: ProjectsAssetsApiClient$Xgafv;
 }
 
-export declare interface ProjectsAssetsSearchNamedParameters {
-  access_token?: string;
-  alt?: ProjectsAssetsApiClientAlt;
-  callback?: string;
-  fields?: string;
-  key?: string;
-  oauth_token?: string;
-  prettyPrint?: boolean;
-  quotaUser?: string;
-  upload_protocol?: string;
-  uploadType?: string;
-  $Xgafv?: ProjectsAssetsApiClient$Xgafv;
-  query?: string;
-  pageSize?: number;
-  nextPageToken?: string;
-}
-
 export declare interface ProjectsAssetsSetIamPolicyNamedParameters {
   access_token?: string;
   alt?: ProjectsAssetsApiClientAlt;
@@ -11484,31 +11680,10 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
         new PromiseApiClient(gapiRequestService, apiClientHookFactory);
   }
 
-  copy(sourceName: string, $requestBody: CopyAssetRequest, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsCopyNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<EarthEngineAsset> {
+  copy(
+      sourceName: string, $requestBody: CopyAssetRequest,
+      namedParameters: ProjectsAssetsCopyNamedParameters&
+      object = {}): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(
         sourceName, new RegExp('^projects/[^/]+/assets/.*$'));
 
@@ -11517,52 +11692,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.assets.copy',
       path: `/${this.gapiVersion}/${sourceName}:copy`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: EarthEngineAsset
     });
   }
 
-  create(parent: string, $requestBody: EarthEngineAsset, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    assetId = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    overwrite = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsCreateNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    assetId: <string|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    overwrite: <boolean|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<EarthEngineAsset> {
+  create(
+      parent: string, $requestBody: EarthEngineAsset,
+      namedParameters: ProjectsAssetsCreateNamedParameters&
+      object = {}): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(parent, new RegExp('^projects/[^/]+$'));
 
     return this.$apiClient.$request<EarthEngineAsset>({
@@ -11570,50 +11708,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.assets.create',
       path: `/${this.gapiVersion}/${parent}/assets`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'assetId': assetId,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'overwrite': overwrite,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: EarthEngineAsset
     });
   }
 
-  delete(name: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsDeleteNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<Empty> {
+  delete(
+      name: string,
+      namedParameters: ProjectsAssetsDeleteNamedParameters&
+      object = {}): Promise<Empty> {
     this.$apiClient.$validateParameter(
         name, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
@@ -11623,48 +11726,14 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'DELETE',
       methodId: 'earthengine.projects.assets.delete',
       path: `/${this.gapiVersion}/${name}`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: Empty
     });
   }
 
-  get(name: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsGetNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<EarthEngineAsset> {
+  get(name: string,
+      namedParameters: ProjectsAssetsGetNamedParameters&
+      object = {}): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(
         name, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
@@ -11674,48 +11743,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'GET',
       methodId: 'earthengine.projects.assets.get',
       path: `/${this.gapiVersion}/${name}`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: EarthEngineAsset
     });
   }
 
-  getIamPolicy(resource: string, $requestBody: GetIamPolicyRequest, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsGetIamPolicyNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<Policy> {
+  getIamPolicy(
+      resource: string, $requestBody: GetIamPolicyRequest,
+      namedParameters: ProjectsAssetsGetIamPolicyNamedParameters&
+      object = {}): Promise<Policy> {
     this.$apiClient.$validateParameter(
         resource, new RegExp('^projects/[^/]+/assets/.*$'));
 
@@ -11724,48 +11760,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.assets.getIamPolicy',
       path: `/${this.gapiVersion}/${resource}:getIamPolicy`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: Policy
     });
   }
 
-  getPixels(name: string, $requestBody: GetPixelsRequest, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsGetPixelsNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<HttpBody> {
+  getPixels(
+      name: string, $requestBody: GetPixelsRequest,
+      namedParameters: ProjectsAssetsGetPixelsNamedParameters&
+      object = {}): Promise<HttpBody> {
     this.$apiClient.$validateParameter(
         name, new RegExp('^projects/[^/]+/assets/.*$'));
 
@@ -11774,48 +11777,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.assets.getPixels',
       path: `/${this.gapiVersion}/${name}:getPixels`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: HttpBody
     });
   }
 
-  link(sourceName: string, $requestBody: LinkAssetRequest, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsLinkNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<EarthEngineAsset> {
+  link(
+      sourceName: string, $requestBody: LinkAssetRequest,
+      namedParameters: ProjectsAssetsLinkNamedParameters&
+      object = {}): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(
         sourceName, new RegExp('^projects/[^/]+/assets/.*$'));
 
@@ -11824,52 +11794,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.assets.link',
       path: `/${this.gapiVersion}/${sourceName}:link`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: EarthEngineAsset
     });
   }
 
-  listAssets(parent: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    pageSize = void 0,
-    pageToken = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsListAssetsNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    pageSize: <number|undefined>void 0,
-    pageToken: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<ListAssetsResponse> {
+  listAssets(
+      parent: string,
+      namedParameters: ProjectsAssetsListAssetsNamedParameters&
+      object = {}): Promise<ListAssetsResponse> {
     this.$apiClient.$validateParameter(
         parent, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
@@ -11879,58 +11812,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'GET',
       methodId: 'earthengine.projects.assets.listAssets',
       path: `/${this.gapiVersion}/${parent}:listAssets`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'pageSize': pageSize,
-        'pageToken': pageToken,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: ListAssetsResponse
     });
   }
 
-  listFeatures(parent: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    filter = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    pageSize = void 0,
-    pageToken = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    region = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsListFeaturesNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    filter: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    pageSize: <number|undefined>void 0,
-    pageToken: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    region: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<ListFeaturesResponse> {
+  listFeatures(
+      parent: string,
+      namedParameters: ProjectsAssetsListFeaturesNamedParameters&
+      object = {}): Promise<ListFeaturesResponse> {
     this.$apiClient.$validateParameter(
         parent, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
@@ -11940,66 +11830,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'GET',
       methodId: 'earthengine.projects.assets.listFeatures',
       path: `/${this.gapiVersion}/${parent}:listFeatures`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'filter': filter,
-        'key': key,
-        'oauth_token': oauth_token,
-        'pageSize': pageSize,
-        'pageToken': pageToken,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'region': region,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: ListFeaturesResponse
     });
   }
 
-  listImages(parent: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    endTime = void 0,
-    fields = void 0,
-    filter = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    pageSize = void 0,
-    pageToken = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    region = void 0,
-    startTime = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0,
-    view = void 0
-  }: ProjectsAssetsListImagesNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    endTime: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    filter: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    pageSize: <number|undefined>void 0,
-    pageToken: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    region: <string|undefined>void 0,
-    startTime: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0,
-    view: <ProjectsAssetsApiClientView|undefined>void 0
-  }): Promise<ListImagesResponse> {
+  listImages(
+      parent: string,
+      namedParameters: ProjectsAssetsListImagesNamedParameters&
+      object = {}): Promise<ListImagesResponse> {
     this.$apiClient.$validateParameter(
         parent, new RegExp('^projects/[^/]+/assets/.*$'));
     let $requestBody = <Serializable|null>null;
@@ -12009,55 +11848,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'GET',
       methodId: 'earthengine.projects.assets.listImages',
       path: `/${this.gapiVersion}/${parent}:listImages`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'endTime': endTime,
-        'fields': fields,
-        'filter': filter,
-        'key': key,
-        'oauth_token': oauth_token,
-        'pageSize': pageSize,
-        'pageToken': pageToken,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'region': region,
-        'startTime': startTime,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol,
-        'view': view
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: ListImagesResponse
     });
   }
 
-  move(sourceName: string, $requestBody: MoveAssetRequest, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsMoveNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<EarthEngineAsset> {
+  move(
+      sourceName: string, $requestBody: MoveAssetRequest,
+      namedParameters: ProjectsAssetsMoveNamedParameters&
+      object = {}): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(
         sourceName, new RegExp('^projects/[^/]+/assets/.*$'));
 
@@ -12066,48 +11865,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.assets.move',
       path: `/${this.gapiVersion}/${sourceName}:move`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: EarthEngineAsset
     });
   }
 
-  patch(name: string, $requestBody: UpdateAssetRequest, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsPatchNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<EarthEngineAsset> {
+  patch(
+      name: string, $requestBody: UpdateAssetRequest,
+      namedParameters: ProjectsAssetsPatchNamedParameters&
+      object = {}): Promise<EarthEngineAsset> {
     this.$apiClient.$validateParameter(
         name, new RegExp('^projects/[^/]+/assets/.*$'));
 
@@ -12116,107 +11882,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'PATCH',
       methodId: 'earthengine.projects.assets.patch',
       path: `/${this.gapiVersion}/${name}`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: EarthEngineAsset
     });
   }
 
-  search(project: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    nextPageToken = void 0,
-    oauth_token = void 0,
-    pageSize = void 0,
-    prettyPrint = void 0,
-    query = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsSearchNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    nextPageToken: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    pageSize: <number|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    query: <string|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<SearchAssetsResponse> {
-    this.$apiClient.$validateParameter(project, new RegExp('^projects/[^/]+$'));
-    let $requestBody = <Serializable|null>null;
-
-    return this.$apiClient.$request<SearchAssetsResponse>({
-      body: $requestBody,
-      httpMethod: 'GET',
-      methodId: 'earthengine.projects.assets.search',
-      path: `/${this.gapiVersion}/${project}/assets:search`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'nextPageToken': nextPageToken,
-        'oauth_token': oauth_token,
-        'pageSize': pageSize,
-        'prettyPrint': prettyPrint,
-        'query': query,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
-      responseCtor: SearchAssetsResponse
-    });
-  }
-
-  setIamPolicy(resource: string, $requestBody: SetIamPolicyRequest, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsAssetsSetIamPolicyNamedParameters&object = {
-    $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<Policy> {
+  setIamPolicy(
+      resource: string, $requestBody: SetIamPolicyRequest,
+      namedParameters: ProjectsAssetsSetIamPolicyNamedParameters&
+      object = {}): Promise<Policy> {
     this.$apiClient.$validateParameter(
         resource, new RegExp('^projects/[^/]+/assets/.*$'));
 
@@ -12225,49 +11899,15 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.assets.setIamPolicy',
       path: `/${this.gapiVersion}/${resource}:setIamPolicy`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: Policy
     });
   }
 
   testIamPermissions(
-      resource: string, $requestBody: TestIamPermissionsRequest, {
-        $Xgafv = void 0,
-        access_token = void 0,
-        alt = void 0,
-        callback = void 0,
-        fields = void 0,
-        key = void 0,
-        oauth_token = void 0,
-        prettyPrint = void 0,
-        quotaUser = void 0,
-        uploadType = void 0,
-        upload_protocol = void 0
-      }: ProjectsAssetsTestIamPermissionsNamedParameters&object = {
-        $Xgafv: <ProjectsAssetsApiClient$Xgafv|undefined>void 0,
-        access_token: <string|undefined>void 0,
-        alt: <ProjectsAssetsApiClientAlt|undefined>void 0,
-        callback: <string|undefined>void 0,
-        fields: <string|undefined>void 0,
-        key: <string|undefined>void 0,
-        oauth_token: <string|undefined>void 0,
-        prettyPrint: <boolean|undefined>void 0,
-        quotaUser: <string|undefined>void 0,
-        uploadType: <string|undefined>void 0,
-        upload_protocol: <string|undefined>void 0
-      }): Promise<TestIamPermissionsResponse> {
+      resource: string, $requestBody: TestIamPermissionsRequest,
+      namedParameters: ProjectsAssetsTestIamPermissionsNamedParameters&
+      object = {}): Promise<TestIamPermissionsResponse> {
     this.$apiClient.$validateParameter(
         resource, new RegExp('^projects/[^/]+/assets/.*$'));
 
@@ -12276,19 +11916,7 @@ export class ProjectsAssetsApiClientImpl implements ProjectsAssetsApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.assets.testIamPermissions',
       path: `/${this.gapiVersion}/${resource}:testIamPermissions`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: TestIamPermissionsResponse
     });
   }
@@ -12299,124 +11927,116 @@ export abstract class ProjectsAssetsApiClient {
 
   abstract copy(
       sourceName: string, $requestBody: CopyAssetRequest,
-      __namedParams__?: ProjectsAssetsCopyNamedParameters&
+      namedParameters?: ProjectsAssetsCopyNamedParameters&
       object): Promise<EarthEngineAsset>;
 
   abstract create(
       parent: string, $requestBody: EarthEngineAsset,
-      __namedParams__?: ProjectsAssetsCreateNamedParameters&
+      namedParameters?: ProjectsAssetsCreateNamedParameters&
       object): Promise<EarthEngineAsset>;
 
   abstract delete(
       name: string,
-      __namedParams__?: ProjectsAssetsDeleteNamedParameters&
+      namedParameters?: ProjectsAssetsDeleteNamedParameters&
       object): Promise<Empty>;
 
   abstract get(
-      name: string, __namedParams__?: ProjectsAssetsGetNamedParameters&object):
+      name: string, namedParameters?: ProjectsAssetsGetNamedParameters&object):
       Promise<EarthEngineAsset>;
 
   abstract getIamPolicy(
       resource: string, $requestBody: GetIamPolicyRequest,
-      __namedParams__?: ProjectsAssetsGetIamPolicyNamedParameters&
+      namedParameters?: ProjectsAssetsGetIamPolicyNamedParameters&
       object): Promise<Policy>;
 
   abstract getPixels(
       name: string, $requestBody: GetPixelsRequest,
-      __namedParams__?: ProjectsAssetsGetPixelsNamedParameters&
+      namedParameters?: ProjectsAssetsGetPixelsNamedParameters&
       object): Promise<HttpBody>;
 
   abstract link(
       sourceName: string, $requestBody: LinkAssetRequest,
-      __namedParams__?: ProjectsAssetsLinkNamedParameters&
+      namedParameters?: ProjectsAssetsLinkNamedParameters&
       object): Promise<EarthEngineAsset>;
 
   abstract listAssets(
       parent: string,
-      __namedParams__?: ProjectsAssetsListAssetsNamedParameters&
+      namedParameters?: ProjectsAssetsListAssetsNamedParameters&
       object): Promise<ListAssetsResponse>;
 
   abstract listFeatures(
       parent: string,
-      __namedParams__?: ProjectsAssetsListFeaturesNamedParameters&
+      namedParameters?: ProjectsAssetsListFeaturesNamedParameters&
       object): Promise<ListFeaturesResponse>;
 
   abstract listImages(
       parent: string,
-      __namedParams__?: ProjectsAssetsListImagesNamedParameters&
+      namedParameters?: ProjectsAssetsListImagesNamedParameters&
       object): Promise<ListImagesResponse>;
 
   abstract move(
       sourceName: string, $requestBody: MoveAssetRequest,
-      __namedParams__?: ProjectsAssetsMoveNamedParameters&
+      namedParameters?: ProjectsAssetsMoveNamedParameters&
       object): Promise<EarthEngineAsset>;
 
   abstract patch(
       name: string, $requestBody: UpdateAssetRequest,
-      __namedParams__?: ProjectsAssetsPatchNamedParameters&
+      namedParameters?: ProjectsAssetsPatchNamedParameters&
       object): Promise<EarthEngineAsset>;
-
-  abstract search(
-      project: string,
-      __namedParams__?: ProjectsAssetsSearchNamedParameters&
-      object): Promise<SearchAssetsResponse>;
 
   abstract setIamPolicy(
       resource: string, $requestBody: SetIamPolicyRequest,
-      __namedParams__?: ProjectsAssetsSetIamPolicyNamedParameters&
+      namedParameters?: ProjectsAssetsSetIamPolicyNamedParameters&
       object): Promise<Policy>;
 
   abstract testIamPermissions(
       resource: string, $requestBody: TestIamPermissionsRequest,
-      __namedParams__?: ProjectsAssetsTestIamPermissionsNamedParameters&
+      namedParameters?: ProjectsAssetsTestIamPermissionsNamedParameters&
       object): Promise<TestIamPermissionsResponse>;
 }
 
 export type ProjectsFilmstripThumbnailsApiClient$Xgafv = '1'|'2';
 
 export interface IProjectsFilmstripThumbnailsApiClient$XgafvEnum {
-  1: ProjectsFilmstripThumbnailsApiClient$Xgafv;
-  2: ProjectsFilmstripThumbnailsApiClient$Xgafv;
+  readonly 1: ProjectsFilmstripThumbnailsApiClient$Xgafv;
+  readonly 2: ProjectsFilmstripThumbnailsApiClient$Xgafv;
 
   values(): Array<ProjectsFilmstripThumbnailsApiClient$Xgafv>;
 }
 
 export const ProjectsFilmstripThumbnailsApiClient$XgafvEnum:
     IProjectsFilmstripThumbnailsApiClient$XgafvEnum = {
-      get 1(): ProjectsFilmstripThumbnailsApiClient$Xgafv {
-        return '1';
-      },
-      get 2(): ProjectsFilmstripThumbnailsApiClient$Xgafv {
-        return '2';
-      },
+      1: <ProjectsFilmstripThumbnailsApiClient$Xgafv>'1',
+      2: <ProjectsFilmstripThumbnailsApiClient$Xgafv>'2',
       values(): Array<ProjectsFilmstripThumbnailsApiClient$Xgafv> {
-        return ['1', '2'];
+        return [
+          ProjectsFilmstripThumbnailsApiClient$XgafvEnum[1],
+          ProjectsFilmstripThumbnailsApiClient$XgafvEnum[2]
+        ];
       }
     };
 
 export type ProjectsFilmstripThumbnailsApiClientAlt = 'json'|'media'|'proto';
 
 export interface IProjectsFilmstripThumbnailsApiClientAltEnum {
-  JSON: ProjectsFilmstripThumbnailsApiClientAlt;
-  MEDIA: ProjectsFilmstripThumbnailsApiClientAlt;
-  PROTO: ProjectsFilmstripThumbnailsApiClientAlt;
+  readonly JSON: ProjectsFilmstripThumbnailsApiClientAlt;
+  readonly MEDIA: ProjectsFilmstripThumbnailsApiClientAlt;
+  readonly PROTO: ProjectsFilmstripThumbnailsApiClientAlt;
 
   values(): Array<ProjectsFilmstripThumbnailsApiClientAlt>;
 }
 
 export const ProjectsFilmstripThumbnailsApiClientAltEnum:
     IProjectsFilmstripThumbnailsApiClientAltEnum = {
-      get JSON(): ProjectsFilmstripThumbnailsApiClientAlt {
-        return 'json';
-      },
-      get MEDIA(): ProjectsFilmstripThumbnailsApiClientAlt {
-        return 'media';
-      },
-      get PROTO(): ProjectsFilmstripThumbnailsApiClientAlt {
-        return 'proto';
-      },
+      JSON: <ProjectsFilmstripThumbnailsApiClientAlt>'json',
+      MEDIA: <ProjectsFilmstripThumbnailsApiClientAlt>'media',
+      PROTO: <ProjectsFilmstripThumbnailsApiClientAlt>'proto',
       values(): Array<ProjectsFilmstripThumbnailsApiClientAlt> {
-        return ['json', 'media', 'proto'];
+        return [
+          ProjectsFilmstripThumbnailsApiClientAltEnum.JSON,
+          ProjectsFilmstripThumbnailsApiClientAltEnum.MEDIA,
+          ProjectsFilmstripThumbnailsApiClientAltEnum.PROTO
+        ];
       }
     };
 
@@ -12459,31 +12079,10 @@ export class ProjectsFilmstripThumbnailsApiClientImpl implements
         new PromiseApiClient(gapiRequestService, apiClientHookFactory);
   }
 
-  create(parent: string, $requestBody: FilmstripThumbnail, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsFilmstripThumbnailsCreateNamedParameters&object = {
-    $Xgafv: <ProjectsFilmstripThumbnailsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsFilmstripThumbnailsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<FilmstripThumbnail> {
+  create(
+      parent: string, $requestBody: FilmstripThumbnail,
+      namedParameters: ProjectsFilmstripThumbnailsCreateNamedParameters&
+      object = {}): Promise<FilmstripThumbnail> {
     this.$apiClient.$validateParameter(parent, new RegExp('^projects/[^/]+$'));
 
     return this.$apiClient.$request<FilmstripThumbnail>({
@@ -12491,48 +12090,15 @@ export class ProjectsFilmstripThumbnailsApiClientImpl implements
       httpMethod: 'POST',
       methodId: 'earthengine.projects.filmstripThumbnails.create',
       path: `/${this.gapiVersion}/${parent}/filmstripThumbnails`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: FilmstripThumbnail
     });
   }
 
-  getPixels(name: string, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsFilmstripThumbnailsGetPixelsNamedParameters&object = {
-    $Xgafv: <ProjectsFilmstripThumbnailsApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsFilmstripThumbnailsApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<HttpBody> {
+  getPixels(
+      name: string,
+      namedParameters: ProjectsFilmstripThumbnailsGetPixelsNamedParameters&
+      object = {}): Promise<HttpBody> {
     this.$apiClient.$validateParameter(
         name, new RegExp('^projects/[^/]+/filmstripThumbnails/[^/]+$'));
     let $requestBody = <Serializable|null>null;
@@ -12542,19 +12108,7 @@ export class ProjectsFilmstripThumbnailsApiClientImpl implements
       httpMethod: 'GET',
       methodId: 'earthengine.projects.filmstripThumbnails.getPixels',
       path: `/${this.gapiVersion}/${name}:getPixels`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: HttpBody
     });
   }
@@ -12565,59 +12119,55 @@ export abstract class ProjectsFilmstripThumbnailsApiClient {
 
   abstract create(
       parent: string, $requestBody: FilmstripThumbnail,
-      __namedParams__?: ProjectsFilmstripThumbnailsCreateNamedParameters&
+      namedParameters?: ProjectsFilmstripThumbnailsCreateNamedParameters&
       object): Promise<FilmstripThumbnail>;
 
   abstract getPixels(
       name: string,
-      __namedParams__?: ProjectsFilmstripThumbnailsGetPixelsNamedParameters&
+      namedParameters?: ProjectsFilmstripThumbnailsGetPixelsNamedParameters&
       object): Promise<HttpBody>;
 }
 
 export type ProjectsImageApiClient$Xgafv = '1'|'2';
 
 export interface IProjectsImageApiClient$XgafvEnum {
-  1: ProjectsImageApiClient$Xgafv;
-  2: ProjectsImageApiClient$Xgafv;
+  readonly 1: ProjectsImageApiClient$Xgafv;
+  readonly 2: ProjectsImageApiClient$Xgafv;
 
   values(): Array<ProjectsImageApiClient$Xgafv>;
 }
 
 export const ProjectsImageApiClient$XgafvEnum:
     IProjectsImageApiClient$XgafvEnum = {
-      get 1(): ProjectsImageApiClient$Xgafv {
-        return '1';
-      },
-      get 2(): ProjectsImageApiClient$Xgafv {
-        return '2';
-      },
+      1: <ProjectsImageApiClient$Xgafv>'1',
+      2: <ProjectsImageApiClient$Xgafv>'2',
       values(): Array<ProjectsImageApiClient$Xgafv> {
-        return ['1', '2'];
+        return [
+          ProjectsImageApiClient$XgafvEnum[1],
+          ProjectsImageApiClient$XgafvEnum[2]
+        ];
       }
     };
 
 export type ProjectsImageApiClientAlt = 'json'|'media'|'proto';
 
 export interface IProjectsImageApiClientAltEnum {
-  JSON: ProjectsImageApiClientAlt;
-  MEDIA: ProjectsImageApiClientAlt;
-  PROTO: ProjectsImageApiClientAlt;
+  readonly JSON: ProjectsImageApiClientAlt;
+  readonly MEDIA: ProjectsImageApiClientAlt;
+  readonly PROTO: ProjectsImageApiClientAlt;
 
   values(): Array<ProjectsImageApiClientAlt>;
 }
 
 export const ProjectsImageApiClientAltEnum: IProjectsImageApiClientAltEnum = {
-  get JSON(): ProjectsImageApiClientAlt {
-    return 'json';
-  },
-  get MEDIA(): ProjectsImageApiClientAlt {
-    return 'media';
-  },
-  get PROTO(): ProjectsImageApiClientAlt {
-    return 'proto';
-  },
+  JSON: <ProjectsImageApiClientAlt>'json',
+  MEDIA: <ProjectsImageApiClientAlt>'media',
+  PROTO: <ProjectsImageApiClientAlt>'proto',
   values(): Array<ProjectsImageApiClientAlt> {
-    return ['json', 'media', 'proto'];
+    return [
+      ProjectsImageApiClientAltEnum.JSON, ProjectsImageApiClientAltEnum.MEDIA,
+      ProjectsImageApiClientAltEnum.PROTO
+    ];
   }
 };
 
@@ -12673,31 +12223,10 @@ export class ProjectsImageApiClientImpl implements ProjectsImageApiClient {
         new PromiseApiClient(gapiRequestService, apiClientHookFactory);
   }
 
-  computePixels(project: string, $requestBody: ComputePixelsRequest, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsImageComputePixelsNamedParameters&object = {
-    $Xgafv: <ProjectsImageApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsImageApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<HttpBody> {
+  computePixels(
+      project: string, $requestBody: ComputePixelsRequest,
+      namedParameters: ProjectsImageComputePixelsNamedParameters&
+      object = {}): Promise<HttpBody> {
     this.$apiClient.$validateParameter(project, new RegExp('^projects/[^/]+$'));
 
     return this.$apiClient.$request<HttpBody>({
@@ -12705,48 +12234,15 @@ export class ProjectsImageApiClientImpl implements ProjectsImageApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.image.computePixels',
       path: `/${this.gapiVersion}/${project}/image:computePixels`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: HttpBody
     });
   }
 
-  export(project: string, $requestBody: ExportImageRequest, {
-    $Xgafv = void 0,
-    access_token = void 0,
-    alt = void 0,
-    callback = void 0,
-    fields = void 0,
-    key = void 0,
-    oauth_token = void 0,
-    prettyPrint = void 0,
-    quotaUser = void 0,
-    uploadType = void 0,
-    upload_protocol = void 0
-  }: ProjectsImageExportNamedParameters&object = {
-    $Xgafv: <ProjectsImageApiClient$Xgafv|undefined>void 0,
-    access_token: <string|undefined>void 0,
-    alt: <ProjectsImageApiClientAlt|undefined>void 0,
-    callback: <string|undefined>void 0,
-    fields: <string|undefined>void 0,
-    key: <string|undefined>void 0,
-    oauth_token: <string|undefined>void 0,
-    prettyPrint: <boolean|undefined>void 0,
-    quotaUser: <string|undefined>void 0,
-    uploadType: <string|undefined>void 0,
-    upload_protocol: <string|undefined>void 0
-  }): Promise<Operation> {
+  export(
+      project: string, $requestBody: ExportImageRequest,
+      namedParameters: ProjectsImageExportNamedParameters&
+      object = {}): Promise<Operation> {
     this.$apiClient.$validateParameter(project, new RegExp('^projects/[^/]+$'));
 
     return this.$apiClient.$request<Operation>({
@@ -12754,19 +12250,7 @@ export class ProjectsImageApiClientImpl implements ProjectsImageApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.image.export',
       path: `/${this.gapiVersion}/${project}/image:export`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: Operation
     });
   }
@@ -12774,31 +12258,7 @@ export class ProjectsImageApiClientImpl implements ProjectsImageApiClient {
   import(
       project: string,
       $requestBody: ImportImageRequest,
-      {
-        $Xgafv = void 0,
-        access_token = void 0,
-        alt = void 0,
-        callback = void 0,
-        fields = void 0,
-        key = void 0,
-        oauth_token = void 0,
-        prettyPrint = void 0,
-        quotaUser = void 0,
-        uploadType = void 0,
-        upload_protocol = void 0
-      }: ProjectsImageImportNamedParameters&object = {
-        $Xgafv: <ProjectsImageApiClient$Xgafv|undefined>void 0,
-        access_token: <string|undefined>void 0,
-        alt: <ProjectsImageApiClientAlt|undefined>void 0,
-        callback: <string|undefined>void 0,
-        fields: <string|undefined>void 0,
-        key: <string|undefined>void 0,
-        oauth_token: <string|undefined>void 0,
-        prettyPrint: <boolean|undefined>void 0,
-        quotaUser: <string|undefined>void 0,
-        uploadType: <string|undefined>void 0,
-        upload_protocol: <string|undefined>void 0
-      }): Promise<Operation> {
+      namedParameters: ProjectsImageImportNamedParameters&object = {}): Promise<Operation> {
     this.$apiClient.$validateParameter(project, new RegExp('^projects/[^/]+$'));
 
     return this.$apiClient.$request<Operation>({
@@ -12806,19 +12266,7 @@ export class ProjectsImageApiClientImpl implements ProjectsImageApiClient {
       httpMethod: 'POST',
       methodId: 'earthengine.projects.image.import',
       path: `/${this.gapiVersion}/${project}/image:import`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: Operation
     });
   }
@@ -12831,69 +12279,63 @@ export abstract class ProjectsImageApiClient {
   abstract computePixels(
       project: string,
       $requestBody: ComputePixelsRequest,
-      __namedParams__?: ProjectsImageComputePixelsNamedParameters&object): Promise<HttpBody>;
+      namedParameters?: ProjectsImageComputePixelsNamedParameters&object): Promise<HttpBody>;
 
   abstract export(
       project: string,
       $requestBody: ExportImageRequest,
-      __namedParams__?: ProjectsImageExportNamedParameters&object): Promise<Operation>;
+      namedParameters?: ProjectsImageExportNamedParameters&object): Promise<Operation>;
 
   abstract import(
       project: string,
       $requestBody: ImportImageRequest,
-      __namedParams__?: ProjectsImageImportNamedParameters&object): Promise<Operation>;
+      namedParameters?: ProjectsImageImportNamedParameters&object): Promise<Operation>;
 }
 
 export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
 
   export interface IProjectsImageCollectionApiClient$XgafvEnum {
-    1: ProjectsImageCollectionApiClient$Xgafv;
-    2: ProjectsImageCollectionApiClient$Xgafv;
+    readonly 1: ProjectsImageCollectionApiClient$Xgafv;
+    readonly 2: ProjectsImageCollectionApiClient$Xgafv;
 
     values(): Array<ProjectsImageCollectionApiClient$Xgafv>;
   }
 
   export const ProjectsImageCollectionApiClient$XgafvEnum:
       IProjectsImageCollectionApiClient$XgafvEnum = {
-        get 1(): ProjectsImageCollectionApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsImageCollectionApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsImageCollectionApiClient$Xgafv>'1',
+        2: <ProjectsImageCollectionApiClient$Xgafv>'2',
         values():
             Array<ProjectsImageCollectionApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsImageCollectionApiClient$XgafvEnum[1],
+                ProjectsImageCollectionApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsImageCollectionApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsImageCollectionApiClientAltEnum {
-    JSON: ProjectsImageCollectionApiClientAlt;
-    MEDIA: ProjectsImageCollectionApiClientAlt;
-    PROTO: ProjectsImageCollectionApiClientAlt;
+    readonly JSON: ProjectsImageCollectionApiClientAlt;
+    readonly MEDIA: ProjectsImageCollectionApiClientAlt;
+    readonly PROTO: ProjectsImageCollectionApiClientAlt;
 
     values(): Array<ProjectsImageCollectionApiClientAlt>;
   }
 
   export const ProjectsImageCollectionApiClientAltEnum:
       IProjectsImageCollectionApiClientAltEnum = {
-        get JSON(): ProjectsImageCollectionApiClientAlt {
-          return 'json';
-        },
-        get MEDIA():
-            ProjectsImageCollectionApiClientAlt {
-              return 'media';
-            },
-        get PROTO():
-            ProjectsImageCollectionApiClientAlt {
-              return 'proto';
-            },
+        JSON: <ProjectsImageCollectionApiClientAlt>'json',
+        MEDIA: <ProjectsImageCollectionApiClientAlt>'media',
+        PROTO: <ProjectsImageCollectionApiClientAlt>'proto',
         values():
             Array<ProjectsImageCollectionApiClientAlt> {
-              return ['json', 'media', 'proto'];
+              return [
+                ProjectsImageCollectionApiClientAltEnum.JSON,
+                ProjectsImageCollectionApiClientAltEnum.MEDIA,
+                ProjectsImageCollectionApiClientAltEnum.PROTO
+              ];
             }
       };
 
@@ -12922,31 +12364,10 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    computeImages(project: string, $requestBody: ComputeImagesRequest, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsImageCollectionComputeImagesNamedParameters&object = {
-      $Xgafv: <ProjectsImageCollectionApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsImageCollectionApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<ComputeImagesResponse> {
+    computeImages(
+        project: string, $requestBody: ComputeImagesRequest,
+        namedParameters: ProjectsImageCollectionComputeImagesNamedParameters&
+        object = {}): Promise<ComputeImagesResponse> {
       this.$apiClient.$validateParameter(
           project, new RegExp('^projects/[^/]+$'));
 
@@ -12955,19 +12376,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.imageCollection.computeImages',
         path: `/${this.gapiVersion}/${project}/imageCollection:computeImages`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: ComputeImagesResponse
       });
     }
@@ -12978,59 +12387,52 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
 
     abstract computeImages(
         project: string, $requestBody: ComputeImagesRequest,
-        __namedParams__?: ProjectsImageCollectionComputeImagesNamedParameters&
+        namedParameters?: ProjectsImageCollectionComputeImagesNamedParameters&
         object): Promise<ComputeImagesResponse>;
   }
 
   export type ProjectsMapApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsMapApiClient$XgafvEnum {
-    1: ProjectsMapApiClient$Xgafv;
-    2: ProjectsMapApiClient$Xgafv;
+    readonly 1: ProjectsMapApiClient$Xgafv;
+    readonly 2: ProjectsMapApiClient$Xgafv;
 
     values(): Array<ProjectsMapApiClient$Xgafv>;
   }
 
   export const ProjectsMapApiClient$XgafvEnum:
       IProjectsMapApiClient$XgafvEnum = {
-        get 1(): ProjectsMapApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsMapApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsMapApiClient$Xgafv>'1',
+        2: <ProjectsMapApiClient$Xgafv>'2',
         values():
             Array<ProjectsMapApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsMapApiClient$XgafvEnum[1],
+                ProjectsMapApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsMapApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsMapApiClientAltEnum {
-    JSON: ProjectsMapApiClientAlt;
-    MEDIA: ProjectsMapApiClientAlt;
-    PROTO: ProjectsMapApiClientAlt;
+    readonly JSON: ProjectsMapApiClientAlt;
+    readonly MEDIA: ProjectsMapApiClientAlt;
+    readonly PROTO: ProjectsMapApiClientAlt;
 
     values(): Array<ProjectsMapApiClientAlt>;
   }
 
   export const ProjectsMapApiClientAltEnum: IProjectsMapApiClientAltEnum = {
-    get JSON(): ProjectsMapApiClientAlt {
-      return 'json';
-    },
-    get MEDIA():
-        ProjectsMapApiClientAlt {
-          return 'media';
-        },
-    get PROTO():
-        ProjectsMapApiClientAlt {
-          return 'proto';
-        },
+    JSON: <ProjectsMapApiClientAlt>'json',
+    MEDIA: <ProjectsMapApiClientAlt>'media',
+    PROTO: <ProjectsMapApiClientAlt>'proto',
     values():
         Array<ProjectsMapApiClientAlt> {
-          return ['json', 'media', 'proto'];
+          return [
+            ProjectsMapApiClientAltEnum.JSON, ProjectsMapApiClientAltEnum.MEDIA,
+            ProjectsMapApiClientAltEnum.PROTO
+          ];
         }
   };
 
@@ -13058,31 +12460,10 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    export(project: string, $requestBody: ExportMapRequest, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsMapExportNamedParameters&object = {
-      $Xgafv: <ProjectsMapApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsMapApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Operation> {
+    export(
+        project: string, $requestBody: ExportMapRequest,
+        namedParameters: ProjectsMapExportNamedParameters&
+        object = {}): Promise<Operation> {
       this.$apiClient.$validateParameter(
           project, new RegExp('^projects/[^/]+$'));
 
@@ -13091,19 +12472,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.map.export',
         path: `/${this.gapiVersion}/${project}/map:export`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Operation
       });
     }
@@ -13114,59 +12483,53 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
 
     abstract export(
         project: string, $requestBody: ExportMapRequest,
-        __namedParams__?: ProjectsMapExportNamedParameters&
+        namedParameters?: ProjectsMapExportNamedParameters&
         object): Promise<Operation>;
   }
 
   export type ProjectsMapsApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsMapsApiClient$XgafvEnum {
-    1: ProjectsMapsApiClient$Xgafv;
-    2: ProjectsMapsApiClient$Xgafv;
+    readonly 1: ProjectsMapsApiClient$Xgafv;
+    readonly 2: ProjectsMapsApiClient$Xgafv;
 
     values(): Array<ProjectsMapsApiClient$Xgafv>;
   }
 
   export const ProjectsMapsApiClient$XgafvEnum:
       IProjectsMapsApiClient$XgafvEnum = {
-        get 1(): ProjectsMapsApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsMapsApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsMapsApiClient$Xgafv>'1',
+        2: <ProjectsMapsApiClient$Xgafv>'2',
         values():
             Array<ProjectsMapsApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsMapsApiClient$XgafvEnum[1],
+                ProjectsMapsApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsMapsApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsMapsApiClientAltEnum {
-    JSON: ProjectsMapsApiClientAlt;
-    MEDIA: ProjectsMapsApiClientAlt;
-    PROTO: ProjectsMapsApiClientAlt;
+    readonly JSON: ProjectsMapsApiClientAlt;
+    readonly MEDIA: ProjectsMapsApiClientAlt;
+    readonly PROTO: ProjectsMapsApiClientAlt;
 
     values(): Array<ProjectsMapsApiClientAlt>;
   }
 
   export const ProjectsMapsApiClientAltEnum: IProjectsMapsApiClientAltEnum = {
-    get JSON(): ProjectsMapsApiClientAlt {
-      return 'json';
-    },
-    get MEDIA():
-        ProjectsMapsApiClientAlt {
-          return 'media';
-        },
-    get PROTO():
-        ProjectsMapsApiClientAlt {
-          return 'proto';
-        },
+    JSON: <ProjectsMapsApiClientAlt>'json',
+    MEDIA: <ProjectsMapsApiClientAlt>'media',
+    PROTO: <ProjectsMapsApiClientAlt>'proto',
     values():
         Array<ProjectsMapsApiClientAlt> {
-          return ['json', 'media', 'proto'];
+          return [
+            ProjectsMapsApiClientAltEnum.JSON,
+            ProjectsMapsApiClientAltEnum.MEDIA,
+            ProjectsMapsApiClientAltEnum.PROTO
+          ];
         }
   };
 
@@ -13194,31 +12557,10 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    create(parent: string, $requestBody: EarthEngineMap, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsMapsCreateNamedParameters&object = {
-      $Xgafv: <ProjectsMapsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsMapsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<EarthEngineMap> {
+    create(
+        parent: string, $requestBody: EarthEngineMap,
+        namedParameters: ProjectsMapsCreateNamedParameters&
+        object = {}): Promise<EarthEngineMap> {
       this.$apiClient.$validateParameter(
           parent, new RegExp('^projects/[^/]+$'));
 
@@ -13227,19 +12569,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.maps.create',
         path: `/${this.gapiVersion}/${parent}/maps`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: EarthEngineMap
       });
     }
@@ -13250,60 +12580,54 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
 
     abstract create(
         parent: string, $requestBody: EarthEngineMap,
-        __namedParams__?: ProjectsMapsCreateNamedParameters&
+        namedParameters?: ProjectsMapsCreateNamedParameters&
         object): Promise<EarthEngineMap>;
   }
 
   export type ProjectsMapsTilesApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsMapsTilesApiClient$XgafvEnum {
-    1: ProjectsMapsTilesApiClient$Xgafv;
-    2: ProjectsMapsTilesApiClient$Xgafv;
+    readonly 1: ProjectsMapsTilesApiClient$Xgafv;
+    readonly 2: ProjectsMapsTilesApiClient$Xgafv;
 
     values(): Array<ProjectsMapsTilesApiClient$Xgafv>;
   }
 
   export const ProjectsMapsTilesApiClient$XgafvEnum:
       IProjectsMapsTilesApiClient$XgafvEnum = {
-        get 1(): ProjectsMapsTilesApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsMapsTilesApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsMapsTilesApiClient$Xgafv>'1',
+        2: <ProjectsMapsTilesApiClient$Xgafv>'2',
         values():
             Array<ProjectsMapsTilesApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsMapsTilesApiClient$XgafvEnum[1],
+                ProjectsMapsTilesApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsMapsTilesApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsMapsTilesApiClientAltEnum {
-    JSON: ProjectsMapsTilesApiClientAlt;
-    MEDIA: ProjectsMapsTilesApiClientAlt;
-    PROTO: ProjectsMapsTilesApiClientAlt;
+    readonly JSON: ProjectsMapsTilesApiClientAlt;
+    readonly MEDIA: ProjectsMapsTilesApiClientAlt;
+    readonly PROTO: ProjectsMapsTilesApiClientAlt;
 
     values(): Array<ProjectsMapsTilesApiClientAlt>;
   }
 
   export const ProjectsMapsTilesApiClientAltEnum:
       IProjectsMapsTilesApiClientAltEnum = {
-        get JSON(): ProjectsMapsTilesApiClientAlt {
-          return 'json';
-        },
-        get MEDIA():
-            ProjectsMapsTilesApiClientAlt {
-              return 'media';
-            },
-        get PROTO():
-            ProjectsMapsTilesApiClientAlt {
-              return 'proto';
-            },
+        JSON: <ProjectsMapsTilesApiClientAlt>'json',
+        MEDIA: <ProjectsMapsTilesApiClientAlt>'media',
+        PROTO: <ProjectsMapsTilesApiClientAlt>'proto',
         values():
             Array<ProjectsMapsTilesApiClientAlt> {
-              return ['json', 'media', 'proto'];
+              return [
+                ProjectsMapsTilesApiClientAltEnum.JSON,
+                ProjectsMapsTilesApiClientAltEnum.MEDIA,
+                ProjectsMapsTilesApiClientAltEnum.PROTO
+              ];
             }
       };
 
@@ -13332,31 +12656,9 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    get(parent: string, zoom: number, x: number, y: number, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsMapsTilesGetNamedParameters&object = {
-      $Xgafv: <ProjectsMapsTilesApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsMapsTilesApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<HttpBody> {
+    get(parent: string, zoom: number, x: number, y: number,
+        namedParameters: ProjectsMapsTilesGetNamedParameters&
+        object = {}): Promise<HttpBody> {
       this.$apiClient.$validateParameter(
           parent, new RegExp('^projects/[^/]+/maps/[^/]+$'));
       let $requestBody = <Serializable|null>null;
@@ -13366,19 +12668,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'GET',
         methodId: 'earthengine.projects.maps.tiles.get',
         path: `/${this.gapiVersion}/${parent}/tiles/${zoom}/${x}/${y}`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: HttpBody
       });
     }
@@ -13389,60 +12679,54 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
 
     abstract get(
         parent: string, zoom: number, x: number, y: number,
-        __namedParams__?: ProjectsMapsTilesGetNamedParameters&
+        namedParameters?: ProjectsMapsTilesGetNamedParameters&
         object): Promise<HttpBody>;
   }
 
   export type ProjectsOperationsApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsOperationsApiClient$XgafvEnum {
-    1: ProjectsOperationsApiClient$Xgafv;
-    2: ProjectsOperationsApiClient$Xgafv;
+    readonly 1: ProjectsOperationsApiClient$Xgafv;
+    readonly 2: ProjectsOperationsApiClient$Xgafv;
 
     values(): Array<ProjectsOperationsApiClient$Xgafv>;
   }
 
   export const ProjectsOperationsApiClient$XgafvEnum:
       IProjectsOperationsApiClient$XgafvEnum = {
-        get 1(): ProjectsOperationsApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsOperationsApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsOperationsApiClient$Xgafv>'1',
+        2: <ProjectsOperationsApiClient$Xgafv>'2',
         values():
             Array<ProjectsOperationsApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsOperationsApiClient$XgafvEnum[1],
+                ProjectsOperationsApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsOperationsApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsOperationsApiClientAltEnum {
-    JSON: ProjectsOperationsApiClientAlt;
-    MEDIA: ProjectsOperationsApiClientAlt;
-    PROTO: ProjectsOperationsApiClientAlt;
+    readonly JSON: ProjectsOperationsApiClientAlt;
+    readonly MEDIA: ProjectsOperationsApiClientAlt;
+    readonly PROTO: ProjectsOperationsApiClientAlt;
 
     values(): Array<ProjectsOperationsApiClientAlt>;
   }
 
   export const ProjectsOperationsApiClientAltEnum:
       IProjectsOperationsApiClientAltEnum = {
-        get JSON(): ProjectsOperationsApiClientAlt {
-          return 'json';
-        },
-        get MEDIA():
-            ProjectsOperationsApiClientAlt {
-              return 'media';
-            },
-        get PROTO():
-            ProjectsOperationsApiClientAlt {
-              return 'proto';
-            },
+        JSON: <ProjectsOperationsApiClientAlt>'json',
+        MEDIA: <ProjectsOperationsApiClientAlt>'media',
+        PROTO: <ProjectsOperationsApiClientAlt>'proto',
         values():
             Array<ProjectsOperationsApiClientAlt> {
-              return ['json', 'media', 'proto'];
+              return [
+                ProjectsOperationsApiClientAltEnum.JSON,
+                ProjectsOperationsApiClientAltEnum.MEDIA,
+                ProjectsOperationsApiClientAltEnum.PROTO
+              ];
             }
       };
 
@@ -13530,31 +12814,10 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    cancel(name: string, $requestBody: CancelOperationRequest, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsOperationsCancelNamedParameters&object = {
-      $Xgafv: <ProjectsOperationsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsOperationsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Empty> {
+    cancel(
+        name: string, $requestBody: CancelOperationRequest,
+        namedParameters: ProjectsOperationsCancelNamedParameters&
+        object = {}): Promise<Empty> {
       this.$apiClient.$validateParameter(
           name, new RegExp('^projects/[^/]+/operations/.*$'));
 
@@ -13563,48 +12826,15 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.operations.cancel',
         path: `/${this.gapiVersion}/${name}:cancel`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Empty
       });
     }
 
-    delete(name: string, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsOperationsDeleteNamedParameters&object = {
-      $Xgafv: <ProjectsOperationsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsOperationsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Empty> {
+    delete(
+        name: string,
+        namedParameters: ProjectsOperationsDeleteNamedParameters&
+        object = {}): Promise<Empty> {
       this.$apiClient.$validateParameter(
           name, new RegExp('^projects/[^/]+/operations/.*$'));
       let $requestBody = <Serializable|null>null;
@@ -13614,48 +12844,14 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'DELETE',
         methodId: 'earthengine.projects.operations.delete',
         path: `/${this.gapiVersion}/${name}`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Empty
       });
     }
 
-    get(name: string, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsOperationsGetNamedParameters&object = {
-      $Xgafv: <ProjectsOperationsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsOperationsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Operation> {
+    get(name: string,
+        namedParameters: ProjectsOperationsGetNamedParameters&
+        object = {}): Promise<Operation> {
       this.$apiClient.$validateParameter(
           name, new RegExp('^projects/[^/]+/operations/.*$'));
       let $requestBody = <Serializable|null>null;
@@ -13665,54 +12861,15 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'GET',
         methodId: 'earthengine.projects.operations.get',
         path: `/${this.gapiVersion}/${name}`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Operation
       });
     }
 
-    list(name: string, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      filter = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      pageSize = void 0,
-      pageToken = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsOperationsListNamedParameters&object = {
-      $Xgafv: <ProjectsOperationsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsOperationsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      filter: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      pageSize: <number|undefined>void 0,
-      pageToken: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<ListOperationsResponse> {
+    list(
+        name: string,
+        namedParameters: ProjectsOperationsListNamedParameters&
+        object = {}): Promise<ListOperationsResponse> {
       this.$apiClient.$validateParameter(name, new RegExp('^projects/[^/]+$'));
       let $requestBody = <Serializable|null>null;
 
@@ -13721,51 +12878,15 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'GET',
         methodId: 'earthengine.projects.operations.list',
         path: `/${this.gapiVersion}/${name}/operations`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'filter': filter,
-          'key': key,
-          'oauth_token': oauth_token,
-          'pageSize': pageSize,
-          'pageToken': pageToken,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: ListOperationsResponse
       });
     }
 
-    wait(name: string, $requestBody: WaitOperationRequest, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsOperationsWaitNamedParameters&object = {
-      $Xgafv: <ProjectsOperationsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsOperationsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Operation> {
+    wait(
+        name: string, $requestBody: WaitOperationRequest,
+        namedParameters: ProjectsOperationsWaitNamedParameters&
+        object = {}): Promise<Operation> {
       this.$apiClient.$validateParameter(
           name, new RegExp('^projects/[^/]+/operations/.*$'));
 
@@ -13774,19 +12895,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.operations.wait',
         path: `/${this.gapiVersion}/${name}:wait`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Operation
       });
     }
@@ -13797,79 +12906,73 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
 
     abstract cancel(
         name: string, $requestBody: CancelOperationRequest,
-        __namedParams__?: ProjectsOperationsCancelNamedParameters&
+        namedParameters?: ProjectsOperationsCancelNamedParameters&
         object): Promise<Empty>;
 
     abstract delete(
         name: string,
-        __namedParams__?: ProjectsOperationsDeleteNamedParameters&
+        namedParameters?: ProjectsOperationsDeleteNamedParameters&
         object): Promise<Empty>;
 
     abstract get(
         name: string,
-        __namedParams__?: ProjectsOperationsGetNamedParameters&
+        namedParameters?: ProjectsOperationsGetNamedParameters&
         object): Promise<Operation>;
 
     abstract list(
         name: string,
-        __namedParams__?: ProjectsOperationsListNamedParameters&
+        namedParameters?: ProjectsOperationsListNamedParameters&
         object): Promise<ListOperationsResponse>;
 
     abstract wait(
         name: string, $requestBody: WaitOperationRequest,
-        __namedParams__?: ProjectsOperationsWaitNamedParameters&
+        namedParameters?: ProjectsOperationsWaitNamedParameters&
         object): Promise<Operation>;
   }
 
   export type ProjectsTableApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsTableApiClient$XgafvEnum {
-    1: ProjectsTableApiClient$Xgafv;
-    2: ProjectsTableApiClient$Xgafv;
+    readonly 1: ProjectsTableApiClient$Xgafv;
+    readonly 2: ProjectsTableApiClient$Xgafv;
 
     values(): Array<ProjectsTableApiClient$Xgafv>;
   }
 
   export const ProjectsTableApiClient$XgafvEnum:
       IProjectsTableApiClient$XgafvEnum = {
-        get 1(): ProjectsTableApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsTableApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsTableApiClient$Xgafv>'1',
+        2: <ProjectsTableApiClient$Xgafv>'2',
         values():
             Array<ProjectsTableApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsTableApiClient$XgafvEnum[1],
+                ProjectsTableApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsTableApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsTableApiClientAltEnum {
-    JSON: ProjectsTableApiClientAlt;
-    MEDIA: ProjectsTableApiClientAlt;
-    PROTO: ProjectsTableApiClientAlt;
+    readonly JSON: ProjectsTableApiClientAlt;
+    readonly MEDIA: ProjectsTableApiClientAlt;
+    readonly PROTO: ProjectsTableApiClientAlt;
 
     values(): Array<ProjectsTableApiClientAlt>;
   }
 
   export const ProjectsTableApiClientAltEnum: IProjectsTableApiClientAltEnum = {
-    get JSON(): ProjectsTableApiClientAlt {
-      return 'json';
-    },
-    get MEDIA():
-        ProjectsTableApiClientAlt {
-          return 'media';
-        },
-    get PROTO():
-        ProjectsTableApiClientAlt {
-          return 'proto';
-        },
+    JSON: <ProjectsTableApiClientAlt>'json',
+    MEDIA: <ProjectsTableApiClientAlt>'media',
+    PROTO: <ProjectsTableApiClientAlt>'proto',
     values():
         Array<ProjectsTableApiClientAlt> {
-          return ['json', 'media', 'proto'];
+          return [
+            ProjectsTableApiClientAltEnum.JSON,
+            ProjectsTableApiClientAltEnum.MEDIA,
+            ProjectsTableApiClientAltEnum.PROTO
+          ];
         }
   };
 
@@ -13925,31 +13028,10 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    computeFeatures(project: string, $requestBody: ComputeFeaturesRequest, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsTableComputeFeaturesNamedParameters&object = {
-      $Xgafv: <ProjectsTableApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsTableApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<ComputeFeaturesResponse> {
+    computeFeatures(
+        project: string, $requestBody: ComputeFeaturesRequest,
+        namedParameters: ProjectsTableComputeFeaturesNamedParameters&
+        object = {}): Promise<ComputeFeaturesResponse> {
       this.$apiClient.$validateParameter(
           project, new RegExp('^projects/[^/]+$'));
 
@@ -13958,48 +13040,15 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.table.computeFeatures',
         path: `/${this.gapiVersion}/${project}/table:computeFeatures`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: ComputeFeaturesResponse
       });
     }
 
-    export(project: string, $requestBody: ExportTableRequest, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsTableExportNamedParameters&object = {
-      $Xgafv: <ProjectsTableApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsTableApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Operation> {
+    export(
+        project: string, $requestBody: ExportTableRequest,
+        namedParameters: ProjectsTableExportNamedParameters&
+        object = {}): Promise<Operation> {
       this.$apiClient.$validateParameter(
           project, new RegExp('^projects/[^/]+$'));
 
@@ -14008,19 +13057,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.table.export',
         path: `/${this.gapiVersion}/${project}/table:export`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Operation
       });
     }
@@ -14028,31 +13065,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
   import(
       project: string,
       $requestBody: ImportTableRequest,
-      {
-        $Xgafv = void 0,
-        access_token = void 0,
-        alt = void 0,
-        callback = void 0,
-        fields = void 0,
-        key = void 0,
-        oauth_token = void 0,
-        prettyPrint = void 0,
-        quotaUser = void 0,
-        uploadType = void 0,
-        upload_protocol = void 0
-      }: ProjectsTableImportNamedParameters&object = {
-        $Xgafv: <ProjectsTableApiClient$Xgafv|undefined>void 0,
-        access_token: <string|undefined>void 0,
-        alt: <ProjectsTableApiClientAlt|undefined>void 0,
-        callback: <string|undefined>void 0,
-        fields: <string|undefined>void 0,
-        key: <string|undefined>void 0,
-        oauth_token: <string|undefined>void 0,
-        prettyPrint: <boolean|undefined>void 0,
-        quotaUser: <string|undefined>void 0,
-        uploadType: <string|undefined>void 0,
-        upload_protocol: <string|undefined>void 0
-      }): Promise<Operation> {
+      namedParameters: ProjectsTableImportNamedParameters&object = {}): Promise<Operation> {
     this.$apiClient.$validateParameter(project, new RegExp('^projects/[^/]+$'));
 
     return this.$apiClient.$request<Operation>({
@@ -14060,19 +13073,7 @@ export type ProjectsImageCollectionApiClient$Xgafv = '1' | '2';
       httpMethod: 'POST',
       methodId: 'earthengine.projects.table.import',
       path: `/${this.gapiVersion}/${project}/table:import`,
-      queryParams: {
-        '$.xgafv': $Xgafv,
-        'access_token': access_token,
-        'alt': alt,
-        'callback': callback,
-        'fields': fields,
-        'key': key,
-        'oauth_token': oauth_token,
-        'prettyPrint': prettyPrint,
-        'quotaUser': quotaUser,
-        'uploadType': uploadType,
-        'upload_protocol': upload_protocol
-      },
+      queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
       responseCtor: Operation
     });
   }
@@ -14085,69 +13086,63 @@ export abstract class ProjectsTableApiClient {
   abstract computeFeatures(
       project: string,
       $requestBody: ComputeFeaturesRequest,
-      __namedParams__?: ProjectsTableComputeFeaturesNamedParameters&object): Promise<ComputeFeaturesResponse>;
+      namedParameters?: ProjectsTableComputeFeaturesNamedParameters&object): Promise<ComputeFeaturesResponse>;
 
   abstract export(
       project: string,
       $requestBody: ExportTableRequest,
-      __namedParams__?: ProjectsTableExportNamedParameters&object): Promise<Operation>;
+      namedParameters?: ProjectsTableExportNamedParameters&object): Promise<Operation>;
 
   abstract import(
       project: string,
       $requestBody: ImportTableRequest,
-      __namedParams__?: ProjectsTableImportNamedParameters&object): Promise<Operation>;
+      namedParameters?: ProjectsTableImportNamedParameters&object): Promise<Operation>;
 }
 
 export type ProjectsTablesApiClient$Xgafv = '1' | '2';
 
   export interface IProjectsTablesApiClient$XgafvEnum {
-    1: ProjectsTablesApiClient$Xgafv;
-    2: ProjectsTablesApiClient$Xgafv;
+    readonly 1: ProjectsTablesApiClient$Xgafv;
+    readonly 2: ProjectsTablesApiClient$Xgafv;
 
     values(): Array<ProjectsTablesApiClient$Xgafv>;
   }
 
   export const ProjectsTablesApiClient$XgafvEnum:
       IProjectsTablesApiClient$XgafvEnum = {
-        get 1(): ProjectsTablesApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsTablesApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsTablesApiClient$Xgafv>'1',
+        2: <ProjectsTablesApiClient$Xgafv>'2',
         values():
             Array<ProjectsTablesApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsTablesApiClient$XgafvEnum[1],
+                ProjectsTablesApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsTablesApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsTablesApiClientAltEnum {
-    JSON: ProjectsTablesApiClientAlt;
-    MEDIA: ProjectsTablesApiClientAlt;
-    PROTO: ProjectsTablesApiClientAlt;
+    readonly JSON: ProjectsTablesApiClientAlt;
+    readonly MEDIA: ProjectsTablesApiClientAlt;
+    readonly PROTO: ProjectsTablesApiClientAlt;
 
     values(): Array<ProjectsTablesApiClientAlt>;
   }
 
   export const ProjectsTablesApiClientAltEnum:
       IProjectsTablesApiClientAltEnum = {
-        get JSON(): ProjectsTablesApiClientAlt {
-          return 'json';
-        },
-        get MEDIA():
-            ProjectsTablesApiClientAlt {
-              return 'media';
-            },
-        get PROTO():
-            ProjectsTablesApiClientAlt {
-              return 'proto';
-            },
+        JSON: <ProjectsTablesApiClientAlt>'json',
+        MEDIA: <ProjectsTablesApiClientAlt>'media',
+        PROTO: <ProjectsTablesApiClientAlt>'proto',
         values():
             Array<ProjectsTablesApiClientAlt> {
-              return ['json', 'media', 'proto'];
+              return [
+                ProjectsTablesApiClientAltEnum.JSON,
+                ProjectsTablesApiClientAltEnum.MEDIA,
+                ProjectsTablesApiClientAltEnum.PROTO
+              ];
             }
       };
 
@@ -14189,31 +13184,10 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    create(parent: string, $requestBody: Table, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsTablesCreateNamedParameters&object = {
-      $Xgafv: <ProjectsTablesApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsTablesApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Table> {
+    create(
+        parent: string, $requestBody: Table,
+        namedParameters: ProjectsTablesCreateNamedParameters&
+        object = {}): Promise<Table> {
       this.$apiClient.$validateParameter(
           parent, new RegExp('^projects/[^/]+$'));
 
@@ -14222,48 +13196,15 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.tables.create',
         path: `/${this.gapiVersion}/${parent}/tables`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Table
       });
     }
 
-    getFeatures(name: string, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsTablesGetFeaturesNamedParameters&object = {
-      $Xgafv: <ProjectsTablesApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsTablesApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<HttpBody> {
+    getFeatures(
+        name: string,
+        namedParameters: ProjectsTablesGetFeaturesNamedParameters&
+        object = {}): Promise<HttpBody> {
       this.$apiClient.$validateParameter(
           name, new RegExp('^projects/[^/]+/tables/[^/]+$'));
       let $requestBody = <Serializable|null>null;
@@ -14273,19 +13214,7 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
         httpMethod: 'GET',
         methodId: 'earthengine.projects.tables.getFeatures',
         path: `/${this.gapiVersion}/${name}:getFeatures`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: HttpBody
       });
     }
@@ -14296,65 +13225,59 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
 
     abstract create(
         parent: string, $requestBody: Table,
-        __namedParams__?: ProjectsTablesCreateNamedParameters&
+        namedParameters?: ProjectsTablesCreateNamedParameters&
         object): Promise<Table>;
 
     abstract getFeatures(
         name: string,
-        __namedParams__?: ProjectsTablesGetFeaturesNamedParameters&
+        namedParameters?: ProjectsTablesGetFeaturesNamedParameters&
         object): Promise<HttpBody>;
   }
 
   export type ProjectsThumbnailsApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsThumbnailsApiClient$XgafvEnum {
-    1: ProjectsThumbnailsApiClient$Xgafv;
-    2: ProjectsThumbnailsApiClient$Xgafv;
+    readonly 1: ProjectsThumbnailsApiClient$Xgafv;
+    readonly 2: ProjectsThumbnailsApiClient$Xgafv;
 
     values(): Array<ProjectsThumbnailsApiClient$Xgafv>;
   }
 
   export const ProjectsThumbnailsApiClient$XgafvEnum:
       IProjectsThumbnailsApiClient$XgafvEnum = {
-        get 1(): ProjectsThumbnailsApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsThumbnailsApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsThumbnailsApiClient$Xgafv>'1',
+        2: <ProjectsThumbnailsApiClient$Xgafv>'2',
         values():
             Array<ProjectsThumbnailsApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsThumbnailsApiClient$XgafvEnum[1],
+                ProjectsThumbnailsApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsThumbnailsApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsThumbnailsApiClientAltEnum {
-    JSON: ProjectsThumbnailsApiClientAlt;
-    MEDIA: ProjectsThumbnailsApiClientAlt;
-    PROTO: ProjectsThumbnailsApiClientAlt;
+    readonly JSON: ProjectsThumbnailsApiClientAlt;
+    readonly MEDIA: ProjectsThumbnailsApiClientAlt;
+    readonly PROTO: ProjectsThumbnailsApiClientAlt;
 
     values(): Array<ProjectsThumbnailsApiClientAlt>;
   }
 
   export const ProjectsThumbnailsApiClientAltEnum:
       IProjectsThumbnailsApiClientAltEnum = {
-        get JSON(): ProjectsThumbnailsApiClientAlt {
-          return 'json';
-        },
-        get MEDIA():
-            ProjectsThumbnailsApiClientAlt {
-              return 'media';
-            },
-        get PROTO():
-            ProjectsThumbnailsApiClientAlt {
-              return 'proto';
-            },
+        JSON: <ProjectsThumbnailsApiClientAlt>'json',
+        MEDIA: <ProjectsThumbnailsApiClientAlt>'media',
+        PROTO: <ProjectsThumbnailsApiClientAlt>'proto',
         values():
             Array<ProjectsThumbnailsApiClientAlt> {
-              return ['json', 'media', 'proto'];
+              return [
+                ProjectsThumbnailsApiClientAltEnum.JSON,
+                ProjectsThumbnailsApiClientAltEnum.MEDIA,
+                ProjectsThumbnailsApiClientAltEnum.PROTO
+              ];
             }
       };
 
@@ -14397,31 +13320,10 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    create(parent: string, $requestBody: Thumbnail, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsThumbnailsCreateNamedParameters&object = {
-      $Xgafv: <ProjectsThumbnailsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsThumbnailsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Thumbnail> {
+    create(
+        parent: string, $requestBody: Thumbnail,
+        namedParameters: ProjectsThumbnailsCreateNamedParameters&
+        object = {}): Promise<Thumbnail> {
       this.$apiClient.$validateParameter(
           parent, new RegExp('^projects/[^/]+$'));
 
@@ -14430,48 +13332,15 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.thumbnails.create',
         path: `/${this.gapiVersion}/${parent}/thumbnails`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Thumbnail
       });
     }
 
-    getPixels(name: string, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsThumbnailsGetPixelsNamedParameters&object = {
-      $Xgafv: <ProjectsThumbnailsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsThumbnailsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<HttpBody> {
+    getPixels(
+        name: string,
+        namedParameters: ProjectsThumbnailsGetPixelsNamedParameters&
+        object = {}): Promise<HttpBody> {
       this.$apiClient.$validateParameter(
           name, new RegExp('^projects/[^/]+/thumbnails/[^/]+$'));
       let $requestBody = <Serializable|null>null;
@@ -14481,19 +13350,7 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
         httpMethod: 'GET',
         methodId: 'earthengine.projects.thumbnails.getPixels',
         path: `/${this.gapiVersion}/${name}:getPixels`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: HttpBody
       });
     }
@@ -14504,64 +13361,58 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
 
     abstract create(
         parent: string, $requestBody: Thumbnail,
-        __namedParams__?: ProjectsThumbnailsCreateNamedParameters&
+        namedParameters?: ProjectsThumbnailsCreateNamedParameters&
         object): Promise<Thumbnail>;
 
     abstract getPixels(
         name: string,
-        __namedParams__?: ProjectsThumbnailsGetPixelsNamedParameters&
+        namedParameters?: ProjectsThumbnailsGetPixelsNamedParameters&
         object): Promise<HttpBody>;
   }
 
   export type ProjectsValueApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsValueApiClient$XgafvEnum {
-    1: ProjectsValueApiClient$Xgafv;
-    2: ProjectsValueApiClient$Xgafv;
+    readonly 1: ProjectsValueApiClient$Xgafv;
+    readonly 2: ProjectsValueApiClient$Xgafv;
 
     values(): Array<ProjectsValueApiClient$Xgafv>;
   }
 
   export const ProjectsValueApiClient$XgafvEnum:
       IProjectsValueApiClient$XgafvEnum = {
-        get 1(): ProjectsValueApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsValueApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsValueApiClient$Xgafv>'1',
+        2: <ProjectsValueApiClient$Xgafv>'2',
         values():
             Array<ProjectsValueApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsValueApiClient$XgafvEnum[1],
+                ProjectsValueApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsValueApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsValueApiClientAltEnum {
-    JSON: ProjectsValueApiClientAlt;
-    MEDIA: ProjectsValueApiClientAlt;
-    PROTO: ProjectsValueApiClientAlt;
+    readonly JSON: ProjectsValueApiClientAlt;
+    readonly MEDIA: ProjectsValueApiClientAlt;
+    readonly PROTO: ProjectsValueApiClientAlt;
 
     values(): Array<ProjectsValueApiClientAlt>;
   }
 
   export const ProjectsValueApiClientAltEnum: IProjectsValueApiClientAltEnum = {
-    get JSON(): ProjectsValueApiClientAlt {
-      return 'json';
-    },
-    get MEDIA():
-        ProjectsValueApiClientAlt {
-          return 'media';
-        },
-    get PROTO():
-        ProjectsValueApiClientAlt {
-          return 'proto';
-        },
+    JSON: <ProjectsValueApiClientAlt>'json',
+    MEDIA: <ProjectsValueApiClientAlt>'media',
+    PROTO: <ProjectsValueApiClientAlt>'proto',
     values():
         Array<ProjectsValueApiClientAlt> {
-          return ['json', 'media', 'proto'];
+          return [
+            ProjectsValueApiClientAltEnum.JSON,
+            ProjectsValueApiClientAltEnum.MEDIA,
+            ProjectsValueApiClientAltEnum.PROTO
+          ];
         }
   };
 
@@ -14589,31 +13440,10 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    compute(project: string, $requestBody: ComputeValueRequest, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsValueComputeNamedParameters&object = {
-      $Xgafv: <ProjectsValueApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsValueApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<ComputeValueResponse> {
+    compute(
+        project: string, $requestBody: ComputeValueRequest,
+        namedParameters: ProjectsValueComputeNamedParameters&
+        object = {}): Promise<ComputeValueResponse> {
       this.$apiClient.$validateParameter(
           project, new RegExp('^projects/[^/]+$'));
 
@@ -14622,19 +13452,7 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.value.compute',
         path: `/${this.gapiVersion}/${project}/value:compute`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: ComputeValueResponse
       });
     }
@@ -14645,59 +13463,53 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
 
     abstract compute(
         project: string, $requestBody: ComputeValueRequest,
-        __namedParams__?: ProjectsValueComputeNamedParameters&
+        namedParameters?: ProjectsValueComputeNamedParameters&
         object): Promise<ComputeValueResponse>;
   }
 
   export type ProjectsVideoApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsVideoApiClient$XgafvEnum {
-    1: ProjectsVideoApiClient$Xgafv;
-    2: ProjectsVideoApiClient$Xgafv;
+    readonly 1: ProjectsVideoApiClient$Xgafv;
+    readonly 2: ProjectsVideoApiClient$Xgafv;
 
     values(): Array<ProjectsVideoApiClient$Xgafv>;
   }
 
   export const ProjectsVideoApiClient$XgafvEnum:
       IProjectsVideoApiClient$XgafvEnum = {
-        get 1(): ProjectsVideoApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsVideoApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsVideoApiClient$Xgafv>'1',
+        2: <ProjectsVideoApiClient$Xgafv>'2',
         values():
             Array<ProjectsVideoApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsVideoApiClient$XgafvEnum[1],
+                ProjectsVideoApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsVideoApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsVideoApiClientAltEnum {
-    JSON: ProjectsVideoApiClientAlt;
-    MEDIA: ProjectsVideoApiClientAlt;
-    PROTO: ProjectsVideoApiClientAlt;
+    readonly JSON: ProjectsVideoApiClientAlt;
+    readonly MEDIA: ProjectsVideoApiClientAlt;
+    readonly PROTO: ProjectsVideoApiClientAlt;
 
     values(): Array<ProjectsVideoApiClientAlt>;
   }
 
   export const ProjectsVideoApiClientAltEnum: IProjectsVideoApiClientAltEnum = {
-    get JSON(): ProjectsVideoApiClientAlt {
-      return 'json';
-    },
-    get MEDIA():
-        ProjectsVideoApiClientAlt {
-          return 'media';
-        },
-    get PROTO():
-        ProjectsVideoApiClientAlt {
-          return 'proto';
-        },
+    JSON: <ProjectsVideoApiClientAlt>'json',
+    MEDIA: <ProjectsVideoApiClientAlt>'media',
+    PROTO: <ProjectsVideoApiClientAlt>'proto',
     values():
         Array<ProjectsVideoApiClientAlt> {
-          return ['json', 'media', 'proto'];
+          return [
+            ProjectsVideoApiClientAltEnum.JSON,
+            ProjectsVideoApiClientAltEnum.MEDIA,
+            ProjectsVideoApiClientAltEnum.PROTO
+          ];
         }
   };
 
@@ -14725,31 +13537,10 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    export(project: string, $requestBody: ExportVideoRequest, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsVideoExportNamedParameters&object = {
-      $Xgafv: <ProjectsVideoApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsVideoApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Operation> {
+    export(
+        project: string, $requestBody: ExportVideoRequest,
+        namedParameters: ProjectsVideoExportNamedParameters&
+        object = {}): Promise<Operation> {
       this.$apiClient.$validateParameter(
           project, new RegExp('^projects/[^/]+$'));
 
@@ -14758,19 +13549,7 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.video.export',
         path: `/${this.gapiVersion}/${project}/video:export`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Operation
       });
     }
@@ -14781,60 +13560,54 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
 
     abstract export(
         project: string, $requestBody: ExportVideoRequest,
-        __namedParams__?: ProjectsVideoExportNamedParameters&
+        namedParameters?: ProjectsVideoExportNamedParameters&
         object): Promise<Operation>;
   }
 
   export type ProjectsVideoMapApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsVideoMapApiClient$XgafvEnum {
-    1: ProjectsVideoMapApiClient$Xgafv;
-    2: ProjectsVideoMapApiClient$Xgafv;
+    readonly 1: ProjectsVideoMapApiClient$Xgafv;
+    readonly 2: ProjectsVideoMapApiClient$Xgafv;
 
     values(): Array<ProjectsVideoMapApiClient$Xgafv>;
   }
 
   export const ProjectsVideoMapApiClient$XgafvEnum:
       IProjectsVideoMapApiClient$XgafvEnum = {
-        get 1(): ProjectsVideoMapApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsVideoMapApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsVideoMapApiClient$Xgafv>'1',
+        2: <ProjectsVideoMapApiClient$Xgafv>'2',
         values():
             Array<ProjectsVideoMapApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsVideoMapApiClient$XgafvEnum[1],
+                ProjectsVideoMapApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsVideoMapApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsVideoMapApiClientAltEnum {
-    JSON: ProjectsVideoMapApiClientAlt;
-    MEDIA: ProjectsVideoMapApiClientAlt;
-    PROTO: ProjectsVideoMapApiClientAlt;
+    readonly JSON: ProjectsVideoMapApiClientAlt;
+    readonly MEDIA: ProjectsVideoMapApiClientAlt;
+    readonly PROTO: ProjectsVideoMapApiClientAlt;
 
     values(): Array<ProjectsVideoMapApiClientAlt>;
   }
 
   export const ProjectsVideoMapApiClientAltEnum:
       IProjectsVideoMapApiClientAltEnum = {
-        get JSON(): ProjectsVideoMapApiClientAlt {
-          return 'json';
-        },
-        get MEDIA():
-            ProjectsVideoMapApiClientAlt {
-              return 'media';
-            },
-        get PROTO():
-            ProjectsVideoMapApiClientAlt {
-              return 'proto';
-            },
+        JSON: <ProjectsVideoMapApiClientAlt>'json',
+        MEDIA: <ProjectsVideoMapApiClientAlt>'media',
+        PROTO: <ProjectsVideoMapApiClientAlt>'proto',
         values():
             Array<ProjectsVideoMapApiClientAlt> {
-              return ['json', 'media', 'proto'];
+              return [
+                ProjectsVideoMapApiClientAltEnum.JSON,
+                ProjectsVideoMapApiClientAltEnum.MEDIA,
+                ProjectsVideoMapApiClientAltEnum.PROTO
+              ];
             }
       };
 
@@ -14863,31 +13636,10 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    export(project: string, $requestBody: ExportVideoMapRequest, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsVideoMapExportNamedParameters&object = {
-      $Xgafv: <ProjectsVideoMapApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsVideoMapApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<Operation> {
+    export(
+        project: string, $requestBody: ExportVideoMapRequest,
+        namedParameters: ProjectsVideoMapExportNamedParameters&
+        object = {}): Promise<Operation> {
       this.$apiClient.$validateParameter(
           project, new RegExp('^projects/[^/]+$'));
 
@@ -14896,19 +13648,7 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.videoMap.export',
         path: `/${this.gapiVersion}/${project}/videoMap:export`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: Operation
       });
     }
@@ -14919,60 +13659,54 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
 
     abstract export(
         project: string, $requestBody: ExportVideoMapRequest,
-        __namedParams__?: ProjectsVideoMapExportNamedParameters&
+        namedParameters?: ProjectsVideoMapExportNamedParameters&
         object): Promise<Operation>;
   }
 
   export type ProjectsVideoThumbnailsApiClient$Xgafv = '1'|'2';
 
   export interface IProjectsVideoThumbnailsApiClient$XgafvEnum {
-    1: ProjectsVideoThumbnailsApiClient$Xgafv;
-    2: ProjectsVideoThumbnailsApiClient$Xgafv;
+    readonly 1: ProjectsVideoThumbnailsApiClient$Xgafv;
+    readonly 2: ProjectsVideoThumbnailsApiClient$Xgafv;
 
     values(): Array<ProjectsVideoThumbnailsApiClient$Xgafv>;
   }
 
   export const ProjectsVideoThumbnailsApiClient$XgafvEnum:
       IProjectsVideoThumbnailsApiClient$XgafvEnum = {
-        get 1(): ProjectsVideoThumbnailsApiClient$Xgafv {
-          return '1';
-        },
-        get 2():
-            ProjectsVideoThumbnailsApiClient$Xgafv {
-              return '2';
-            },
+        1: <ProjectsVideoThumbnailsApiClient$Xgafv>'1',
+        2: <ProjectsVideoThumbnailsApiClient$Xgafv>'2',
         values():
             Array<ProjectsVideoThumbnailsApiClient$Xgafv> {
-              return ['1', '2'];
+              return [
+                ProjectsVideoThumbnailsApiClient$XgafvEnum[1],
+                ProjectsVideoThumbnailsApiClient$XgafvEnum[2]
+              ];
             }
       };
 
   export type ProjectsVideoThumbnailsApiClientAlt = 'json'|'media'|'proto';
 
   export interface IProjectsVideoThumbnailsApiClientAltEnum {
-    JSON: ProjectsVideoThumbnailsApiClientAlt;
-    MEDIA: ProjectsVideoThumbnailsApiClientAlt;
-    PROTO: ProjectsVideoThumbnailsApiClientAlt;
+    readonly JSON: ProjectsVideoThumbnailsApiClientAlt;
+    readonly MEDIA: ProjectsVideoThumbnailsApiClientAlt;
+    readonly PROTO: ProjectsVideoThumbnailsApiClientAlt;
 
     values(): Array<ProjectsVideoThumbnailsApiClientAlt>;
   }
 
   export const ProjectsVideoThumbnailsApiClientAltEnum:
       IProjectsVideoThumbnailsApiClientAltEnum = {
-        get JSON(): ProjectsVideoThumbnailsApiClientAlt {
-          return 'json';
-        },
-        get MEDIA():
-            ProjectsVideoThumbnailsApiClientAlt {
-              return 'media';
-            },
-        get PROTO():
-            ProjectsVideoThumbnailsApiClientAlt {
-              return 'proto';
-            },
+        JSON: <ProjectsVideoThumbnailsApiClientAlt>'json',
+        MEDIA: <ProjectsVideoThumbnailsApiClientAlt>'media',
+        PROTO: <ProjectsVideoThumbnailsApiClientAlt>'proto',
         values():
             Array<ProjectsVideoThumbnailsApiClientAlt> {
-              return ['json', 'media', 'proto'];
+              return [
+                ProjectsVideoThumbnailsApiClientAltEnum.JSON,
+                ProjectsVideoThumbnailsApiClientAltEnum.MEDIA,
+                ProjectsVideoThumbnailsApiClientAltEnum.PROTO
+              ];
             }
       };
 
@@ -15015,31 +13749,10 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
           new PromiseApiClient(gapiRequestService, apiClientHookFactory);
     }
 
-    create(parent: string, $requestBody: VideoThumbnail, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsVideoThumbnailsCreateNamedParameters&object = {
-      $Xgafv: <ProjectsVideoThumbnailsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsVideoThumbnailsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<VideoThumbnail> {
+    create(
+        parent: string, $requestBody: VideoThumbnail,
+        namedParameters: ProjectsVideoThumbnailsCreateNamedParameters&
+        object = {}): Promise<VideoThumbnail> {
       this.$apiClient.$validateParameter(
           parent, new RegExp('^projects/[^/]+$'));
 
@@ -15048,48 +13761,15 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
         httpMethod: 'POST',
         methodId: 'earthengine.projects.videoThumbnails.create',
         path: `/${this.gapiVersion}/${parent}/videoThumbnails`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: VideoThumbnail
       });
     }
 
-    getPixels(name: string, {
-      $Xgafv = void 0,
-      access_token = void 0,
-      alt = void 0,
-      callback = void 0,
-      fields = void 0,
-      key = void 0,
-      oauth_token = void 0,
-      prettyPrint = void 0,
-      quotaUser = void 0,
-      uploadType = void 0,
-      upload_protocol = void 0
-    }: ProjectsVideoThumbnailsGetPixelsNamedParameters&object = {
-      $Xgafv: <ProjectsVideoThumbnailsApiClient$Xgafv|undefined>void 0,
-      access_token: <string|undefined>void 0,
-      alt: <ProjectsVideoThumbnailsApiClientAlt|undefined>void 0,
-      callback: <string|undefined>void 0,
-      fields: <string|undefined>void 0,
-      key: <string|undefined>void 0,
-      oauth_token: <string|undefined>void 0,
-      prettyPrint: <boolean|undefined>void 0,
-      quotaUser: <string|undefined>void 0,
-      uploadType: <string|undefined>void 0,
-      upload_protocol: <string|undefined>void 0
-    }): Promise<HttpBody> {
+    getPixels(
+        name: string,
+        namedParameters: ProjectsVideoThumbnailsGetPixelsNamedParameters&
+        object = {}): Promise<HttpBody> {
       this.$apiClient.$validateParameter(
           name, new RegExp('^projects/[^/]+/videoThumbnails/[^/]+$'));
       let $requestBody = <Serializable|null>null;
@@ -15099,19 +13779,7 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
         httpMethod: 'GET',
         methodId: 'earthengine.projects.videoThumbnails.getPixels',
         path: `/${this.gapiVersion}/${name}:getPixels`,
-        queryParams: {
-          '$.xgafv': $Xgafv,
-          'access_token': access_token,
-          'alt': alt,
-          'callback': callback,
-          'fields': fields,
-          'key': key,
-          'oauth_token': oauth_token,
-          'prettyPrint': prettyPrint,
-          'quotaUser': quotaUser,
-          'uploadType': uploadType,
-          'upload_protocol': upload_protocol
-        },
+        queryParams: buildQueryParams(namedParameters, PARAM_MAP_0),
         responseCtor: HttpBody
       });
     }
@@ -15122,11 +13790,11 @@ export type ProjectsTablesApiClient$Xgafv = '1' | '2';
 
     abstract create(
         parent: string, $requestBody: VideoThumbnail,
-        __namedParams__?: ProjectsVideoThumbnailsCreateNamedParameters&
+        namedParameters?: ProjectsVideoThumbnailsCreateNamedParameters&
         object): Promise<VideoThumbnail>;
 
     abstract getPixels(
         name: string,
-        __namedParams__?: ProjectsVideoThumbnailsGetPixelsNamedParameters&
+        namedParameters?: ProjectsVideoThumbnailsGetPixelsNamedParameters&
         object): Promise<HttpBody>;
   }

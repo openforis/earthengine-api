@@ -217,7 +217,7 @@ ee.rpc_convert.bandList = function(bands) {
   if (typeof bands === 'string') {
     return bands.split(',');
   }
-  if (goog.isArray(bands)) {
+  if (Array.isArray(bands)) {
     return bands;
   }
   throw new Error('Invalid band list ' + bands);
@@ -485,21 +485,6 @@ ee.rpc_convert.listImagesToGetList = function(result) {
 };
 
 /**
- * @param {!ee.api.SearchAssetsResponse} result
- * @return {!Object}
- */
-ee.rpc_convert.assetListToDatasetResult = function(result) {
-  return (result.assets || [])
-      .map(ee.rpc_convert.assetToLegacyResult)
-      .map((result) => {
-        // Flatten properties child object into result parent object.
-        const properties = result['properties'];
-        delete result['properties'];
-        return Object.assign({}, result, properties);
-      });
-};
-
-/**
  * @param {?string} type The cloud asset type.
  * @return {string} The equivalent legacy asset type.
  */
@@ -643,11 +628,17 @@ ee.rpc_convert.legacyPropertiesToAssetUpdate = function(legacyProperties) {
   if (extractValue('system:footprint')) {
     asset.geometry = value;
   }
-  if (typeof extractValue('system:title') === 'string') {
-    asset.title = value;
+  // Extract `system:title` and set it in `properties` unless `title` is present
+  // in `properties`, which takes precedence.
+  if (typeof extractValue('system:title') === 'string' &&
+      properties['title'] == null) {
+    properties['title'] = value;
   }
-  if (typeof extractValue('system:description') === 'string') {
-    asset.description = value;
+  // Extract `system:description` and set it in `properties` unless
+  // `description` is present in `properties`, which takes precedence.
+  if (typeof extractValue('system:description') === 'string' &&
+      properties['description'] == null) {
+    properties['description'] = value;
   }
   // update_time cannot be set directly.
   asset.properties = properties;
@@ -954,7 +945,7 @@ ee.rpc_convert.toImageManifest = function(params) {
  */
 ee.rpc_convert.toOnePlatformMaskBands = function(tileset) {
   const maskBands = [];
-  if (!goog.isArray(tileset['fileBands'])) {
+  if (!Array.isArray(tileset['fileBands'])) {
     return maskBands;
   }
 
@@ -968,7 +959,7 @@ ee.rpc_convert.toOnePlatformMaskBands = function(tileset) {
    */
   const convertMaskConfig = (maskConfig) => {
     let bandIds = [];
-    if (maskConfig != null && goog.isArray(maskConfig['bandId'])) {
+    if (maskConfig != null && Array.isArray(maskConfig['bandId'])) {
       bandIds = maskConfig['bandId'].map((bandId) => bandId || '');
     }
     // TODO(user): Tileset ID is always set to the default of the empty
@@ -1042,7 +1033,7 @@ ee.rpc_convert.toOnePlatformMissingData = function(params) {
   if (params['value'] != null && typeof params['value'] === 'number') {
     missingData.values.push(params['value']);
   }
-  if (goog.isArray(params['values'])) {
+  if (Array.isArray(params['values'])) {
     params['values'].map(value => {
       if (typeof value === 'number') {
         missingData.values.push(value);

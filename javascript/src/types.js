@@ -1,5 +1,6 @@
 /**
  * @fileoverview A set of utilities to work with EE types.
+ * @suppress {missingRequire} TODO(b/152540451): this shouldn't be needed
  */
 
 goog.provide('ee.Types');
@@ -130,8 +131,8 @@ ee.Types.isString = function(obj) {
  * @return {boolean} Whether the object is an array or array variable.
  */
 ee.Types.isArray = function(obj) {
-  return goog.isArray(obj) ||
-         (obj instanceof ee.ComputedObject && obj.name() == 'List');
+  return Array.isArray(obj) ||
+      (obj instanceof ee.ComputedObject && obj.name() == 'List');
 };
 
 
@@ -141,7 +142,7 @@ ee.Types.isArray = function(obj) {
  *     non-function Object.
  */
 ee.Types.isRegularObject = function(obj) {
-  if (goog.isObject(obj) && !goog.isFunction(obj)) {
+  if (goog.isObject(obj) && typeof obj !== 'function') {
     var proto = Object.getPrototypeOf(obj);
     return proto !== null && Object.getPrototypeOf(proto) === null;
   } else {

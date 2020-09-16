@@ -529,7 +529,7 @@ class Export(object):
     def toDrive(collection, description='myExportTableTask',
                 folder=None, fileNamePrefix=None, fileFormat=None,
                 selectors=None, **kwargs):
-      """Creates a task to export a FeatureCollection to Google Cloud Storage.
+      """Creates a task to export a FeatureCollection to Drive.
 
       Args:
         collection: The feature collection to be exported.
@@ -915,7 +915,7 @@ def _prepare_image_export_config(image, config, export_destination):
     ConvertFormatSpecificParams(config)
 
   config.update(_ConvertConfigParams(config))
-  config['json'] = image.serialize()
+  config['json'] = image.serialize(for_cloud_api=False)
 
   return config
 
@@ -964,7 +964,7 @@ def _prepare_map_export_config(image, config):
           'Unknown configuration options: {}.'.format(config))
     return request
   config.update(_ConvertConfigParams(config))
-  config['json'] = image.serialize()
+  config['json'] = image.serialize(for_cloud_api=False)
 
   return config
 
@@ -1017,7 +1017,7 @@ def _prepare_table_export_config(collection, config, export_destination):
           'Unknown configuration options: {}.'.format(config))
     return request
   config.update(_ConvertConfigParams(config))
-  config['json'] = collection.serialize()
+  config['json'] = collection.serialize(for_cloud_api=False)
 
   return config
 
@@ -1057,7 +1057,7 @@ def _prepare_video_export_config(collection, config, export_destination):
       raise ee_exception.EEException(
           'Unknown configuration options: {}.'.format(config))
     return request
-  config['json'] = collection.serialize()
+  config['json'] = collection.serialize(for_cloud_api=False)
   return config
 
 
@@ -1341,28 +1341,6 @@ def _create_export_task(config, task_type):
   if data._use_cloud_api:  # pylint: disable=protected-access
     return Task(None, task_type, Task.State.UNSUBMITTED, config)
   return Task(data.newTaskId()[0], task_type, Task.State.UNSUBMITTED, config)
-
-
-def _create_task(task_type, ee_object, description, config):
-  """Creates an export task.
-
-  Args:
-    task_type: The type of the task to create. One of Task.Type.
-    ee_object: The object to export.
-    description: Human-readable name of the task.
-    config: Custom config fields for the task.
-
-  Returns:
-    An unstarted export Task.
-  """
-  config.update(_ConvertConfigParams(config))
-  full_config = {
-      'json': ee_object.serialize(),
-      'description': description,
-  }
-  if config: full_config.update(config)
-  return Task(data.newTaskId()[0], task_type, Task.State.UNSUBMITTED,
-              full_config)
 
 
 def _capture_parameters(all_locals, parameters_to_exclude):

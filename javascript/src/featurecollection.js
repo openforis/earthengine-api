@@ -24,6 +24,7 @@ goog.require('goog.array');
  *   - A single geometry.
  *   - A single feature.
  *   - A list of features.
+ *   - A GeoJSON FeatureCollection
  *   - A computed object: reinterpreted as a collection.
  *
  * @param {string|number|Array.<*>|ee.ComputedObject|
@@ -68,7 +69,7 @@ ee.FeatureCollection = function(args, opt_column) {
       actualArgs['geometryColumn'] = opt_column;
     }
     ee.FeatureCollection.base(this, 'constructor', new ee.ApiFunction('Collection.loadTable'), actualArgs);
-  } else if (goog.isArray(args)) {
+  } else if (Array.isArray(args)) {
     // A list of features.
     ee.FeatureCollection.base(this, 'constructor', new ee.ApiFunction('Collection'), {
       'features': goog.array.map(args, function(elem) {
@@ -77,7 +78,13 @@ ee.FeatureCollection = function(args, opt_column) {
     });
   } else if (args instanceof ee.List) {
     // A computed list of features.  This can't get the extra ee.Feature()
-    ee.FeatureCollection.base(this, 'constructor', new ee.ApiFunction('Collection'), { 'features': args });
+    ee.FeatureCollection.base(
+        this, 'constructor', new ee.ApiFunction('Collection'),
+        {'features': args});
+  } else if (args instanceof Object && args['type'] === 'FeatureCollection') {
+    ee.FeatureCollection.base(
+        this, 'constructor', new ee.ApiFunction('Collection'),
+        {'features': args['features'].map(f => new ee.Feature(f))});
   } else if (args instanceof ee.ComputedObject) {
     // A custom object to reinterpret as a FeatureCollection.
     ee.FeatureCollection.base(this, 'constructor', args.func, args.args, args.varName);
@@ -191,7 +198,11 @@ ee.FeatureCollection.prototype.getDownloadURL = function(
   var args = ee.arguments.extractFromFunction(
       ee.FeatureCollection.prototype.getDownloadURL, arguments);
   var request = {};
-  request['table'] = this.serialize();
+  if (ee.data.getCloudApiEnabled()) {
+    request['table'] = this;
+  } else {
+    request['table'] = this.serialize();
+  }
   if (args['format']) {
     request['format'] = args['format'].toUpperCase();
   }
@@ -199,11 +210,7 @@ ee.FeatureCollection.prototype.getDownloadURL = function(
     request['filename'] = args['filename'];
   }
   if (args['selectors']) {
-    var selectors = args['selectors'];
-    if (goog.isArrayLike(selectors)) {
-      selectors = selectors.join(',');
-    }
-    request['selectors'] = selectors;
+    request['selectors'] = args['selectors'];
   }
 
   if (args['callback']) {
