@@ -19,6 +19,7 @@ import warnings
 
 from . import ee_exception
 from google_auth_httplib2 import AuthorizedHttp
+from google_auth_httplib2 import Request
 from googleapiclient import discovery
 from googleapiclient import http
 from googleapiclient import model
@@ -146,7 +147,9 @@ def build_cloud_resource(api_base_url,
       developerKey=api_key,
       http=http_transport,
       requestBuilder=request_builder,
-      model=alt_model)
+      model=alt_model,
+      cache_discovery=False)
+
   return resource
 
 
@@ -708,6 +711,7 @@ def convert_operation_to_task(operation):
           'createTime': ('creation_timestamp_ms', _convert_timestamp_to_msec),
           'updateTime': ('update_timestamp_ms', _convert_timestamp_to_msec),
           'startTime': ('start_timestamp_ms', _convert_timestamp_to_msec),
+          'attempt': 'attempt',
           'state': ('state', _convert_operation_state_to_task_state),
           'description': 'description',
           'type': 'task_type',

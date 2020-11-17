@@ -835,6 +835,7 @@ ee.rpc_convert.operationToTask = function(result) {
   assignTimestamp('creation_timestamp_ms', metadata.createTime);
   assignTimestamp('update_timestamp_ms', metadata.updateTime);
   assignTimestamp('start_timestamp_ms', metadata.startTime);
+  internalTask['attempt'] = metadata.attempt;
   if (result.done && result.error != null) {
     internalTask['error_message'] = result.error.message;
   }
@@ -1041,4 +1042,22 @@ ee.rpc_convert.toOnePlatformMissingData = function(params) {
     });
   }
   return (goog.array.isEmpty(missingData.values)) ? null : missingData;
+};
+
+/**
+ * @param {!ee.api.FolderQuota} quota
+ * @return {!Object}
+ */
+ee.rpc_convert.folderQuotaToAssetQuotaDetails = function(quota) {
+  const toNumber = (field) => Number(field || 0);
+  return {
+    asset_count: {
+      usage: toNumber(quota.assetCount),
+      limit: toNumber(quota.maxAssetCount),
+    },
+    asset_size: {
+      usage: toNumber(quota.sizeBytes),
+      limit: toNumber(quota.maxSizeBytes),
+    }
+  };
 };
