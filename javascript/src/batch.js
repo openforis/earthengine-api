@@ -12,7 +12,6 @@ const Geometry = goog.require('ee.Geometry');
 const GoogPromise = goog.require('goog.Promise');
 const Image = goog.require('ee.Image');
 const ImageCollection = goog.require('ee.ImageCollection');
-const apiclient = goog.require('ee.apiclient');
 const data = goog.require('ee.data');
 const eeArguments = goog.require('ee.arguments');
 const googArray = goog.require('goog.array');
@@ -232,13 +231,14 @@ Export.image.toDrive = function(
  * @param {?Geometry.LinearRing|?Geometry.Polygon|string=} opt_region
  * @param {boolean=} opt_skipEmptyTiles
  * @param {string=} opt_mapsApiKey
+ * @param {?Array<string>=} opt_bucketCorsUris
  * @return {!ExportTask}
  * @export
  */
 Export.map.toCloudStorage = function(
     image, opt_description, opt_bucket, opt_fileFormat, opt_path,
     opt_writePublicTiles, opt_scale, opt_maxZoom, opt_minZoom, opt_region,
-    opt_skipEmptyTiles, opt_mapsApiKey) {
+    opt_skipEmptyTiles, opt_mapsApiKey, opt_bucketCorsUris) {
   const clientConfig = eeArguments.extractFromFunction(
       Export.map.toCloudStorage, arguments);
   const serverConfig = Export.convertToServerParams(
@@ -445,8 +445,7 @@ Export.resolveRegionParam = function(params) {
         if (error) {
           reject(error);
         } else {
-          if (apiclient.getCloudApiEnabled() &&
-              params['type'] === ExportType.IMAGE) {
+          if (params['type'] === ExportType.IMAGE) {
             params['region'] = new Geometry(regionInfo);
           } else {
             params['region'] = Export.serializeRegion(regionInfo);
@@ -456,8 +455,7 @@ Export.resolveRegionParam = function(params) {
       });
     });
   }
-  if (apiclient.getCloudApiEnabled() &&
-      params['type'] === ExportType.IMAGE) {
+  if (params['type'] === ExportType.IMAGE) {
     params['region'] = new Geometry(region);
   } else {
     params['region'] = Export.serializeRegion(region);

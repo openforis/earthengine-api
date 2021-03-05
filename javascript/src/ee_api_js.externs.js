@@ -1195,7 +1195,7 @@ ee.initialize = function(opt_baseurl, opt_tileurl, opt_successCallback, opt_erro
  */
 ee.layers = {};
 /**
- * @param {!ee.layers.AbstractTileSource} tileSource
+ * @param {!module$contents$ee$layers$AbstractTileSource_AbstractTileSource} tileSource
  * @param {(Object|null)=} opt_options
  * @extends {goog.events.EventTarget}
  * @implements {goog.disposable.IDisposable}
@@ -1218,7 +1218,7 @@ ee.layers.AbstractOverlay.prototype.addTileCallback = function(callback) {
 ee.layers.AbstractOverlay.prototype.removeTileCallback = function(callbackId) {
 };
 /**
- * @param {!ee.layers.AbstractTileSource} tileSource
+ * @param {!module$contents$ee$layers$AbstractTileSource_AbstractTileSource} tileSource
  * @param {(Object|null)=} opt_options
  * @extends {ee.layers.AbstractOverlay}
  * @implements {goog.disposable.IDisposable}
@@ -1233,7 +1233,7 @@ ee.layers.BinaryOverlay = function(tileSource, opt_options) {
  * @param {string} path
  * @param {number} maxZoom
  * @param {string=} opt_suffix
- * @extends {ee.layers.AbstractTileSource}
+ * @extends {module$contents$ee$layers$AbstractTileSource_AbstractTileSource}
  * @implements {goog.disposable.IDisposable}
  * @constructor
  */
@@ -1242,14 +1242,14 @@ ee.layers.CloudStorageTileSource = function(bucket, path, maxZoom, opt_suffix) {
 /**
  * @param {!ee.data.RawMapId} mapId
  * @param {(ee.data.Profiler|null)=} opt_profiler
- * @extends {ee.layers.AbstractTileSource}
+ * @extends {module$contents$ee$layers$AbstractTileSource_AbstractTileSource}
  * @implements {goog.disposable.IDisposable}
  * @constructor
  */
 ee.layers.EarthEngineTileSource = function(mapId, opt_profiler) {
 };
 /**
- * @param {!ee.layers.AbstractTileSource} tileSource
+ * @param {!module$contents$ee$layers$AbstractTileSource_AbstractTileSource} tileSource
  * @param {(Object|null)=} opt_options
  * @extends {ee.layers.AbstractOverlay}
  * @implements {goog.disposable.IDisposable}
@@ -1335,9 +1335,10 @@ module$contents$ee$batch_Export.map;
  * @param {(ee.Geometry.LinearRing|ee.Geometry.Polygon|null|string)=} opt_region
  * @param {boolean=} opt_skipEmptyTiles
  * @param {string=} opt_mapsApiKey
+ * @param {(Array<string>|null)=} opt_bucketCorsUris
  * @return {!module$contents$ee$batch_ExportTask}
  */
-module$contents$ee$batch_Export.map.toCloudStorage = function(image, opt_description, opt_bucket, opt_fileFormat, opt_path, opt_writePublicTiles, opt_scale, opt_maxZoom, opt_minZoom, opt_region, opt_skipEmptyTiles, opt_mapsApiKey) {
+module$contents$ee$batch_Export.map.toCloudStorage = function(image, opt_description, opt_bucket, opt_fileFormat, opt_path, opt_writePublicTiles, opt_scale, opt_maxZoom, opt_minZoom, opt_region, opt_skipEmptyTiles, opt_mapsApiKey, opt_bucketCorsUris) {
 };
 module$contents$ee$batch_Export.table;
 /**
