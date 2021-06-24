@@ -140,12 +140,14 @@ class ExportTask {
  * @param {string=} opt_crs
  * @param {!Array<number>|string=} opt_crsTransform
  * @param {number=} opt_maxPixels
+ * @param {number=} opt_shardSize
  * @return {!ExportTask}
  * @export
  */
 Export.image.toAsset = function(
     image, opt_description, opt_assetId, opt_pyramidingPolicy, opt_dimensions,
-    opt_region, opt_scale, opt_crs, opt_crsTransform, opt_maxPixels) {
+    opt_region, opt_scale, opt_crs, opt_crsTransform, opt_maxPixels,
+    opt_shardSize) {
   const clientConfig = eeArguments.extractFromFunction(
       Export.image.toAsset, arguments);
   const serverConfig = Export.convertToServerParams(
@@ -254,12 +256,13 @@ Export.map.toCloudStorage = function(
  * @param {string=} opt_fileNamePrefix
  * @param {string=} opt_fileFormat
  * @param {string|!Array<string>=} opt_selectors
+ * @param {number=} opt_maxVertices
  * @return {!ExportTask}
  * @export
  */
 Export.table.toCloudStorage = function(
     collection, opt_description, opt_bucket, opt_fileNamePrefix, opt_fileFormat,
-    opt_selectors) {
+    opt_selectors, opt_maxVertices) {
   const clientConfig = eeArguments.extractFromFunction(
       Export.table.toCloudStorage, arguments);
   const serverConfig = Export.convertToServerParams(
@@ -275,12 +278,13 @@ Export.table.toCloudStorage = function(
  * @param {string=} opt_fileNamePrefix
  * @param {string=} opt_fileFormat
  * @param {string|!Array<string>=} opt_selectors
+ * @param {number=} opt_maxVertices
  * @return {!ExportTask}
  * @export
  */
 Export.table.toDrive = function(
     collection, opt_description, opt_folder, opt_fileNamePrefix, opt_fileFormat,
-    opt_selectors) {
+    opt_selectors, opt_maxVertices) {
   const clientConfig = eeArguments.extractFromFunction(
       Export.table.toDrive, arguments);
   clientConfig['type'] = ExportType.TABLE;
@@ -294,11 +298,12 @@ Export.table.toDrive = function(
  * @param {!FeatureCollection} collection
  * @param {string=} opt_description
  * @param {string=} opt_assetId
+ * @param {number=} opt_maxVertices
  * @return {!ExportTask}
  * @export
  */
 Export.table.toAsset = function(
-    collection, opt_description, opt_assetId) {
+    collection, opt_description, opt_assetId, opt_maxVertices) {
   const clientConfig = eeArguments.extractFromFunction(
       Export.table.toAsset, arguments);
   const serverConfig = Export.convertToServerParams(
@@ -375,7 +380,7 @@ Export.video.toDrive = function(
  *
  * @typedef {!data.ImageTaskConfig|!data.MapTaskConfig|
  *     !data.TableTaskConfig|!data.VideoTaskConfig|
- *     !data.VideoMapTaskConfig}
+ *     !data.VideoMapTaskConfig|!data.ClassifierTaskConfig}
  */
 const ServerTaskConfig = {};
 
@@ -468,7 +473,7 @@ Export.resolveRegionParam = function(params) {
 /**
  * Extracts the EE element from a given task config.
  * @param {!Object} exportArgs
- * @return {!Image|!FeatureCollection|!ImageCollection|!Element}
+ * @return {!Image|!FeatureCollection|!ImageCollection|!Element|!ComputedObject}
  */
 Export.extractElement = function(exportArgs) {
   // Extract the EE element from the exportArgs.
@@ -477,7 +482,7 @@ Export.extractElement = function(exportArgs) {
   // Sanity check that the Image/Collection/Table was provided.
   googAsserts.assert(
       googArray.count(Export.EE_ELEMENT_KEYS, isInArgs) === 1,
-      'Expected a single "image" or "collection" key.');
+      'Expected a single "image", "collection" or "classifier" key.');
   const element = exportArgs[eeElementKey];
   let result;
   if (element instanceof Image) {
@@ -488,10 +493,13 @@ Export.extractElement = function(exportArgs) {
     result = /** @type {!ImageCollection} */ (element);
   } else if (element instanceof Element) {
     result = /** @type {!Element} */ (element);
+  } else if (element instanceof ComputedObject) {
+    result = /** @type {!ComputedObject} */ (element);
   } else {
     throw new Error(
         'Unknown element type provided: ' + typeof (element) + '. Expected: ' +
-        ' ee.Image, ee.ImageCollection, ee.FeatureCollection or ee.Element.');
+        ' ee.Image, ee.ImageCollection, ee.FeatureCollection,  ee.Element' +
+        ' or ee.ComputedObject.');
   }
   delete exportArgs[eeElementKey];
   return result;
@@ -534,6 +542,10 @@ Export.convertToServerParams = function(
     case ExportType.VIDEO_MAP:
       taskConfig =
           Export.videoMap.prepareTaskConfig_(taskConfig, destination);
+      break;
+    case ExportType.CLASSIFIER:
+      taskConfig =
+          Export.classifier.prepareTaskConfig_(taskConfig, destination);
       break;
     default:
       throw Error('Unknown export type: ' + taskConfig['type']);
@@ -695,6 +707,21 @@ Export.videoMap.prepareTaskConfig_ = function(
   return /** @type {!data.VideoMapTaskConfig} */ (taskConfig);
 };
 
+/**
+ * Adapts a ServerTaskConfig into a ClassifierTaskConfig normalizing any params
+ * for a classifier task.
+ *
+ * @param {!ServerTaskConfig} taskConfig VideoMap export config to
+ *     prepare.
+ * @param {!data.ExportDestination} destination Export destination.
+ * @return {!data.ClassifierTaskConfig}
+ * @private
+ */
+Export.classifier.prepareTaskConfig_ = function(taskConfig, destination) {
+  taskConfig = Export.prepareDestination_(taskConfig, destination);
+  return /** @type {!data.ClassifierTaskConfig} */ (taskConfig);
+};
+
 
 /**
  * @enum {string} The valid video formats supported by export.
@@ -740,6 +767,7 @@ const FORMAT_OPTIONS_MAP = {
   'GEO_TIFF': [
     'cloudOptimized',
     'fileDimensions',
+    'shardSize',
   ],
   'TF_RECORD_IMAGE': [
     'patchDimensions',
@@ -991,7 +1019,7 @@ Export.CRS_TRANSFORM_KEY = 'crs_transform';
  * The keys in user argument dictionaries of EE elements to export.
  * @const {!Array<string>}
  */
-Export.EE_ELEMENT_KEYS = ['image', 'collection'];
+Export.EE_ELEMENT_KEYS = ['image', 'collection', 'classifier'];
 
 exports.Export = Export;
 exports.ExportTask = ExportTask;

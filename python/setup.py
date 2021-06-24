@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# Lint as: python3
 #
 # Copyright 2012 Google Inc. All Rights Reserved.
 
@@ -40,7 +39,7 @@ setup(
         # functionality requires a manual install of TensorFlow.
         'future',
         'google-cloud-storage',
-        'google-api-python-client>=1.12.1',
+        'google-api-python-client>=1.12.1,<2',
         'google-auth>=1.4.1',
         'google-auth-httplib2>=0.0.3',
         'httplib2>=0.9.2,<1dev',

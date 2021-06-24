@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# Lint as: python3
-"""Composite an image collection and clip it to a boundary from a fusion table.
+"""Composite an image collection and clip it to a boundary from a table.
 
 See also: Filtered Seasonal Composite, which filters the
 collection by bounds instead.

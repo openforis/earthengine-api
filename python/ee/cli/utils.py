@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# Lint as: python2, python3
 """Support utilities used by the Earth Engine command line interface.
 
 This module defines the Command class which is the base class of all
@@ -121,7 +120,7 @@ class CommandLineConfig(object):
         storage.Client(project=project, credentials=creds))
 
   def _get_project(self):
-    # If a --project flag is passed into a command, it supercedes the one set
+    # If a --project flag is passed into a command, it supersedes the one set
     # by calling the set_project command.
     if self.project_override:
       return self.project_override

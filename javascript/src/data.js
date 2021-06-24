@@ -64,12 +64,14 @@ goog.require('ee.apiclient');
 goog.require('ee.rpc_convert');
 goog.require('ee.rpc_convert_batch');
 goog.require('goog.array');
+goog.require('goog.functions');
 goog.require('goog.object');
-goog.require('proto.google.protobuf.Value');
 goog.requireType('ee.Collection');
+goog.requireType('ee.ComputedObject');
 goog.requireType('ee.Element');
 goog.requireType('ee.Image');
 goog.requireType('ee.data.images');
+goog.requireType('proto.google.protobuf.Value');
 
 
 
@@ -117,16 +119,19 @@ goog.requireType('ee.data.images');
  * @param {function()=} opt_onImmediateFailed The function to call if
  *     automatic behind-the-scenes authentication fails. Defaults to
  *     ee.data.authenticateViaPopup(), bound to the passed callbacks.
+ * @param {boolean=} opt_suppressDefaultScopes When true, only scopes
+ *     specified in opt_extraScopes are requested; the default scopes are not
+ *     requested unless explicitly specified in opt_extraScopes.
  * @export
  */
 ee.data.authenticateViaOauth = function(
-    clientId, success, opt_error, opt_extraScopes, opt_onImmediateFailed) {
+    clientId, success, opt_error, opt_extraScopes, opt_onImmediateFailed,
+    opt_suppressDefaultScopes) {
+  const scopes = ee.apiclient.mergeAuthScopes(
+    /* includeDefaultScopes= */ !opt_suppressDefaultScopes,
+    /* includeStorageScope= */ false,
+    opt_extraScopes || []);
   // Remember the auth options.
-  const scopes = [ee.apiclient.AUTH_SCOPE, ee.apiclient.CLOUD_PLATFORM_SCOPE];
-  if (opt_extraScopes) {
-    goog.array.extend(scopes, opt_extraScopes);
-    goog.array.removeDuplicates(scopes);
-  }
   ee.apiclient.setAuthClient(clientId, scopes);
 
   if (clientId === null) {
@@ -214,26 +219,24 @@ ee.data.authenticateViaPopup = function(opt_success, opt_error) {
  * @param {function(string)=} opt_error The function to call if authentication
  *     failed, passed the error message.
  * @param {!Array<string>=} opt_extraScopes Extra OAuth scopes to request.
+ * @param {boolean=} opt_suppressDefaultScopes When true, only scopes
+ *     specified in opt_extraScopes are requested; the default scopes are not
+ *     not requested unless explicitly specified in opt_extraScopes.
  * @export
  */
 ee.data.authenticateViaPrivateKey = function(
-    privateKey, opt_success, opt_error, opt_extraScopes) {
-
+    privateKey, opt_success, opt_error, opt_extraScopes,
+    opt_suppressDefaultScopes) {
   // Verify that the context is Node.js, not a web browser.
   if ('window' in goog.global) {
     throw new Error(
         'Use of private key authentication in the browser is insecure. ' +
         'Consider using OAuth, instead.');
   }
-
-  const scopes = [
-    ee.apiclient.AUTH_SCOPE, ee.apiclient.STORAGE_SCOPE,
-    ee.apiclient.CLOUD_PLATFORM_SCOPE
-  ];
-  if (opt_extraScopes) {
-    goog.array.extend(scopes, opt_extraScopes);
-    goog.array.removeDuplicates(scopes);
-  }
+  const scopes = ee.apiclient.mergeAuthScopes(
+      /* includeDefaultScopes= */ !opt_suppressDefaultScopes,
+      /* includeStorageScope= */ !opt_suppressDefaultScopes,
+      opt_extraScopes || []);
   ee.apiclient.setAuthClient(privateKey.client_email, scopes);
 
   // Initialize JWT client to authorize as service account.
@@ -2785,7 +2788,7 @@ ee.data.MapZoomRange = {
  *   type: string,
  *   description: (undefined|string),
  *   sourceUrl: (undefined|string),
- *   element: (undefined|!ee.Element)
+ *   element: (undefined|!ee.Element|!ee.ComputedObject)
  * }}
  */
 ee.data.AbstractTaskConfig;
@@ -2844,6 +2847,7 @@ ee.data.ImageTaskConfigUnformatted;
  *   fileFormat: (undefined|string),
  *   tiffCloudOptimized: (undefined|boolean),
  *   tiffFileDimensions: (undefined|string),
+ *   tiffShardSize: (undefined|number),
  *   tfrecordPatchDimensions: (undefined|string),
  *   tfrecordKernelSize: (undefined|string),
  *   tfrecordCompressed: (undefined|boolean),
@@ -2878,7 +2882,8 @@ ee.data.ImageTaskConfig;
  *   tensorDepths: (undefined|!Array<number>|!Object),
  *   sequenceData: (undefined|boolean),
  *   collapseBands: (undefined|boolean),
- *   maskedThreshold: (undefined|number)
+ *   maskedThreshold: (undefined|number),
+ *   shardSize: (undefined|number)
  * }}
  */
 ee.data.ImageExportFormatConfig;
@@ -2928,7 +2933,8 @@ ee.data.MapTaskConfig;
  *   outputBucket: (undefined|string),
  *   outputPrefix: (undefined|string),
  *   assetId: (undefined|string),
- *   maxWorkers: (undefined|number)
+ *   maxWorkers: (undefined|number),
+ *   maxVertices: (undefined|number)
  * }}
  */
 ee.data.TableTaskConfig;
