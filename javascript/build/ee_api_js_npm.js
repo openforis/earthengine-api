@@ -8,7 +8,7 @@ $jscomp.scope = {};
 $jscomp.arrayIteratorImpl = function(array) {
   var index = 0;
   return function() {
-    return index < array.length ? {done:!1, value:array[index++], } : {done:!0};
+    return index < array.length ? {done:!1, value:array[index++],} : {done:!0};
   };
 };
 $jscomp.arrayIterator = function(array) {
@@ -29,7 +29,7 @@ $jscomp.defineProperty = $jscomp.ASSUME_ES5 || "function" == typeof Object.defin
   return target;
 };
 $jscomp.getGlobal = function(passedInThis) {
-  for (var possibleGlobals = ["object" == typeof globalThis && globalThis, passedInThis, "object" == typeof window && window, "object" == typeof self && self, "object" == typeof global && global, ], i = 0; i < possibleGlobals.length; ++i) {
+  for (var possibleGlobals = ["object" == typeof globalThis && globalThis, passedInThis, "object" == typeof window && window, "object" == typeof self && self, "object" == typeof global && global,], i = 0; i < possibleGlobals.length; ++i) {
     var maybeGlobal = possibleGlobals[i];
     if (maybeGlobal && maybeGlobal.Math == Math) {
       return maybeGlobal;
@@ -81,14 +81,12 @@ $jscomp.polyfillIsolated = function(target, polyfill, fromLang, toLang) {
   if (null != impl) {
     if (isSimpleName) {
       $jscomp.defineProperty($jscomp.polyfills, property, {configurable:!0, writable:!0, value:impl});
-    } else {
-      if (impl !== nativeImpl) {
-        if (void 0 === $jscomp.propertyToPolyfillSymbol[property]) {
-          var BIN_ID = 1e9 * Math.random() >>> 0;
-          $jscomp.propertyToPolyfillSymbol[property] = $jscomp.IS_SYMBOL_NATIVE ? $jscomp.global.Symbol(property) : $jscomp.POLYFILL_PREFIX + BIN_ID + "$" + property;
-        }
-        $jscomp.defineProperty(ownerObject, $jscomp.propertyToPolyfillSymbol[property], {configurable:!0, writable:!0, value:impl});
+    } else if (impl !== nativeImpl) {
+      if (void 0 === $jscomp.propertyToPolyfillSymbol[property]) {
+        var BIN_ID = 1E9 * Math.random() >>> 0;
+        $jscomp.propertyToPolyfillSymbol[property] = $jscomp.IS_SYMBOL_NATIVE ? $jscomp.global.Symbol(property) : $jscomp.POLYFILL_PREFIX + BIN_ID + "$" + property;
       }
+      $jscomp.defineProperty(ownerObject, $jscomp.propertyToPolyfillSymbol[property], {configurable:!0, writable:!0, value:impl});
     }
   }
 };
@@ -105,7 +103,7 @@ $jscomp.polyfill("Symbol", function(orig) {
   SymbolClass.prototype.toString = function() {
     return this.$jscomp$symbol$id_;
   };
-  var SYMBOL_PREFIX = "jscomp_symbol_" + (1e9 * Math.random() >>> 0) + "_", counter = 0, symbolPolyfill = function(opt_description) {
+  var SYMBOL_PREFIX = "jscomp_symbol_" + (1E9 * Math.random() >>> 0) + "_", counter = 0, symbolPolyfill = function(opt_description) {
     if (this instanceof symbolPolyfill) {
       throw new TypeError("Symbol is not a constructor");
     }
@@ -152,20 +150,37 @@ $jscomp.arrayFromIterator = function(iterator) {
 $jscomp.arrayFromIterable = function(iterable) {
   return iterable instanceof Array ? iterable : $jscomp.arrayFromIterator($jscomp.makeIterator(iterable));
 };
+$jscomp.owns = function(obj, prop) {
+  return Object.prototype.hasOwnProperty.call(obj, prop);
+};
+$jscomp.assign = $jscomp.TRUST_ES6_POLYFILLS && "function" == typeof Object.assign ? Object.assign : function(target, var_args) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i];
+    if (source) {
+      for (var key in source) {
+        $jscomp.owns(source, key) && (target[key] = source[key]);
+      }
+    }
+  }
+  return target;
+};
+$jscomp.polyfill("Object.assign", function(orig) {
+  return orig || $jscomp.assign;
+}, "es6", "es3");
 $jscomp.objectCreate = $jscomp.ASSUME_ES5 || "function" == typeof Object.create ? Object.create : function(prototype) {
   var ctor = function() {
   };
   ctor.prototype = prototype;
-  return new ctor;
+  return new ctor();
 };
 $jscomp.getConstructImplementation = function() {
   function reflectConstructWorks() {
     function Base() {
     }
-    new Base;
+    new Base();
     Reflect.construct(Base, [], function Derived() {
     });
-    return new Base instanceof Base;
+    return new Base() instanceof Base;
   }
   if ($jscomp.TRUST_ES6_POLYFILLS && "undefined" != typeof Reflect && Reflect.construct) {
     if (reflectConstructWorks()) {
@@ -220,6 +235,233 @@ $jscomp.inherits = function(childCtor, parentCtor) {
   }
   childCtor.superClass_ = parentCtor.prototype;
 };
+$jscomp.generator = {};
+$jscomp.generator.ensureIteratorResultIsObject_ = function(result) {
+  if (!(result instanceof Object)) {
+    throw new TypeError("Iterator result " + result + " is not an object");
+  }
+};
+$jscomp.generator.Context = function() {
+  this.isRunning_ = !1;
+  this.yieldAllIterator_ = null;
+  this.yieldResult = void 0;
+  this.nextAddress = 1;
+  this.finallyAddress_ = this.catchAddress_ = 0;
+  this.finallyContexts_ = this.abruptCompletion_ = null;
+};
+$jscomp.generator.Context.prototype.start_ = function() {
+  if (this.isRunning_) {
+    throw new TypeError("Generator is already running");
+  }
+  this.isRunning_ = !0;
+};
+$jscomp.generator.Context.prototype.stop_ = function() {
+  this.isRunning_ = !1;
+};
+$jscomp.generator.Context.prototype.jumpToErrorHandler_ = function() {
+  this.nextAddress = this.catchAddress_ || this.finallyAddress_;
+};
+$jscomp.generator.Context.prototype.next_ = function(value) {
+  this.yieldResult = value;
+};
+$jscomp.generator.Context.prototype.throw_ = function(e) {
+  this.abruptCompletion_ = {exception:e, isException:!0};
+  this.jumpToErrorHandler_();
+};
+$jscomp.generator.Context.prototype.return = function(value) {
+  this.abruptCompletion_ = {return:value};
+  this.nextAddress = this.finallyAddress_;
+};
+$jscomp.generator.Context.prototype.jumpThroughFinallyBlocks = function(nextAddress) {
+  this.abruptCompletion_ = {jumpTo:nextAddress};
+  this.nextAddress = this.finallyAddress_;
+};
+$jscomp.generator.Context.prototype.yield = function(value, resumeAddress) {
+  this.nextAddress = resumeAddress;
+  return {value:value};
+};
+$jscomp.generator.Context.prototype.yieldAll = function(iterable, resumeAddress) {
+  var iterator = $jscomp.makeIterator(iterable), result = iterator.next();
+  $jscomp.generator.ensureIteratorResultIsObject_(result);
+  if (result.done) {
+    this.yieldResult = result.value, this.nextAddress = resumeAddress;
+  } else {
+    return this.yieldAllIterator_ = iterator, this.yield(result.value, resumeAddress);
+  }
+};
+$jscomp.generator.Context.prototype.jumpTo = function(nextAddress) {
+  this.nextAddress = nextAddress;
+};
+$jscomp.generator.Context.prototype.jumpToEnd = function() {
+  this.nextAddress = 0;
+};
+$jscomp.generator.Context.prototype.setCatchFinallyBlocks = function(catchAddress, finallyAddress) {
+  this.catchAddress_ = catchAddress;
+  void 0 != finallyAddress && (this.finallyAddress_ = finallyAddress);
+};
+$jscomp.generator.Context.prototype.setFinallyBlock = function(finallyAddress) {
+  this.catchAddress_ = 0;
+  this.finallyAddress_ = finallyAddress || 0;
+};
+$jscomp.generator.Context.prototype.leaveTryBlock = function(nextAddress, catchAddress) {
+  this.nextAddress = nextAddress;
+  this.catchAddress_ = catchAddress || 0;
+};
+$jscomp.generator.Context.prototype.enterCatchBlock = function(nextCatchBlockAddress) {
+  this.catchAddress_ = nextCatchBlockAddress || 0;
+  var exception = this.abruptCompletion_.exception;
+  this.abruptCompletion_ = null;
+  return exception;
+};
+$jscomp.generator.Context.prototype.enterFinallyBlock = function(nextCatchAddress, nextFinallyAddress, finallyDepth) {
+  finallyDepth ? this.finallyContexts_[finallyDepth] = this.abruptCompletion_ : this.finallyContexts_ = [this.abruptCompletion_];
+  this.catchAddress_ = nextCatchAddress || 0;
+  this.finallyAddress_ = nextFinallyAddress || 0;
+};
+$jscomp.generator.Context.prototype.leaveFinallyBlock = function(nextAddress, finallyDepth) {
+  var preservedContext = this.finallyContexts_.splice(finallyDepth || 0)[0], abruptCompletion = this.abruptCompletion_ = this.abruptCompletion_ || preservedContext;
+  if (abruptCompletion) {
+    if (abruptCompletion.isException) {
+      return this.jumpToErrorHandler_();
+    }
+    void 0 != abruptCompletion.jumpTo && this.finallyAddress_ < abruptCompletion.jumpTo ? (this.nextAddress = abruptCompletion.jumpTo, this.abruptCompletion_ = null) : this.nextAddress = this.finallyAddress_;
+  } else {
+    this.nextAddress = nextAddress;
+  }
+};
+$jscomp.generator.Context.prototype.forIn = function(object) {
+  return new $jscomp.generator.Context.PropertyIterator(object);
+};
+$jscomp.generator.Context.PropertyIterator = function(object) {
+  this.object_ = object;
+  this.properties_ = [];
+  for (var property in object) {
+    this.properties_.push(property);
+  }
+  this.properties_.reverse();
+};
+$jscomp.generator.Context.PropertyIterator.prototype.getNext = function() {
+  for (; 0 < this.properties_.length;) {
+    var property = this.properties_.pop();
+    if (property in this.object_) {
+      return property;
+    }
+  }
+  return null;
+};
+$jscomp.generator.Engine_ = function(program) {
+  this.context_ = new $jscomp.generator.Context();
+  this.program_ = program;
+};
+$jscomp.generator.Engine_.prototype.next_ = function(value) {
+  this.context_.start_();
+  if (this.context_.yieldAllIterator_) {
+    return this.yieldAllStep_(this.context_.yieldAllIterator_.next, value, this.context_.next_);
+  }
+  this.context_.next_(value);
+  return this.nextStep_();
+};
+$jscomp.generator.Engine_.prototype.return_ = function(value) {
+  this.context_.start_();
+  var yieldAllIterator = this.context_.yieldAllIterator_;
+  if (yieldAllIterator) {
+    return this.yieldAllStep_("return" in yieldAllIterator ? yieldAllIterator["return"] : function(v) {
+      return {value:v, done:!0};
+    }, value, this.context_.return);
+  }
+  this.context_.return(value);
+  return this.nextStep_();
+};
+$jscomp.generator.Engine_.prototype.throw_ = function(exception) {
+  this.context_.start_();
+  if (this.context_.yieldAllIterator_) {
+    return this.yieldAllStep_(this.context_.yieldAllIterator_["throw"], exception, this.context_.next_);
+  }
+  this.context_.throw_(exception);
+  return this.nextStep_();
+};
+$jscomp.generator.Engine_.prototype.yieldAllStep_ = function(action, value, nextAction) {
+  try {
+    var result = action.call(this.context_.yieldAllIterator_, value);
+    $jscomp.generator.ensureIteratorResultIsObject_(result);
+    if (!result.done) {
+      return this.context_.stop_(), result;
+    }
+    var resultValue = result.value;
+  } catch (e) {
+    return this.context_.yieldAllIterator_ = null, this.context_.throw_(e), this.nextStep_();
+  }
+  this.context_.yieldAllIterator_ = null;
+  nextAction.call(this.context_, resultValue);
+  return this.nextStep_();
+};
+$jscomp.generator.Engine_.prototype.nextStep_ = function() {
+  for (; this.context_.nextAddress;) {
+    try {
+      var yieldValue = this.program_(this.context_);
+      if (yieldValue) {
+        return this.context_.stop_(), {value:yieldValue.value, done:!1};
+      }
+    } catch (e) {
+      this.context_.yieldResult = void 0, this.context_.throw_(e);
+    }
+  }
+  this.context_.stop_();
+  if (this.context_.abruptCompletion_) {
+    var abruptCompletion = this.context_.abruptCompletion_;
+    this.context_.abruptCompletion_ = null;
+    if (abruptCompletion.isException) {
+      throw abruptCompletion.exception;
+    }
+    return {value:abruptCompletion.return, done:!0};
+  }
+  return {value:void 0, done:!0};
+};
+$jscomp.generator.Generator_ = function(engine) {
+  this.next = function(opt_value) {
+    return engine.next_(opt_value);
+  };
+  this.throw = function(exception) {
+    return engine.throw_(exception);
+  };
+  this.return = function(value) {
+    return engine.return_(value);
+  };
+  this[Symbol.iterator] = function() {
+    return this;
+  };
+};
+$jscomp.generator.createGenerator = function(generator, program) {
+  var result = new $jscomp.generator.Generator_(new $jscomp.generator.Engine_(program));
+  $jscomp.setPrototypeOf && generator.prototype && $jscomp.setPrototypeOf(result, generator.prototype);
+  return result;
+};
+$jscomp.asyncExecutePromiseGenerator = function(generator) {
+  function passValueToGenerator(value) {
+    return generator.next(value);
+  }
+  function passErrorToGenerator(error) {
+    return generator.throw(error);
+  }
+  return new Promise(function(resolve, reject) {
+    function handleGeneratorRecord(genRec) {
+      genRec.done ? resolve(genRec.value) : Promise.resolve(genRec.value).then(passValueToGenerator, passErrorToGenerator).then(handleGeneratorRecord, reject);
+    }
+    handleGeneratorRecord(generator.next());
+  });
+};
+$jscomp.asyncExecutePromiseGeneratorFunction = function(generatorFunction) {
+  return $jscomp.asyncExecutePromiseGenerator(generatorFunction());
+};
+$jscomp.asyncExecutePromiseGeneratorProgram = function(program) {
+  return $jscomp.asyncExecutePromiseGenerator(new $jscomp.generator.Generator_(new $jscomp.generator.Engine_(program)));
+};
+$jscomp.getRestArguments = function() {
+  for (var startIndex = Number(this), restArgs = [], i = startIndex; i < arguments.length; i++) {
+    restArgs[i - startIndex] = arguments[i];
+  }
+  return restArgs;
+};
 $jscomp.polyfill("Reflect", function(orig) {
   return orig ? orig : {};
 }, "es6", "es3");
@@ -242,364 +484,6 @@ $jscomp.polyfill("Reflect.setPrototypeOf", function(orig) {
   }
   return null;
 }, "es6", "es5");
-$jscomp.checkEs6ConformanceViaProxy = function() {
-  try {
-    var proxied = {}, proxy = Object.create(new $jscomp.global.Proxy(proxied, {get:function(target, key, receiver) {
-      return target == proxied && "q" == key && receiver == proxy;
-    }}));
-    return !0 === proxy.q;
-  } catch (err) {
-    return !1;
-  }
-};
-$jscomp.USE_PROXY_FOR_ES6_CONFORMANCE_CHECKS = !1;
-$jscomp.ES6_CONFORMANCE = $jscomp.USE_PROXY_FOR_ES6_CONFORMANCE_CHECKS && $jscomp.checkEs6ConformanceViaProxy();
-$jscomp.owns = function(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
-};
-$jscomp.polyfill("WeakMap", function(NativeWeakMap) {
-  function isConformant() {
-    if (!NativeWeakMap || !Object.seal) {
-      return !1;
-    }
-    try {
-      var x = Object.seal({}), y = Object.seal({}), map = new NativeWeakMap([[x, 2], [y, 3]]);
-      if (2 != map.get(x) || 3 != map.get(y)) {
-        return !1;
-      }
-      map.delete(x);
-      map.set(y, 4);
-      return !map.has(x) && 4 == map.get(y);
-    } catch (err) {
-      return !1;
-    }
-  }
-  function WeakMapMembership() {
-  }
-  function isValidKey(key) {
-    var type = typeof key;
-    return "object" === type && null !== key || "function" === type;
-  }
-  function insert(target) {
-    if (!$jscomp.owns(target, prop)) {
-      var obj = new WeakMapMembership;
-      $jscomp.defineProperty(target, prop, {value:obj});
-    }
-  }
-  function patch(name) {
-    if (!$jscomp.ISOLATE_POLYFILLS) {
-      var prev = Object[name];
-      prev && (Object[name] = function(target) {
-        if (target instanceof WeakMapMembership) {
-          return target;
-        }
-        Object.isExtensible(target) && insert(target);
-        return prev(target);
-      });
-    }
-  }
-  if ($jscomp.USE_PROXY_FOR_ES6_CONFORMANCE_CHECKS) {
-    if (NativeWeakMap && $jscomp.ES6_CONFORMANCE) {
-      return NativeWeakMap;
-    }
-  } else {
-    if (isConformant()) {
-      return NativeWeakMap;
-    }
-  }
-  var prop = "$jscomp_hidden_" + Math.random();
-  patch("freeze");
-  patch("preventExtensions");
-  patch("seal");
-  var index = 0, PolyfillWeakMap = function(opt_iterable) {
-    this.id_ = (index += Math.random() + 1).toString();
-    if (opt_iterable) {
-      for (var iter = $jscomp.makeIterator(opt_iterable), entry; !(entry = iter.next()).done;) {
-        var item = entry.value;
-        this.set(item[0], item[1]);
-      }
-    }
-  };
-  PolyfillWeakMap.prototype.set = function(key, value) {
-    if (!isValidKey(key)) {
-      throw Error("Invalid WeakMap key");
-    }
-    insert(key);
-    if (!$jscomp.owns(key, prop)) {
-      throw Error("WeakMap key fail: " + key);
-    }
-    key[prop][this.id_] = value;
-    return this;
-  };
-  PolyfillWeakMap.prototype.get = function(key) {
-    return isValidKey(key) && $jscomp.owns(key, prop) ? key[prop][this.id_] : void 0;
-  };
-  PolyfillWeakMap.prototype.has = function(key) {
-    return isValidKey(key) && $jscomp.owns(key, prop) && $jscomp.owns(key[prop], this.id_);
-  };
-  PolyfillWeakMap.prototype.delete = function(key) {
-    return isValidKey(key) && $jscomp.owns(key, prop) && $jscomp.owns(key[prop], this.id_) ? delete key[prop][this.id_] : !1;
-  };
-  return PolyfillWeakMap;
-}, "es6", "es3");
-$jscomp.MapEntry = function() {
-};
-$jscomp.polyfill("Map", function(NativeMap) {
-  function isConformant() {
-    if ($jscomp.ASSUME_NO_NATIVE_MAP || !NativeMap || "function" != typeof NativeMap || !NativeMap.prototype.entries || "function" != typeof Object.seal) {
-      return !1;
-    }
-    try {
-      var key = Object.seal({x:4}), map = new NativeMap($jscomp.makeIterator([[key, "s"]]));
-      if ("s" != map.get(key) || 1 != map.size || map.get({x:4}) || map.set({x:4}, "t") != map || 2 != map.size) {
-        return !1;
-      }
-      var iter = map.entries(), item = iter.next();
-      if (item.done || item.value[0] != key || "s" != item.value[1]) {
-        return !1;
-      }
-      item = iter.next();
-      return item.done || 4 != item.value[0].x || "t" != item.value[1] || !iter.next().done ? !1 : !0;
-    } catch (err) {
-      return !1;
-    }
-  }
-  if ($jscomp.USE_PROXY_FOR_ES6_CONFORMANCE_CHECKS) {
-    if (NativeMap && $jscomp.ES6_CONFORMANCE) {
-      return NativeMap;
-    }
-  } else {
-    if (isConformant()) {
-      return NativeMap;
-    }
-  }
-  var idMap = new WeakMap, PolyfillMap = function(opt_iterable) {
-    this.data_ = {};
-    this.head_ = createHead();
-    this.size = 0;
-    if (opt_iterable) {
-      for (var iter = $jscomp.makeIterator(opt_iterable), entry; !(entry = iter.next()).done;) {
-        var item = entry.value;
-        this.set(item[0], item[1]);
-      }
-    }
-  };
-  PolyfillMap.prototype.set = function(key, value) {
-    key = 0 === key ? 0 : key;
-    var r = maybeGetEntry(this, key);
-    r.list || (r.list = this.data_[r.id] = []);
-    r.entry ? r.entry.value = value : (r.entry = {next:this.head_, previous:this.head_.previous, head:this.head_, key:key, value:value, }, r.list.push(r.entry), this.head_.previous.next = r.entry, this.head_.previous = r.entry, this.size++);
-    return this;
-  };
-  PolyfillMap.prototype.delete = function(key) {
-    var r = maybeGetEntry(this, key);
-    return r.entry && r.list ? (r.list.splice(r.index, 1), r.list.length || delete this.data_[r.id], r.entry.previous.next = r.entry.next, r.entry.next.previous = r.entry.previous, r.entry.head = null, this.size--, !0) : !1;
-  };
-  PolyfillMap.prototype.clear = function() {
-    this.data_ = {};
-    this.head_ = this.head_.previous = createHead();
-    this.size = 0;
-  };
-  PolyfillMap.prototype.has = function(key) {
-    return !!maybeGetEntry(this, key).entry;
-  };
-  PolyfillMap.prototype.get = function(key) {
-    var entry = maybeGetEntry(this, key).entry;
-    return entry && entry.value;
-  };
-  PolyfillMap.prototype.entries = function() {
-    return makeIterator(this, function(entry) {
-      return [entry.key, entry.value];
-    });
-  };
-  PolyfillMap.prototype.keys = function() {
-    return makeIterator(this, function(entry) {
-      return entry.key;
-    });
-  };
-  PolyfillMap.prototype.values = function() {
-    return makeIterator(this, function(entry) {
-      return entry.value;
-    });
-  };
-  PolyfillMap.prototype.forEach = function(callback, opt_thisArg) {
-    for (var iter = this.entries(), item; !(item = iter.next()).done;) {
-      var entry = item.value;
-      callback.call(opt_thisArg, entry[1], entry[0], this);
-    }
-  };
-  PolyfillMap.prototype[Symbol.iterator] = PolyfillMap.prototype.entries;
-  var maybeGetEntry = function(map, key) {
-    var id = getId(key), list = map.data_[id];
-    if (list && $jscomp.owns(map.data_, id)) {
-      for (var index = 0; index < list.length; index++) {
-        var entry = list[index];
-        if (key !== key && entry.key !== entry.key || key === entry.key) {
-          return {id:id, list:list, index:index, entry:entry};
-        }
-      }
-    }
-    return {id:id, list:list, index:-1, entry:void 0};
-  }, makeIterator = function(map, func) {
-    var entry = map.head_;
-    return $jscomp.iteratorPrototype(function() {
-      if (entry) {
-        for (; entry.head != map.head_;) {
-          entry = entry.previous;
-        }
-        for (; entry.next != entry.head;) {
-          return entry = entry.next, {done:!1, value:func(entry)};
-        }
-        entry = null;
-      }
-      return {done:!0, value:void 0};
-    });
-  }, createHead = function() {
-    var head = {};
-    return head.previous = head.next = head.head = head;
-  }, mapIndex = 0, getId = function(obj) {
-    var type = obj && typeof obj;
-    if ("object" == type || "function" == type) {
-      if (!idMap.has(obj)) {
-        var id = "" + ++mapIndex;
-        idMap.set(obj, id);
-        return id;
-      }
-      return idMap.get(obj);
-    }
-    return "p_" + obj;
-  };
-  return PolyfillMap;
-}, "es6", "es3");
-$jscomp.findInternal = function(array, callback, thisArg) {
-  array instanceof String && (array = String(array));
-  for (var len = array.length, i = 0; i < len; i++) {
-    var value = array[i];
-    if (callback.call(thisArg, value, i, array)) {
-      return {i:i, v:value};
-    }
-  }
-  return {i:-1, v:void 0};
-};
-$jscomp.polyfill("Array.prototype.find", function(orig) {
-  return orig ? orig : function(callback, opt_thisArg) {
-    return $jscomp.findInternal(this, callback, opt_thisArg).v;
-  };
-}, "es6", "es3");
-$jscomp.checkStringArgs = function(thisArg, arg, func) {
-  if (null == thisArg) {
-    throw new TypeError("The 'this' value for String.prototype." + func + " must not be null or undefined");
-  }
-  if (arg instanceof RegExp) {
-    throw new TypeError("First argument to String.prototype." + func + " must not be a regular expression");
-  }
-  return thisArg + "";
-};
-$jscomp.polyfill("String.prototype.endsWith", function(orig) {
-  return orig ? orig : function(searchString, opt_position) {
-    var string = $jscomp.checkStringArgs(this, searchString, "endsWith");
-    searchString += "";
-    void 0 === opt_position && (opt_position = string.length);
-    for (var i = Math.max(0, Math.min(opt_position | 0, string.length)), j = searchString.length; 0 < j && 0 < i;) {
-      if (string[--i] != searchString[--j]) {
-        return !1;
-      }
-    }
-    return 0 >= j;
-  };
-}, "es6", "es3");
-$jscomp.polyfill("String.prototype.startsWith", function(orig) {
-  return orig ? orig : function(searchString, opt_position) {
-    var string = $jscomp.checkStringArgs(this, searchString, "startsWith");
-    searchString += "";
-    for (var strLen = string.length, searchLen = searchString.length, i = Math.max(0, Math.min(opt_position | 0, string.length)), j = 0; j < searchLen && i < strLen;) {
-      if (string[i++] != searchString[j++]) {
-        return !1;
-      }
-    }
-    return j >= searchLen;
-  };
-}, "es6", "es3");
-$jscomp.polyfill("String.prototype.repeat", function(orig) {
-  return orig ? orig : function(copies) {
-    var string = $jscomp.checkStringArgs(this, null, "repeat");
-    if (0 > copies || 1342177279 < copies) {
-      throw new RangeError("Invalid count value");
-    }
-    copies |= 0;
-    for (var result = ""; copies;) {
-      if (copies & 1 && (result += string), copies >>>= 1) {
-        string += string;
-      }
-    }
-    return result;
-  };
-}, "es6", "es3");
-$jscomp.iteratorFromArray = function(array, transform) {
-  array instanceof String && (array += "");
-  var i = 0, done = !1, iter = {next:function() {
-    if (!done && i < array.length) {
-      var index = i++;
-      return {value:transform(index, array[index]), done:!1};
-    }
-    done = !0;
-    return {done:!0, value:void 0};
-  }};
-  iter[Symbol.iterator] = function() {
-    return iter;
-  };
-  return iter;
-};
-$jscomp.polyfill("Array.prototype.keys", function(orig) {
-  return orig ? orig : function() {
-    return $jscomp.iteratorFromArray(this, function(i) {
-      return i;
-    });
-  };
-}, "es6", "es3");
-$jscomp.polyfill("Array.from", function(orig) {
-  return orig ? orig : function(arrayLike, opt_mapFn, opt_thisArg) {
-    opt_mapFn = null != opt_mapFn ? opt_mapFn : function(x) {
-      return x;
-    };
-    var result = [], iteratorFunction = "undefined" != typeof Symbol && Symbol.iterator && arrayLike[Symbol.iterator];
-    if ("function" == typeof iteratorFunction) {
-      arrayLike = iteratorFunction.call(arrayLike);
-      for (var next, k = 0; !(next = arrayLike.next()).done;) {
-        result.push(opt_mapFn.call(opt_thisArg, next.value, k++));
-      }
-    } else {
-      for (var len = arrayLike.length, i = 0; i < len; i++) {
-        result.push(opt_mapFn.call(opt_thisArg, arrayLike[i], i));
-      }
-    }
-    return result;
-  };
-}, "es6", "es3");
-$jscomp.polyfill("Array.prototype.values", function(orig) {
-  return orig ? orig : function() {
-    return $jscomp.iteratorFromArray(this, function(k, v) {
-      return v;
-    });
-  };
-}, "es8", "es3");
-$jscomp.polyfill("Object.setPrototypeOf", function(orig) {
-  return orig || $jscomp.setPrototypeOf;
-}, "es6", "es5");
-$jscomp.assign = $jscomp.TRUST_ES6_POLYFILLS && "function" == typeof Object.assign ? Object.assign : function(target, var_args) {
-  for (var i = 1; i < arguments.length; i++) {
-    var source = arguments[i];
-    if (source) {
-      for (var key in source) {
-        $jscomp.owns(source, key) && (target[key] = source[key]);
-      }
-    }
-  }
-  return target;
-};
-$jscomp.polyfill("Object.assign", function(orig) {
-  return orig || $jscomp.assign;
-}, "es6", "es3");
 $jscomp.polyfill("Promise", function(NativePromise) {
   function platformSupportsPromiseRejectionEvents() {
     return "undefined" !== typeof $jscomp.global.PromiseRejectionEvent;
@@ -749,7 +633,7 @@ $jscomp.polyfill("Promise", function(NativePromise) {
       this.onSettledCallbacks_ = null;
     }
   };
-  var asyncExecutor = new AsyncExecutor;
+  var asyncExecutor = new AsyncExecutor();
   PolyfillPromise.prototype.settleSameAsPromise_ = function(promise) {
     var methods = this.createResolveAndReject_();
     promise.callWhenSettled_(methods.resolve, methods.reject);
@@ -830,6 +714,352 @@ $jscomp.polyfill("Promise", function(NativePromise) {
   };
   return PolyfillPromise;
 }, "es6", "es3");
+$jscomp.checkEs6ConformanceViaProxy = function() {
+  try {
+    var proxied = {}, proxy = Object.create(new $jscomp.global.Proxy(proxied, {get:function(target, key, receiver) {
+      return target == proxied && "q" == key && receiver == proxy;
+    }}));
+    return !0 === proxy.q;
+  } catch (err) {
+    return !1;
+  }
+};
+$jscomp.USE_PROXY_FOR_ES6_CONFORMANCE_CHECKS = !1;
+$jscomp.ES6_CONFORMANCE = $jscomp.USE_PROXY_FOR_ES6_CONFORMANCE_CHECKS && $jscomp.checkEs6ConformanceViaProxy();
+$jscomp.polyfill("WeakMap", function(NativeWeakMap) {
+  function isConformant() {
+    if (!NativeWeakMap || !Object.seal) {
+      return !1;
+    }
+    try {
+      var x = Object.seal({}), y = Object.seal({}), map = new NativeWeakMap([[x, 2], [y, 3]]);
+      if (2 != map.get(x) || 3 != map.get(y)) {
+        return !1;
+      }
+      map.delete(x);
+      map.set(y, 4);
+      return !map.has(x) && 4 == map.get(y);
+    } catch (err) {
+      return !1;
+    }
+  }
+  function WeakMapMembership() {
+  }
+  function isValidKey(key) {
+    var type = typeof key;
+    return "object" === type && null !== key || "function" === type;
+  }
+  function insert(target) {
+    if (!$jscomp.owns(target, prop)) {
+      var obj = new WeakMapMembership();
+      $jscomp.defineProperty(target, prop, {value:obj});
+    }
+  }
+  function patch(name) {
+    if (!$jscomp.ISOLATE_POLYFILLS) {
+      var prev = Object[name];
+      prev && (Object[name] = function(target) {
+        if (target instanceof WeakMapMembership) {
+          return target;
+        }
+        Object.isExtensible(target) && insert(target);
+        return prev(target);
+      });
+    }
+  }
+  if ($jscomp.USE_PROXY_FOR_ES6_CONFORMANCE_CHECKS) {
+    if (NativeWeakMap && $jscomp.ES6_CONFORMANCE) {
+      return NativeWeakMap;
+    }
+  } else {
+    if (isConformant()) {
+      return NativeWeakMap;
+    }
+  }
+  var prop = "$jscomp_hidden_" + Math.random();
+  patch("freeze");
+  patch("preventExtensions");
+  patch("seal");
+  var index = 0, PolyfillWeakMap = function(opt_iterable) {
+    this.id_ = (index += Math.random() + 1).toString();
+    if (opt_iterable) {
+      for (var iter = $jscomp.makeIterator(opt_iterable), entry; !(entry = iter.next()).done;) {
+        var item = entry.value;
+        this.set(item[0], item[1]);
+      }
+    }
+  };
+  PolyfillWeakMap.prototype.set = function(key, value) {
+    if (!isValidKey(key)) {
+      throw Error("Invalid WeakMap key");
+    }
+    insert(key);
+    if (!$jscomp.owns(key, prop)) {
+      throw Error("WeakMap key fail: " + key);
+    }
+    key[prop][this.id_] = value;
+    return this;
+  };
+  PolyfillWeakMap.prototype.get = function(key) {
+    return isValidKey(key) && $jscomp.owns(key, prop) ? key[prop][this.id_] : void 0;
+  };
+  PolyfillWeakMap.prototype.has = function(key) {
+    return isValidKey(key) && $jscomp.owns(key, prop) && $jscomp.owns(key[prop], this.id_);
+  };
+  PolyfillWeakMap.prototype.delete = function(key) {
+    return isValidKey(key) && $jscomp.owns(key, prop) && $jscomp.owns(key[prop], this.id_) ? delete key[prop][this.id_] : !1;
+  };
+  return PolyfillWeakMap;
+}, "es6", "es3");
+$jscomp.MapEntry = function() {
+};
+$jscomp.polyfill("Map", function(NativeMap) {
+  function isConformant() {
+    if ($jscomp.ASSUME_NO_NATIVE_MAP || !NativeMap || "function" != typeof NativeMap || !NativeMap.prototype.entries || "function" != typeof Object.seal) {
+      return !1;
+    }
+    try {
+      var key = Object.seal({x:4}), map = new NativeMap($jscomp.makeIterator([[key, "s"]]));
+      if ("s" != map.get(key) || 1 != map.size || map.get({x:4}) || map.set({x:4}, "t") != map || 2 != map.size) {
+        return !1;
+      }
+      var iter = map.entries(), item = iter.next();
+      if (item.done || item.value[0] != key || "s" != item.value[1]) {
+        return !1;
+      }
+      item = iter.next();
+      return item.done || 4 != item.value[0].x || "t" != item.value[1] || !iter.next().done ? !1 : !0;
+    } catch (err) {
+      return !1;
+    }
+  }
+  if ($jscomp.USE_PROXY_FOR_ES6_CONFORMANCE_CHECKS) {
+    if (NativeMap && $jscomp.ES6_CONFORMANCE) {
+      return NativeMap;
+    }
+  } else {
+    if (isConformant()) {
+      return NativeMap;
+    }
+  }
+  var idMap = new WeakMap(), PolyfillMap = function(opt_iterable) {
+    this.data_ = {};
+    this.head_ = createHead();
+    this.size = 0;
+    if (opt_iterable) {
+      for (var iter = $jscomp.makeIterator(opt_iterable), entry; !(entry = iter.next()).done;) {
+        var item = entry.value;
+        this.set(item[0], item[1]);
+      }
+    }
+  };
+  PolyfillMap.prototype.set = function(key, value) {
+    key = 0 === key ? 0 : key;
+    var r = maybeGetEntry(this, key);
+    r.list || (r.list = this.data_[r.id] = []);
+    r.entry ? r.entry.value = value : (r.entry = {next:this.head_, previous:this.head_.previous, head:this.head_, key:key, value:value,}, r.list.push(r.entry), this.head_.previous.next = r.entry, this.head_.previous = r.entry, this.size++);
+    return this;
+  };
+  PolyfillMap.prototype.delete = function(key) {
+    var r = maybeGetEntry(this, key);
+    return r.entry && r.list ? (r.list.splice(r.index, 1), r.list.length || delete this.data_[r.id], r.entry.previous.next = r.entry.next, r.entry.next.previous = r.entry.previous, r.entry.head = null, this.size--, !0) : !1;
+  };
+  PolyfillMap.prototype.clear = function() {
+    this.data_ = {};
+    this.head_ = this.head_.previous = createHead();
+    this.size = 0;
+  };
+  PolyfillMap.prototype.has = function(key) {
+    return !!maybeGetEntry(this, key).entry;
+  };
+  PolyfillMap.prototype.get = function(key) {
+    var entry = maybeGetEntry(this, key).entry;
+    return entry && entry.value;
+  };
+  PolyfillMap.prototype.entries = function() {
+    return makeIterator(this, function(entry) {
+      return [entry.key, entry.value];
+    });
+  };
+  PolyfillMap.prototype.keys = function() {
+    return makeIterator(this, function(entry) {
+      return entry.key;
+    });
+  };
+  PolyfillMap.prototype.values = function() {
+    return makeIterator(this, function(entry) {
+      return entry.value;
+    });
+  };
+  PolyfillMap.prototype.forEach = function(callback, opt_thisArg) {
+    for (var iter = this.entries(), item; !(item = iter.next()).done;) {
+      var entry = item.value;
+      callback.call(opt_thisArg, entry[1], entry[0], this);
+    }
+  };
+  PolyfillMap.prototype[Symbol.iterator] = PolyfillMap.prototype.entries;
+  var maybeGetEntry = function(map, key) {
+    var id = getId(key), list = map.data_[id];
+    if (list && $jscomp.owns(map.data_, id)) {
+      for (var index = 0; index < list.length; index++) {
+        var entry = list[index];
+        if (key !== key && entry.key !== entry.key || key === entry.key) {
+          return {id:id, list:list, index:index, entry:entry};
+        }
+      }
+    }
+    return {id:id, list:list, index:-1, entry:void 0};
+  }, makeIterator = function(map, func) {
+    var entry = map.head_;
+    return $jscomp.iteratorPrototype(function() {
+      if (entry) {
+        for (; entry.head != map.head_;) {
+          entry = entry.previous;
+        }
+        for (; entry.next != entry.head;) {
+          return entry = entry.next, {done:!1, value:func(entry)};
+        }
+        entry = null;
+      }
+      return {done:!0, value:void 0};
+    });
+  }, createHead = function() {
+    var head = {};
+    return head.previous = head.next = head.head = head;
+  }, mapIndex = 0, getId = function(obj) {
+    var type = obj && typeof obj;
+    if ("object" == type || "function" == type) {
+      if (!idMap.has(obj)) {
+        var id = "" + ++mapIndex;
+        idMap.set(obj, id);
+        return id;
+      }
+      return idMap.get(obj);
+    }
+    return "p_" + obj;
+  };
+  return PolyfillMap;
+}, "es6", "es3");
+$jscomp.findInternal = function(array, callback, thisArg) {
+  array instanceof String && (array = String(array));
+  for (var len = array.length, i = 0; i < len; i++) {
+    var value = array[i];
+    if (callback.call(thisArg, value, i, array)) {
+      return {i:i, v:value};
+    }
+  }
+  return {i:-1, v:void 0};
+};
+$jscomp.polyfill("Array.prototype.find", function(orig) {
+  return orig ? orig : function(callback, opt_thisArg) {
+    return $jscomp.findInternal(this, callback, opt_thisArg).v;
+  };
+}, "es6", "es3");
+$jscomp.checkStringArgs = function(thisArg, arg, func) {
+  if (null == thisArg) {
+    throw new TypeError("The 'this' value for String.prototype." + func + " must not be null or undefined");
+  }
+  if (arg instanceof RegExp) {
+    throw new TypeError("First argument to String.prototype." + func + " must not be a regular expression");
+  }
+  return thisArg + "";
+};
+$jscomp.polyfill("String.prototype.repeat", function(orig) {
+  return orig ? orig : function(copies) {
+    var string = $jscomp.checkStringArgs(this, null, "repeat");
+    if (0 > copies || 1342177279 < copies) {
+      throw new RangeError("Invalid count value");
+    }
+    copies |= 0;
+    for (var result = ""; copies;) {
+      if (copies & 1 && (result += string), copies >>>= 1) {
+        string += string;
+      }
+    }
+    return result;
+  };
+}, "es6", "es3");
+$jscomp.iteratorFromArray = function(array, transform) {
+  array instanceof String && (array += "");
+  var i = 0, done = !1, iter = {next:function() {
+    if (!done && i < array.length) {
+      var index = i++;
+      return {value:transform(index, array[index]), done:!1};
+    }
+    done = !0;
+    return {done:!0, value:void 0};
+  }};
+  iter[Symbol.iterator] = function() {
+    return iter;
+  };
+  return iter;
+};
+$jscomp.polyfill("Array.prototype.keys", function(orig) {
+  return orig ? orig : function() {
+    return $jscomp.iteratorFromArray(this, function(i) {
+      return i;
+    });
+  };
+}, "es6", "es3");
+$jscomp.polyfill("Array.from", function(orig) {
+  return orig ? orig : function(arrayLike, opt_mapFn, opt_thisArg) {
+    opt_mapFn = null != opt_mapFn ? opt_mapFn : function(x) {
+      return x;
+    };
+    var result = [], iteratorFunction = "undefined" != typeof Symbol && Symbol.iterator && arrayLike[Symbol.iterator];
+    if ("function" == typeof iteratorFunction) {
+      arrayLike = iteratorFunction.call(arrayLike);
+      for (var next, k = 0; !(next = arrayLike.next()).done;) {
+        result.push(opt_mapFn.call(opt_thisArg, next.value, k++));
+      }
+    } else {
+      for (var len = arrayLike.length, i = 0; i < len; i++) {
+        result.push(opt_mapFn.call(opt_thisArg, arrayLike[i], i));
+      }
+    }
+    return result;
+  };
+}, "es6", "es3");
+$jscomp.polyfill("Array.prototype.values", function(orig) {
+  return orig ? orig : function() {
+    return $jscomp.iteratorFromArray(this, function(k, v) {
+      return v;
+    });
+  };
+}, "es8", "es3");
+$jscomp.polyfill("Object.setPrototypeOf", function(orig) {
+  return orig || $jscomp.setPrototypeOf;
+}, "es6", "es5");
+$jscomp.polyfill("String.prototype.endsWith", function(orig) {
+  return orig ? orig : function(searchString, opt_position) {
+    var string = $jscomp.checkStringArgs(this, searchString, "endsWith");
+    searchString += "";
+    void 0 === opt_position && (opt_position = string.length);
+    for (var i = Math.max(0, Math.min(opt_position | 0, string.length)), j = searchString.length; 0 < j && 0 < i;) {
+      if (string[--i] != searchString[--j]) {
+        return !1;
+      }
+    }
+    return 0 >= j;
+  };
+}, "es6", "es3");
+$jscomp.polyfill("String.prototype.startsWith", function(orig) {
+  return orig ? orig : function(searchString, opt_position) {
+    var string = $jscomp.checkStringArgs(this, searchString, "startsWith");
+    searchString += "";
+    for (var strLen = string.length, searchLen = searchString.length, i = Math.max(0, Math.min(opt_position | 0, string.length)), j = 0; j < searchLen && i < strLen;) {
+      if (string[i++] != searchString[j++]) {
+        return !1;
+      }
+    }
+    return j >= searchLen;
+  };
+}, "es6", "es3");
+$jscomp.polyfill("Number.isFinite", function(orig) {
+  return orig ? orig : function(x) {
+    return "number" !== typeof x ? !1 : !isNaN(x) && Infinity !== x && -Infinity !== x;
+  };
+}, "es6", "es3");
 $jscomp.polyfill("Object.entries", function(orig) {
   return orig ? orig : function(obj) {
     var result = [], key;
@@ -906,7 +1136,7 @@ $jscomp.polyfill("Set", function(NativeSet) {
     }
   }
   var PolyfillSet = function(opt_iterable) {
-    this.map_ = new Map;
+    this.map_ = new Map();
     if (opt_iterable) {
       for (var iter = $jscomp.makeIterator(opt_iterable), entry; !(entry = iter.next()).done;) {
         this.add(entry.value);
@@ -994,7 +1224,7 @@ goog.FEATURESET_YEAR = 2012;
 goog.DEBUG = !0;
 goog.LOCALE = "en";
 goog.getLocale = function() {
-  return goog.LOCALE;
+  return "en";
 };
 goog.TRUSTED_SITE = !0;
 goog.DISALLOW_TEST_ONLY_CODE = !goog.DEBUG;
@@ -1087,7 +1317,6 @@ goog.getObjectByName = function(name, opt_obj) {
 };
 goog.addDependency = function(relPath, provides, requires, opt_loadFlags) {
 };
-goog.useStrictRequires = !1;
 goog.ENABLE_DEBUG_LOADER = !0;
 goog.logToConsole_ = function(msg) {
   goog.global.console && goog.global.console.error(msg);
@@ -1099,8 +1328,6 @@ goog.requireType = function(namespace) {
   return {};
 };
 goog.basePath = "";
-goog.nullFunction = function() {
-};
 goog.abstractMethod = function() {
   throw Error("unimplemented abstract method");
 };
@@ -1111,7 +1338,7 @@ goog.addSingletonGetter = function(ctor) {
       return ctor.instance_;
     }
     goog.DEBUG && (goog.instantiatedSingletons_[goog.instantiatedSingletons_.length] = ctor);
-    return ctor.instance_ = new ctor;
+    return ctor.instance_ = new ctor();
   };
 };
 goog.instantiatedSingletons_ = [];
@@ -1132,12 +1359,10 @@ goog.loadModule = function(moduleDef) {
     var origExports = {}, exports = origExports;
     if ("function" === typeof moduleDef) {
       exports = moduleDef.call(void 0, exports);
+    } else if ("string" === typeof moduleDef) {
+      exports = goog.loadModuleFromSource_.call(void 0, exports, moduleDef);
     } else {
-      if ("string" === typeof moduleDef) {
-        exports = goog.loadModuleFromSource_.call(void 0, exports, moduleDef);
-      } else {
-        throw Error("Invalid module definition");
-      }
+      throw Error("Invalid module definition");
     }
     var moduleName = goog.moduleLoaderState_.moduleName;
     if ("string" === typeof moduleName && moduleName) {
@@ -1164,41 +1389,13 @@ goog.loadFileSync_ = function(src) {
     return goog.global.CLOSURE_LOAD_FILE_SYNC(src);
   }
   try {
-    var xhr = new goog.global.XMLHttpRequest;
+    var xhr = new goog.global.XMLHttpRequest();
     xhr.open("get", src, !1);
     xhr.send();
     return 0 == xhr.status || 200 == xhr.status ? xhr.responseText : null;
   } catch (err) {
     return null;
   }
-};
-goog.transpile_ = function(code$jscomp$0, path$jscomp$0, target) {
-  var jscomp = goog.global.$jscomp;
-  jscomp || (goog.global.$jscomp = jscomp = {});
-  var transpile = jscomp.transpile;
-  if (!transpile) {
-    var transpilerPath = goog.basePath + goog.TRANSPILER, transpilerCode = goog.loadFileSync_(transpilerPath);
-    if (transpilerCode) {
-      (function() {
-        (0,eval)(transpilerCode + "\n//# sourceURL=" + transpilerPath);
-      }).call(goog.global);
-      if (goog.global.$gwtExport && goog.global.$gwtExport.$jscomp && !goog.global.$gwtExport.$jscomp.transpile) {
-        throw Error('The transpiler did not properly export the "transpile" method. $gwtExport: ' + JSON.stringify(goog.global.$gwtExport));
-      }
-      goog.global.$jscomp.transpile = goog.global.$gwtExport.$jscomp.transpile;
-      jscomp = goog.global.$jscomp;
-      transpile = jscomp.transpile;
-    }
-  }
-  if (!transpile) {
-    var suffix = " requires transpilation but no transpiler was found.";
-    suffix += ' Please add "//javascript/closure:transpiler" as a data dependency to ensure it is included.';
-    transpile = jscomp.transpile = function(code, path) {
-      goog.logToConsole_(path + suffix);
-      return code;
-    };
-  }
-  return transpile(code$jscomp$0, path$jscomp$0, target);
 };
 goog.typeOf = function(value) {
   var s = typeof value;
@@ -1228,7 +1425,7 @@ goog.removeUid = function(obj) {
   } catch (ex) {
   }
 };
-goog.UID_PROPERTY_ = "closure_uid_" + (1e9 * Math.random() >>> 0);
+goog.UID_PROPERTY_ = "closure_uid_" + (1E9 * Math.random() >>> 0);
 goog.uidCounter_ = 0;
 goog.cloneObject = function(obj) {
   var type = goog.typeOf(obj);
@@ -1281,11 +1478,6 @@ goog.partial = function(fn, var_args) {
     return fn.apply(this, newArgs);
   };
 };
-goog.mixin = function(target, source) {
-  for (var x in source) {
-    target[x] = source[x];
-  }
-};
 goog.now = function() {
   return Date.now();
 };
@@ -1314,6 +1506,8 @@ goog.setCssNameMapping = function(mapping, opt_style) {
   goog.cssNameMapping_ = mapping;
   goog.cssNameMappingStyle_ = opt_style;
 };
+goog.GetMsgOptions = function() {
+};
 goog.getMsg = function(str, opt_values, opt_options) {
   opt_options && opt_options.html && (str = str.replace(/</g, "&lt;"));
   opt_options && opt_options.unescapeHtmlEntities && (str = str.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
@@ -1336,7 +1530,7 @@ goog.inherits = function(childCtor, parentCtor) {
   }
   tempCtor.prototype = parentCtor.prototype;
   childCtor.superClass_ = parentCtor.prototype;
-  childCtor.prototype = new tempCtor;
+  childCtor.prototype = new tempCtor();
   childCtor.prototype.constructor = childCtor;
   childCtor.base = function(me, methodName, var_args) {
     for (var args = Array(arguments.length - 2), i = 2; i < arguments.length; i++) {
@@ -1498,7 +1692,7 @@ function module$contents$goog$debug$Error_DebugError(msg, cause) {
     stack && (this.stack = stack);
   }
   msg && (this.message = String(msg));
-  cause && (this.cause = cause);
+  void 0 !== cause && (this.cause = cause);
   this.reportErrorToServer = !0;
 }
 goog.inherits(module$contents$goog$debug$Error_DebugError, Error);
@@ -1508,23 +1702,24 @@ goog.dom = {};
 goog.dom.NodeType = {ELEMENT:1, ATTRIBUTE:2, TEXT:3, CDATA_SECTION:4, ENTITY_REFERENCE:5, ENTITY:6, PROCESSING_INSTRUCTION:7, COMMENT:8, DOCUMENT:9, DOCUMENT_TYPE:10, DOCUMENT_FRAGMENT:11, NOTATION:12};
 goog.asserts = {};
 goog.asserts.ENABLE_ASSERTS = goog.DEBUG;
-goog.asserts.AssertionError = function(messagePattern, messageArgs) {
-  module$contents$goog$debug$Error_DebugError.call(this, goog.asserts.subs_(messagePattern, messageArgs));
+function module$contents$goog$asserts_AssertionError(messagePattern, messageArgs) {
+  module$contents$goog$debug$Error_DebugError.call(this, module$contents$goog$asserts_subs(messagePattern, messageArgs));
   this.messagePattern = messagePattern;
-};
-goog.inherits(goog.asserts.AssertionError, module$contents$goog$debug$Error_DebugError);
-goog.asserts.AssertionError.prototype.name = "AssertionError";
+}
+goog.inherits(module$contents$goog$asserts_AssertionError, module$contents$goog$debug$Error_DebugError);
+goog.asserts.AssertionError = module$contents$goog$asserts_AssertionError;
+module$contents$goog$asserts_AssertionError.prototype.name = "AssertionError";
 goog.asserts.DEFAULT_ERROR_HANDLER = function(e) {
   throw e;
 };
-goog.asserts.errorHandler_ = goog.asserts.DEFAULT_ERROR_HANDLER;
-goog.asserts.subs_ = function(pattern, subs) {
+var module$contents$goog$asserts_errorHandler_ = goog.asserts.DEFAULT_ERROR_HANDLER;
+function module$contents$goog$asserts_subs(pattern, subs) {
   for (var splitParts = pattern.split("%s"), returnString = "", subLast = splitParts.length - 1, i = 0; i < subLast; i++) {
     returnString += splitParts[i] + (i < subs.length ? subs[i] : "%s");
   }
   return returnString + splitParts[subLast];
-};
-goog.asserts.doAssertFailure_ = function(defaultMessage, defaultArgs, givenMessage, givenArgs) {
+}
+function module$contents$goog$asserts_doAssertFailure(defaultMessage, defaultArgs, givenMessage, givenArgs) {
   var message = "Assertion failed";
   if (givenMessage) {
     message += ": " + givenMessage;
@@ -1532,63 +1727,63 @@ goog.asserts.doAssertFailure_ = function(defaultMessage, defaultArgs, givenMessa
   } else {
     defaultMessage && (message += ": " + defaultMessage, args = defaultArgs);
   }
-  var e = new goog.asserts.AssertionError("" + message, args || []);
-  goog.asserts.errorHandler_(e);
-};
+  var e = new module$contents$goog$asserts_AssertionError("" + message, args || []);
+  module$contents$goog$asserts_errorHandler_(e);
+}
 goog.asserts.setErrorHandler = function(errorHandler) {
-  goog.asserts.ENABLE_ASSERTS && (goog.asserts.errorHandler_ = errorHandler);
+  goog.asserts.ENABLE_ASSERTS && (module$contents$goog$asserts_errorHandler_ = errorHandler);
 };
 goog.asserts.assert = function(condition, opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && !condition && goog.asserts.doAssertFailure_("", null, opt_message, Array.prototype.slice.call(arguments, 2));
+  goog.asserts.ENABLE_ASSERTS && !condition && module$contents$goog$asserts_doAssertFailure("", null, opt_message, Array.prototype.slice.call(arguments, 2));
   return condition;
 };
 goog.asserts.assertExists = function(value, opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && null == value && goog.asserts.doAssertFailure_("Expected to exist: %s.", [value], opt_message, Array.prototype.slice.call(arguments, 2));
+  goog.asserts.ENABLE_ASSERTS && null == value && module$contents$goog$asserts_doAssertFailure("Expected to exist: %s.", [value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
 goog.asserts.fail = function(opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && goog.asserts.errorHandler_(new goog.asserts.AssertionError("Failure" + (opt_message ? ": " + opt_message : ""), Array.prototype.slice.call(arguments, 1)));
+  goog.asserts.ENABLE_ASSERTS && module$contents$goog$asserts_errorHandler_(new module$contents$goog$asserts_AssertionError("Failure" + (opt_message ? ": " + opt_message : ""), Array.prototype.slice.call(arguments, 1)));
 };
 goog.asserts.assertNumber = function(value, opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && "number" !== typeof value && goog.asserts.doAssertFailure_("Expected number but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
+  goog.asserts.ENABLE_ASSERTS && "number" !== typeof value && module$contents$goog$asserts_doAssertFailure("Expected number but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
 goog.asserts.assertString = function(value, opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && "string" !== typeof value && goog.asserts.doAssertFailure_("Expected string but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
+  goog.asserts.ENABLE_ASSERTS && "string" !== typeof value && module$contents$goog$asserts_doAssertFailure("Expected string but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
 goog.asserts.assertFunction = function(value, opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && "function" !== typeof value && goog.asserts.doAssertFailure_("Expected function but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
+  goog.asserts.ENABLE_ASSERTS && "function" !== typeof value && module$contents$goog$asserts_doAssertFailure("Expected function but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
 goog.asserts.assertObject = function(value, opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && !goog.isObject(value) && goog.asserts.doAssertFailure_("Expected object but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
+  goog.asserts.ENABLE_ASSERTS && !goog.isObject(value) && module$contents$goog$asserts_doAssertFailure("Expected object but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
 goog.asserts.assertArray = function(value, opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && !Array.isArray(value) && goog.asserts.doAssertFailure_("Expected array but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
+  goog.asserts.ENABLE_ASSERTS && !Array.isArray(value) && module$contents$goog$asserts_doAssertFailure("Expected array but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
 goog.asserts.assertBoolean = function(value, opt_message, var_args) {
-  goog.asserts.ENABLE_ASSERTS && "boolean" !== typeof value && goog.asserts.doAssertFailure_("Expected boolean but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
+  goog.asserts.ENABLE_ASSERTS && "boolean" !== typeof value && module$contents$goog$asserts_doAssertFailure("Expected boolean but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
 goog.asserts.assertElement = function(value, opt_message, var_args) {
-  !goog.asserts.ENABLE_ASSERTS || goog.isObject(value) && value.nodeType == goog.dom.NodeType.ELEMENT || goog.asserts.doAssertFailure_("Expected Element but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
+  !goog.asserts.ENABLE_ASSERTS || goog.isObject(value) && value.nodeType == goog.dom.NodeType.ELEMENT || module$contents$goog$asserts_doAssertFailure("Expected Element but got %s: %s.", [goog.typeOf(value), value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
 goog.asserts.assertInstanceof = function(value, type, opt_message, var_args) {
-  !goog.asserts.ENABLE_ASSERTS || value instanceof type || goog.asserts.doAssertFailure_("Expected instanceof %s but got %s.", [goog.asserts.getType_(type), goog.asserts.getType_(value)], opt_message, Array.prototype.slice.call(arguments, 3));
+  !goog.asserts.ENABLE_ASSERTS || value instanceof type || module$contents$goog$asserts_doAssertFailure("Expected instanceof %s but got %s.", [module$contents$goog$asserts_getType(type), module$contents$goog$asserts_getType(value)], opt_message, Array.prototype.slice.call(arguments, 3));
   return value;
 };
 goog.asserts.assertFinite = function(value, opt_message, var_args) {
-  !goog.asserts.ENABLE_ASSERTS || "number" == typeof value && isFinite(value) || goog.asserts.doAssertFailure_("Expected %s to be a finite number but it is not.", [value], opt_message, Array.prototype.slice.call(arguments, 2));
+  !goog.asserts.ENABLE_ASSERTS || "number" == typeof value && isFinite(value) || module$contents$goog$asserts_doAssertFailure("Expected %s to be a finite number but it is not.", [value], opt_message, Array.prototype.slice.call(arguments, 2));
   return value;
 };
-goog.asserts.getType_ = function(value) {
+function module$contents$goog$asserts_getType(value) {
   return value instanceof Function ? value.displayName || value.name || "unknown type name" : value instanceof Object ? value.constructor.displayName || value.constructor.name || Object.prototype.toString.call(value) : null === value ? "null" : typeof value;
-};
-goog.debug.entryPointRegistry = {};
+}
+;goog.debug.entryPointRegistry = {};
 goog.debug.entryPointRegistry.EntryPointMonitor = function() {
 };
 goog.debug.EntryPointMonitor = goog.debug.entryPointRegistry.EntryPointMonitor;
@@ -1855,7 +2050,7 @@ function module$contents$goog$array_toArray(object) {
   }
   return [];
 }
-var module$contents$goog$array_clone = goog.array.toArray = module$contents$goog$array_toArray;
+goog.array.toArray = module$contents$goog$array_toArray;
 goog.array.clone = module$contents$goog$array_toArray;
 function module$contents$goog$array_extend(arr1, var_args) {
   for (var i = 1; i < arguments.length; i++) {
@@ -1919,8 +2114,8 @@ goog.array.stableSort = function module$contents$goog$array_stableSort(arr, opt_
   module$contents$goog$array_sort(compArr, function stableCompareFn(obj1, obj2) {
     return valueCompareFn(obj1.value, obj2.value) || obj1.index - obj2.index;
   });
-  for (var i$21 = 0; i$21 < arr.length; i$21++) {
-    arr[i$21] = compArr[i$21].value;
+  for (var i$29 = 0; i$29 < arr.length; i$29++) {
+    arr[i$29] = compArr[i$29].value;
   }
 };
 function module$contents$goog$array_sortByKey(arr, keyFn, opt_compareFn) {
@@ -1993,7 +2188,7 @@ goog.array.bucket = function module$contents$goog$array_bucket(array, sorter, op
   return buckets;
 };
 goog.array.bucketToMap = function module$contents$goog$array_bucketToMap(array, sorter) {
-  for (var buckets = new Map, i = 0; i < array.length; i++) {
+  for (var buckets = new Map(), i = 0; i < array.length; i++) {
     var value = array[i], key = sorter(value, i, array);
     if (void 0 !== key) {
       var bucket = buckets.get(key);
@@ -2011,7 +2206,7 @@ goog.array.toObject = function module$contents$goog$array_toObject(arr, keyFunc,
   return ret;
 };
 goog.array.toMap = function module$contents$goog$array_toMap(arr, keyFunc) {
-  for (var map = new Map, i = 0; i < arr.length; i++) {
+  for (var map = new Map(), i = 0; i < arr.length; i++) {
     var element = arr[i];
     map.set(keyFunc(element, i, arr), element);
   }
@@ -2028,8 +2223,8 @@ function module$contents$goog$array_range(startOrEnd, opt_end, opt_step) {
       array.push(i);
     }
   } else {
-    for (var i$22 = start; i$22 > end; i$22 += step) {
-      array.push(i$22);
+    for (var i$30 = start; i$30 > end; i$30 += step) {
+      array.push(i$30);
     }
   }
   return array;
@@ -2076,9 +2271,9 @@ goog.array.zip = function module$contents$goog$array_zip(var_args) {
   for (var result = [], minLen = arguments[0].length, i = 1; i < arguments.length; i++) {
     arguments[i].length < minLen && (minLen = arguments[i].length);
   }
-  for (var i$23 = 0; i$23 < minLen; i$23++) {
+  for (var i$31 = 0; i$31 < minLen; i$31++) {
     for (var value = [], j = 0; j < arguments.length; j++) {
-      value.push(arguments[j][i$23]);
+      value.push(arguments[j][i$31]);
     }
     result.push(value);
   }
@@ -2110,6 +2305,298 @@ goog.debug.errorcontext.getErrorContext = function(err) {
   return err[goog.debug.errorcontext.CONTEXT_KEY_] || {};
 };
 goog.debug.errorcontext.CONTEXT_KEY_ = "__closure__error__context__984382";
+goog.debug.LOGGING_ENABLED = goog.DEBUG;
+goog.debug.FORCE_SLOPPY_STACKS = !1;
+goog.debug.CHECK_FOR_THROWN_EVENT = !1;
+goog.debug.catchErrors = function(logFunc, opt_cancel, opt_target) {
+  var target = opt_target || goog.global, oldErrorHandler = target.onerror, retVal = !!opt_cancel;
+  target.onerror = function(message, url, line, opt_col, opt_error) {
+    oldErrorHandler && oldErrorHandler(message, url, line, opt_col, opt_error);
+    logFunc({message:message, fileName:url, line:line, lineNumber:line, col:opt_col, error:opt_error});
+    return retVal;
+  };
+};
+goog.debug.expose = function(obj, opt_showFn) {
+  if ("undefined" == typeof obj) {
+    return "undefined";
+  }
+  if (null == obj) {
+    return "NULL";
+  }
+  var str = [], x;
+  for (x in obj) {
+    if (opt_showFn || "function" !== typeof obj[x]) {
+      var s = x + " = ";
+      try {
+        s += obj[x];
+      } catch (e) {
+        s += "*** " + e + " ***";
+      }
+      str.push(s);
+    }
+  }
+  return str.join("\n");
+};
+goog.debug.deepExpose = function(obj$jscomp$0, opt_showFn) {
+  var str$jscomp$0 = [], uidsToCleanup = [], ancestorUids = {}, helper = function(obj, space) {
+    var nestspace = space + "  ", indentMultiline = function(str) {
+      return str.replace(/\n/g, "\n" + space);
+    };
+    try {
+      if (void 0 === obj) {
+        str$jscomp$0.push("undefined");
+      } else if (null === obj) {
+        str$jscomp$0.push("NULL");
+      } else if ("string" === typeof obj) {
+        str$jscomp$0.push('"' + indentMultiline(obj) + '"');
+      } else if ("function" === typeof obj) {
+        str$jscomp$0.push(indentMultiline(String(obj)));
+      } else if (goog.isObject(obj)) {
+        goog.hasUid(obj) || uidsToCleanup.push(obj);
+        var uid = goog.getUid(obj);
+        if (ancestorUids[uid]) {
+          str$jscomp$0.push("*** reference loop detected (id=" + uid + ") ***");
+        } else {
+          ancestorUids[uid] = !0;
+          str$jscomp$0.push("{");
+          for (var x in obj) {
+            if (opt_showFn || "function" !== typeof obj[x]) {
+              str$jscomp$0.push("\n"), str$jscomp$0.push(nestspace), str$jscomp$0.push(x + " = "), helper(obj[x], nestspace);
+            }
+          }
+          str$jscomp$0.push("\n" + space + "}");
+          delete ancestorUids[uid];
+        }
+      } else {
+        str$jscomp$0.push(obj);
+      }
+    } catch (e) {
+      str$jscomp$0.push("*** " + e + " ***");
+    }
+  };
+  helper(obj$jscomp$0, "");
+  for (var i = 0; i < uidsToCleanup.length; i++) {
+    goog.removeUid(uidsToCleanup[i]);
+  }
+  return str$jscomp$0.join("");
+};
+goog.debug.exposeArray = function(arr) {
+  for (var str = [], i = 0; i < arr.length; i++) {
+    Array.isArray(arr[i]) ? str.push(goog.debug.exposeArray(arr[i])) : str.push(arr[i]);
+  }
+  return "[ " + str.join(", ") + " ]";
+};
+goog.debug.normalizeErrorObject = function(err) {
+  var href = goog.getObjectByName("window.location.href");
+  null == err && (err = 'Unknown Error of type "null/undefined"');
+  if ("string" === typeof err) {
+    return {message:err, name:"Unknown error", lineNumber:"Not available", fileName:href, stack:"Not available"};
+  }
+  var threwError = !1;
+  try {
+    var lineNumber = err.lineNumber || err.line || "Not available";
+  } catch (e) {
+    lineNumber = "Not available", threwError = !0;
+  }
+  try {
+    var fileName = err.fileName || err.filename || err.sourceURL || goog.global.$googDebugFname || href;
+  } catch (e$32) {
+    fileName = "Not available", threwError = !0;
+  }
+  var stack = goog.debug.serializeErrorStack_(err);
+  if (!(!threwError && err.lineNumber && err.fileName && err.stack && err.message && err.name)) {
+    var message = err.message;
+    if (null == message) {
+      if (err.constructor && err.constructor instanceof Function) {
+        var ctorName = err.constructor.name ? err.constructor.name : goog.debug.getFunctionName(err.constructor);
+        message = 'Unknown Error of type "' + ctorName + '"';
+        if (goog.debug.CHECK_FOR_THROWN_EVENT && "Event" == ctorName) {
+          try {
+            message = message + ' with Event.type "' + (err.type || "") + '"';
+          } catch (e$33) {
+          }
+        }
+      } else {
+        message = "Unknown Error of unknown type";
+      }
+      "function" === typeof err.toString && Object.prototype.toString !== err.toString && (message += ": " + err.toString());
+    }
+    return {message:message, name:err.name || "UnknownError", lineNumber:lineNumber, fileName:fileName, stack:stack || "Not available"};
+  }
+  err.stack = stack;
+  return {message:err.message, name:err.name, lineNumber:err.lineNumber, fileName:err.fileName, stack:err.stack};
+};
+goog.debug.serializeErrorStack_ = function(e, seen) {
+  seen || (seen = {});
+  seen[goog.debug.serializeErrorAsKey_(e)] = !0;
+  var stack = e.stack || "", cause = e.cause;
+  cause && !seen[goog.debug.serializeErrorAsKey_(cause)] && (stack += "\nCaused by: ", cause.stack && 0 == cause.stack.indexOf(cause.toString()) || (stack += "string" === typeof cause ? cause : cause.message + "\n"), stack += goog.debug.serializeErrorStack_(cause, seen));
+  return stack;
+};
+goog.debug.serializeErrorAsKey_ = function(e) {
+  var keyPrefix = "";
+  "function" === typeof e.toString && (keyPrefix = "" + e);
+  return keyPrefix + e.stack;
+};
+goog.debug.enhanceError = function(err, opt_message) {
+  if (err instanceof Error) {
+    var error = err;
+  } else {
+    error = Error(err), Error.captureStackTrace && Error.captureStackTrace(error, goog.debug.enhanceError);
+  }
+  error.stack || (error.stack = goog.debug.getStacktrace(goog.debug.enhanceError));
+  if (opt_message) {
+    for (var x = 0; error["message" + x];) {
+      ++x;
+    }
+    error["message" + x] = String(opt_message);
+  }
+  return error;
+};
+goog.debug.enhanceErrorWithContext = function(err, opt_context) {
+  var error = goog.debug.enhanceError(err);
+  if (opt_context) {
+    for (var key in opt_context) {
+      goog.debug.errorcontext.addErrorContext(error, key, opt_context[key]);
+    }
+  }
+  return error;
+};
+goog.debug.getStacktraceSimple = function(opt_depth) {
+  if (!goog.debug.FORCE_SLOPPY_STACKS) {
+    var stack = goog.debug.getNativeStackTrace_(goog.debug.getStacktraceSimple);
+    if (stack) {
+      return stack;
+    }
+  }
+  for (var sb = [], fn = arguments.callee.caller, depth = 0; fn && (!opt_depth || depth < opt_depth);) {
+    sb.push(goog.debug.getFunctionName(fn));
+    sb.push("()\n");
+    try {
+      fn = fn.caller;
+    } catch (e) {
+      sb.push("[exception trying to get caller]\n");
+      break;
+    }
+    depth++;
+    if (depth >= goog.debug.MAX_STACK_DEPTH) {
+      sb.push("[...long stack...]");
+      break;
+    }
+  }
+  opt_depth && depth >= opt_depth ? sb.push("[...reached max depth limit...]") : sb.push("[end]");
+  return sb.join("");
+};
+goog.debug.MAX_STACK_DEPTH = 50;
+goog.debug.getNativeStackTrace_ = function(fn) {
+  var tempErr = Error();
+  if (Error.captureStackTrace) {
+    return Error.captureStackTrace(tempErr, fn), String(tempErr.stack);
+  }
+  try {
+    throw tempErr;
+  } catch (e) {
+    tempErr = e;
+  }
+  var stack = tempErr.stack;
+  return stack ? String(stack) : null;
+};
+goog.debug.getStacktrace = function(fn) {
+  var stack;
+  goog.debug.FORCE_SLOPPY_STACKS || (stack = goog.debug.getNativeStackTrace_(fn || goog.debug.getStacktrace));
+  stack || (stack = goog.debug.getStacktraceHelper_(fn || arguments.callee.caller, []));
+  return stack;
+};
+goog.debug.getStacktraceHelper_ = function(fn, visited) {
+  var sb = [];
+  if (module$contents$goog$array_contains(visited, fn)) {
+    sb.push("[...circular reference...]");
+  } else if (fn && visited.length < goog.debug.MAX_STACK_DEPTH) {
+    sb.push(goog.debug.getFunctionName(fn) + "(");
+    for (var args = fn.arguments, i = 0; args && i < args.length; i++) {
+      0 < i && sb.push(", ");
+      var arg = args[i];
+      switch(typeof arg) {
+        case "object":
+          var argDesc = arg ? "object" : "null";
+          break;
+        case "string":
+          argDesc = arg;
+          break;
+        case "number":
+          argDesc = String(arg);
+          break;
+        case "boolean":
+          argDesc = arg ? "true" : "false";
+          break;
+        case "function":
+          argDesc = (argDesc = goog.debug.getFunctionName(arg)) ? argDesc : "[fn]";
+          break;
+        default:
+          argDesc = typeof arg;
+      }
+      40 < argDesc.length && (argDesc = argDesc.slice(0, 40) + "...");
+      sb.push(argDesc);
+    }
+    visited.push(fn);
+    sb.push(")\n");
+    try {
+      sb.push(goog.debug.getStacktraceHelper_(fn.caller, visited));
+    } catch (e) {
+      sb.push("[exception trying to get caller]\n");
+    }
+  } else {
+    fn ? sb.push("[...long stack...]") : sb.push("[end]");
+  }
+  return sb.join("");
+};
+goog.debug.getFunctionName = function(fn) {
+  if (goog.debug.fnNameCache_[fn]) {
+    return goog.debug.fnNameCache_[fn];
+  }
+  var functionSource = String(fn);
+  if (!goog.debug.fnNameCache_[functionSource]) {
+    var matches = /function\s+([^\(]+)/m.exec(functionSource);
+    goog.debug.fnNameCache_[functionSource] = matches ? matches[1] : "[Anonymous]";
+  }
+  return goog.debug.fnNameCache_[functionSource];
+};
+goog.debug.makeWhitespaceVisible = function(string) {
+  return string.replace(/ /g, "[_]").replace(/\f/g, "[f]").replace(/\n/g, "[n]\n").replace(/\r/g, "[r]").replace(/\t/g, "[t]");
+};
+goog.debug.runtimeType = function(value) {
+  return value instanceof Function ? value.displayName || value.name || "unknown type name" : value instanceof Object ? value.constructor.displayName || value.constructor.name || Object.prototype.toString.call(value) : null === value ? "null" : typeof value;
+};
+goog.debug.fnNameCache_ = {};
+goog.debug.freezeInternal_ = goog.DEBUG && Object.freeze || function(arg) {
+  return arg;
+};
+goog.debug.freeze = function(arg) {
+  return function() {
+    return goog.debug.freezeInternal_(arg);
+  }();
+};
+goog.events.BrowserFeature = {TOUCH_ENABLED:"ontouchstart" in goog.global || !!(goog.global.document && document.documentElement && "ontouchstart" in document.documentElement) || !(!goog.global.navigator || !goog.global.navigator.maxTouchPoints && !goog.global.navigator.msMaxTouchPoints), POINTER_EVENTS:"PointerEvent" in goog.global, MSPOINTER_EVENTS:"MSPointerEvent" in goog.global && !(!goog.global.navigator || !goog.global.navigator.msPointerEnabled), PASSIVE_EVENTS:function(fn) {
+  return {valueOf:fn}.valueOf();
+}(function() {
+  if (!goog.global.addEventListener || !Object.defineProperty) {
+    return !1;
+  }
+  var passive = !1, options = Object.defineProperty({}, "passive", {get:function() {
+    passive = !0;
+  }});
+  try {
+    goog.global.addEventListener("test", function() {
+    }, options), goog.global.removeEventListener("test", function() {
+    }, options);
+  } catch (e) {
+  }
+  return passive;
+})};
+var module$exports$goog$labs$userAgent = {};
+module$exports$goog$labs$userAgent.USE_CLIENT_HINTS = function() {
+  return !1;
+}();
 goog.string = {};
 goog.string.internal = {};
 goog.string.internal.startsWith = function(str, prefix) {
@@ -2120,10 +2607,10 @@ goog.string.internal.endsWith = function(str, suffix) {
   return 0 <= l && str.indexOf(suffix, l) == l;
 };
 goog.string.internal.caseInsensitiveStartsWith = function(str, prefix) {
-  return 0 == goog.string.internal.caseInsensitiveCompare(prefix, str.substr(0, prefix.length));
+  return 0 == goog.string.internal.caseInsensitiveCompare(prefix, str.slice(0, prefix.length));
 };
 goog.string.internal.caseInsensitiveEndsWith = function(str, suffix) {
-  return 0 == goog.string.internal.caseInsensitiveCompare(suffix, str.substr(str.length - suffix.length, suffix.length));
+  return 0 == goog.string.internal.caseInsensitiveCompare(suffix, str.slice(str.length - suffix.length));
 };
 goog.string.internal.caseInsensitiveEquals = function(str1, str2) {
   return str1.toLowerCase() == str2.toLowerCase();
@@ -2196,8 +2683,8 @@ goog.string.internal.compareElements_ = function(left, right) {
 goog.labs = {};
 goog.labs.userAgent = {};
 goog.labs.userAgent.util = {};
-goog.labs.userAgent.util.getNativeUserAgentString_ = function() {
-  var navigator = goog.labs.userAgent.util.getNavigator_();
+function module$contents$goog$labs$userAgent$util_getNativeUserAgentString() {
+  var navigator = module$contents$goog$labs$userAgent$util_getNavigator();
   if (navigator) {
     var userAgent = navigator.userAgent;
     if (userAgent) {
@@ -2205,28 +2692,833 @@ goog.labs.userAgent.util.getNativeUserAgentString_ = function() {
     }
   }
   return "";
-};
-goog.labs.userAgent.util.getNavigator_ = function() {
+}
+function module$contents$goog$labs$userAgent$util_getNativeUserAgentData() {
+  if (!module$exports$goog$labs$userAgent.USE_CLIENT_HINTS) {
+    return null;
+  }
+  var navigator = module$contents$goog$labs$userAgent$util_getNavigator();
+  return navigator ? navigator.userAgentData || null : null;
+}
+function module$contents$goog$labs$userAgent$util_getNavigator() {
   return goog.global.navigator;
-};
-goog.labs.userAgent.util.userAgent_ = goog.labs.userAgent.util.getNativeUserAgentString_();
-goog.labs.userAgent.util.setUserAgent = function(opt_userAgent) {
-  goog.labs.userAgent.util.userAgent_ = opt_userAgent || goog.labs.userAgent.util.getNativeUserAgentString_();
-};
-goog.labs.userAgent.util.getUserAgent = function() {
-  return goog.labs.userAgent.util.userAgent_;
-};
-goog.labs.userAgent.util.matchUserAgent = function(str) {
-  return goog.string.internal.contains(goog.labs.userAgent.util.getUserAgent(), str);
-};
-goog.labs.userAgent.util.matchUserAgentIgnoreCase = function(str) {
-  return goog.string.internal.caseInsensitiveContains(goog.labs.userAgent.util.getUserAgent(), str);
-};
-goog.labs.userAgent.util.extractVersionTuples = function(userAgent) {
-  for (var versionRegExp = /(\w[\w ]+)\/([^\s]+)\s*(?:\((.*?)\))?/g, data = [], match; match = versionRegExp.exec(userAgent);) {
+}
+var module$contents$goog$labs$userAgent$util_userAgentInternal = null, module$contents$goog$labs$userAgent$util_userAgentDataInternal = module$contents$goog$labs$userAgent$util_getNativeUserAgentData();
+function module$contents$goog$labs$userAgent$util_getUserAgent() {
+  return null == module$contents$goog$labs$userAgent$util_userAgentInternal ? module$contents$goog$labs$userAgent$util_getNativeUserAgentString() : module$contents$goog$labs$userAgent$util_userAgentInternal;
+}
+function module$contents$goog$labs$userAgent$util_getUserAgentData() {
+  return module$contents$goog$labs$userAgent$util_userAgentDataInternal;
+}
+function module$contents$goog$labs$userAgent$util_matchUserAgentDataBrand(str) {
+  var data = module$contents$goog$labs$userAgent$util_getUserAgentData();
+  return data ? data.brands.some(function($jscomp$destructuring$var0) {
+    var brand = $jscomp$destructuring$var0.brand;
+    return brand && (0,goog.string.internal.contains)(brand, str);
+  }) : !1;
+}
+function module$contents$goog$labs$userAgent$util_matchUserAgent(str) {
+  return (0,goog.string.internal.contains)(module$contents$goog$labs$userAgent$util_getUserAgent(), str);
+}
+function module$contents$goog$labs$userAgent$util_matchUserAgentIgnoreCase(str) {
+  return (0,goog.string.internal.caseInsensitiveContains)(module$contents$goog$labs$userAgent$util_getUserAgent(), str);
+}
+function module$contents$goog$labs$userAgent$util_extractVersionTuples(userAgent) {
+  for (var versionRegExp = RegExp("([A-Z][\\w ]+)/([^\\s]+)\\s*(?:\\((.*?)\\))?", "g"), data = [], match; match = versionRegExp.exec(userAgent);) {
     data.push([match[1], match[2], match[3] || void 0]);
   }
   return data;
+}
+goog.labs.userAgent.util.ASSUME_CLIENT_HINTS_SUPPORT = !1;
+goog.labs.userAgent.util.extractVersionTuples = module$contents$goog$labs$userAgent$util_extractVersionTuples;
+goog.labs.userAgent.util.getNativeUserAgentString = module$contents$goog$labs$userAgent$util_getNativeUserAgentString;
+goog.labs.userAgent.util.getUserAgent = module$contents$goog$labs$userAgent$util_getUserAgent;
+goog.labs.userAgent.util.getUserAgentData = module$contents$goog$labs$userAgent$util_getUserAgentData;
+goog.labs.userAgent.util.matchUserAgent = module$contents$goog$labs$userAgent$util_matchUserAgent;
+goog.labs.userAgent.util.matchUserAgentDataBrand = module$contents$goog$labs$userAgent$util_matchUserAgentDataBrand;
+goog.labs.userAgent.util.matchUserAgentIgnoreCase = module$contents$goog$labs$userAgent$util_matchUserAgentIgnoreCase;
+goog.labs.userAgent.util.resetUserAgentData = function module$contents$goog$labs$userAgent$util_resetUserAgentData() {
+  module$contents$goog$labs$userAgent$util_userAgentDataInternal = module$contents$goog$labs$userAgent$util_getNativeUserAgentData();
+};
+goog.labs.userAgent.util.setUserAgent = function module$contents$goog$labs$userAgent$util_setUserAgent(userAgent) {
+  module$contents$goog$labs$userAgent$util_userAgentInternal = "string" === typeof userAgent ? userAgent : module$contents$goog$labs$userAgent$util_getNativeUserAgentString();
+};
+goog.labs.userAgent.util.setUserAgentData = function module$contents$goog$labs$userAgent$util_setUserAgentData(userAgentData) {
+  module$contents$goog$labs$userAgent$util_userAgentDataInternal = userAgentData;
+};
+var module$exports$goog$labs$userAgent$highEntropy$highEntropyValue = {AsyncValue:function() {
+}};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.AsyncValue.prototype.getIfLoaded = function() {
+};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.AsyncValue.prototype.load = function() {
+};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.HighEntropyValue = function(key) {
+  this.key_ = key;
+  this.promise_ = this.value_ = void 0;
+  this.pending_ = !1;
+};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.HighEntropyValue.prototype.getIfLoaded = function() {
+  if (module$contents$goog$labs$userAgent$util_getUserAgentData()) {
+    return this.value_;
+  }
+};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.HighEntropyValue.prototype.load = function() {
+  var $jscomp$async$this = this, userAgentData;
+  return $jscomp.asyncExecutePromiseGeneratorProgram(function($jscomp$generator$context) {
+    if (1 == $jscomp$generator$context.nextAddress) {
+      userAgentData = module$contents$goog$labs$userAgent$util_getUserAgentData();
+      if (!userAgentData) {
+        return $jscomp$generator$context.return(void 0);
+      }
+      $jscomp$async$this.promise_ || ($jscomp$async$this.pending_ = !0, $jscomp$async$this.promise_ = function() {
+        var dataValues;
+        return $jscomp.asyncExecutePromiseGeneratorProgram(function($jscomp$generator$context$1) {
+          if (1 == $jscomp$generator$context$1.nextAddress) {
+            return $jscomp$generator$context$1.setFinallyBlock(2), $jscomp$generator$context$1.yield(userAgentData.getHighEntropyValues([$jscomp$async$this.key_]), 4);
+          }
+          if (2 != $jscomp$generator$context$1.nextAddress) {
+            return dataValues = $jscomp$generator$context$1.yieldResult, $jscomp$async$this.value_ = dataValues[$jscomp$async$this.key_], $jscomp$generator$context$1.return($jscomp$async$this.value_);
+          }
+          $jscomp$generator$context$1.enterFinallyBlock();
+          $jscomp$async$this.pending_ = !1;
+          return $jscomp$generator$context$1.leaveFinallyBlock(0);
+        });
+      }());
+      return $jscomp$generator$context.yield($jscomp$async$this.promise_, 2);
+    }
+    return $jscomp$generator$context.return($jscomp$generator$context.yieldResult);
+  });
+};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.HighEntropyValue.prototype.resetForTesting = function() {
+  if (this.pending_) {
+    throw Error("Unsafe call to resetForTesting");
+  }
+  this.value_ = this.promise_ = void 0;
+  this.pending_ = !1;
+};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version = function(versionString) {
+  this.versionString_ = versionString;
+};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version.prototype.toVersionStringForLogging = function() {
+  return this.versionString_;
+};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version.prototype.isAtLeast = function(version) {
+  return 0 <= (0,goog.string.internal.compareVersions)(this.versionString_, version);
+};
+var module$exports$goog$labs$userAgent$highEntropy$highEntropyData = {}, module$contents$goog$labs$userAgent$highEntropy$highEntropyData_fullVersionListAvailable = !1;
+function module$contents$goog$labs$userAgent$highEntropy$highEntropyData_hasFullVersionList() {
+  return module$contents$goog$labs$userAgent$highEntropy$highEntropyData_fullVersionListAvailable;
+}
+module$exports$goog$labs$userAgent$highEntropy$highEntropyData.hasFullVersionList = module$contents$goog$labs$userAgent$highEntropy$highEntropyData_hasFullVersionList;
+module$exports$goog$labs$userAgent$highEntropy$highEntropyData.setHasFullVersionListForTesting = function module$contents$goog$labs$userAgent$highEntropy$highEntropyData_setHasFullVersionListForTesting(value) {
+  module$contents$goog$labs$userAgent$highEntropy$highEntropyData_fullVersionListAvailable = value;
+};
+module$exports$goog$labs$userAgent$highEntropy$highEntropyData.fullVersionList = new module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.HighEntropyValue("fullVersionList");
+module$exports$goog$labs$userAgent$highEntropy$highEntropyData.platformVersion = new module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.HighEntropyValue("platformVersion");
+module$exports$goog$labs$userAgent$highEntropy$highEntropyData.resetAllForTesting = function module$contents$goog$labs$userAgent$highEntropy$highEntropyData_resetAllForTesting() {
+  module$exports$goog$labs$userAgent$highEntropy$highEntropyData.fullVersionList.resetForTesting();
+  module$exports$goog$labs$userAgent$highEntropy$highEntropyData.platformVersion.resetForTesting();
+};
+goog.labs.userAgent.browser = {};
+var module$contents$goog$labs$userAgent$browser_Brand = {ANDROID_BROWSER:"Android Browser", CHROMIUM:"Chromium", EDGE:"Microsoft Edge", FIREFOX:"Firefox", IE:"Internet Explorer", OPERA:"Opera", SAFARI:"Safari", SILK:"Silk",};
+goog.labs.userAgent.browser.Brand = module$contents$goog$labs$userAgent$browser_Brand;
+function module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() {
+  var userAgentData = module$contents$goog$labs$userAgent$util_getUserAgentData();
+  return !!userAgentData && 0 < userAgentData.brands.length;
+}
+function module$contents$goog$labs$userAgent$browser_matchOpera() {
+  return module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() ? !1 : module$contents$goog$labs$userAgent$util_matchUserAgent("Opera");
+}
+function module$contents$goog$labs$userAgent$browser_matchIE() {
+  return module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() ? !1 : module$contents$goog$labs$userAgent$util_matchUserAgent("Trident") || module$contents$goog$labs$userAgent$util_matchUserAgent("MSIE");
+}
+function module$contents$goog$labs$userAgent$browser_matchEdgeHtml() {
+  return module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() ? !1 : module$contents$goog$labs$userAgent$util_matchUserAgent("Edge");
+}
+function module$contents$goog$labs$userAgent$browser_matchEdgeChromium() {
+  return module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() ? module$contents$goog$labs$userAgent$util_matchUserAgentDataBrand(module$contents$goog$labs$userAgent$browser_Brand.EDGE) : module$contents$goog$labs$userAgent$util_matchUserAgent("Edg/");
+}
+function module$contents$goog$labs$userAgent$browser_matchOperaChromium() {
+  return module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() ? module$contents$goog$labs$userAgent$util_matchUserAgentDataBrand(module$contents$goog$labs$userAgent$browser_Brand.OPERA) : module$contents$goog$labs$userAgent$util_matchUserAgent("OPR");
+}
+function module$contents$goog$labs$userAgent$browser_matchFirefox() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("Firefox") || module$contents$goog$labs$userAgent$util_matchUserAgent("FxiOS");
+}
+function module$contents$goog$labs$userAgent$browser_matchSafari() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("Safari") && !(module$contents$goog$labs$userAgent$browser_matchChrome() || module$contents$goog$labs$userAgent$browser_matchCoast() || module$contents$goog$labs$userAgent$browser_matchOpera() || module$contents$goog$labs$userAgent$browser_matchEdgeHtml() || module$contents$goog$labs$userAgent$browser_matchEdgeChromium() || module$contents$goog$labs$userAgent$browser_matchOperaChromium() || module$contents$goog$labs$userAgent$browser_matchFirefox() || 
+  module$contents$goog$labs$userAgent$browser_isSilk() || module$contents$goog$labs$userAgent$util_matchUserAgent("Android"));
+}
+function module$contents$goog$labs$userAgent$browser_matchCoast() {
+  return module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() ? !1 : module$contents$goog$labs$userAgent$util_matchUserAgent("Coast");
+}
+function module$contents$goog$labs$userAgent$browser_matchChrome() {
+  return module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() ? module$contents$goog$labs$userAgent$util_matchUserAgentDataBrand(module$contents$goog$labs$userAgent$browser_Brand.CHROMIUM) : (module$contents$goog$labs$userAgent$util_matchUserAgent("Chrome") || module$contents$goog$labs$userAgent$util_matchUserAgent("CriOS")) && !module$contents$goog$labs$userAgent$browser_matchEdgeHtml() || module$contents$goog$labs$userAgent$browser_isSilk();
+}
+function module$contents$goog$labs$userAgent$browser_matchAndroidBrowser() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("Android") && !(module$contents$goog$labs$userAgent$browser_matchChrome() || module$contents$goog$labs$userAgent$browser_matchFirefox() || module$contents$goog$labs$userAgent$browser_matchOpera() || module$contents$goog$labs$userAgent$browser_isSilk());
+}
+goog.labs.userAgent.browser.isOpera = module$contents$goog$labs$userAgent$browser_matchOpera;
+goog.labs.userAgent.browser.isIE = module$contents$goog$labs$userAgent$browser_matchIE;
+goog.labs.userAgent.browser.isEdge = module$contents$goog$labs$userAgent$browser_matchEdgeHtml;
+goog.labs.userAgent.browser.isEdgeChromium = module$contents$goog$labs$userAgent$browser_matchEdgeChromium;
+goog.labs.userAgent.browser.isOperaChromium = module$contents$goog$labs$userAgent$browser_matchOperaChromium;
+goog.labs.userAgent.browser.isFirefox = module$contents$goog$labs$userAgent$browser_matchFirefox;
+goog.labs.userAgent.browser.isSafari = module$contents$goog$labs$userAgent$browser_matchSafari;
+var module$contents$goog$labs$userAgent$browser_isCoast = module$contents$goog$labs$userAgent$browser_matchCoast;
+goog.labs.userAgent.browser.isCoast = module$contents$goog$labs$userAgent$browser_matchCoast;
+goog.labs.userAgent.browser.isIosWebview = function module$contents$goog$labs$userAgent$browser_matchIosWebview() {
+  return (module$contents$goog$labs$userAgent$util_matchUserAgent("iPad") || module$contents$goog$labs$userAgent$util_matchUserAgent("iPhone")) && !module$contents$goog$labs$userAgent$browser_matchSafari() && !module$contents$goog$labs$userAgent$browser_matchChrome() && !module$contents$goog$labs$userAgent$browser_matchCoast() && !module$contents$goog$labs$userAgent$browser_matchFirefox() && module$contents$goog$labs$userAgent$util_matchUserAgent("AppleWebKit");
+};
+var module$contents$goog$labs$userAgent$browser_isChrome = module$contents$goog$labs$userAgent$browser_matchChrome;
+goog.labs.userAgent.browser.isChrome = module$contents$goog$labs$userAgent$browser_matchChrome;
+goog.labs.userAgent.browser.isAndroidBrowser = module$contents$goog$labs$userAgent$browser_matchAndroidBrowser;
+function module$contents$goog$labs$userAgent$browser_isSilk() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("Silk");
+}
+goog.labs.userAgent.browser.isSilk = module$contents$goog$labs$userAgent$browser_isSilk;
+function module$contents$goog$labs$userAgent$browser_createVersionMap(versionTuples) {
+  var versionMap = {};
+  versionTuples.forEach(function(tuple) {
+    versionMap[tuple[0]] = tuple[1];
+  });
+  return function(keys) {
+    return versionMap[keys.find(function(key) {
+      return key in versionMap;
+    })] || "";
+  };
+}
+function module$contents$goog$labs$userAgent$browser_getVersion() {
+  var userAgentString = module$contents$goog$labs$userAgent$util_getUserAgent();
+  if (module$contents$goog$labs$userAgent$browser_matchIE()) {
+    return module$contents$goog$labs$userAgent$browser_getIEVersion(userAgentString);
+  }
+  var versionTuples = module$contents$goog$labs$userAgent$util_extractVersionTuples(userAgentString), lookUpValueWithKeys = module$contents$goog$labs$userAgent$browser_createVersionMap(versionTuples);
+  if (module$contents$goog$labs$userAgent$browser_matchOpera()) {
+    return lookUpValueWithKeys(["Version", "Opera"]);
+  }
+  if (module$contents$goog$labs$userAgent$browser_matchEdgeHtml()) {
+    return lookUpValueWithKeys(["Edge"]);
+  }
+  if (module$contents$goog$labs$userAgent$browser_matchEdgeChromium()) {
+    return lookUpValueWithKeys(["Edg"]);
+  }
+  if (module$contents$goog$labs$userAgent$browser_isSilk()) {
+    return lookUpValueWithKeys(["Silk"]);
+  }
+  if (module$contents$goog$labs$userAgent$browser_matchChrome()) {
+    return lookUpValueWithKeys(["Chrome", "CriOS", "HeadlessChrome"]);
+  }
+  var tuple = versionTuples[2];
+  return tuple && tuple[1] || "";
+}
+goog.labs.userAgent.browser.getVersion = module$contents$goog$labs$userAgent$browser_getVersion;
+goog.labs.userAgent.browser.isVersionOrHigher = function module$contents$goog$labs$userAgent$browser_isVersionOrHigher(version) {
+  return 0 <= (0,goog.string.internal.compareVersions)(module$contents$goog$labs$userAgent$browser_getVersion(), version);
+};
+function module$contents$goog$labs$userAgent$browser_getIEVersion(userAgent) {
+  var rv = /rv: *([\d\.]*)/.exec(userAgent);
+  if (rv && rv[1]) {
+    return rv[1];
+  }
+  var version = "", msie = /MSIE +([\d\.]+)/.exec(userAgent);
+  if (msie && msie[1]) {
+    var tridentVersion = /Trident\/(\d.\d)/.exec(userAgent);
+    if ("7.0" == msie[1]) {
+      if (tridentVersion && tridentVersion[1]) {
+        switch(tridentVersion[1]) {
+          case "4.0":
+            version = "8.0";
+            break;
+          case "5.0":
+            version = "9.0";
+            break;
+          case "6.0":
+            version = "10.0";
+            break;
+          case "7.0":
+            version = "11.0";
+        }
+      } else {
+        version = "7.0";
+      }
+    } else {
+      version = msie[1];
+    }
+  }
+  return version;
+}
+function module$contents$goog$labs$userAgent$browser_getFullVersionFromUserAgentString(browser) {
+  var userAgentString = module$contents$goog$labs$userAgent$util_getUserAgent();
+  if (browser === module$contents$goog$labs$userAgent$browser_Brand.IE) {
+    return module$contents$goog$labs$userAgent$browser_matchIE() ? module$contents$goog$labs$userAgent$browser_getIEVersion(userAgentString) : "";
+  }
+  var versionTuples = module$contents$goog$labs$userAgent$util_extractVersionTuples(userAgentString), lookUpValueWithKeys = module$contents$goog$labs$userAgent$browser_createVersionMap(versionTuples);
+  switch(browser) {
+    case module$contents$goog$labs$userAgent$browser_Brand.OPERA:
+      if (module$contents$goog$labs$userAgent$browser_matchOpera()) {
+        return lookUpValueWithKeys(["Version", "Opera"]);
+      }
+      if (module$contents$goog$labs$userAgent$browser_matchOperaChromium()) {
+        return lookUpValueWithKeys(["OPR"]);
+      }
+      break;
+    case module$contents$goog$labs$userAgent$browser_Brand.EDGE:
+      if (module$contents$goog$labs$userAgent$browser_matchEdgeHtml()) {
+        return lookUpValueWithKeys(["Edge"]);
+      }
+      if (module$contents$goog$labs$userAgent$browser_matchEdgeChromium()) {
+        return lookUpValueWithKeys(["Edg"]);
+      }
+      break;
+    case module$contents$goog$labs$userAgent$browser_Brand.CHROMIUM:
+      if (module$contents$goog$labs$userAgent$browser_matchChrome()) {
+        return lookUpValueWithKeys(["Chrome", "CriOS", "HeadlessChrome"]);
+      }
+  }
+  if (browser === module$contents$goog$labs$userAgent$browser_Brand.FIREFOX && module$contents$goog$labs$userAgent$browser_matchFirefox() || browser === module$contents$goog$labs$userAgent$browser_Brand.SAFARI && module$contents$goog$labs$userAgent$browser_matchSafari() || browser === module$contents$goog$labs$userAgent$browser_Brand.ANDROID_BROWSER && module$contents$goog$labs$userAgent$browser_matchAndroidBrowser() || browser === module$contents$goog$labs$userAgent$browser_Brand.SILK && module$contents$goog$labs$userAgent$browser_isSilk()) {
+    var tuple = versionTuples[2];
+    return tuple && tuple[1] || "";
+  }
+  return "";
+}
+function module$contents$goog$labs$userAgent$browser_versionOf_(browser) {
+  if (module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() && browser !== module$contents$goog$labs$userAgent$browser_Brand.SILK) {
+    var matchingBrand = module$contents$goog$labs$userAgent$util_getUserAgentData().brands.find(function($jscomp$destructuring$var2) {
+      return $jscomp$destructuring$var2.brand === browser;
+    });
+    if (!matchingBrand || !matchingBrand.version) {
+      return NaN;
+    }
+    var versionParts = matchingBrand.version.split(".");
+  } else {
+    var fullVersion = module$contents$goog$labs$userAgent$browser_getFullVersionFromUserAgentString(browser);
+    if ("" === fullVersion) {
+      return NaN;
+    }
+    versionParts = fullVersion.split(".");
+  }
+  return 0 === versionParts.length ? NaN : Number(versionParts[0]);
+}
+goog.labs.userAgent.browser.isAtLeast = function module$contents$goog$labs$userAgent$browser_isAtLeast(brand, majorVersion) {
+  goog.asserts.assert(Math.floor(majorVersion) === majorVersion, "Major version must be an integer");
+  return module$contents$goog$labs$userAgent$browser_versionOf_(brand) >= majorVersion;
+};
+goog.labs.userAgent.browser.isAtMost = function module$contents$goog$labs$userAgent$browser_isAtMost(brand, majorVersion) {
+  goog.asserts.assert(Math.floor(majorVersion) === majorVersion, "Major version must be an integer");
+  return module$contents$goog$labs$userAgent$browser_versionOf_(brand) <= majorVersion;
+};
+var module$contents$goog$labs$userAgent$browser_HighEntropyBrandVersion = function(brand) {
+  this.brand_ = brand;
+};
+module$contents$goog$labs$userAgent$browser_HighEntropyBrandVersion.prototype.getIfLoaded = function() {
+  var $jscomp$this = this, loadedVersionList = module$exports$goog$labs$userAgent$highEntropy$highEntropyData.fullVersionList.getIfLoaded();
+  if (void 0 !== loadedVersionList) {
+    var matchingBrand = loadedVersionList.find(function($jscomp$destructuring$var4) {
+      return $jscomp$this.brand_ === $jscomp$destructuring$var4.brand;
+    });
+    goog.asserts.assertExists(matchingBrand);
+    return new module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version(matchingBrand.version);
+  }
+};
+module$contents$goog$labs$userAgent$browser_HighEntropyBrandVersion.prototype.load = function() {
+  var $jscomp$async$this = this, loadedVersionList, matchingBrand;
+  return $jscomp.asyncExecutePromiseGeneratorProgram(function($jscomp$generator$context) {
+    if (1 == $jscomp$generator$context.nextAddress) {
+      return $jscomp$generator$context.yield(module$exports$goog$labs$userAgent$highEntropy$highEntropyData.fullVersionList.load(), 2);
+    }
+    loadedVersionList = $jscomp$generator$context.yieldResult;
+    matchingBrand = loadedVersionList.find(function($jscomp$destructuring$var6) {
+      return $jscomp$async$this.brand_ === $jscomp$destructuring$var6.brand;
+    });
+    goog.asserts.assertExists(matchingBrand);
+    return $jscomp$generator$context.return(new module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version(matchingBrand.version));
+  });
+};
+var module$contents$goog$labs$userAgent$browser_UserAgentStringFallbackBrandVersion = function(versionString) {
+  this.version_ = new module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version(versionString);
+};
+module$contents$goog$labs$userAgent$browser_UserAgentStringFallbackBrandVersion.prototype.getIfLoaded = function() {
+  return this.version_;
+};
+module$contents$goog$labs$userAgent$browser_UserAgentStringFallbackBrandVersion.prototype.load = function() {
+  var $jscomp$async$this = this;
+  return $jscomp.asyncExecutePromiseGeneratorProgram(function($jscomp$generator$context) {
+    return $jscomp$generator$context.return($jscomp$async$this.version_);
+  });
+};
+goog.labs.userAgent.browser.loadFullVersions = function module$contents$goog$labs$userAgent$browser_loadFullVersions() {
+  return $jscomp.asyncExecutePromiseGeneratorProgram(function($jscomp$generator$context) {
+    return module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() && module$contents$goog$labs$userAgent$highEntropy$highEntropyData_hasFullVersionList() ? $jscomp$generator$context.yield(module$exports$goog$labs$userAgent$highEntropy$highEntropyData.fullVersionList.load(), 0) : $jscomp$generator$context.jumpTo(0);
+  });
+};
+function module$contents$goog$labs$userAgent$browser_fullVersionOf(browser) {
+  if (module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand() && module$contents$goog$labs$userAgent$highEntropy$highEntropyData_hasFullVersionList()) {
+    return module$contents$goog$labs$userAgent$util_getUserAgentData().brands.find(function($jscomp$destructuring$var8) {
+      return $jscomp$destructuring$var8.brand === browser;
+    }) ? new module$contents$goog$labs$userAgent$browser_HighEntropyBrandVersion(browser) : void 0;
+  }
+  var fullVersionFromUserAgentString = module$contents$goog$labs$userAgent$browser_getFullVersionFromUserAgentString(browser);
+  return "" === fullVersionFromUserAgentString ? void 0 : new module$contents$goog$labs$userAgent$browser_UserAgentStringFallbackBrandVersion(fullVersionFromUserAgentString);
+}
+goog.labs.userAgent.browser.fullVersionOf = module$contents$goog$labs$userAgent$browser_fullVersionOf;
+goog.labs.userAgent.browser.getVersionStringForLogging = function module$contents$goog$labs$userAgent$browser_getVersionStringForLogging(browser) {
+  if (module$contents$goog$labs$userAgent$browser_useUserAgentDataBrand()) {
+    var fullVersionObj = module$contents$goog$labs$userAgent$browser_fullVersionOf(browser);
+    if (fullVersionObj) {
+      var fullVersion = fullVersionObj.getIfLoaded();
+      if (fullVersion) {
+        return fullVersion.toVersionStringForLogging();
+      }
+      var matchingBrand = module$contents$goog$labs$userAgent$util_getUserAgentData().brands.find(function($jscomp$destructuring$var10) {
+        return $jscomp$destructuring$var10.brand === browser;
+      });
+      goog.asserts.assertExists(matchingBrand);
+      return matchingBrand.version;
+    }
+    return "";
+  }
+  return module$contents$goog$labs$userAgent$browser_getFullVersionFromUserAgentString(browser);
+};
+goog.labs.userAgent.engine = {};
+function module$contents$goog$labs$userAgent$engine_isPresto() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("Presto");
+}
+function module$contents$goog$labs$userAgent$engine_isTrident() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("Trident") || module$contents$goog$labs$userAgent$util_matchUserAgent("MSIE");
+}
+function module$contents$goog$labs$userAgent$engine_isEdge() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("Edge");
+}
+function module$contents$goog$labs$userAgent$engine_isWebKit() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgentIgnoreCase("WebKit") && !module$contents$goog$labs$userAgent$engine_isEdge();
+}
+function module$contents$goog$labs$userAgent$engine_isGecko() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("Gecko") && !module$contents$goog$labs$userAgent$engine_isWebKit() && !module$contents$goog$labs$userAgent$engine_isTrident() && !module$contents$goog$labs$userAgent$engine_isEdge();
+}
+function module$contents$goog$labs$userAgent$engine_getVersion() {
+  var userAgentString = module$contents$goog$labs$userAgent$util_getUserAgent();
+  if (userAgentString) {
+    var tuples = module$contents$goog$labs$userAgent$util_extractVersionTuples(userAgentString), engineTuple = module$contents$goog$labs$userAgent$engine_getEngineTuple(tuples);
+    if (engineTuple) {
+      return "Gecko" == engineTuple[0] ? module$contents$goog$labs$userAgent$engine_getVersionForKey(tuples, "Firefox") : engineTuple[1];
+    }
+    var browserTuple = tuples[0], info;
+    if (browserTuple && (info = browserTuple[2])) {
+      var match = /Trident\/([^\s;]+)/.exec(info);
+      if (match) {
+        return match[1];
+      }
+    }
+  }
+  return "";
+}
+function module$contents$goog$labs$userAgent$engine_getEngineTuple(tuples) {
+  if (!module$contents$goog$labs$userAgent$engine_isEdge()) {
+    return tuples[1];
+  }
+  for (var i = 0; i < tuples.length; i++) {
+    var tuple = tuples[i];
+    if ("Edge" == tuple[0]) {
+      return tuple;
+    }
+  }
+}
+function module$contents$goog$labs$userAgent$engine_getVersionForKey(tuples, key) {
+  var pair = module$contents$goog$array_find(tuples, function(pair) {
+    return key == pair[0];
+  });
+  return pair && pair[1] || "";
+}
+goog.labs.userAgent.engine.getVersion = module$contents$goog$labs$userAgent$engine_getVersion;
+goog.labs.userAgent.engine.isEdge = module$contents$goog$labs$userAgent$engine_isEdge;
+goog.labs.userAgent.engine.isGecko = module$contents$goog$labs$userAgent$engine_isGecko;
+goog.labs.userAgent.engine.isPresto = module$contents$goog$labs$userAgent$engine_isPresto;
+goog.labs.userAgent.engine.isTrident = module$contents$goog$labs$userAgent$engine_isTrident;
+goog.labs.userAgent.engine.isVersionOrHigher = function module$contents$goog$labs$userAgent$engine_isVersionOrHigher(version) {
+  return 0 <= goog.string.internal.compareVersions(module$contents$goog$labs$userAgent$engine_getVersion(), version);
+};
+goog.labs.userAgent.engine.isWebKit = module$contents$goog$labs$userAgent$engine_isWebKit;
+goog.labs.userAgent.platform = {};
+function module$contents$goog$labs$userAgent$platform_useUserAgentDataPlatform() {
+  var userAgentData = module$contents$goog$labs$userAgent$util_getUserAgentData();
+  return !!userAgentData && !!userAgentData.platform;
+}
+function module$contents$goog$labs$userAgent$platform_isAndroid() {
+  return module$contents$goog$labs$userAgent$platform_useUserAgentDataPlatform() ? "Android" === module$contents$goog$labs$userAgent$util_getUserAgentData().platform : module$contents$goog$labs$userAgent$util_matchUserAgent("Android");
+}
+function module$contents$goog$labs$userAgent$platform_isIpod() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("iPod");
+}
+function module$contents$goog$labs$userAgent$platform_isIphone() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("iPhone") && !module$contents$goog$labs$userAgent$util_matchUserAgent("iPod") && !module$contents$goog$labs$userAgent$util_matchUserAgent("iPad");
+}
+function module$contents$goog$labs$userAgent$platform_isIpad() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("iPad");
+}
+function module$contents$goog$labs$userAgent$platform_isIos() {
+  return module$contents$goog$labs$userAgent$platform_isIphone() || module$contents$goog$labs$userAgent$platform_isIpad() || module$contents$goog$labs$userAgent$platform_isIpod();
+}
+function module$contents$goog$labs$userAgent$platform_isMacintosh() {
+  return module$contents$goog$labs$userAgent$platform_useUserAgentDataPlatform() ? "macOS" === module$contents$goog$labs$userAgent$util_getUserAgentData().platform : module$contents$goog$labs$userAgent$util_matchUserAgent("Macintosh");
+}
+function module$contents$goog$labs$userAgent$platform_isLinux() {
+  return module$contents$goog$labs$userAgent$platform_useUserAgentDataPlatform() ? "Linux" === module$contents$goog$labs$userAgent$util_getUserAgentData().platform : module$contents$goog$labs$userAgent$util_matchUserAgent("Linux");
+}
+function module$contents$goog$labs$userAgent$platform_isWindows() {
+  return module$contents$goog$labs$userAgent$platform_useUserAgentDataPlatform() ? "Windows" === module$contents$goog$labs$userAgent$util_getUserAgentData().platform : module$contents$goog$labs$userAgent$util_matchUserAgent("Windows");
+}
+function module$contents$goog$labs$userAgent$platform_isChromeOS() {
+  return module$contents$goog$labs$userAgent$platform_useUserAgentDataPlatform() ? "Chrome OS" === module$contents$goog$labs$userAgent$util_getUserAgentData().platform : module$contents$goog$labs$userAgent$util_matchUserAgent("CrOS");
+}
+function module$contents$goog$labs$userAgent$platform_isKaiOS() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgentIgnoreCase("KaiOS");
+}
+function module$contents$goog$labs$userAgent$platform_getVersion() {
+  var userAgentString = module$contents$goog$labs$userAgent$util_getUserAgent(), version = "";
+  if (module$contents$goog$labs$userAgent$platform_isWindows()) {
+    var re = /Windows (?:NT|Phone) ([0-9.]+)/;
+    var match = re.exec(userAgentString);
+    version = match ? match[1] : "0.0";
+  } else if (module$contents$goog$labs$userAgent$platform_isIos()) {
+    re = /(?:iPhone|iPod|iPad|CPU)\s+OS\s+(\S+)/;
+    var match$34 = re.exec(userAgentString);
+    version = match$34 && match$34[1].replace(/_/g, ".");
+  } else if (module$contents$goog$labs$userAgent$platform_isMacintosh()) {
+    re = /Mac OS X ([0-9_.]+)/;
+    var match$35 = re.exec(userAgentString);
+    version = match$35 ? match$35[1].replace(/_/g, ".") : "10";
+  } else if (module$contents$goog$labs$userAgent$platform_isKaiOS()) {
+    re = /(?:KaiOS)\/(\S+)/i;
+    var match$36 = re.exec(userAgentString);
+    version = match$36 && match$36[1];
+  } else if (module$contents$goog$labs$userAgent$platform_isAndroid()) {
+    re = /Android\s+([^\);]+)(\)|;)/;
+    var match$37 = re.exec(userAgentString);
+    version = match$37 && match$37[1];
+  } else if (module$contents$goog$labs$userAgent$platform_isChromeOS()) {
+    re = /(?:CrOS\s+(?:i686|x86_64)\s+([0-9.]+))/;
+    var match$38 = re.exec(userAgentString);
+    version = match$38 && match$38[1];
+  }
+  return version || "";
+}
+var module$contents$goog$labs$userAgent$platform_PlatformVersion = function() {
+};
+module$contents$goog$labs$userAgent$platform_PlatformVersion.prototype.getIfLoaded = function() {
+  if (module$contents$goog$labs$userAgent$util_getUserAgentData()) {
+    var loadedPlatformVersion = module$exports$goog$labs$userAgent$highEntropy$highEntropyData.platformVersion.getIfLoaded();
+    if (void 0 !== loadedPlatformVersion) {
+      return new module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version(loadedPlatformVersion);
+    }
+  } else {
+    return new module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version(module$contents$goog$labs$userAgent$platform_getVersion());
+  }
+};
+module$contents$goog$labs$userAgent$platform_PlatformVersion.prototype.load = function() {
+  var JSCompiler_temp_const;
+  return $jscomp.asyncExecutePromiseGeneratorProgram(function($jscomp$generator$context) {
+    if (1 == $jscomp$generator$context.nextAddress) {
+      if (!module$contents$goog$labs$userAgent$util_getUserAgentData()) {
+        return $jscomp$generator$context.return(new module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version(module$contents$goog$labs$userAgent$platform_getVersion()));
+        return $jscomp$generator$context.jumpTo(0);
+      }
+      JSCompiler_temp_const = module$exports$goog$labs$userAgent$highEntropy$highEntropyValue.Version;
+      return $jscomp$generator$context.yield(module$exports$goog$labs$userAgent$highEntropy$highEntropyData.platformVersion.load(), 3);
+    }
+    return $jscomp$generator$context.return(new JSCompiler_temp_const($jscomp$generator$context.yieldResult));
+  });
+};
+var module$contents$goog$labs$userAgent$platform_version = new module$contents$goog$labs$userAgent$platform_PlatformVersion();
+goog.labs.userAgent.platform.getVersion = module$contents$goog$labs$userAgent$platform_getVersion;
+goog.labs.userAgent.platform.isAndroid = module$contents$goog$labs$userAgent$platform_isAndroid;
+goog.labs.userAgent.platform.isChromeOS = module$contents$goog$labs$userAgent$platform_isChromeOS;
+goog.labs.userAgent.platform.isChromecast = function module$contents$goog$labs$userAgent$platform_isChromecast() {
+  return module$contents$goog$labs$userAgent$util_matchUserAgent("CrKey");
+};
+goog.labs.userAgent.platform.isIos = module$contents$goog$labs$userAgent$platform_isIos;
+goog.labs.userAgent.platform.isIpad = module$contents$goog$labs$userAgent$platform_isIpad;
+goog.labs.userAgent.platform.isIphone = module$contents$goog$labs$userAgent$platform_isIphone;
+goog.labs.userAgent.platform.isIpod = module$contents$goog$labs$userAgent$platform_isIpod;
+goog.labs.userAgent.platform.isKaiOS = module$contents$goog$labs$userAgent$platform_isKaiOS;
+goog.labs.userAgent.platform.isLinux = module$contents$goog$labs$userAgent$platform_isLinux;
+goog.labs.userAgent.platform.isMacintosh = module$contents$goog$labs$userAgent$platform_isMacintosh;
+goog.labs.userAgent.platform.isVersionOrHigher = function module$contents$goog$labs$userAgent$platform_isVersionOrHigher(version) {
+  return 0 <= goog.string.internal.compareVersions(module$contents$goog$labs$userAgent$platform_getVersion(), version);
+};
+goog.labs.userAgent.platform.isWindows = module$contents$goog$labs$userAgent$platform_isWindows;
+goog.labs.userAgent.platform.version = module$contents$goog$labs$userAgent$platform_version;
+goog.reflect = {};
+goog.reflect.object = function(type, object) {
+  return object;
+};
+goog.reflect.objectProperty = function(prop, object) {
+  return prop;
+};
+goog.reflect.sinkValue = function(x) {
+  goog.reflect.sinkValue[" "](x);
+  return x;
+};
+goog.reflect.sinkValue[" "] = function() {
+};
+goog.reflect.canAccessProperty = function(obj, prop) {
+  try {
+    return goog.reflect.sinkValue(obj[prop]), !0;
+  } catch (e) {
+  }
+  return !1;
+};
+goog.reflect.cache = function(cacheObj, key, valueFn, opt_keyFn) {
+  var storedKey = opt_keyFn ? opt_keyFn(key) : key;
+  return Object.prototype.hasOwnProperty.call(cacheObj, storedKey) ? cacheObj[storedKey] : cacheObj[storedKey] = valueFn(key);
+};
+goog.userAgent = {};
+goog.userAgent.ASSUME_IE = !1;
+goog.userAgent.ASSUME_EDGE = !1;
+goog.userAgent.ASSUME_GECKO = !1;
+goog.userAgent.ASSUME_WEBKIT = !1;
+goog.userAgent.ASSUME_MOBILE_WEBKIT = !1;
+goog.userAgent.ASSUME_OPERA = !1;
+goog.userAgent.ASSUME_ANY_VERSION = !1;
+goog.userAgent.BROWSER_KNOWN_ = goog.userAgent.ASSUME_IE || goog.userAgent.ASSUME_EDGE || goog.userAgent.ASSUME_GECKO || goog.userAgent.ASSUME_MOBILE_WEBKIT || goog.userAgent.ASSUME_WEBKIT || goog.userAgent.ASSUME_OPERA;
+goog.userAgent.getUserAgentString = function() {
+  return module$contents$goog$labs$userAgent$util_getUserAgent();
+};
+goog.userAgent.getNavigatorTyped = function() {
+  return goog.global.navigator || null;
+};
+goog.userAgent.getNavigator = function() {
+  return goog.userAgent.getNavigatorTyped();
+};
+goog.userAgent.OPERA = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_OPERA : module$contents$goog$labs$userAgent$browser_matchOpera();
+goog.userAgent.IE = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_IE : module$contents$goog$labs$userAgent$browser_matchIE();
+goog.userAgent.EDGE = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_EDGE : module$contents$goog$labs$userAgent$engine_isEdge();
+goog.userAgent.EDGE_OR_IE = goog.userAgent.EDGE || goog.userAgent.IE;
+goog.userAgent.GECKO = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_GECKO : module$contents$goog$labs$userAgent$engine_isGecko();
+goog.userAgent.WEBKIT = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_WEBKIT || goog.userAgent.ASSUME_MOBILE_WEBKIT : module$contents$goog$labs$userAgent$engine_isWebKit();
+goog.userAgent.isMobile_ = function() {
+  return goog.userAgent.WEBKIT && module$contents$goog$labs$userAgent$util_matchUserAgent("Mobile");
+};
+goog.userAgent.MOBILE = goog.userAgent.ASSUME_MOBILE_WEBKIT || goog.userAgent.isMobile_();
+goog.userAgent.SAFARI = goog.userAgent.WEBKIT;
+goog.userAgent.determinePlatform_ = function() {
+  var navigator = goog.userAgent.getNavigatorTyped();
+  return navigator && navigator.platform || "";
+};
+goog.userAgent.PLATFORM = goog.userAgent.determinePlatform_();
+goog.userAgent.ASSUME_MAC = !1;
+goog.userAgent.ASSUME_WINDOWS = !1;
+goog.userAgent.ASSUME_LINUX = !1;
+goog.userAgent.ASSUME_X11 = !1;
+goog.userAgent.ASSUME_ANDROID = !1;
+goog.userAgent.ASSUME_IPHONE = !1;
+goog.userAgent.ASSUME_IPAD = !1;
+goog.userAgent.ASSUME_IPOD = !1;
+goog.userAgent.ASSUME_KAIOS = !1;
+goog.userAgent.PLATFORM_KNOWN_ = goog.userAgent.ASSUME_MAC || goog.userAgent.ASSUME_WINDOWS || goog.userAgent.ASSUME_LINUX || goog.userAgent.ASSUME_X11 || goog.userAgent.ASSUME_ANDROID || goog.userAgent.ASSUME_IPHONE || goog.userAgent.ASSUME_IPAD || goog.userAgent.ASSUME_IPOD;
+goog.userAgent.MAC = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_MAC : module$contents$goog$labs$userAgent$platform_isMacintosh();
+goog.userAgent.WINDOWS = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_WINDOWS : module$contents$goog$labs$userAgent$platform_isWindows();
+goog.userAgent.isLegacyLinux_ = function() {
+  return module$contents$goog$labs$userAgent$platform_isLinux() || module$contents$goog$labs$userAgent$platform_isChromeOS();
+};
+goog.userAgent.LINUX = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_LINUX : goog.userAgent.isLegacyLinux_();
+goog.userAgent.isX11_ = function() {
+  var navigator = goog.userAgent.getNavigatorTyped();
+  return !!navigator && goog.string.internal.contains(navigator.appVersion || "", "X11");
+};
+goog.userAgent.X11 = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_X11 : goog.userAgent.isX11_();
+goog.userAgent.ANDROID = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_ANDROID : module$contents$goog$labs$userAgent$platform_isAndroid();
+goog.userAgent.IPHONE = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPHONE : module$contents$goog$labs$userAgent$platform_isIphone();
+goog.userAgent.IPAD = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPAD : module$contents$goog$labs$userAgent$platform_isIpad();
+goog.userAgent.IPOD = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPOD : module$contents$goog$labs$userAgent$platform_isIpod();
+goog.userAgent.IOS = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPHONE || goog.userAgent.ASSUME_IPAD || goog.userAgent.ASSUME_IPOD : module$contents$goog$labs$userAgent$platform_isIos();
+goog.userAgent.KAIOS = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_KAIOS : module$contents$goog$labs$userAgent$platform_isKaiOS();
+goog.userAgent.determineVersion_ = function() {
+  var version = "", arr = goog.userAgent.getVersionRegexResult_();
+  arr && (version = arr ? arr[1] : "");
+  if (goog.userAgent.IE) {
+    var docMode = goog.userAgent.getDocumentMode_();
+    if (null != docMode && docMode > parseFloat(version)) {
+      return String(docMode);
+    }
+  }
+  return version;
+};
+goog.userAgent.getVersionRegexResult_ = function() {
+  var userAgent = goog.userAgent.getUserAgentString();
+  if (goog.userAgent.GECKO) {
+    return /rv:([^\);]+)(\)|;)/.exec(userAgent);
+  }
+  if (goog.userAgent.EDGE) {
+    return /Edge\/([\d\.]+)/.exec(userAgent);
+  }
+  if (goog.userAgent.IE) {
+    return /\b(?:MSIE|rv)[: ]([^\);]+)(\)|;)/.exec(userAgent);
+  }
+  if (goog.userAgent.WEBKIT) {
+    return /WebKit\/(\S+)/.exec(userAgent);
+  }
+  if (goog.userAgent.OPERA) {
+    return /(?:Version)[ \/]?(\S+)/.exec(userAgent);
+  }
+};
+goog.userAgent.getDocumentMode_ = function() {
+  var doc = goog.global.document;
+  return doc ? doc.documentMode : void 0;
+};
+goog.userAgent.VERSION = goog.userAgent.determineVersion_();
+goog.userAgent.compare = function(v1, v2) {
+  return goog.string.internal.compareVersions(v1, v2);
+};
+goog.userAgent.isVersionOrHigherCache_ = {};
+goog.userAgent.isVersionOrHigher = function(version) {
+  return goog.userAgent.ASSUME_ANY_VERSION || goog.reflect.cache(goog.userAgent.isVersionOrHigherCache_, version, function() {
+    return 0 <= goog.string.internal.compareVersions(goog.userAgent.VERSION, version);
+  });
+};
+goog.userAgent.isDocumentModeOrHigher = function(documentMode) {
+  return Number(goog.userAgent.DOCUMENT_MODE) >= documentMode;
+};
+goog.userAgent.isDocumentMode = goog.userAgent.isDocumentModeOrHigher;
+goog.userAgent.DOCUMENT_MODE = function() {
+  if (goog.global.document && goog.userAgent.IE) {
+    var documentMode = goog.userAgent.getDocumentMode_();
+    return documentMode ? documentMode : parseInt(goog.userAgent.VERSION, 10) || void 0;
+  }
+}();
+goog.events.eventTypeHelpers = {};
+goog.events.eventTypeHelpers.getVendorPrefixedName = function(eventName) {
+  return goog.userAgent.WEBKIT ? "webkit" + eventName : eventName.toLowerCase();
+};
+goog.events.eventTypeHelpers.getPointerFallbackEventName = function(pointerEventName, msPointerEventName, fallbackEventName) {
+  return goog.events.BrowserFeature.POINTER_EVENTS ? pointerEventName : goog.events.BrowserFeature.MSPOINTER_EVENTS ? msPointerEventName : fallbackEventName;
+};
+goog.events.EventType = {CLICK:"click", RIGHTCLICK:"rightclick", DBLCLICK:"dblclick", AUXCLICK:"auxclick", MOUSEDOWN:"mousedown", MOUSEUP:"mouseup", MOUSEOVER:"mouseover", MOUSEOUT:"mouseout", MOUSEMOVE:"mousemove", MOUSEENTER:"mouseenter", MOUSELEAVE:"mouseleave", MOUSECANCEL:"mousecancel", SELECTIONCHANGE:"selectionchange", SELECTSTART:"selectstart", WHEEL:"wheel", KEYPRESS:"keypress", KEYDOWN:"keydown", KEYUP:"keyup", BLUR:"blur", FOCUS:"focus", DEACTIVATE:"deactivate", FOCUSIN:"focusin", FOCUSOUT:"focusout", 
+CHANGE:"change", RESET:"reset", SELECT:"select", SUBMIT:"submit", INPUT:"input", PROPERTYCHANGE:"propertychange", DRAGSTART:"dragstart", DRAG:"drag", DRAGENTER:"dragenter", DRAGOVER:"dragover", DRAGLEAVE:"dragleave", DROP:"drop", DRAGEND:"dragend", TOUCHSTART:"touchstart", TOUCHMOVE:"touchmove", TOUCHEND:"touchend", TOUCHCANCEL:"touchcancel", BEFOREUNLOAD:"beforeunload", CONSOLEMESSAGE:"consolemessage", CONTEXTMENU:"contextmenu", DEVICECHANGE:"devicechange", DEVICEMOTION:"devicemotion", DEVICEORIENTATION:"deviceorientation", 
+DOMCONTENTLOADED:"DOMContentLoaded", ERROR:"error", HELP:"help", LOAD:"load", LOSECAPTURE:"losecapture", ORIENTATIONCHANGE:"orientationchange", READYSTATECHANGE:"readystatechange", RESIZE:"resize", SCROLL:"scroll", UNLOAD:"unload", CANPLAY:"canplay", CANPLAYTHROUGH:"canplaythrough", DURATIONCHANGE:"durationchange", EMPTIED:"emptied", ENDED:"ended", LOADEDDATA:"loadeddata", LOADEDMETADATA:"loadedmetadata", PAUSE:"pause", PLAY:"play", PLAYING:"playing", PROGRESS:"progress", RATECHANGE:"ratechange", 
+SEEKED:"seeked", SEEKING:"seeking", STALLED:"stalled", SUSPEND:"suspend", TIMEUPDATE:"timeupdate", VOLUMECHANGE:"volumechange", WAITING:"waiting", SOURCEOPEN:"sourceopen", SOURCEENDED:"sourceended", SOURCECLOSED:"sourceclosed", ABORT:"abort", UPDATE:"update", UPDATESTART:"updatestart", UPDATEEND:"updateend", HASHCHANGE:"hashchange", PAGEHIDE:"pagehide", PAGESHOW:"pageshow", POPSTATE:"popstate", COPY:"copy", PASTE:"paste", CUT:"cut", BEFORECOPY:"beforecopy", BEFORECUT:"beforecut", BEFOREPASTE:"beforepaste", 
+ONLINE:"online", OFFLINE:"offline", MESSAGE:"message", CONNECT:"connect", INSTALL:"install", ACTIVATE:"activate", FETCH:"fetch", FOREIGNFETCH:"foreignfetch", MESSAGEERROR:"messageerror", STATECHANGE:"statechange", UPDATEFOUND:"updatefound", CONTROLLERCHANGE:"controllerchange", ANIMATIONSTART:goog.events.eventTypeHelpers.getVendorPrefixedName("AnimationStart"), ANIMATIONEND:goog.events.eventTypeHelpers.getVendorPrefixedName("AnimationEnd"), ANIMATIONITERATION:goog.events.eventTypeHelpers.getVendorPrefixedName("AnimationIteration"), 
+TRANSITIONEND:goog.events.eventTypeHelpers.getVendorPrefixedName("TransitionEnd"), POINTERDOWN:"pointerdown", POINTERUP:"pointerup", POINTERCANCEL:"pointercancel", POINTERMOVE:"pointermove", POINTEROVER:"pointerover", POINTEROUT:"pointerout", POINTERENTER:"pointerenter", POINTERLEAVE:"pointerleave", GOTPOINTERCAPTURE:"gotpointercapture", LOSTPOINTERCAPTURE:"lostpointercapture", MSGESTURECHANGE:"MSGestureChange", MSGESTUREEND:"MSGestureEnd", MSGESTUREHOLD:"MSGestureHold", MSGESTURESTART:"MSGestureStart", 
+MSGESTURETAP:"MSGestureTap", MSGOTPOINTERCAPTURE:"MSGotPointerCapture", MSINERTIASTART:"MSInertiaStart", MSLOSTPOINTERCAPTURE:"MSLostPointerCapture", MSPOINTERCANCEL:"MSPointerCancel", MSPOINTERDOWN:"MSPointerDown", MSPOINTERENTER:"MSPointerEnter", MSPOINTERHOVER:"MSPointerHover", MSPOINTERLEAVE:"MSPointerLeave", MSPOINTERMOVE:"MSPointerMove", MSPOINTEROUT:"MSPointerOut", MSPOINTEROVER:"MSPointerOver", MSPOINTERUP:"MSPointerUp", TEXT:"text", TEXTINPUT:goog.userAgent.IE ? "textinput" : "textInput", 
+COMPOSITIONSTART:"compositionstart", COMPOSITIONUPDATE:"compositionupdate", COMPOSITIONEND:"compositionend", BEFOREINPUT:"beforeinput", EXIT:"exit", LOADABORT:"loadabort", LOADCOMMIT:"loadcommit", LOADREDIRECT:"loadredirect", LOADSTART:"loadstart", LOADSTOP:"loadstop", RESPONSIVE:"responsive", SIZECHANGED:"sizechanged", UNRESPONSIVE:"unresponsive", VISIBILITYCHANGE:"visibilitychange", STORAGE:"storage", DOMSUBTREEMODIFIED:"DOMSubtreeModified", DOMNODEINSERTED:"DOMNodeInserted", DOMNODEREMOVED:"DOMNodeRemoved", 
+DOMNODEREMOVEDFROMDOCUMENT:"DOMNodeRemovedFromDocument", DOMNODEINSERTEDINTODOCUMENT:"DOMNodeInsertedIntoDocument", DOMATTRMODIFIED:"DOMAttrModified", DOMCHARACTERDATAMODIFIED:"DOMCharacterDataModified", BEFOREPRINT:"beforeprint", AFTERPRINT:"afterprint", BEFOREINSTALLPROMPT:"beforeinstallprompt", APPINSTALLED:"appinstalled", CANCEL:"cancel", FINISH:"finish", REMOVE:"remove"};
+goog.events.BrowserEvent = function(opt_e, opt_currentTarget) {
+  goog.events.Event.call(this, opt_e ? opt_e.type : "");
+  this.relatedTarget = this.currentTarget = this.target = null;
+  this.button = this.screenY = this.screenX = this.clientY = this.clientX = this.offsetY = this.offsetX = 0;
+  this.key = "";
+  this.charCode = this.keyCode = 0;
+  this.metaKey = this.shiftKey = this.altKey = this.ctrlKey = !1;
+  this.state = null;
+  this.platformModifierKey = !1;
+  this.pointerId = 0;
+  this.pointerType = "";
+  this.event_ = null;
+  opt_e && this.init(opt_e, opt_currentTarget);
+};
+goog.inherits(goog.events.BrowserEvent, goog.events.Event);
+goog.events.BrowserEvent.USE_LAYER_XY_AS_OFFSET_XY = !1;
+goog.events.BrowserEvent.MouseButton = {LEFT:0, MIDDLE:1, RIGHT:2, BACK:3, FORWARD:4,};
+goog.events.BrowserEvent.PointerType = {MOUSE:"mouse", PEN:"pen", TOUCH:"touch"};
+goog.events.BrowserEvent.IEButtonMap = goog.debug.freeze([1, 4, 2]);
+goog.events.BrowserEvent.IE_BUTTON_MAP = goog.events.BrowserEvent.IEButtonMap;
+goog.events.BrowserEvent.IE_POINTER_TYPE_MAP = goog.debug.freeze({2:goog.events.BrowserEvent.PointerType.TOUCH, 3:goog.events.BrowserEvent.PointerType.PEN, 4:goog.events.BrowserEvent.PointerType.MOUSE});
+goog.events.BrowserEvent.prototype.init = function(e, opt_currentTarget) {
+  var type = this.type = e.type, relevantTouch = e.changedTouches && e.changedTouches.length ? e.changedTouches[0] : null;
+  this.target = e.target || e.srcElement;
+  this.currentTarget = opt_currentTarget;
+  var relatedTarget = e.relatedTarget;
+  relatedTarget ? goog.userAgent.GECKO && (goog.reflect.canAccessProperty(relatedTarget, "nodeName") || (relatedTarget = null)) : type == goog.events.EventType.MOUSEOVER ? relatedTarget = e.fromElement : type == goog.events.EventType.MOUSEOUT && (relatedTarget = e.toElement);
+  this.relatedTarget = relatedTarget;
+  relevantTouch ? (this.clientX = void 0 !== relevantTouch.clientX ? relevantTouch.clientX : relevantTouch.pageX, this.clientY = void 0 !== relevantTouch.clientY ? relevantTouch.clientY : relevantTouch.pageY, this.screenX = relevantTouch.screenX || 0, this.screenY = relevantTouch.screenY || 0) : (goog.events.BrowserEvent.USE_LAYER_XY_AS_OFFSET_XY ? (this.offsetX = void 0 !== e.layerX ? e.layerX : e.offsetX, this.offsetY = void 0 !== e.layerY ? e.layerY : e.offsetY) : (this.offsetX = goog.userAgent.WEBKIT || 
+  void 0 !== e.offsetX ? e.offsetX : e.layerX, this.offsetY = goog.userAgent.WEBKIT || void 0 !== e.offsetY ? e.offsetY : e.layerY), this.clientX = void 0 !== e.clientX ? e.clientX : e.pageX, this.clientY = void 0 !== e.clientY ? e.clientY : e.pageY, this.screenX = e.screenX || 0, this.screenY = e.screenY || 0);
+  this.button = e.button;
+  this.keyCode = e.keyCode || 0;
+  this.key = e.key || "";
+  this.charCode = e.charCode || ("keypress" == type ? e.keyCode : 0);
+  this.ctrlKey = e.ctrlKey;
+  this.altKey = e.altKey;
+  this.shiftKey = e.shiftKey;
+  this.metaKey = e.metaKey;
+  this.platformModifierKey = goog.userAgent.MAC ? e.metaKey : e.ctrlKey;
+  this.pointerId = e.pointerId || 0;
+  this.pointerType = goog.events.BrowserEvent.getPointerType_(e);
+  this.state = e.state;
+  this.event_ = e;
+  e.defaultPrevented && goog.events.BrowserEvent.superClass_.preventDefault.call(this);
+};
+goog.events.BrowserEvent.prototype.isButton = function(button) {
+  return this.event_.button == button;
+};
+goog.events.BrowserEvent.prototype.isMouseActionButton = function() {
+  return this.isButton(goog.events.BrowserEvent.MouseButton.LEFT) && !(goog.userAgent.MAC && this.ctrlKey);
+};
+goog.events.BrowserEvent.prototype.stopPropagation = function() {
+  goog.events.BrowserEvent.superClass_.stopPropagation.call(this);
+  this.event_.stopPropagation ? this.event_.stopPropagation() : this.event_.cancelBubble = !0;
+};
+goog.events.BrowserEvent.prototype.preventDefault = function() {
+  goog.events.BrowserEvent.superClass_.preventDefault.call(this);
+  var be = this.event_;
+  be.preventDefault ? be.preventDefault() : be.returnValue = !1;
+};
+goog.events.BrowserEvent.prototype.getBrowserEvent = function() {
+  return this.event_;
+};
+goog.events.BrowserEvent.getPointerType_ = function(e) {
+  return "string" === typeof e.pointerType ? e.pointerType : goog.events.BrowserEvent.IE_POINTER_TYPE_MAP[e.pointerType] || "";
+};
+goog.events.Listenable = function() {
+};
+goog.events.Listenable.IMPLEMENTED_BY_PROP = "closure_listenable_" + (1E6 * Math.random() | 0);
+goog.events.Listenable.addImplementation = function(cls) {
+  cls.prototype[goog.events.Listenable.IMPLEMENTED_BY_PROP] = !0;
+};
+goog.events.Listenable.isImplementedBy = function(obj) {
+  return !(!obj || !obj[goog.events.Listenable.IMPLEMENTED_BY_PROP]);
+};
+goog.events.Listenable.prototype.listen = function(type, listener, opt_useCapture, opt_listenerScope) {
+};
+goog.events.Listenable.prototype.listenOnce = function(type, listener, opt_useCapture, opt_listenerScope) {
+};
+goog.events.Listenable.prototype.unlisten = function(type, listener, opt_useCapture, opt_listenerScope) {
+};
+goog.events.Listenable.prototype.unlistenByKey = function(key) {
+};
+goog.events.Listenable.prototype.dispatchEvent = function(e) {
+};
+goog.events.Listenable.prototype.removeAllListeners = function(opt_type) {
+};
+goog.events.Listenable.prototype.getParentEventTarget = function() {
+};
+goog.events.Listenable.prototype.fireListeners = function(type, capture, eventObject) {
+};
+goog.events.Listenable.prototype.getListeners = function(type, capture) {
+};
+goog.events.Listenable.prototype.getListener = function(type, listener, capture, opt_listenerScope) {
+};
+goog.events.Listenable.prototype.hasListener = function(opt_type, opt_capture) {
+};
+goog.events.ListenableKey = function() {
+};
+goog.events.ListenableKey.counter_ = 0;
+goog.events.ListenableKey.reserveKey = function() {
+  return ++goog.events.ListenableKey.counter_;
+};
+goog.events.Listener = function(listener, proxy, src, type, capture, opt_handler) {
+  goog.events.Listener.ENABLE_MONITORING && (this.creationStack = Error().stack);
+  this.listener = listener;
+  this.proxy = proxy;
+  this.src = src;
+  this.type = type;
+  this.capture = !!capture;
+  this.handler = opt_handler;
+  this.key = goog.events.ListenableKey.reserveKey();
+  this.removed = this.callOnce = !1;
+};
+goog.events.Listener.ENABLE_MONITORING = !1;
+goog.events.Listener.prototype.markAsRemoved = function() {
+  this.removed = !0;
+  this.handler = this.src = this.proxy = this.listener = null;
 };
 goog.object = {};
 function module$contents$goog$object_forEach(obj, f, opt_obj) {
@@ -2402,8 +3694,8 @@ goog.object.equals = function module$contents$goog$object_equals(a, b) {
       return !1;
     }
   }
-  for (var k$24 in b) {
-    if (!(k$24 in a)) {
+  for (var k$39 in b) {
+    if (!(k$39 in a)) {
       return !1;
     }
   }
@@ -2495,2723 +3787,6 @@ goog.object.transpose = function module$contents$goog$object_transpose(obj) {
   return transposed;
 };
 goog.object.unsafeClone = module$contents$goog$object_unsafeClone;
-goog.labs.userAgent.browser = {};
-goog.labs.userAgent.browser.matchOpera_ = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Opera");
-};
-goog.labs.userAgent.browser.matchIE_ = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Trident") || goog.labs.userAgent.util.matchUserAgent("MSIE");
-};
-goog.labs.userAgent.browser.matchEdgeHtml_ = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Edge");
-};
-goog.labs.userAgent.browser.matchEdgeChromium_ = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Edg/");
-};
-goog.labs.userAgent.browser.matchOperaChromium_ = function() {
-  return goog.labs.userAgent.util.matchUserAgent("OPR");
-};
-goog.labs.userAgent.browser.matchFirefox_ = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Firefox") || goog.labs.userAgent.util.matchUserAgent("FxiOS");
-};
-goog.labs.userAgent.browser.matchSafari_ = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Safari") && !(goog.labs.userAgent.browser.matchChrome_() || goog.labs.userAgent.browser.matchCoast_() || goog.labs.userAgent.browser.matchOpera_() || goog.labs.userAgent.browser.matchEdgeHtml_() || goog.labs.userAgent.browser.matchEdgeChromium_() || goog.labs.userAgent.browser.matchOperaChromium_() || goog.labs.userAgent.browser.matchFirefox_() || goog.labs.userAgent.browser.isSilk() || goog.labs.userAgent.util.matchUserAgent("Android"));
-};
-goog.labs.userAgent.browser.matchCoast_ = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Coast");
-};
-goog.labs.userAgent.browser.matchIosWebview_ = function() {
-  return (goog.labs.userAgent.util.matchUserAgent("iPad") || goog.labs.userAgent.util.matchUserAgent("iPhone")) && !goog.labs.userAgent.browser.matchSafari_() && !goog.labs.userAgent.browser.matchChrome_() && !goog.labs.userAgent.browser.matchCoast_() && !goog.labs.userAgent.browser.matchFirefox_() && goog.labs.userAgent.util.matchUserAgent("AppleWebKit");
-};
-goog.labs.userAgent.browser.matchChrome_ = function() {
-  return (goog.labs.userAgent.util.matchUserAgent("Chrome") || goog.labs.userAgent.util.matchUserAgent("CriOS")) && !goog.labs.userAgent.browser.matchEdgeHtml_();
-};
-goog.labs.userAgent.browser.matchAndroidBrowser_ = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Android") && !(goog.labs.userAgent.browser.isChrome() || goog.labs.userAgent.browser.isFirefox() || goog.labs.userAgent.browser.isOpera() || goog.labs.userAgent.browser.isSilk());
-};
-goog.labs.userAgent.browser.isOpera = goog.labs.userAgent.browser.matchOpera_;
-goog.labs.userAgent.browser.isIE = goog.labs.userAgent.browser.matchIE_;
-goog.labs.userAgent.browser.isEdge = goog.labs.userAgent.browser.matchEdgeHtml_;
-goog.labs.userAgent.browser.isEdgeChromium = goog.labs.userAgent.browser.matchEdgeChromium_;
-goog.labs.userAgent.browser.isOperaChromium = goog.labs.userAgent.browser.matchOperaChromium_;
-goog.labs.userAgent.browser.isFirefox = goog.labs.userAgent.browser.matchFirefox_;
-goog.labs.userAgent.browser.isSafari = goog.labs.userAgent.browser.matchSafari_;
-goog.labs.userAgent.browser.isCoast = goog.labs.userAgent.browser.matchCoast_;
-goog.labs.userAgent.browser.isIosWebview = goog.labs.userAgent.browser.matchIosWebview_;
-goog.labs.userAgent.browser.isChrome = goog.labs.userAgent.browser.matchChrome_;
-goog.labs.userAgent.browser.isAndroidBrowser = goog.labs.userAgent.browser.matchAndroidBrowser_;
-goog.labs.userAgent.browser.isSilk = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Silk");
-};
-goog.labs.userAgent.browser.getVersion = function() {
-  function lookUpValueWithKeys(keys) {
-    var key = module$contents$goog$array_find(keys, versionMapHasKey);
-    return versionMap[key] || "";
-  }
-  var userAgentString = goog.labs.userAgent.util.getUserAgent();
-  if (goog.labs.userAgent.browser.isIE()) {
-    return goog.labs.userAgent.browser.getIEVersion_(userAgentString);
-  }
-  var versionTuples = goog.labs.userAgent.util.extractVersionTuples(userAgentString), versionMap = {};
-  module$contents$goog$array_forEach(versionTuples, function(tuple) {
-    versionMap[tuple[0]] = tuple[1];
-  });
-  var versionMapHasKey = goog.partial(module$contents$goog$object_containsKey, versionMap);
-  if (goog.labs.userAgent.browser.isOpera()) {
-    return lookUpValueWithKeys(["Version", "Opera"]);
-  }
-  if (goog.labs.userAgent.browser.isEdge()) {
-    return lookUpValueWithKeys(["Edge"]);
-  }
-  if (goog.labs.userAgent.browser.isEdgeChromium()) {
-    return lookUpValueWithKeys(["Edg"]);
-  }
-  if (goog.labs.userAgent.browser.isChrome()) {
-    return lookUpValueWithKeys(["Chrome", "CriOS", "HeadlessChrome"]);
-  }
-  var tuple = versionTuples[2];
-  return tuple && tuple[1] || "";
-};
-goog.labs.userAgent.browser.isVersionOrHigher = function(version) {
-  return 0 <= goog.string.internal.compareVersions(goog.labs.userAgent.browser.getVersion(), version);
-};
-goog.labs.userAgent.browser.getIEVersion_ = function(userAgent) {
-  var rv = /rv: *([\d\.]*)/.exec(userAgent);
-  if (rv && rv[1]) {
-    return rv[1];
-  }
-  var version = "", msie = /MSIE +([\d\.]+)/.exec(userAgent);
-  if (msie && msie[1]) {
-    var tridentVersion = /Trident\/(\d.\d)/.exec(userAgent);
-    if ("7.0" == msie[1]) {
-      if (tridentVersion && tridentVersion[1]) {
-        switch(tridentVersion[1]) {
-          case "4.0":
-            version = "8.0";
-            break;
-          case "5.0":
-            version = "9.0";
-            break;
-          case "6.0":
-            version = "10.0";
-            break;
-          case "7.0":
-            version = "11.0";
-        }
-      } else {
-        version = "7.0";
-      }
-    } else {
-      version = msie[1];
-    }
-  }
-  return version;
-};
-goog.dom.asserts = {};
-goog.dom.asserts.assertIsLocation = function(o) {
-  if (goog.asserts.ENABLE_ASSERTS) {
-    var win = goog.dom.asserts.getWindow_(o);
-    win && (!o || !(o instanceof win.Location) && o instanceof win.Element) && goog.asserts.fail("Argument is not a Location (or a non-Element mock); got: %s", goog.dom.asserts.debugStringForType_(o));
-  }
-  return o;
-};
-goog.dom.asserts.assertIsElementType_ = function(o, typename) {
-  if (goog.asserts.ENABLE_ASSERTS) {
-    var win = goog.dom.asserts.getWindow_(o);
-    win && "undefined" != typeof win[typename] && (o && (o instanceof win[typename] || !(o instanceof win.Location || o instanceof win.Element)) || goog.asserts.fail("Argument is not a %s (or a non-Element, non-Location mock); got: %s", typename, goog.dom.asserts.debugStringForType_(o)));
-  }
-  return o;
-};
-goog.dom.asserts.assertIsHTMLAnchorElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLAnchorElement");
-};
-goog.dom.asserts.assertIsHTMLButtonElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLButtonElement");
-};
-goog.dom.asserts.assertIsHTMLLinkElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLLinkElement");
-};
-goog.dom.asserts.assertIsHTMLImageElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLImageElement");
-};
-goog.dom.asserts.assertIsHTMLAudioElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLAudioElement");
-};
-goog.dom.asserts.assertIsHTMLVideoElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLVideoElement");
-};
-goog.dom.asserts.assertIsHTMLInputElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLInputElement");
-};
-goog.dom.asserts.assertIsHTMLTextAreaElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLTextAreaElement");
-};
-goog.dom.asserts.assertIsHTMLCanvasElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLCanvasElement");
-};
-goog.dom.asserts.assertIsHTMLEmbedElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLEmbedElement");
-};
-goog.dom.asserts.assertIsHTMLFormElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLFormElement");
-};
-goog.dom.asserts.assertIsHTMLFrameElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLFrameElement");
-};
-goog.dom.asserts.assertIsHTMLIFrameElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLIFrameElement");
-};
-goog.dom.asserts.assertIsHTMLObjectElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLObjectElement");
-};
-goog.dom.asserts.assertIsHTMLScriptElement = function(o) {
-  return goog.dom.asserts.assertIsElementType_(o, "HTMLScriptElement");
-};
-goog.dom.asserts.debugStringForType_ = function(value) {
-  if (goog.isObject(value)) {
-    try {
-      return value.constructor.displayName || value.constructor.name || Object.prototype.toString.call(value);
-    } catch (e) {
-      return "<object could not be stringified>";
-    }
-  } else {
-    return void 0 === value ? "undefined" : null === value ? "null" : typeof value;
-  }
-};
-goog.dom.asserts.getWindow_ = function(o) {
-  try {
-    var doc = o && o.ownerDocument, win = doc && (doc.defaultView || doc.parentWindow);
-    win = win || goog.global;
-    if (win.Element && win.Location) {
-      return win;
-    }
-  } catch (ex) {
-  }
-  return null;
-};
-goog.functions = {};
-goog.functions.constant = function(retValue) {
-  return function() {
-    return retValue;
-  };
-};
-goog.functions.FALSE = function() {
-  return !1;
-};
-goog.functions.TRUE = function() {
-  return !0;
-};
-goog.functions.NULL = function() {
-  return null;
-};
-goog.functions.UNDEFINED = function() {
-};
-goog.functions.EMPTY = goog.functions.UNDEFINED;
-goog.functions.identity = function(opt_returnValue, var_args) {
-  return opt_returnValue;
-};
-goog.functions.error = function(message) {
-  return function() {
-    throw Error(message);
-  };
-};
-goog.functions.fail = function(err) {
-  return function() {
-    throw err;
-  };
-};
-goog.functions.lock = function(f, opt_numArgs) {
-  opt_numArgs = opt_numArgs || 0;
-  return function() {
-    return f.apply(this, Array.prototype.slice.call(arguments, 0, opt_numArgs));
-  };
-};
-goog.functions.nth = function(n) {
-  return function() {
-    return arguments[n];
-  };
-};
-goog.functions.partialRight = function(fn, var_args) {
-  var rightArgs = Array.prototype.slice.call(arguments, 1);
-  return function() {
-    var self = this;
-    self === goog.global && (self = void 0);
-    var newArgs = Array.prototype.slice.call(arguments);
-    newArgs.push.apply(newArgs, rightArgs);
-    return fn.apply(self, newArgs);
-  };
-};
-goog.functions.withReturnValue = function(f, retValue) {
-  return goog.functions.sequence(f, goog.functions.constant(retValue));
-};
-goog.functions.equalTo = function(value, opt_useLooseComparison) {
-  return function(other) {
-    return opt_useLooseComparison ? value == other : value === other;
-  };
-};
-goog.functions.compose = function(fn, var_args) {
-  var functions = arguments, length = functions.length;
-  return function() {
-    var result;
-    length && (result = functions[length - 1].apply(this, arguments));
-    for (var i = length - 2; 0 <= i; i--) {
-      result = functions[i].call(this, result);
-    }
-    return result;
-  };
-};
-goog.functions.sequence = function(var_args) {
-  var functions = arguments, length = functions.length;
-  return function() {
-    for (var result, i = 0; i < length; i++) {
-      result = functions[i].apply(this, arguments);
-    }
-    return result;
-  };
-};
-goog.functions.and = function(var_args) {
-  var functions = arguments, length = functions.length;
-  return function() {
-    for (var i = 0; i < length; i++) {
-      if (!functions[i].apply(this, arguments)) {
-        return !1;
-      }
-    }
-    return !0;
-  };
-};
-goog.functions.or = function(var_args) {
-  var functions = arguments, length = functions.length;
-  return function() {
-    for (var i = 0; i < length; i++) {
-      if (functions[i].apply(this, arguments)) {
-        return !0;
-      }
-    }
-    return !1;
-  };
-};
-goog.functions.not = function(f) {
-  return function() {
-    return !f.apply(this, arguments);
-  };
-};
-goog.functions.create = function(constructor, var_args) {
-  var temp = function() {
-  };
-  temp.prototype = constructor.prototype;
-  var obj = new temp;
-  constructor.apply(obj, Array.prototype.slice.call(arguments, 1));
-  return obj;
-};
-goog.functions.CACHE_RETURN_VALUE = !0;
-goog.functions.cacheReturnValue = function(fn) {
-  var called = !1, value;
-  return function() {
-    if (!goog.functions.CACHE_RETURN_VALUE) {
-      return fn();
-    }
-    called || (value = fn(), called = !0);
-    return value;
-  };
-};
-goog.functions.once = function(f) {
-  var inner = f;
-  return function() {
-    if (inner) {
-      var tmp = inner;
-      inner = null;
-      tmp();
-    }
-  };
-};
-goog.functions.debounce = function(f, interval, opt_scope) {
-  var timeout = 0;
-  return function(var_args) {
-    goog.global.clearTimeout(timeout);
-    var args = arguments;
-    timeout = goog.global.setTimeout(function() {
-      f.apply(opt_scope, args);
-    }, interval);
-  };
-};
-goog.functions.throttle = function(f, interval, opt_scope) {
-  var timeout = 0, shouldFire = !1, storedArgs = [], handleTimeout = function() {
-    timeout = 0;
-    shouldFire && (shouldFire = !1, fire());
-  }, fire = function() {
-    timeout = goog.global.setTimeout(handleTimeout, interval);
-    var args = storedArgs;
-    storedArgs = [];
-    f.apply(opt_scope, args);
-  };
-  return function(var_args) {
-    storedArgs = arguments;
-    timeout ? shouldFire = !0 : fire();
-  };
-};
-goog.functions.rateLimit = function(f, interval, opt_scope) {
-  var timeout = 0, handleTimeout = function() {
-    timeout = 0;
-  };
-  return function(var_args) {
-    timeout || (timeout = goog.global.setTimeout(handleTimeout, interval), f.apply(opt_scope, arguments));
-  };
-};
-goog.functions.isFunction = function(val) {
-  return "function" === typeof val;
-};
-goog.dom.HtmlElement = function() {
-};
-goog.dom.TagName = function() {
-};
-goog.dom.TagName.cast = function(name, type) {
-  return name;
-};
-goog.dom.TagName.prototype.toString = function() {
-};
-goog.dom.TagName.A = "A";
-goog.dom.TagName.ABBR = "ABBR";
-goog.dom.TagName.ACRONYM = "ACRONYM";
-goog.dom.TagName.ADDRESS = "ADDRESS";
-goog.dom.TagName.APPLET = "APPLET";
-goog.dom.TagName.AREA = "AREA";
-goog.dom.TagName.ARTICLE = "ARTICLE";
-goog.dom.TagName.ASIDE = "ASIDE";
-goog.dom.TagName.AUDIO = "AUDIO";
-goog.dom.TagName.B = "B";
-goog.dom.TagName.BASE = "BASE";
-goog.dom.TagName.BASEFONT = "BASEFONT";
-goog.dom.TagName.BDI = "BDI";
-goog.dom.TagName.BDO = "BDO";
-goog.dom.TagName.BIG = "BIG";
-goog.dom.TagName.BLOCKQUOTE = "BLOCKQUOTE";
-goog.dom.TagName.BODY = "BODY";
-goog.dom.TagName.BR = "BR";
-goog.dom.TagName.BUTTON = "BUTTON";
-goog.dom.TagName.CANVAS = "CANVAS";
-goog.dom.TagName.CAPTION = "CAPTION";
-goog.dom.TagName.CENTER = "CENTER";
-goog.dom.TagName.CITE = "CITE";
-goog.dom.TagName.CODE = "CODE";
-goog.dom.TagName.COL = "COL";
-goog.dom.TagName.COLGROUP = "COLGROUP";
-goog.dom.TagName.COMMAND = "COMMAND";
-goog.dom.TagName.DATA = "DATA";
-goog.dom.TagName.DATALIST = "DATALIST";
-goog.dom.TagName.DD = "DD";
-goog.dom.TagName.DEL = "DEL";
-goog.dom.TagName.DETAILS = "DETAILS";
-goog.dom.TagName.DFN = "DFN";
-goog.dom.TagName.DIALOG = "DIALOG";
-goog.dom.TagName.DIR = "DIR";
-goog.dom.TagName.DIV = "DIV";
-goog.dom.TagName.DL = "DL";
-goog.dom.TagName.DT = "DT";
-goog.dom.TagName.EM = "EM";
-goog.dom.TagName.EMBED = "EMBED";
-goog.dom.TagName.FIELDSET = "FIELDSET";
-goog.dom.TagName.FIGCAPTION = "FIGCAPTION";
-goog.dom.TagName.FIGURE = "FIGURE";
-goog.dom.TagName.FONT = "FONT";
-goog.dom.TagName.FOOTER = "FOOTER";
-goog.dom.TagName.FORM = "FORM";
-goog.dom.TagName.FRAME = "FRAME";
-goog.dom.TagName.FRAMESET = "FRAMESET";
-goog.dom.TagName.H1 = "H1";
-goog.dom.TagName.H2 = "H2";
-goog.dom.TagName.H3 = "H3";
-goog.dom.TagName.H4 = "H4";
-goog.dom.TagName.H5 = "H5";
-goog.dom.TagName.H6 = "H6";
-goog.dom.TagName.HEAD = "HEAD";
-goog.dom.TagName.HEADER = "HEADER";
-goog.dom.TagName.HGROUP = "HGROUP";
-goog.dom.TagName.HR = "HR";
-goog.dom.TagName.HTML = "HTML";
-goog.dom.TagName.I = "I";
-goog.dom.TagName.IFRAME = "IFRAME";
-goog.dom.TagName.IMG = "IMG";
-goog.dom.TagName.INPUT = "INPUT";
-goog.dom.TagName.INS = "INS";
-goog.dom.TagName.ISINDEX = "ISINDEX";
-goog.dom.TagName.KBD = "KBD";
-goog.dom.TagName.KEYGEN = "KEYGEN";
-goog.dom.TagName.LABEL = "LABEL";
-goog.dom.TagName.LEGEND = "LEGEND";
-goog.dom.TagName.LI = "LI";
-goog.dom.TagName.LINK = "LINK";
-goog.dom.TagName.MAIN = "MAIN";
-goog.dom.TagName.MAP = "MAP";
-goog.dom.TagName.MARK = "MARK";
-goog.dom.TagName.MATH = "MATH";
-goog.dom.TagName.MENU = "MENU";
-goog.dom.TagName.MENUITEM = "MENUITEM";
-goog.dom.TagName.META = "META";
-goog.dom.TagName.METER = "METER";
-goog.dom.TagName.NAV = "NAV";
-goog.dom.TagName.NOFRAMES = "NOFRAMES";
-goog.dom.TagName.NOSCRIPT = "NOSCRIPT";
-goog.dom.TagName.OBJECT = "OBJECT";
-goog.dom.TagName.OL = "OL";
-goog.dom.TagName.OPTGROUP = "OPTGROUP";
-goog.dom.TagName.OPTION = "OPTION";
-goog.dom.TagName.OUTPUT = "OUTPUT";
-goog.dom.TagName.P = "P";
-goog.dom.TagName.PARAM = "PARAM";
-goog.dom.TagName.PICTURE = "PICTURE";
-goog.dom.TagName.PRE = "PRE";
-goog.dom.TagName.PROGRESS = "PROGRESS";
-goog.dom.TagName.Q = "Q";
-goog.dom.TagName.RP = "RP";
-goog.dom.TagName.RT = "RT";
-goog.dom.TagName.RTC = "RTC";
-goog.dom.TagName.RUBY = "RUBY";
-goog.dom.TagName.S = "S";
-goog.dom.TagName.SAMP = "SAMP";
-goog.dom.TagName.SCRIPT = "SCRIPT";
-goog.dom.TagName.SECTION = "SECTION";
-goog.dom.TagName.SELECT = "SELECT";
-goog.dom.TagName.SMALL = "SMALL";
-goog.dom.TagName.SOURCE = "SOURCE";
-goog.dom.TagName.SPAN = "SPAN";
-goog.dom.TagName.STRIKE = "STRIKE";
-goog.dom.TagName.STRONG = "STRONG";
-goog.dom.TagName.STYLE = "STYLE";
-goog.dom.TagName.SUB = "SUB";
-goog.dom.TagName.SUMMARY = "SUMMARY";
-goog.dom.TagName.SUP = "SUP";
-goog.dom.TagName.SVG = "SVG";
-goog.dom.TagName.TABLE = "TABLE";
-goog.dom.TagName.TBODY = "TBODY";
-goog.dom.TagName.TD = "TD";
-goog.dom.TagName.TEMPLATE = "TEMPLATE";
-goog.dom.TagName.TEXTAREA = "TEXTAREA";
-goog.dom.TagName.TFOOT = "TFOOT";
-goog.dom.TagName.TH = "TH";
-goog.dom.TagName.THEAD = "THEAD";
-goog.dom.TagName.TIME = "TIME";
-goog.dom.TagName.TITLE = "TITLE";
-goog.dom.TagName.TR = "TR";
-goog.dom.TagName.TRACK = "TRACK";
-goog.dom.TagName.TT = "TT";
-goog.dom.TagName.U = "U";
-goog.dom.TagName.UL = "UL";
-goog.dom.TagName.VAR = "VAR";
-goog.dom.TagName.VIDEO = "VIDEO";
-goog.dom.TagName.WBR = "WBR";
-goog.dom.tags = {};
-goog.dom.tags.VOID_TAGS_ = {area:!0, base:!0, br:!0, col:!0, command:!0, embed:!0, hr:!0, img:!0, input:!0, keygen:!0, link:!0, meta:!0, param:!0, source:!0, track:!0, wbr:!0};
-goog.dom.tags.isVoidTag = function(tagName) {
-  return !0 === goog.dom.tags.VOID_TAGS_[tagName];
-};
-goog.html = {};
-goog.html.trustedtypes = {};
-goog.html.trustedtypes.getPolicyPrivateDoNotAccessOrElse = function() {
-  if (!goog.TRUSTED_TYPES_POLICY_NAME) {
-    return null;
-  }
-  void 0 === goog.html.trustedtypes.cachedPolicy_ && (goog.html.trustedtypes.cachedPolicy_ = goog.createTrustedTypesPolicy(goog.TRUSTED_TYPES_POLICY_NAME + "#html"));
-  return goog.html.trustedtypes.cachedPolicy_;
-};
-goog.string.TypedString = function() {
-};
-goog.string.Const = function(opt_token, opt_content) {
-  this.stringConstValueWithSecurityContract__googStringSecurityPrivate_ = opt_token === goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_ && opt_content || "";
-  this.STRING_CONST_TYPE_MARKER__GOOG_STRING_SECURITY_PRIVATE_ = goog.string.Const.TYPE_MARKER_;
-};
-goog.string.Const.prototype.implementsGoogStringTypedString = !0;
-goog.string.Const.prototype.getTypedStringValue = function() {
-  return this.stringConstValueWithSecurityContract__googStringSecurityPrivate_;
-};
-goog.DEBUG && (goog.string.Const.prototype.toString = function() {
-  return "Const{" + this.stringConstValueWithSecurityContract__googStringSecurityPrivate_ + "}";
-});
-goog.string.Const.unwrap = function(stringConst) {
-  if (stringConst instanceof goog.string.Const && stringConst.constructor === goog.string.Const && stringConst.STRING_CONST_TYPE_MARKER__GOOG_STRING_SECURITY_PRIVATE_ === goog.string.Const.TYPE_MARKER_) {
-    return stringConst.stringConstValueWithSecurityContract__googStringSecurityPrivate_;
-  }
-  goog.asserts.fail("expected object of type Const, got '" + stringConst + "'");
-  return "type_error:Const";
-};
-goog.string.Const.from = function(s) {
-  return new goog.string.Const(goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_, s);
-};
-goog.string.Const.TYPE_MARKER_ = {};
-goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_ = {};
-goog.string.Const.EMPTY = goog.string.Const.from("");
-var module$contents$goog$html$SafeScript_CONSTRUCTOR_TOKEN_PRIVATE = {}, module$contents$goog$html$SafeScript_SafeScript = function(value, token) {
-  this.privateDoNotAccessOrElseSafeScriptWrappedValue_ = token === module$contents$goog$html$SafeScript_CONSTRUCTOR_TOKEN_PRIVATE ? value : "";
-  this.implementsGoogStringTypedString = !0;
-};
-module$contents$goog$html$SafeScript_SafeScript.fromConstant = function(script) {
-  var scriptString = goog.string.Const.unwrap(script);
-  return 0 === scriptString.length ? module$contents$goog$html$SafeScript_SafeScript.EMPTY : module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(scriptString);
-};
-module$contents$goog$html$SafeScript_SafeScript.fromJson = function(val) {
-  return module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(module$contents$goog$html$SafeScript_SafeScript.stringify_(val));
-};
-module$contents$goog$html$SafeScript_SafeScript.prototype.getTypedStringValue = function() {
-  return this.privateDoNotAccessOrElseSafeScriptWrappedValue_.toString();
-};
-module$contents$goog$html$SafeScript_SafeScript.unwrap = function(safeScript) {
-  return module$contents$goog$html$SafeScript_SafeScript.unwrapTrustedScript(safeScript).toString();
-};
-module$contents$goog$html$SafeScript_SafeScript.unwrapTrustedScript = function(safeScript) {
-  if (safeScript instanceof module$contents$goog$html$SafeScript_SafeScript && safeScript.constructor === module$contents$goog$html$SafeScript_SafeScript) {
-    return safeScript.privateDoNotAccessOrElseSafeScriptWrappedValue_;
-  }
-  (0,goog.asserts.fail)("expected object of type SafeScript, got '" + safeScript + "' of type " + goog.typeOf(safeScript));
-  return "type_error:SafeScript";
-};
-module$contents$goog$html$SafeScript_SafeScript.stringify_ = function(val) {
-  return JSON.stringify(val).replace(/</g, "\\x3c");
-};
-module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse = function(script) {
-  var policy = goog.html.trustedtypes.getPolicyPrivateDoNotAccessOrElse(), trustedScript = policy ? policy.createScript(script) : script;
-  return new module$contents$goog$html$SafeScript_SafeScript(trustedScript, module$contents$goog$html$SafeScript_CONSTRUCTOR_TOKEN_PRIVATE);
-};
-module$contents$goog$html$SafeScript_SafeScript.prototype.toString = function() {
-  return this.privateDoNotAccessOrElseSafeScriptWrappedValue_.toString();
-};
-module$contents$goog$html$SafeScript_SafeScript.EMPTY = function() {
-  return module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse("");
-}();
-goog.html.SafeScript = module$contents$goog$html$SafeScript_SafeScript;
-goog.fs = {};
-goog.fs.url = {};
-goog.fs.url.createObjectUrl = function(obj) {
-  return goog.fs.url.getUrlObject_().createObjectURL(obj);
-};
-goog.fs.url.revokeObjectUrl = function(url) {
-  goog.fs.url.getUrlObject_().revokeObjectURL(url);
-};
-goog.fs.url.UrlObject_ = function() {
-};
-goog.fs.url.UrlObject_.prototype.createObjectURL = function(arg) {
-};
-goog.fs.url.UrlObject_.prototype.revokeObjectURL = function(s) {
-};
-goog.fs.url.getUrlObject_ = function() {
-  var urlObject = goog.fs.url.findUrlObject_();
-  if (null != urlObject) {
-    return urlObject;
-  }
-  throw Error("This browser doesn't seem to support blob URLs");
-};
-goog.fs.url.findUrlObject_ = function() {
-  return void 0 !== goog.global.URL && void 0 !== goog.global.URL.createObjectURL ? goog.global.URL : void 0 !== goog.global.createObjectURL ? goog.global : null;
-};
-goog.fs.url.browserSupportsObjectUrls = function() {
-  return null != goog.fs.url.findUrlObject_();
-};
-goog.fs.blob = {};
-goog.fs.blob.getBlob = function(var_args) {
-  var BlobBuilder = goog.global.BlobBuilder || goog.global.WebKitBlobBuilder;
-  if (void 0 !== BlobBuilder) {
-    for (var bb = new BlobBuilder, i = 0; i < arguments.length; i++) {
-      bb.append(arguments[i]);
-    }
-    return bb.getBlob();
-  }
-  return goog.fs.blob.getBlobWithProperties(Array.prototype.slice.call(arguments));
-};
-goog.fs.blob.getBlobWithProperties = function(parts, opt_type, opt_endings) {
-  var BlobBuilder = goog.global.BlobBuilder || goog.global.WebKitBlobBuilder;
-  if (void 0 !== BlobBuilder) {
-    for (var bb = new BlobBuilder, i = 0; i < parts.length; i++) {
-      bb.append(parts[i], opt_endings);
-    }
-    return bb.getBlob(opt_type);
-  }
-  if (void 0 !== goog.global.Blob) {
-    var properties = {};
-    opt_type && (properties.type = opt_type);
-    opt_endings && (properties.endings = opt_endings);
-    return new Blob(parts, properties);
-  }
-  throw Error("This browser doesn't seem to support creating Blobs");
-};
-goog.i18n = {};
-goog.i18n.bidi = {};
-goog.i18n.bidi.FORCE_RTL = !1;
-goog.i18n.bidi.IS_RTL = goog.i18n.bidi.FORCE_RTL || ("ar" == goog.LOCALE.substring(0, 2).toLowerCase() || "fa" == goog.LOCALE.substring(0, 2).toLowerCase() || "he" == goog.LOCALE.substring(0, 2).toLowerCase() || "iw" == goog.LOCALE.substring(0, 2).toLowerCase() || "ps" == goog.LOCALE.substring(0, 2).toLowerCase() || "sd" == goog.LOCALE.substring(0, 2).toLowerCase() || "ug" == goog.LOCALE.substring(0, 2).toLowerCase() || "ur" == goog.LOCALE.substring(0, 2).toLowerCase() || "yi" == goog.LOCALE.substring(0, 
-2).toLowerCase()) && (2 == goog.LOCALE.length || "-" == goog.LOCALE.substring(2, 3) || "_" == goog.LOCALE.substring(2, 3)) || 3 <= goog.LOCALE.length && "ckb" == goog.LOCALE.substring(0, 3).toLowerCase() && (3 == goog.LOCALE.length || "-" == goog.LOCALE.substring(3, 4) || "_" == goog.LOCALE.substring(3, 4)) || 7 <= goog.LOCALE.length && ("-" == goog.LOCALE.substring(2, 3) || "_" == goog.LOCALE.substring(2, 3)) && ("adlm" == goog.LOCALE.substring(3, 7).toLowerCase() || "arab" == goog.LOCALE.substring(3, 
-7).toLowerCase() || "hebr" == goog.LOCALE.substring(3, 7).toLowerCase() || "nkoo" == goog.LOCALE.substring(3, 7).toLowerCase() || "rohg" == goog.LOCALE.substring(3, 7).toLowerCase() || "thaa" == goog.LOCALE.substring(3, 7).toLowerCase()) || 8 <= goog.LOCALE.length && ("-" == goog.LOCALE.substring(3, 4) || "_" == goog.LOCALE.substring(3, 4)) && ("adlm" == goog.LOCALE.substring(4, 8).toLowerCase() || "arab" == goog.LOCALE.substring(4, 8).toLowerCase() || "hebr" == goog.LOCALE.substring(4, 8).toLowerCase() || 
-"nkoo" == goog.LOCALE.substring(4, 8).toLowerCase() || "rohg" == goog.LOCALE.substring(4, 8).toLowerCase() || "thaa" == goog.LOCALE.substring(4, 8).toLowerCase());
-goog.i18n.bidi.Format = {LRE:"\u202a", RLE:"\u202b", PDF:"\u202c", LRM:"\u200e", RLM:"\u200f"};
-goog.i18n.bidi.Dir = {LTR:1, RTL:-1, NEUTRAL:0};
-goog.i18n.bidi.RIGHT = "right";
-goog.i18n.bidi.LEFT = "left";
-goog.i18n.bidi.I18N_RIGHT = goog.i18n.bidi.IS_RTL ? goog.i18n.bidi.LEFT : goog.i18n.bidi.RIGHT;
-goog.i18n.bidi.I18N_LEFT = goog.i18n.bidi.IS_RTL ? goog.i18n.bidi.RIGHT : goog.i18n.bidi.LEFT;
-goog.i18n.bidi.toDir = function(givenDir, opt_noNeutral) {
-  return "number" == typeof givenDir ? 0 < givenDir ? goog.i18n.bidi.Dir.LTR : 0 > givenDir ? goog.i18n.bidi.Dir.RTL : opt_noNeutral ? null : goog.i18n.bidi.Dir.NEUTRAL : null == givenDir ? null : givenDir ? goog.i18n.bidi.Dir.RTL : goog.i18n.bidi.Dir.LTR;
-};
-goog.i18n.bidi.ltrChars_ = "A-Za-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02b8\u0300-\u0590\u0900-\u1fff\u200e\u2c00-\ud801\ud804-\ud839\ud83c-\udbff\uf900-\ufb1c\ufe00-\ufe6f\ufefd-\uffff";
-goog.i18n.bidi.rtlChars_ = "\u0591-\u06ef\u06fa-\u08ff\u200f\ud802-\ud803\ud83a-\ud83b\ufb1d-\ufdff\ufe70-\ufefc";
-goog.i18n.bidi.htmlSkipReg_ = /<[^>]*>|&[^;]+;/g;
-goog.i18n.bidi.stripHtmlIfNeeded_ = function(str, opt_isStripNeeded) {
-  return opt_isStripNeeded ? str.replace(goog.i18n.bidi.htmlSkipReg_, "") : str;
-};
-goog.i18n.bidi.rtlCharReg_ = new RegExp("[" + goog.i18n.bidi.rtlChars_ + "]");
-goog.i18n.bidi.ltrCharReg_ = new RegExp("[" + goog.i18n.bidi.ltrChars_ + "]");
-goog.i18n.bidi.hasAnyRtl = function(str, opt_isHtml) {
-  return goog.i18n.bidi.rtlCharReg_.test(goog.i18n.bidi.stripHtmlIfNeeded_(str, opt_isHtml));
-};
-goog.i18n.bidi.hasRtlChar = goog.i18n.bidi.hasAnyRtl;
-goog.i18n.bidi.hasAnyLtr = function(str, opt_isHtml) {
-  return goog.i18n.bidi.ltrCharReg_.test(goog.i18n.bidi.stripHtmlIfNeeded_(str, opt_isHtml));
-};
-goog.i18n.bidi.ltrRe_ = new RegExp("^[" + goog.i18n.bidi.ltrChars_ + "]");
-goog.i18n.bidi.rtlRe_ = new RegExp("^[" + goog.i18n.bidi.rtlChars_ + "]");
-goog.i18n.bidi.isRtlChar = function(str) {
-  return goog.i18n.bidi.rtlRe_.test(str);
-};
-goog.i18n.bidi.isLtrChar = function(str) {
-  return goog.i18n.bidi.ltrRe_.test(str);
-};
-goog.i18n.bidi.isNeutralChar = function(str) {
-  return !goog.i18n.bidi.isLtrChar(str) && !goog.i18n.bidi.isRtlChar(str);
-};
-goog.i18n.bidi.ltrDirCheckRe_ = new RegExp("^[^" + goog.i18n.bidi.rtlChars_ + "]*[" + goog.i18n.bidi.ltrChars_ + "]");
-goog.i18n.bidi.rtlDirCheckRe_ = new RegExp("^[^" + goog.i18n.bidi.ltrChars_ + "]*[" + goog.i18n.bidi.rtlChars_ + "]");
-goog.i18n.bidi.startsWithRtl = function(str, opt_isHtml) {
-  return goog.i18n.bidi.rtlDirCheckRe_.test(goog.i18n.bidi.stripHtmlIfNeeded_(str, opt_isHtml));
-};
-goog.i18n.bidi.isRtlText = goog.i18n.bidi.startsWithRtl;
-goog.i18n.bidi.startsWithLtr = function(str, opt_isHtml) {
-  return goog.i18n.bidi.ltrDirCheckRe_.test(goog.i18n.bidi.stripHtmlIfNeeded_(str, opt_isHtml));
-};
-goog.i18n.bidi.isLtrText = goog.i18n.bidi.startsWithLtr;
-goog.i18n.bidi.isRequiredLtrRe_ = /^http:\/\/.*/;
-goog.i18n.bidi.isNeutralText = function(str, opt_isHtml) {
-  str = goog.i18n.bidi.stripHtmlIfNeeded_(str, opt_isHtml);
-  return goog.i18n.bidi.isRequiredLtrRe_.test(str) || !goog.i18n.bidi.hasAnyLtr(str) && !goog.i18n.bidi.hasAnyRtl(str);
-};
-goog.i18n.bidi.ltrExitDirCheckRe_ = new RegExp("[" + goog.i18n.bidi.ltrChars_ + "][^" + goog.i18n.bidi.rtlChars_ + "]*$");
-goog.i18n.bidi.rtlExitDirCheckRe_ = new RegExp("[" + goog.i18n.bidi.rtlChars_ + "][^" + goog.i18n.bidi.ltrChars_ + "]*$");
-goog.i18n.bidi.endsWithLtr = function(str, opt_isHtml) {
-  return goog.i18n.bidi.ltrExitDirCheckRe_.test(goog.i18n.bidi.stripHtmlIfNeeded_(str, opt_isHtml));
-};
-goog.i18n.bidi.isLtrExitText = goog.i18n.bidi.endsWithLtr;
-goog.i18n.bidi.endsWithRtl = function(str, opt_isHtml) {
-  return goog.i18n.bidi.rtlExitDirCheckRe_.test(goog.i18n.bidi.stripHtmlIfNeeded_(str, opt_isHtml));
-};
-goog.i18n.bidi.isRtlExitText = goog.i18n.bidi.endsWithRtl;
-goog.i18n.bidi.rtlLocalesRe_ = /^(ar|ckb|dv|he|iw|fa|nqo|ps|sd|ug|ur|yi|.*[-_](Adlm|Arab|Hebr|Nkoo|Rohg|Thaa))(?!.*[-_](Latn|Cyrl)($|-|_))($|-|_)/i;
-goog.i18n.bidi.isRtlLanguage = function(lang) {
-  return goog.i18n.bidi.rtlLocalesRe_.test(lang);
-};
-goog.i18n.bidi.bracketGuardTextRe_ = /(\(.*?\)+)|(\[.*?\]+)|(\{.*?\}+)|(<.*?>+)/g;
-goog.i18n.bidi.guardBracketInText = function(s, opt_isRtlContext) {
-  var mark = (void 0 === opt_isRtlContext ? goog.i18n.bidi.hasAnyRtl(s) : opt_isRtlContext) ? goog.i18n.bidi.Format.RLM : goog.i18n.bidi.Format.LRM;
-  return s.replace(goog.i18n.bidi.bracketGuardTextRe_, mark + "$&" + mark);
-};
-goog.i18n.bidi.enforceRtlInHtml = function(html) {
-  return "<" == html.charAt(0) ? html.replace(/<\w+/, "$& dir=rtl") : "\n<span dir=rtl>" + html + "</span>";
-};
-goog.i18n.bidi.enforceRtlInText = function(text) {
-  return goog.i18n.bidi.Format.RLE + text + goog.i18n.bidi.Format.PDF;
-};
-goog.i18n.bidi.enforceLtrInHtml = function(html) {
-  return "<" == html.charAt(0) ? html.replace(/<\w+/, "$& dir=ltr") : "\n<span dir=ltr>" + html + "</span>";
-};
-goog.i18n.bidi.enforceLtrInText = function(text) {
-  return goog.i18n.bidi.Format.LRE + text + goog.i18n.bidi.Format.PDF;
-};
-goog.i18n.bidi.dimensionsRe_ = /:\s*([.\d][.\w]*)\s+([.\d][.\w]*)\s+([.\d][.\w]*)\s+([.\d][.\w]*)/g;
-goog.i18n.bidi.leftRe_ = /left/gi;
-goog.i18n.bidi.rightRe_ = /right/gi;
-goog.i18n.bidi.tempRe_ = /%%%%/g;
-goog.i18n.bidi.mirrorCSS = function(cssStr) {
-  return cssStr.replace(goog.i18n.bidi.dimensionsRe_, ":$1 $4 $3 $2").replace(goog.i18n.bidi.leftRe_, "%%%%").replace(goog.i18n.bidi.rightRe_, goog.i18n.bidi.LEFT).replace(goog.i18n.bidi.tempRe_, goog.i18n.bidi.RIGHT);
-};
-goog.i18n.bidi.doubleQuoteSubstituteRe_ = /([\u0591-\u05f2])"/g;
-goog.i18n.bidi.singleQuoteSubstituteRe_ = /([\u0591-\u05f2])'/g;
-goog.i18n.bidi.normalizeHebrewQuote = function(str) {
-  return str.replace(goog.i18n.bidi.doubleQuoteSubstituteRe_, "$1\u05f4").replace(goog.i18n.bidi.singleQuoteSubstituteRe_, "$1\u05f3");
-};
-goog.i18n.bidi.wordSeparatorRe_ = /\s+/;
-goog.i18n.bidi.hasNumeralsRe_ = /[\d\u06f0-\u06f9]/;
-goog.i18n.bidi.rtlDetectionThreshold_ = 0.40;
-goog.i18n.bidi.estimateDirection = function(str, opt_isHtml) {
-  for (var rtlCount = 0, totalCount = 0, hasWeaklyLtr = !1, tokens = goog.i18n.bidi.stripHtmlIfNeeded_(str, opt_isHtml).split(goog.i18n.bidi.wordSeparatorRe_), i = 0; i < tokens.length; i++) {
-    var token = tokens[i];
-    goog.i18n.bidi.startsWithRtl(token) ? (rtlCount++, totalCount++) : goog.i18n.bidi.isRequiredLtrRe_.test(token) ? hasWeaklyLtr = !0 : goog.i18n.bidi.hasAnyLtr(token) ? totalCount++ : goog.i18n.bidi.hasNumeralsRe_.test(token) && (hasWeaklyLtr = !0);
-  }
-  return 0 == totalCount ? hasWeaklyLtr ? goog.i18n.bidi.Dir.LTR : goog.i18n.bidi.Dir.NEUTRAL : rtlCount / totalCount > goog.i18n.bidi.rtlDetectionThreshold_ ? goog.i18n.bidi.Dir.RTL : goog.i18n.bidi.Dir.LTR;
-};
-goog.i18n.bidi.detectRtlDirectionality = function(str, opt_isHtml) {
-  return goog.i18n.bidi.estimateDirection(str, opt_isHtml) == goog.i18n.bidi.Dir.RTL;
-};
-goog.i18n.bidi.setElementDirAndAlign = function(element, dir) {
-  element && (dir = goog.i18n.bidi.toDir(dir)) && (element.style.textAlign = dir == goog.i18n.bidi.Dir.RTL ? goog.i18n.bidi.RIGHT : goog.i18n.bidi.LEFT, element.dir = dir == goog.i18n.bidi.Dir.RTL ? "rtl" : "ltr");
-};
-goog.i18n.bidi.setElementDirByTextDirectionality = function(element, text) {
-  switch(goog.i18n.bidi.estimateDirection(text)) {
-    case goog.i18n.bidi.Dir.LTR:
-      "ltr" !== element.dir && (element.dir = "ltr");
-      break;
-    case goog.i18n.bidi.Dir.RTL:
-      "rtl" !== element.dir && (element.dir = "rtl");
-      break;
-    default:
-      element.removeAttribute("dir");
-  }
-};
-goog.i18n.bidi.DirectionalString = function() {
-};
-goog.html.TrustedResourceUrl = function(value, token) {
-  this.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue_ = token === goog.html.TrustedResourceUrl.CONSTRUCTOR_TOKEN_PRIVATE_ ? value : "";
-};
-goog.html.TrustedResourceUrl.prototype.implementsGoogStringTypedString = !0;
-goog.html.TrustedResourceUrl.prototype.getTypedStringValue = function() {
-  return this.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue_.toString();
-};
-goog.html.TrustedResourceUrl.prototype.implementsGoogI18nBidiDirectionalString = !0;
-goog.html.TrustedResourceUrl.prototype.getDirection = function() {
-  return goog.i18n.bidi.Dir.LTR;
-};
-goog.html.TrustedResourceUrl.prototype.cloneWithParams = function(searchParams, opt_hashParams) {
-  var url = goog.html.TrustedResourceUrl.unwrap(this), parts = goog.html.TrustedResourceUrl.URL_PARAM_PARSER_.exec(url), urlHash = parts[3] || "";
-  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(parts[1] + goog.html.TrustedResourceUrl.stringifyParams_("?", parts[2] || "", searchParams) + goog.html.TrustedResourceUrl.stringifyParams_("#", urlHash, opt_hashParams));
-};
-goog.html.TrustedResourceUrl.prototype.toString = function() {
-  return this.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue_ + "";
-};
-goog.html.TrustedResourceUrl.unwrap = function(trustedResourceUrl) {
-  return goog.html.TrustedResourceUrl.unwrapTrustedScriptURL(trustedResourceUrl).toString();
-};
-goog.html.TrustedResourceUrl.unwrapTrustedScriptURL = function(trustedResourceUrl) {
-  if (trustedResourceUrl instanceof goog.html.TrustedResourceUrl && trustedResourceUrl.constructor === goog.html.TrustedResourceUrl) {
-    return trustedResourceUrl.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue_;
-  }
-  goog.asserts.fail("expected object of type TrustedResourceUrl, got '" + trustedResourceUrl + "' of type " + goog.typeOf(trustedResourceUrl));
-  return "type_error:TrustedResourceUrl";
-};
-goog.html.TrustedResourceUrl.format = function(format, args) {
-  var formatStr = goog.string.Const.unwrap(format);
-  if (!goog.html.TrustedResourceUrl.BASE_URL_.test(formatStr)) {
-    throw Error("Invalid TrustedResourceUrl format: " + formatStr);
-  }
-  var result = formatStr.replace(goog.html.TrustedResourceUrl.FORMAT_MARKER_, function(match, id) {
-    if (!Object.prototype.hasOwnProperty.call(args, id)) {
-      throw Error('Found marker, "' + id + '", in format string, "' + formatStr + '", but no valid label mapping found in args: ' + JSON.stringify(args));
-    }
-    var arg = args[id];
-    return arg instanceof goog.string.Const ? goog.string.Const.unwrap(arg) : encodeURIComponent(String(arg));
-  });
-  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(result);
-};
-goog.html.TrustedResourceUrl.FORMAT_MARKER_ = /%{(\w+)}/g;
-goog.html.TrustedResourceUrl.BASE_URL_ = /^((https:)?\/\/[0-9a-z.:[\]-]+\/|\/[^/\\]|[^:/\\%]+\/|[^:/\\%]*[?#]|about:blank#)/i;
-goog.html.TrustedResourceUrl.URL_PARAM_PARSER_ = /^([^?#]*)(\?[^#]*)?(#[\s\S]*)?/;
-goog.html.TrustedResourceUrl.formatWithParams = function(format, args, searchParams, opt_hashParams) {
-  return goog.html.TrustedResourceUrl.format(format, args).cloneWithParams(searchParams, opt_hashParams);
-};
-goog.html.TrustedResourceUrl.fromConstant = function(url) {
-  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(goog.string.Const.unwrap(url));
-};
-goog.html.TrustedResourceUrl.fromConstants = function(parts) {
-  for (var unwrapped = "", i = 0; i < parts.length; i++) {
-    unwrapped += goog.string.Const.unwrap(parts[i]);
-  }
-  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(unwrapped);
-};
-goog.html.TrustedResourceUrl.fromSafeScript = function(safeScript) {
-  var blob = goog.fs.blob.getBlobWithProperties([module$contents$goog$html$SafeScript_SafeScript.unwrap(safeScript)], "text/javascript"), url = goog.fs.url.createObjectUrl(blob);
-  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(url);
-};
-goog.html.TrustedResourceUrl.CONSTRUCTOR_TOKEN_PRIVATE_ = {};
-goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse = function(url) {
-  var policy = goog.html.trustedtypes.getPolicyPrivateDoNotAccessOrElse(), value = policy ? policy.createScriptURL(url) : url;
-  return new goog.html.TrustedResourceUrl(value, goog.html.TrustedResourceUrl.CONSTRUCTOR_TOKEN_PRIVATE_);
-};
-goog.html.TrustedResourceUrl.stringifyParams_ = function(prefix, currentString, params) {
-  if (null == params) {
-    return currentString;
-  }
-  if ("string" === typeof params) {
-    return params ? prefix + encodeURIComponent(params) : "";
-  }
-  for (var key in params) {
-    if (Object.prototype.hasOwnProperty.call(params, key)) {
-      for (var value = params[key], outputValues = Array.isArray(value) ? value : [value], i = 0; i < outputValues.length; i++) {
-        var outputValue = outputValues[i];
-        null != outputValue && (currentString || (currentString = prefix), currentString += (currentString.length > prefix.length ? "&" : "") + encodeURIComponent(key) + "=" + encodeURIComponent(String(outputValue)));
-      }
-    }
-  }
-  return currentString;
-};
-goog.html.SafeUrl = function(value, token) {
-  this.privateDoNotAccessOrElseSafeUrlWrappedValue_ = token === goog.html.SafeUrl.CONSTRUCTOR_TOKEN_PRIVATE_ ? value : "";
-};
-goog.html.SafeUrl.INNOCUOUS_STRING = "about:invalid#zClosurez";
-goog.html.SafeUrl.prototype.implementsGoogStringTypedString = !0;
-goog.html.SafeUrl.prototype.getTypedStringValue = function() {
-  return this.privateDoNotAccessOrElseSafeUrlWrappedValue_.toString();
-};
-goog.html.SafeUrl.prototype.implementsGoogI18nBidiDirectionalString = !0;
-goog.html.SafeUrl.prototype.getDirection = function() {
-  return goog.i18n.bidi.Dir.LTR;
-};
-goog.html.SafeUrl.prototype.toString = function() {
-  return this.privateDoNotAccessOrElseSafeUrlWrappedValue_.toString();
-};
-goog.html.SafeUrl.unwrap = function(safeUrl) {
-  if (safeUrl instanceof goog.html.SafeUrl && safeUrl.constructor === goog.html.SafeUrl) {
-    return safeUrl.privateDoNotAccessOrElseSafeUrlWrappedValue_;
-  }
-  goog.asserts.fail("expected object of type SafeUrl, got '" + safeUrl + "' of type " + goog.typeOf(safeUrl));
-  return "type_error:SafeUrl";
-};
-goog.html.SafeUrl.fromConstant = function(url) {
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(goog.string.Const.unwrap(url));
-};
-goog.html.SAFE_MIME_TYPE_PATTERN_ = /^(?:audio\/(?:3gpp2|3gpp|aac|L16|midi|mp3|mp4|mpeg|oga|ogg|opus|x-m4a|x-matroska|x-wav|wav|webm)|font\/\w+|image\/(?:bmp|gif|jpeg|jpg|png|tiff|webp|x-icon)|video\/(?:mpeg|mp4|ogg|webm|quicktime|x-matroska))(?:;\w+=(?:\w+|"[\w;,= ]+"))*$/i;
-goog.html.SafeUrl.isSafeMimeType = function(mimeType) {
-  return goog.html.SAFE_MIME_TYPE_PATTERN_.test(mimeType);
-};
-goog.html.SafeUrl.fromBlob = function(blob) {
-  var url = goog.html.SafeUrl.isSafeMimeType(blob.type) ? goog.fs.url.createObjectUrl(blob) : goog.html.SafeUrl.INNOCUOUS_STRING;
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
-};
-goog.html.SafeUrl.revokeObjectUrl = function(safeUrl) {
-  var url = safeUrl.getTypedStringValue();
-  url !== goog.html.SafeUrl.INNOCUOUS_STRING && goog.fs.url.revokeObjectUrl(url);
-};
-goog.html.SafeUrl.fromMediaSource = function(mediaSource) {
-  goog.asserts.assert("MediaSource" in goog.global, "No support for MediaSource");
-  var url = mediaSource instanceof MediaSource ? goog.fs.url.createObjectUrl(mediaSource) : goog.html.SafeUrl.INNOCUOUS_STRING;
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
-};
-goog.html.DATA_URL_PATTERN_ = /^data:(.*);base64,[a-z0-9+\/]+=*$/i;
-goog.html.SafeUrl.tryFromDataUrl = function(dataUrl) {
-  dataUrl = String(dataUrl);
-  var filteredDataUrl = dataUrl.replace(/(%0A|%0D)/g, ""), match = filteredDataUrl.match(goog.html.DATA_URL_PATTERN_);
-  return match && goog.html.SafeUrl.isSafeMimeType(match[1]) ? goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(filteredDataUrl) : null;
-};
-goog.html.SafeUrl.fromDataUrl = function(dataUrl) {
-  return goog.html.SafeUrl.tryFromDataUrl(dataUrl) || goog.html.SafeUrl.INNOCUOUS_URL;
-};
-goog.html.SafeUrl.fromTelUrl = function(telUrl) {
-  goog.string.internal.caseInsensitiveStartsWith(telUrl, "tel:") || (telUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(telUrl);
-};
-goog.html.SIP_URL_PATTERN_ = /^sip[s]?:[+a-z0-9_.!$%&'*\/=^`{|}~-]+@([a-z0-9-]+\.)+[a-z0-9]{2,63}$/i;
-goog.html.SafeUrl.fromSipUrl = function(sipUrl) {
-  goog.html.SIP_URL_PATTERN_.test(decodeURIComponent(sipUrl)) || (sipUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(sipUrl);
-};
-goog.html.SafeUrl.fromFacebookMessengerUrl = function(facebookMessengerUrl) {
-  goog.string.internal.caseInsensitiveStartsWith(facebookMessengerUrl, "fb-messenger://share") || (facebookMessengerUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(facebookMessengerUrl);
-};
-goog.html.SafeUrl.fromWhatsAppUrl = function(whatsAppUrl) {
-  goog.string.internal.caseInsensitiveStartsWith(whatsAppUrl, "whatsapp://send") || (whatsAppUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(whatsAppUrl);
-};
-goog.html.SafeUrl.fromSmsUrl = function(smsUrl) {
-  goog.string.internal.caseInsensitiveStartsWith(smsUrl, "sms:") && goog.html.SafeUrl.isSmsUrlBodyValid_(smsUrl) || (smsUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(smsUrl);
-};
-goog.html.SafeUrl.isSmsUrlBodyValid_ = function(smsUrl) {
-  var hash = smsUrl.indexOf("#");
-  0 < hash && (smsUrl = smsUrl.substring(0, hash));
-  var bodyParams = smsUrl.match(/[?&]body=/gi);
-  if (!bodyParams) {
-    return !0;
-  }
-  if (1 < bodyParams.length) {
-    return !1;
-  }
-  var bodyValue = smsUrl.match(/[?&]body=([^&]*)/)[1];
-  if (!bodyValue) {
-    return !0;
-  }
-  try {
-    decodeURIComponent(bodyValue);
-  } catch (error) {
-    return !1;
-  }
-  return /^(?:[a-z0-9\-_.~]|%[0-9a-f]{2})+$/i.test(bodyValue);
-};
-goog.html.SafeUrl.fromSshUrl = function(sshUrl) {
-  goog.string.internal.caseInsensitiveStartsWith(sshUrl, "ssh://") || (sshUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(sshUrl);
-};
-goog.html.SafeUrl.sanitizeChromeExtensionUrl = function(url, extensionId) {
-  return goog.html.SafeUrl.sanitizeExtensionUrl_(/^chrome-extension:\/\/([^\/]+)\//, url, extensionId);
-};
-goog.html.SafeUrl.sanitizeFirefoxExtensionUrl = function(url, extensionId) {
-  return goog.html.SafeUrl.sanitizeExtensionUrl_(/^moz-extension:\/\/([^\/]+)\//, url, extensionId);
-};
-goog.html.SafeUrl.sanitizeEdgeExtensionUrl = function(url, extensionId) {
-  return goog.html.SafeUrl.sanitizeExtensionUrl_(/^ms-browser-extension:\/\/([^\/]+)\//, url, extensionId);
-};
-goog.html.SafeUrl.sanitizeExtensionUrl_ = function(scheme, url, extensionId) {
-  var matches = scheme.exec(url);
-  if (matches) {
-    var extractedExtensionId = matches[1];
-    -1 == (extensionId instanceof goog.string.Const ? [goog.string.Const.unwrap(extensionId)] : extensionId.map(function unwrap(x) {
-      return goog.string.Const.unwrap(x);
-    })).indexOf(extractedExtensionId) && (url = goog.html.SafeUrl.INNOCUOUS_STRING);
-  } else {
-    url = goog.html.SafeUrl.INNOCUOUS_STRING;
-  }
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
-};
-goog.html.SafeUrl.fromTrustedResourceUrl = function(trustedResourceUrl) {
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(goog.html.TrustedResourceUrl.unwrap(trustedResourceUrl));
-};
-goog.html.SAFE_URL_PATTERN_ = /^(?:(?:https?|mailto|ftp):|[^:/?#]*(?:[/?#]|$))/i;
-goog.html.SafeUrl.SAFE_URL_PATTERN = goog.html.SAFE_URL_PATTERN_;
-goog.html.SafeUrl.trySanitize = function(url) {
-  if (url instanceof goog.html.SafeUrl) {
-    return url;
-  }
-  url = "object" == typeof url && url.implementsGoogStringTypedString ? url.getTypedStringValue() : String(url);
-  return goog.html.SAFE_URL_PATTERN_.test(url) ? goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url) : goog.html.SafeUrl.tryFromDataUrl(url);
-};
-goog.html.SafeUrl.sanitize = function(url) {
-  return goog.html.SafeUrl.trySanitize(url) || goog.html.SafeUrl.INNOCUOUS_URL;
-};
-goog.html.SafeUrl.sanitizeAssertUnchanged = function(url, opt_allowDataUrl) {
-  if (url instanceof goog.html.SafeUrl) {
-    return url;
-  }
-  url = "object" == typeof url && url.implementsGoogStringTypedString ? url.getTypedStringValue() : String(url);
-  if (opt_allowDataUrl && /^data:/i.test(url)) {
-    var safeUrl = goog.html.SafeUrl.fromDataUrl(url);
-    if (safeUrl.getTypedStringValue() == url) {
-      return safeUrl;
-    }
-  }
-  goog.asserts.assert(goog.html.SAFE_URL_PATTERN_.test(url), "%s does not match the safe URL pattern", url) || (url = goog.html.SafeUrl.INNOCUOUS_STRING);
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
-};
-goog.html.SafeUrl.CONSTRUCTOR_TOKEN_PRIVATE_ = {};
-goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse = function(url) {
-  return new goog.html.SafeUrl(url, goog.html.SafeUrl.CONSTRUCTOR_TOKEN_PRIVATE_);
-};
-goog.html.SafeUrl.INNOCUOUS_URL = goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(goog.html.SafeUrl.INNOCUOUS_STRING);
-goog.html.SafeUrl.ABOUT_BLANK = goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse("about:blank");
-goog.html.SafeStyle = function(value, token) {
-  this.privateDoNotAccessOrElseSafeStyleWrappedValue_ = token === goog.html.SafeStyle.CONSTRUCTOR_TOKEN_PRIVATE_ ? value : "";
-};
-goog.html.SafeStyle.prototype.implementsGoogStringTypedString = !0;
-goog.html.SafeStyle.fromConstant = function(style) {
-  var styleString = goog.string.Const.unwrap(style);
-  if (0 === styleString.length) {
-    return goog.html.SafeStyle.EMPTY;
-  }
-  goog.asserts.assert(goog.string.internal.endsWith(styleString, ";"), "Last character of style string is not ';': " + styleString);
-  goog.asserts.assert(goog.string.internal.contains(styleString, ":"), "Style string must contain at least one ':', to specify a \"name: value\" pair: " + styleString);
-  return goog.html.SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse(styleString);
-};
-goog.html.SafeStyle.prototype.getTypedStringValue = function() {
-  return this.privateDoNotAccessOrElseSafeStyleWrappedValue_;
-};
-goog.html.SafeStyle.prototype.toString = function() {
-  return this.privateDoNotAccessOrElseSafeStyleWrappedValue_.toString();
-};
-goog.html.SafeStyle.unwrap = function(safeStyle) {
-  if (safeStyle instanceof goog.html.SafeStyle && safeStyle.constructor === goog.html.SafeStyle) {
-    return safeStyle.privateDoNotAccessOrElseSafeStyleWrappedValue_;
-  }
-  goog.asserts.fail("expected object of type SafeStyle, got '" + safeStyle + "' of type " + goog.typeOf(safeStyle));
-  return "type_error:SafeStyle";
-};
-goog.html.SafeStyle.CONSTRUCTOR_TOKEN_PRIVATE_ = {};
-goog.html.SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse = function(style) {
-  return new goog.html.SafeStyle(style, goog.html.SafeStyle.CONSTRUCTOR_TOKEN_PRIVATE_);
-};
-goog.html.SafeStyle.EMPTY = goog.html.SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse("");
-goog.html.SafeStyle.INNOCUOUS_STRING = "zClosurez";
-goog.html.SafeStyle.create = function(map) {
-  var style = "", name;
-  for (name in map) {
-    if (Object.prototype.hasOwnProperty.call(map, name)) {
-      if (!/^[-_a-zA-Z0-9]+$/.test(name)) {
-        throw Error("Name allows only [-_a-zA-Z0-9], got: " + name);
-      }
-      var value = map[name];
-      null != value && (value = Array.isArray(value) ? module$contents$goog$array_map(value, goog.html.SafeStyle.sanitizePropertyValue_).join(" ") : goog.html.SafeStyle.sanitizePropertyValue_(value), style += name + ":" + value + ";");
-    }
-  }
-  return style ? goog.html.SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse(style) : goog.html.SafeStyle.EMPTY;
-};
-goog.html.SafeStyle.sanitizePropertyValue_ = function(value) {
-  if (value instanceof goog.html.SafeUrl) {
-    return 'url("' + goog.html.SafeUrl.unwrap(value).replace(/</g, "%3c").replace(/[\\"]/g, "\\$&") + '")';
-  }
-  var result = value instanceof goog.string.Const ? goog.string.Const.unwrap(value) : goog.html.SafeStyle.sanitizePropertyValueString_(String(value));
-  if (/[{;}]/.test(result)) {
-    throw new goog.asserts.AssertionError("Value does not allow [{;}], got: %s.", [result]);
-  }
-  return result;
-};
-goog.html.SafeStyle.sanitizePropertyValueString_ = function(value) {
-  var valueWithoutFunctions = value.replace(goog.html.SafeStyle.FUNCTIONS_RE_, "$1").replace(goog.html.SafeStyle.FUNCTIONS_RE_, "$1").replace(goog.html.SafeStyle.URL_RE_, "url");
-  if (goog.html.SafeStyle.VALUE_RE_.test(valueWithoutFunctions)) {
-    if (goog.html.SafeStyle.COMMENT_RE_.test(value)) {
-      return goog.asserts.fail("String value disallows comments, got: " + value), goog.html.SafeStyle.INNOCUOUS_STRING;
-    }
-    if (!goog.html.SafeStyle.hasBalancedQuotes_(value)) {
-      return goog.asserts.fail("String value requires balanced quotes, got: " + value), goog.html.SafeStyle.INNOCUOUS_STRING;
-    }
-    if (!goog.html.SafeStyle.hasBalancedSquareBrackets_(value)) {
-      return goog.asserts.fail("String value requires balanced square brackets and one identifier per pair of brackets, got: " + value), goog.html.SafeStyle.INNOCUOUS_STRING;
-    }
-  } else {
-    return goog.asserts.fail("String value allows only " + goog.html.SafeStyle.VALUE_ALLOWED_CHARS_ + " and simple functions, got: " + value), goog.html.SafeStyle.INNOCUOUS_STRING;
-  }
-  return goog.html.SafeStyle.sanitizeUrl_(value);
-};
-goog.html.SafeStyle.hasBalancedQuotes_ = function(value) {
-  for (var outsideSingle = !0, outsideDouble = !0, i = 0; i < value.length; i++) {
-    var c = value.charAt(i);
-    "'" == c && outsideDouble ? outsideSingle = !outsideSingle : '"' == c && outsideSingle && (outsideDouble = !outsideDouble);
-  }
-  return outsideSingle && outsideDouble;
-};
-goog.html.SafeStyle.hasBalancedSquareBrackets_ = function(value) {
-  for (var outside = !0, tokenRe = /^[-_a-zA-Z0-9]$/, i = 0; i < value.length; i++) {
-    var c = value.charAt(i);
-    if ("]" == c) {
-      if (outside) {
-        return !1;
-      }
-      outside = !0;
-    } else {
-      if ("[" == c) {
-        if (!outside) {
-          return !1;
-        }
-        outside = !1;
-      } else {
-        if (!outside && !tokenRe.test(c)) {
-          return !1;
-        }
-      }
-    }
-  }
-  return outside;
-};
-goog.html.SafeStyle.VALUE_ALLOWED_CHARS_ = "[-,.\"'%_!# a-zA-Z0-9\\[\\]]";
-goog.html.SafeStyle.VALUE_RE_ = new RegExp("^" + goog.html.SafeStyle.VALUE_ALLOWED_CHARS_ + "+$");
-goog.html.SafeStyle.URL_RE_ = /\b(url\([ \t\n]*)('[ -&(-\[\]-~]*'|"[ !#-\[\]-~]*"|[!#-&*-\[\]-~]*)([ \t\n]*\))/g;
-goog.html.SafeStyle.ALLOWED_FUNCTIONS_ = "calc cubic-bezier fit-content hsl hsla linear-gradient matrix minmax repeat rgb rgba (rotate|scale|translate)(X|Y|Z|3d)?".split(" ");
-goog.html.SafeStyle.FUNCTIONS_RE_ = new RegExp("\\b(" + goog.html.SafeStyle.ALLOWED_FUNCTIONS_.join("|") + ")\\([-+*/0-9a-z.%\\[\\], ]+\\)", "g");
-goog.html.SafeStyle.COMMENT_RE_ = /\/\*/;
-goog.html.SafeStyle.sanitizeUrl_ = function(value) {
-  return value.replace(goog.html.SafeStyle.URL_RE_, function(match$jscomp$0, before, url, after) {
-    var quote = "";
-    url = url.replace(/^(['"])(.*)\1$/, function(match, start, inside) {
-      quote = start;
-      return inside;
-    });
-    var sanitized = goog.html.SafeUrl.sanitize(url).getTypedStringValue();
-    return before + quote + sanitized + quote + after;
-  });
-};
-goog.html.SafeStyle.concat = function(var_args) {
-  var style = "", addArgument = function(argument) {
-    Array.isArray(argument) ? module$contents$goog$array_forEach(argument, addArgument) : style += goog.html.SafeStyle.unwrap(argument);
-  };
-  Array.prototype.forEach.call(arguments, addArgument);
-  return style ? goog.html.SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse(style) : goog.html.SafeStyle.EMPTY;
-};
-var module$contents$goog$html$SafeStyleSheet_CONSTRUCTOR_TOKEN_PRIVATE = {}, module$contents$goog$html$SafeStyleSheet_SafeStyleSheet = function(value, token) {
-  this.privateDoNotAccessOrElseSafeStyleSheetWrappedValue_ = token === module$contents$goog$html$SafeStyleSheet_CONSTRUCTOR_TOKEN_PRIVATE ? value : "";
-  this.implementsGoogStringTypedString = !0;
-};
-module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createRule = function(selector, style) {
-  if ((0,goog.string.internal.contains)(selector, "<")) {
-    throw Error("Selector does not allow '<', got: " + selector);
-  }
-  var selectorToCheck = selector.replace(/('|")((?!\1)[^\r\n\f\\]|\\[\s\S])*\1/g, "");
-  if (!/^[-_a-zA-Z0-9#.:* ,>+~[\]()=^$|]+$/.test(selectorToCheck)) {
-    throw Error("Selector allows only [-_a-zA-Z0-9#.:* ,>+~[\\]()=^$|] and strings, got: " + selector);
-  }
-  if (!module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.hasBalancedBrackets_(selectorToCheck)) {
-    throw Error("() and [] in selector must be balanced, got: " + selector);
-  }
-  style instanceof goog.html.SafeStyle || (style = goog.html.SafeStyle.create(style));
-  var styleSheet = selector + "{" + goog.html.SafeStyle.unwrap(style).replace(/</g, "\\3C ") + "}";
-  return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse(styleSheet);
-};
-module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.hasBalancedBrackets_ = function(s) {
-  for (var brackets = {"(":")", "[":"]"}, expectedBrackets = [], i = 0; i < s.length; i++) {
-    var ch = s[i];
-    if (brackets[ch]) {
-      expectedBrackets.push(brackets[ch]);
-    } else {
-      if (module$contents$goog$object_contains(brackets, ch) && expectedBrackets.pop() != ch) {
-        return !1;
-      }
-    }
-  }
-  return 0 == expectedBrackets.length;
-};
-module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.concat = function(var_args) {
-  var result = "", addArgument = function(argument) {
-    Array.isArray(argument) ? module$contents$goog$array_forEach(argument, addArgument) : result += module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.unwrap(argument);
-  };
-  Array.prototype.forEach.call(arguments, addArgument);
-  return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse(result);
-};
-module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.fromConstant = function(styleSheet) {
-  var styleSheetString = goog.string.Const.unwrap(styleSheet);
-  if (0 === styleSheetString.length) {
-    return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.EMPTY;
-  }
-  (0,goog.asserts.assert)(!(0,goog.string.internal.contains)(styleSheetString, "<"), "Forbidden '<' character in style sheet string: " + styleSheetString);
-  return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse(styleSheetString);
-};
-module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.prototype.getTypedStringValue = function() {
-  return this.privateDoNotAccessOrElseSafeStyleSheetWrappedValue_;
-};
-module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.unwrap = function(safeStyleSheet) {
-  if (safeStyleSheet instanceof module$contents$goog$html$SafeStyleSheet_SafeStyleSheet && safeStyleSheet.constructor === module$contents$goog$html$SafeStyleSheet_SafeStyleSheet) {
-    return safeStyleSheet.privateDoNotAccessOrElseSafeStyleSheetWrappedValue_;
-  }
-  (0,goog.asserts.fail)("expected object of type SafeStyleSheet, got '" + safeStyleSheet + "' of type " + goog.typeOf(safeStyleSheet));
-  return "type_error:SafeStyleSheet";
-};
-module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse = function(styleSheet) {
-  return new module$contents$goog$html$SafeStyleSheet_SafeStyleSheet(styleSheet, module$contents$goog$html$SafeStyleSheet_CONSTRUCTOR_TOKEN_PRIVATE);
-};
-module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.prototype.toString = function() {
-  return this.privateDoNotAccessOrElseSafeStyleSheetWrappedValue_.toString();
-};
-module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.EMPTY = module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse("");
-goog.html.SafeStyleSheet = module$contents$goog$html$SafeStyleSheet_SafeStyleSheet;
-goog.html.SafeHtml = function(value, dir, token) {
-  this.privateDoNotAccessOrElseSafeHtmlWrappedValue_ = token === goog.html.SafeHtml.CONSTRUCTOR_TOKEN_PRIVATE_ ? value : "";
-  this.dir_ = dir;
-};
-goog.html.SafeHtml.ENABLE_ERROR_MESSAGES = goog.DEBUG;
-goog.html.SafeHtml.SUPPORT_STYLE_ATTRIBUTE = !0;
-goog.html.SafeHtml.prototype.implementsGoogI18nBidiDirectionalString = !0;
-goog.html.SafeHtml.prototype.getDirection = function() {
-  return this.dir_;
-};
-goog.html.SafeHtml.prototype.implementsGoogStringTypedString = !0;
-goog.html.SafeHtml.prototype.getTypedStringValue = function() {
-  return this.privateDoNotAccessOrElseSafeHtmlWrappedValue_.toString();
-};
-goog.html.SafeHtml.prototype.toString = function() {
-  return this.privateDoNotAccessOrElseSafeHtmlWrappedValue_.toString();
-};
-goog.html.SafeHtml.unwrap = function(safeHtml) {
-  return goog.html.SafeHtml.unwrapTrustedHTML(safeHtml).toString();
-};
-goog.html.SafeHtml.unwrapTrustedHTML = function(safeHtml) {
-  if (safeHtml instanceof goog.html.SafeHtml && safeHtml.constructor === goog.html.SafeHtml) {
-    return safeHtml.privateDoNotAccessOrElseSafeHtmlWrappedValue_;
-  }
-  goog.asserts.fail("expected object of type SafeHtml, got '" + safeHtml + "' of type " + goog.typeOf(safeHtml));
-  return "type_error:SafeHtml";
-};
-goog.html.SafeHtml.htmlEscape = function(textOrHtml) {
-  if (textOrHtml instanceof goog.html.SafeHtml) {
-    return textOrHtml;
-  }
-  var textIsObject = "object" == typeof textOrHtml, dir = null;
-  textIsObject && textOrHtml.implementsGoogI18nBidiDirectionalString && (dir = textOrHtml.getDirection());
-  return goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(goog.string.internal.htmlEscape(textIsObject && textOrHtml.implementsGoogStringTypedString ? textOrHtml.getTypedStringValue() : String(textOrHtml)), dir);
-};
-goog.html.SafeHtml.htmlEscapePreservingNewlines = function(textOrHtml) {
-  if (textOrHtml instanceof goog.html.SafeHtml) {
-    return textOrHtml;
-  }
-  var html = goog.html.SafeHtml.htmlEscape(textOrHtml);
-  return goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(goog.string.internal.newLineToBr(goog.html.SafeHtml.unwrap(html)), html.getDirection());
-};
-goog.html.SafeHtml.htmlEscapePreservingNewlinesAndSpaces = function(textOrHtml) {
-  if (textOrHtml instanceof goog.html.SafeHtml) {
-    return textOrHtml;
-  }
-  var html = goog.html.SafeHtml.htmlEscape(textOrHtml);
-  return goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(goog.string.internal.whitespaceEscape(goog.html.SafeHtml.unwrap(html)), html.getDirection());
-};
-goog.html.SafeHtml.from = goog.html.SafeHtml.htmlEscape;
-goog.html.SafeHtml.comment = function(text) {
-  return goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse("\x3c!--" + goog.string.internal.htmlEscape(text) + "--\x3e", null);
-};
-goog.html.SafeHtml.VALID_NAMES_IN_TAG_ = /^[a-zA-Z0-9-]+$/;
-goog.html.SafeHtml.URL_ATTRIBUTES_ = {action:!0, cite:!0, data:!0, formaction:!0, href:!0, manifest:!0, poster:!0, src:!0};
-goog.html.SafeHtml.NOT_ALLOWED_TAG_NAMES_ = module$contents$goog$object_createSet(goog.dom.TagName.APPLET, goog.dom.TagName.BASE, goog.dom.TagName.EMBED, goog.dom.TagName.IFRAME, goog.dom.TagName.LINK, goog.dom.TagName.MATH, goog.dom.TagName.META, goog.dom.TagName.OBJECT, goog.dom.TagName.SCRIPT, goog.dom.TagName.STYLE, goog.dom.TagName.SVG, goog.dom.TagName.TEMPLATE);
-goog.html.SafeHtml.create = function(tagName, opt_attributes, opt_content) {
-  goog.html.SafeHtml.verifyTagName(String(tagName));
-  return goog.html.SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse(String(tagName), opt_attributes, opt_content);
-};
-goog.html.SafeHtml.verifyTagName = function(tagName) {
-  if (!goog.html.SafeHtml.VALID_NAMES_IN_TAG_.test(tagName)) {
-    throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? "Invalid tag name <" + tagName + ">." : "");
-  }
-  if (tagName.toUpperCase() in goog.html.SafeHtml.NOT_ALLOWED_TAG_NAMES_) {
-    throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? "Tag name <" + tagName + "> is not allowed for SafeHtml." : "");
-  }
-};
-goog.html.SafeHtml.createIframe = function(opt_src, opt_srcdoc, opt_attributes, opt_content) {
-  opt_src && goog.html.TrustedResourceUrl.unwrap(opt_src);
-  var fixedAttributes = {};
-  fixedAttributes.src = opt_src || null;
-  fixedAttributes.srcdoc = opt_srcdoc && goog.html.SafeHtml.unwrap(opt_srcdoc);
-  var attributes = goog.html.SafeHtml.combineAttributes(fixedAttributes, {sandbox:""}, opt_attributes);
-  return goog.html.SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("iframe", attributes, opt_content);
-};
-goog.html.SafeHtml.createSandboxIframe = function(opt_src, opt_srcdoc, opt_attributes, opt_content) {
-  if (!goog.html.SafeHtml.canUseSandboxIframe()) {
-    throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? "The browser does not support sandboxed iframes." : "");
-  }
-  var fixedAttributes = {};
-  fixedAttributes.src = opt_src ? goog.html.SafeUrl.unwrap(goog.html.SafeUrl.sanitize(opt_src)) : null;
-  fixedAttributes.srcdoc = opt_srcdoc || null;
-  fixedAttributes.sandbox = "";
-  var attributes = goog.html.SafeHtml.combineAttributes(fixedAttributes, {}, opt_attributes);
-  return goog.html.SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("iframe", attributes, opt_content);
-};
-goog.html.SafeHtml.canUseSandboxIframe = function() {
-  return goog.global.HTMLIFrameElement && "sandbox" in goog.global.HTMLIFrameElement.prototype;
-};
-goog.html.SafeHtml.createScriptSrc = function(src, opt_attributes) {
-  goog.html.TrustedResourceUrl.unwrap(src);
-  var attributes = goog.html.SafeHtml.combineAttributes({src:src}, {}, opt_attributes);
-  return goog.html.SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("script", attributes);
-};
-goog.html.SafeHtml.createScript = function(script, opt_attributes) {
-  for (var attr in opt_attributes) {
-    if (Object.prototype.hasOwnProperty.call(opt_attributes, attr)) {
-      var attrLower = attr.toLowerCase();
-      if ("language" == attrLower || "src" == attrLower || "text" == attrLower || "type" == attrLower) {
-        throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? 'Cannot set "' + attrLower + '" attribute' : "");
-      }
-    }
-  }
-  var content = "";
-  script = module$contents$goog$array_concat(script);
-  for (var i = 0; i < script.length; i++) {
-    content += module$contents$goog$html$SafeScript_SafeScript.unwrap(script[i]);
-  }
-  var htmlContent = goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(content, goog.i18n.bidi.Dir.NEUTRAL);
-  return goog.html.SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("script", opt_attributes, htmlContent);
-};
-goog.html.SafeHtml.createStyle = function(styleSheet, opt_attributes) {
-  var attributes = goog.html.SafeHtml.combineAttributes({type:"text/css"}, {}, opt_attributes), content = "";
-  styleSheet = module$contents$goog$array_concat(styleSheet);
-  for (var i = 0; i < styleSheet.length; i++) {
-    content += module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.unwrap(styleSheet[i]);
-  }
-  var htmlContent = goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(content, goog.i18n.bidi.Dir.NEUTRAL);
-  return goog.html.SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("style", attributes, htmlContent);
-};
-goog.html.SafeHtml.createMetaRefresh = function(url, opt_secs) {
-  var unwrappedUrl = goog.html.SafeUrl.unwrap(goog.html.SafeUrl.sanitize(url));
-  (goog.labs.userAgent.browser.isIE() || goog.labs.userAgent.browser.isEdge()) && goog.string.internal.contains(unwrappedUrl, ";") && (unwrappedUrl = "'" + unwrappedUrl.replace(/'/g, "%27") + "'");
-  return goog.html.SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("meta", {"http-equiv":"refresh", content:(opt_secs || 0) + "; url=" + unwrappedUrl});
-};
-goog.html.SafeHtml.getAttrNameAndValue_ = function(tagName, name, value) {
-  if (value instanceof goog.string.Const) {
-    value = goog.string.Const.unwrap(value);
-  } else {
-    if ("style" == name.toLowerCase()) {
-      if (goog.html.SafeHtml.SUPPORT_STYLE_ATTRIBUTE) {
-        value = goog.html.SafeHtml.getStyleValue_(value);
-      } else {
-        throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? 'Attribute "style" not supported.' : "");
-      }
-    } else {
-      if (/^on/i.test(name)) {
-        throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? 'Attribute "' + name + '" requires goog.string.Const value, "' + value + '" given.' : "");
-      }
-      if (name.toLowerCase() in goog.html.SafeHtml.URL_ATTRIBUTES_) {
-        if (value instanceof goog.html.TrustedResourceUrl) {
-          value = goog.html.TrustedResourceUrl.unwrap(value);
-        } else {
-          if (value instanceof goog.html.SafeUrl) {
-            value = goog.html.SafeUrl.unwrap(value);
-          } else {
-            if ("string" === typeof value) {
-              value = goog.html.SafeUrl.sanitize(value).getTypedStringValue();
-            } else {
-              throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? 'Attribute "' + name + '" on tag "' + tagName + '" requires goog.html.SafeUrl, goog.string.Const, or string, value "' + value + '" given.' : "");
-            }
-          }
-        }
-      }
-    }
-  }
-  value.implementsGoogStringTypedString && (value = value.getTypedStringValue());
-  goog.asserts.assert("string" === typeof value || "number" === typeof value, "String or number value expected, got " + typeof value + " with value: " + value);
-  return name + '="' + goog.string.internal.htmlEscape(String(value)) + '"';
-};
-goog.html.SafeHtml.getStyleValue_ = function(value) {
-  if (!goog.isObject(value)) {
-    throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? 'The "style" attribute requires goog.html.SafeStyle or map of style properties, ' + typeof value + " given: " + value : "");
-  }
-  value instanceof goog.html.SafeStyle || (value = goog.html.SafeStyle.create(value));
-  return goog.html.SafeStyle.unwrap(value);
-};
-goog.html.SafeHtml.createWithDir = function(dir, tagName, opt_attributes, opt_content) {
-  var html = goog.html.SafeHtml.create(tagName, opt_attributes, opt_content);
-  html.dir_ = dir;
-  return html;
-};
-goog.html.SafeHtml.join = function(separator, parts) {
-  var separatorHtml = goog.html.SafeHtml.htmlEscape(separator), dir = separatorHtml.getDirection(), content = [], addArgument = function(argument) {
-    if (Array.isArray(argument)) {
-      module$contents$goog$array_forEach(argument, addArgument);
-    } else {
-      var html = goog.html.SafeHtml.htmlEscape(argument);
-      content.push(goog.html.SafeHtml.unwrap(html));
-      var htmlDir = html.getDirection();
-      dir == goog.i18n.bidi.Dir.NEUTRAL ? dir = htmlDir : htmlDir != goog.i18n.bidi.Dir.NEUTRAL && dir != htmlDir && (dir = null);
-    }
-  };
-  module$contents$goog$array_forEach(parts, addArgument);
-  return goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(content.join(goog.html.SafeHtml.unwrap(separatorHtml)), dir);
-};
-goog.html.SafeHtml.concat = function(var_args) {
-  return goog.html.SafeHtml.join(goog.html.SafeHtml.EMPTY, Array.prototype.slice.call(arguments));
-};
-goog.html.SafeHtml.concatWithDir = function(dir, var_args) {
-  var html = goog.html.SafeHtml.concat(Array.prototype.slice.call(arguments, 1));
-  html.dir_ = dir;
-  return html;
-};
-goog.html.SafeHtml.CONSTRUCTOR_TOKEN_PRIVATE_ = {};
-goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse = function(html, dir) {
-  var policy = goog.html.trustedtypes.getPolicyPrivateDoNotAccessOrElse(), trustedHtml = policy ? policy.createHTML(html) : html;
-  return new goog.html.SafeHtml(trustedHtml, dir, goog.html.SafeHtml.CONSTRUCTOR_TOKEN_PRIVATE_);
-};
-goog.html.SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse = function(tagName, opt_attributes, opt_content) {
-  var dir = null;
-  var result = "<" + tagName + goog.html.SafeHtml.stringifyAttributes(tagName, opt_attributes);
-  var content = opt_content;
-  null == content ? content = [] : Array.isArray(content) || (content = [content]);
-  if (goog.dom.tags.isVoidTag(tagName.toLowerCase())) {
-    goog.asserts.assert(!content.length, "Void tag <" + tagName + "> does not allow content."), result += ">";
-  } else {
-    var html = goog.html.SafeHtml.concat(content);
-    result += ">" + goog.html.SafeHtml.unwrap(html) + "</" + tagName + ">";
-    dir = html.getDirection();
-  }
-  var dirAttribute = opt_attributes && opt_attributes.dir;
-  dirAttribute && (dir = /^(ltr|rtl|auto)$/i.test(dirAttribute) ? goog.i18n.bidi.Dir.NEUTRAL : null);
-  return goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(result, dir);
-};
-goog.html.SafeHtml.stringifyAttributes = function(tagName, opt_attributes) {
-  var result = "";
-  if (opt_attributes) {
-    for (var name in opt_attributes) {
-      if (Object.prototype.hasOwnProperty.call(opt_attributes, name)) {
-        if (!goog.html.SafeHtml.VALID_NAMES_IN_TAG_.test(name)) {
-          throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? 'Invalid attribute name "' + name + '".' : "");
-        }
-        var value = opt_attributes[name];
-        null != value && (result += " " + goog.html.SafeHtml.getAttrNameAndValue_(tagName, name, value));
-      }
-    }
-  }
-  return result;
-};
-goog.html.SafeHtml.combineAttributes = function(fixedAttributes, defaultAttributes, opt_attributes) {
-  var combinedAttributes = {}, name;
-  for (name in fixedAttributes) {
-    Object.prototype.hasOwnProperty.call(fixedAttributes, name) && (goog.asserts.assert(name.toLowerCase() == name, "Must be lower case"), combinedAttributes[name] = fixedAttributes[name]);
-  }
-  for (name in defaultAttributes) {
-    Object.prototype.hasOwnProperty.call(defaultAttributes, name) && (goog.asserts.assert(name.toLowerCase() == name, "Must be lower case"), combinedAttributes[name] = defaultAttributes[name]);
-  }
-  if (opt_attributes) {
-    for (name in opt_attributes) {
-      if (Object.prototype.hasOwnProperty.call(opt_attributes, name)) {
-        var nameLower = name.toLowerCase();
-        if (nameLower in fixedAttributes) {
-          throw Error(goog.html.SafeHtml.ENABLE_ERROR_MESSAGES ? 'Cannot override "' + nameLower + '" attribute, got "' + name + '" with value "' + opt_attributes[name] + '"' : "");
-        }
-        nameLower in defaultAttributes && delete combinedAttributes[nameLower];
-        combinedAttributes[name] = opt_attributes[name];
-      }
-    }
-  }
-  return combinedAttributes;
-};
-goog.html.SafeHtml.DOCTYPE_HTML = function() {
-  return goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse("<!DOCTYPE html>", goog.i18n.bidi.Dir.NEUTRAL);
-}();
-goog.html.SafeHtml.EMPTY = new goog.html.SafeHtml(goog.global.trustedTypes && goog.global.trustedTypes.emptyHTML || "", goog.i18n.bidi.Dir.NEUTRAL, goog.html.SafeHtml.CONSTRUCTOR_TOKEN_PRIVATE_);
-goog.html.SafeHtml.BR = function() {
-  return goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse("<br>", goog.i18n.bidi.Dir.NEUTRAL);
-}();
-goog.html.uncheckedconversions = {};
-goog.html.uncheckedconversions.safeHtmlFromStringKnownToSatisfyTypeContract = function(justification, html, opt_dir) {
-  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
-  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
-  return goog.html.SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(html, opt_dir || null);
-};
-goog.html.uncheckedconversions.safeScriptFromStringKnownToSatisfyTypeContract = function(justification, script) {
-  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
-  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
-  return module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(script);
-};
-goog.html.uncheckedconversions.safeStyleFromStringKnownToSatisfyTypeContract = function(justification, style) {
-  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
-  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
-  return goog.html.SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse(style);
-};
-goog.html.uncheckedconversions.safeStyleSheetFromStringKnownToSatisfyTypeContract = function(justification, styleSheet) {
-  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
-  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
-  return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse(styleSheet);
-};
-goog.html.uncheckedconversions.safeUrlFromStringKnownToSatisfyTypeContract = function(justification, url) {
-  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
-  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
-  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
-};
-goog.html.uncheckedconversions.trustedResourceUrlFromStringKnownToSatisfyTypeContract = function(justification, url) {
-  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
-  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
-  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(url);
-};
-goog.dom.safe = {};
-goog.dom.safe.InsertAdjacentHtmlPosition = {AFTERBEGIN:"afterbegin", AFTEREND:"afterend", BEFOREBEGIN:"beforebegin", BEFOREEND:"beforeend"};
-goog.dom.safe.insertAdjacentHtml = function(node, position, html) {
-  node.insertAdjacentHTML(position, goog.html.SafeHtml.unwrapTrustedHTML(html));
-};
-goog.dom.safe.SET_INNER_HTML_DISALLOWED_TAGS_ = {MATH:!0, SCRIPT:!0, STYLE:!0, SVG:!0, TEMPLATE:!0};
-goog.dom.safe.isInnerHtmlCleanupRecursive_ = goog.functions.cacheReturnValue(function() {
-  if (goog.DEBUG && "undefined" === typeof document) {
-    return !1;
-  }
-  var div = document.createElement("div"), childDiv = document.createElement("div");
-  childDiv.appendChild(document.createElement("div"));
-  div.appendChild(childDiv);
-  if (goog.DEBUG && !div.firstChild) {
-    return !1;
-  }
-  var innerChild = div.firstChild.firstChild;
-  div.innerHTML = goog.html.SafeHtml.unwrapTrustedHTML(goog.html.SafeHtml.EMPTY);
-  return !innerChild.parentElement;
-});
-goog.dom.safe.unsafeSetInnerHtmlDoNotUseOrElse = function(elem, html) {
-  if (goog.dom.safe.isInnerHtmlCleanupRecursive_()) {
-    for (; elem.lastChild;) {
-      elem.removeChild(elem.lastChild);
-    }
-  }
-  elem.innerHTML = goog.html.SafeHtml.unwrapTrustedHTML(html);
-};
-goog.dom.safe.setInnerHtml = function(elem, html) {
-  if (goog.asserts.ENABLE_ASSERTS && elem.tagName && goog.dom.safe.SET_INNER_HTML_DISALLOWED_TAGS_[elem.tagName.toUpperCase()]) {
-    throw Error("goog.dom.safe.setInnerHtml cannot be used to set content of " + elem.tagName + ".");
-  }
-  goog.dom.safe.unsafeSetInnerHtmlDoNotUseOrElse(elem, html);
-};
-goog.dom.safe.setInnerHtmlFromConstant = function(element, constHtml) {
-  goog.dom.safe.setInnerHtml(element, goog.html.uncheckedconversions.safeHtmlFromStringKnownToSatisfyTypeContract(goog.string.Const.from("Constant HTML to be immediatelly used."), goog.string.Const.unwrap(constHtml)));
-};
-goog.dom.safe.setOuterHtml = function(elem, html) {
-  elem.outerHTML = goog.html.SafeHtml.unwrapTrustedHTML(html);
-};
-goog.dom.safe.setFormElementAction = function(form, url) {
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  goog.dom.asserts.assertIsHTMLFormElement(form).action = goog.html.SafeUrl.unwrap(safeUrl);
-};
-goog.dom.safe.setButtonFormAction = function(button, url) {
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  goog.dom.asserts.assertIsHTMLButtonElement(button).formAction = goog.html.SafeUrl.unwrap(safeUrl);
-};
-goog.dom.safe.setInputFormAction = function(input, url) {
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  goog.dom.asserts.assertIsHTMLInputElement(input).formAction = goog.html.SafeUrl.unwrap(safeUrl);
-};
-goog.dom.safe.setStyle = function(elem, style) {
-  elem.style.cssText = goog.html.SafeStyle.unwrap(style);
-};
-goog.dom.safe.documentWrite = function(doc, html) {
-  doc.write(goog.html.SafeHtml.unwrapTrustedHTML(html));
-};
-goog.dom.safe.setAnchorHref = function(anchor, url) {
-  goog.dom.asserts.assertIsHTMLAnchorElement(anchor);
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  anchor.href = goog.html.SafeUrl.unwrap(safeUrl);
-};
-goog.dom.safe.setImageSrc = function(imageElement, url) {
-  goog.dom.asserts.assertIsHTMLImageElement(imageElement);
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url, /^data:image\//i.test(url));
-  imageElement.src = goog.html.SafeUrl.unwrap(safeUrl);
-};
-goog.dom.safe.setAudioSrc = function(audioElement, url) {
-  goog.dom.asserts.assertIsHTMLAudioElement(audioElement);
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url, /^data:audio\//i.test(url));
-  audioElement.src = goog.html.SafeUrl.unwrap(safeUrl);
-};
-goog.dom.safe.setVideoSrc = function(videoElement, url) {
-  goog.dom.asserts.assertIsHTMLVideoElement(videoElement);
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url, /^data:video\//i.test(url));
-  videoElement.src = goog.html.SafeUrl.unwrap(safeUrl);
-};
-goog.dom.safe.setEmbedSrc = function(embed, url) {
-  goog.dom.asserts.assertIsHTMLEmbedElement(embed);
-  embed.src = goog.html.TrustedResourceUrl.unwrapTrustedScriptURL(url);
-};
-goog.dom.safe.setFrameSrc = function(frame, url) {
-  goog.dom.asserts.assertIsHTMLFrameElement(frame);
-  frame.src = goog.html.TrustedResourceUrl.unwrap(url);
-};
-goog.dom.safe.setIframeSrc = function(iframe, url) {
-  goog.dom.asserts.assertIsHTMLIFrameElement(iframe);
-  iframe.src = goog.html.TrustedResourceUrl.unwrap(url);
-};
-goog.dom.safe.setIframeSrcdoc = function(iframe, html) {
-  goog.dom.asserts.assertIsHTMLIFrameElement(iframe);
-  iframe.srcdoc = goog.html.SafeHtml.unwrapTrustedHTML(html);
-};
-goog.dom.safe.setLinkHrefAndRel = function(link, url, rel) {
-  goog.dom.asserts.assertIsHTMLLinkElement(link);
-  link.rel = rel;
-  if (goog.string.internal.caseInsensitiveContains(rel, "stylesheet")) {
-    goog.asserts.assert(url instanceof goog.html.TrustedResourceUrl, 'URL must be TrustedResourceUrl because "rel" contains "stylesheet"');
-    link.href = goog.html.TrustedResourceUrl.unwrap(url);
-    var nonce = goog.dom.safe.getStyleNonce(link.ownerDocument && link.ownerDocument.defaultView);
-    nonce && link.setAttribute("nonce", nonce);
-  } else {
-    link.href = url instanceof goog.html.TrustedResourceUrl ? goog.html.TrustedResourceUrl.unwrap(url) : url instanceof goog.html.SafeUrl ? goog.html.SafeUrl.unwrap(url) : goog.html.SafeUrl.unwrap(goog.html.SafeUrl.sanitizeAssertUnchanged(url));
-  }
-};
-goog.dom.safe.setObjectData = function(object, url) {
-  goog.dom.asserts.assertIsHTMLObjectElement(object);
-  object.data = goog.html.TrustedResourceUrl.unwrapTrustedScriptURL(url);
-};
-goog.dom.safe.setScriptSrc = function(script, url) {
-  goog.dom.asserts.assertIsHTMLScriptElement(script);
-  script.src = goog.html.TrustedResourceUrl.unwrapTrustedScriptURL(url);
-  goog.dom.safe.setNonceForScriptElement_(script);
-};
-goog.dom.safe.setScriptContent = function(script, content) {
-  goog.dom.asserts.assertIsHTMLScriptElement(script);
-  script.textContent = module$contents$goog$html$SafeScript_SafeScript.unwrapTrustedScript(content);
-  goog.dom.safe.setNonceForScriptElement_(script);
-};
-goog.dom.safe.setNonceForScriptElement_ = function(script) {
-  var nonce = goog.dom.safe.getScriptNonce(script.ownerDocument && script.ownerDocument.defaultView);
-  nonce && script.setAttribute("nonce", nonce);
-};
-goog.dom.safe.setLocationHref = function(loc, url) {
-  goog.dom.asserts.assertIsLocation(loc);
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  loc.href = goog.html.SafeUrl.unwrap(safeUrl);
-};
-goog.dom.safe.assignLocation = function(loc, url) {
-  goog.dom.asserts.assertIsLocation(loc);
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  loc.assign(goog.html.SafeUrl.unwrap(safeUrl));
-};
-goog.dom.safe.replaceLocation = function(loc, url) {
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  loc.replace(goog.html.SafeUrl.unwrap(safeUrl));
-};
-goog.dom.safe.openInWindow = function(url, opt_openerWin, opt_name, opt_specs, opt_replace) {
-  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
-  var win = opt_openerWin || goog.global, name = opt_name instanceof goog.string.Const ? goog.string.Const.unwrap(opt_name) : opt_name || "";
-  return void 0 !== opt_specs || void 0 !== opt_replace ? win.open(goog.html.SafeUrl.unwrap(safeUrl), name, opt_specs, opt_replace) : win.open(goog.html.SafeUrl.unwrap(safeUrl), name);
-};
-goog.dom.safe.parseFromStringHtml = function(parser, html) {
-  return goog.dom.safe.parseFromString(parser, html, "text/html");
-};
-goog.dom.safe.parseFromString = function(parser, content, type) {
-  return parser.parseFromString(goog.html.SafeHtml.unwrapTrustedHTML(content), type);
-};
-goog.dom.safe.createImageFromBlob = function(blob) {
-  if (!/^image\/.*/g.test(blob.type)) {
-    throw Error("goog.dom.safe.createImageFromBlob only accepts MIME type image/.*.");
-  }
-  var objectUrl = goog.global.URL.createObjectURL(blob), image = new goog.global.Image;
-  image.onload = function() {
-    goog.global.URL.revokeObjectURL(objectUrl);
-  };
-  goog.dom.safe.setImageSrc(image, goog.html.uncheckedconversions.safeUrlFromStringKnownToSatisfyTypeContract(goog.string.Const.from("Image blob URL."), objectUrl));
-  return image;
-};
-goog.dom.safe.createContextualFragment = function(range, html) {
-  return range.createContextualFragment(goog.html.SafeHtml.unwrapTrustedHTML(html));
-};
-goog.dom.safe.getScriptNonce = function(opt_window) {
-  return goog.dom.safe.getNonce_("script[nonce]", opt_window);
-};
-goog.dom.safe.getStyleNonce = function(opt_window) {
-  return goog.dom.safe.getNonce_('style[nonce],link[rel="stylesheet"][nonce]', opt_window);
-};
-goog.dom.safe.NONCE_PATTERN_ = /^[\w+/_-]+[=]{0,2}$/;
-goog.dom.safe.getNonce_ = function(selector, win) {
-  var doc = (win || goog.global).document;
-  if (!doc.querySelector) {
-    return "";
-  }
-  var el = doc.querySelector(selector);
-  if (el) {
-    var nonce = el.nonce || el.getAttribute("nonce");
-    if (nonce && goog.dom.safe.NONCE_PATTERN_.test(nonce)) {
-      return nonce;
-    }
-  }
-  return "";
-};
-goog.string.DETECT_DOUBLE_ESCAPING = !1;
-goog.string.FORCE_NON_DOM_HTML_UNESCAPING = !1;
-goog.string.Unicode = {NBSP:"\u00a0"};
-goog.string.startsWith = goog.string.internal.startsWith;
-goog.string.endsWith = goog.string.internal.endsWith;
-goog.string.caseInsensitiveStartsWith = goog.string.internal.caseInsensitiveStartsWith;
-goog.string.caseInsensitiveEndsWith = goog.string.internal.caseInsensitiveEndsWith;
-goog.string.caseInsensitiveEquals = goog.string.internal.caseInsensitiveEquals;
-goog.string.subs = function(str, var_args) {
-  for (var splitParts = str.split("%s"), returnString = "", subsArguments = Array.prototype.slice.call(arguments, 1); subsArguments.length && 1 < splitParts.length;) {
-    returnString += splitParts.shift() + subsArguments.shift();
-  }
-  return returnString + splitParts.join("%s");
-};
-goog.string.collapseWhitespace = function(str) {
-  return str.replace(/[\s\xa0]+/g, " ").replace(/^\s+|\s+$/g, "");
-};
-goog.string.isEmptyOrWhitespace = goog.string.internal.isEmptyOrWhitespace;
-goog.string.isEmptyString = function(str) {
-  return 0 == str.length;
-};
-goog.string.isEmpty = goog.string.isEmptyOrWhitespace;
-goog.string.isEmptyOrWhitespaceSafe = function(str) {
-  return goog.string.isEmptyOrWhitespace(goog.string.makeSafe(str));
-};
-goog.string.isEmptySafe = goog.string.isEmptyOrWhitespaceSafe;
-goog.string.isBreakingWhitespace = function(str) {
-  return !/[^\t\n\r ]/.test(str);
-};
-goog.string.isAlpha = function(str) {
-  return !/[^a-zA-Z]/.test(str);
-};
-goog.string.isNumeric = function(str) {
-  return !/[^0-9]/.test(str);
-};
-goog.string.isAlphaNumeric = function(str) {
-  return !/[^a-zA-Z0-9]/.test(str);
-};
-goog.string.isSpace = function(ch) {
-  return " " == ch;
-};
-goog.string.isUnicodeChar = function(ch) {
-  return 1 == ch.length && " " <= ch && "~" >= ch || "\u0080" <= ch && "\ufffd" >= ch;
-};
-goog.string.stripNewlines = function(str) {
-  return str.replace(/(\r\n|\r|\n)+/g, " ");
-};
-goog.string.canonicalizeNewlines = function(str) {
-  return str.replace(/(\r\n|\r|\n)/g, "\n");
-};
-goog.string.normalizeWhitespace = function(str) {
-  return str.replace(/\xa0|\s/g, " ");
-};
-goog.string.normalizeSpaces = function(str) {
-  return str.replace(/\xa0|[ \t]+/g, " ");
-};
-goog.string.collapseBreakingSpaces = function(str) {
-  return str.replace(/[\t\r\n ]+/g, " ").replace(/^[\t\r\n ]+|[\t\r\n ]+$/g, "");
-};
-goog.string.trim = goog.string.internal.trim;
-goog.string.trimLeft = function(str) {
-  return str.replace(/^[\s\xa0]+/, "");
-};
-goog.string.trimRight = function(str) {
-  return str.replace(/[\s\xa0]+$/, "");
-};
-goog.string.caseInsensitiveCompare = goog.string.internal.caseInsensitiveCompare;
-goog.string.numberAwareCompare_ = function(str1, str2, tokenizerRegExp) {
-  if (str1 == str2) {
-    return 0;
-  }
-  if (!str1) {
-    return -1;
-  }
-  if (!str2) {
-    return 1;
-  }
-  for (var tokens1 = str1.toLowerCase().match(tokenizerRegExp), tokens2 = str2.toLowerCase().match(tokenizerRegExp), count = Math.min(tokens1.length, tokens2.length), i = 0; i < count; i++) {
-    var a = tokens1[i], b = tokens2[i];
-    if (a != b) {
-      var num1 = parseInt(a, 10);
-      if (!isNaN(num1)) {
-        var num2 = parseInt(b, 10);
-        if (!isNaN(num2) && num1 - num2) {
-          return num1 - num2;
-        }
-      }
-      return a < b ? -1 : 1;
-    }
-  }
-  return tokens1.length != tokens2.length ? tokens1.length - tokens2.length : str1 < str2 ? -1 : 1;
-};
-goog.string.intAwareCompare = function(str1, str2) {
-  return goog.string.numberAwareCompare_(str1, str2, /\d+|\D+/g);
-};
-goog.string.floatAwareCompare = function(str1, str2) {
-  return goog.string.numberAwareCompare_(str1, str2, /\d+|\.\d+|\D+/g);
-};
-goog.string.numerateCompare = goog.string.floatAwareCompare;
-goog.string.urlEncode = function(str) {
-  return encodeURIComponent(String(str));
-};
-goog.string.urlDecode = function(str) {
-  return decodeURIComponent(str.replace(/\+/g, " "));
-};
-goog.string.newLineToBr = goog.string.internal.newLineToBr;
-goog.string.htmlEscape = function(str, opt_isLikelyToContainHtmlChars) {
-  str = goog.string.internal.htmlEscape(str, opt_isLikelyToContainHtmlChars);
-  goog.string.DETECT_DOUBLE_ESCAPING && (str = str.replace(goog.string.E_RE_, "&#101;"));
-  return str;
-};
-goog.string.E_RE_ = /e/g;
-goog.string.unescapeEntities = function(str) {
-  return goog.string.contains(str, "&") ? !goog.string.FORCE_NON_DOM_HTML_UNESCAPING && "document" in goog.global ? goog.string.unescapeEntitiesUsingDom_(str) : goog.string.unescapePureXmlEntities_(str) : str;
-};
-goog.string.unescapeEntitiesWithDocument = function(str, document) {
-  return goog.string.contains(str, "&") ? goog.string.unescapeEntitiesUsingDom_(str, document) : str;
-};
-goog.string.unescapeEntitiesUsingDom_ = function(str, opt_document) {
-  var seen = {"&amp;":"&", "&lt;":"<", "&gt;":">", "&quot;":'"'};
-  var div = opt_document ? opt_document.createElement("div") : goog.global.document.createElement("div");
-  return str.replace(goog.string.HTML_ENTITY_PATTERN_, function(s, entity) {
-    var value = seen[s];
-    if (value) {
-      return value;
-    }
-    if ("#" == entity.charAt(0)) {
-      var n = Number("0" + entity.substr(1));
-      isNaN(n) || (value = String.fromCharCode(n));
-    }
-    value || (goog.dom.safe.setInnerHtml(div, goog.html.uncheckedconversions.safeHtmlFromStringKnownToSatisfyTypeContract(goog.string.Const.from("Single HTML entity."), s + " ")), value = div.firstChild.nodeValue.slice(0, -1));
-    return seen[s] = value;
-  });
-};
-goog.string.unescapePureXmlEntities_ = function(str) {
-  return str.replace(/&([^;]+);/g, function(s, entity) {
-    switch(entity) {
-      case "amp":
-        return "&";
-      case "lt":
-        return "<";
-      case "gt":
-        return ">";
-      case "quot":
-        return '"';
-      default:
-        if ("#" == entity.charAt(0)) {
-          var n = Number("0" + entity.substr(1));
-          if (!isNaN(n)) {
-            return String.fromCharCode(n);
-          }
-        }
-        return s;
-    }
-  });
-};
-goog.string.HTML_ENTITY_PATTERN_ = /&([^;\s<&]+);?/g;
-goog.string.whitespaceEscape = function(str, opt_xml) {
-  return goog.string.newLineToBr(str.replace(/  /g, " &#160;"), opt_xml);
-};
-goog.string.preserveSpaces = function(str) {
-  return str.replace(/(^|[\n ]) /g, "$1" + goog.string.Unicode.NBSP);
-};
-goog.string.stripQuotes = function(str, quoteChars) {
-  for (var length = quoteChars.length, i = 0; i < length; i++) {
-    var quoteChar = 1 == length ? quoteChars : quoteChars.charAt(i);
-    if (str.charAt(0) == quoteChar && str.charAt(str.length - 1) == quoteChar) {
-      return str.substring(1, str.length - 1);
-    }
-  }
-  return str;
-};
-goog.string.truncate = function(str, chars, opt_protectEscapedCharacters) {
-  opt_protectEscapedCharacters && (str = goog.string.unescapeEntities(str));
-  str.length > chars && (str = str.substring(0, chars - 3) + "...");
-  opt_protectEscapedCharacters && (str = goog.string.htmlEscape(str));
-  return str;
-};
-goog.string.truncateMiddle = function(str, chars, opt_protectEscapedCharacters, opt_trailingChars) {
-  opt_protectEscapedCharacters && (str = goog.string.unescapeEntities(str));
-  if (opt_trailingChars && str.length > chars) {
-    opt_trailingChars > chars && (opt_trailingChars = chars), str = str.substring(0, chars - opt_trailingChars) + "..." + str.substring(str.length - opt_trailingChars);
-  } else {
-    if (str.length > chars) {
-      var half = Math.floor(chars / 2);
-      str = str.substring(0, half + chars % 2) + "..." + str.substring(str.length - half);
-    }
-  }
-  opt_protectEscapedCharacters && (str = goog.string.htmlEscape(str));
-  return str;
-};
-goog.string.specialEscapeChars_ = {"\x00":"\\0", "\b":"\\b", "\f":"\\f", "\n":"\\n", "\r":"\\r", "\t":"\\t", "\x0B":"\\x0B", '"':'\\"', "\\":"\\\\", "<":"\\u003C"};
-goog.string.jsEscapeCache_ = {"'":"\\'"};
-goog.string.quote = function(s) {
-  s = String(s);
-  for (var sb = ['"'], i = 0; i < s.length; i++) {
-    var ch = s.charAt(i), cc = ch.charCodeAt(0);
-    sb[i + 1] = goog.string.specialEscapeChars_[ch] || (31 < cc && 127 > cc ? ch : goog.string.escapeChar(ch));
-  }
-  sb.push('"');
-  return sb.join("");
-};
-goog.string.escapeString = function(str) {
-  for (var sb = [], i = 0; i < str.length; i++) {
-    sb[i] = goog.string.escapeChar(str.charAt(i));
-  }
-  return sb.join("");
-};
-goog.string.escapeChar = function(c) {
-  if (c in goog.string.jsEscapeCache_) {
-    return goog.string.jsEscapeCache_[c];
-  }
-  if (c in goog.string.specialEscapeChars_) {
-    return goog.string.jsEscapeCache_[c] = goog.string.specialEscapeChars_[c];
-  }
-  var rv = c, cc = c.charCodeAt(0);
-  if (31 < cc && 127 > cc) {
-    rv = c;
-  } else {
-    if (256 > cc) {
-      if (rv = "\\x", 16 > cc || 256 < cc) {
-        rv += "0";
-      }
-    } else {
-      rv = "\\u", 4096 > cc && (rv += "0");
-    }
-    rv += cc.toString(16).toUpperCase();
-  }
-  return goog.string.jsEscapeCache_[c] = rv;
-};
-goog.string.contains = goog.string.internal.contains;
-goog.string.caseInsensitiveContains = goog.string.internal.caseInsensitiveContains;
-goog.string.countOf = function(s, ss) {
-  return s && ss ? s.split(ss).length - 1 : 0;
-};
-goog.string.removeAt = function(s, index, stringLength) {
-  var resultStr = s;
-  0 <= index && index < s.length && 0 < stringLength && (resultStr = s.substr(0, index) + s.substr(index + stringLength, s.length - index - stringLength));
-  return resultStr;
-};
-goog.string.remove = function(str, substr) {
-  return str.replace(substr, "");
-};
-goog.string.removeAll = function(s, ss) {
-  var re = new RegExp(goog.string.regExpEscape(ss), "g");
-  return s.replace(re, "");
-};
-goog.string.replaceAll = function(s, ss, replacement) {
-  var re = new RegExp(goog.string.regExpEscape(ss), "g");
-  return s.replace(re, replacement.replace(/\$/g, "$$$$"));
-};
-goog.string.regExpEscape = function(s) {
-  return String(s).replace(/([-()\[\]{}+?*.$\^|,:#<!\\])/g, "\\$1").replace(/\x08/g, "\\x08");
-};
-goog.string.repeat = String.prototype.repeat ? function(string, length) {
-  return string.repeat(length);
-} : function(string, length) {
-  return Array(length + 1).join(string);
-};
-goog.string.padNumber = function(num, length, opt_precision) {
-  var s = void 0 !== opt_precision ? num.toFixed(opt_precision) : String(num), index = s.indexOf(".");
-  -1 == index && (index = s.length);
-  return goog.string.repeat("0", Math.max(0, length - index)) + s;
-};
-goog.string.makeSafe = function(obj) {
-  return null == obj ? "" : String(obj);
-};
-goog.string.buildString = function(var_args) {
-  return Array.prototype.join.call(arguments, "");
-};
-goog.string.getRandomString = function() {
-  return Math.floor(2147483648 * Math.random()).toString(36) + Math.abs(Math.floor(2147483648 * Math.random()) ^ goog.now()).toString(36);
-};
-goog.string.compareVersions = goog.string.internal.compareVersions;
-goog.string.hashCode = function(str) {
-  for (var result = 0, i = 0; i < str.length; ++i) {
-    result = 31 * result + str.charCodeAt(i) >>> 0;
-  }
-  return result;
-};
-goog.string.uniqueStringCounter_ = 2147483648 * Math.random() | 0;
-goog.string.createUniqueString = function() {
-  return "goog_" + goog.string.uniqueStringCounter_++;
-};
-goog.string.toNumber = function(str) {
-  var num = Number(str);
-  return 0 == num && goog.string.isEmptyOrWhitespace(str) ? NaN : num;
-};
-goog.string.isLowerCamelCase = function(str) {
-  return /^[a-z]+([A-Z][a-z]*)*$/.test(str);
-};
-goog.string.isUpperCamelCase = function(str) {
-  return /^([A-Z][a-z]*)+$/.test(str);
-};
-goog.string.toCamelCase = function(str) {
-  return String(str).replace(/\-([a-z])/g, function(all, match) {
-    return match.toUpperCase();
-  });
-};
-goog.string.toSelectorCase = function(str) {
-  return String(str).replace(/([A-Z])/g, "-$1").toLowerCase();
-};
-goog.string.toTitleCase = function(str, opt_delimiters) {
-  var delimiters = "string" === typeof opt_delimiters ? goog.string.regExpEscape(opt_delimiters) : "\\s";
-  return str.replace(new RegExp("(^" + (delimiters ? "|[" + delimiters + "]+" : "") + ")([a-z])", "g"), function(all, p1, p2) {
-    return p1 + p2.toUpperCase();
-  });
-};
-goog.string.capitalize = function(str) {
-  return String(str.charAt(0)).toUpperCase() + String(str.substr(1)).toLowerCase();
-};
-goog.string.parseInt = function(value) {
-  isFinite(value) && (value = String(value));
-  return "string" === typeof value ? /^\s*-?0x/i.test(value) ? parseInt(value, 16) : parseInt(value, 10) : NaN;
-};
-goog.string.splitLimit = function(str, separator, limit) {
-  for (var parts = str.split(separator), returnVal = []; 0 < limit && parts.length;) {
-    returnVal.push(parts.shift()), limit--;
-  }
-  parts.length && returnVal.push(parts.join(separator));
-  return returnVal;
-};
-goog.string.lastComponent = function(str, separators) {
-  if (separators) {
-    "string" == typeof separators && (separators = [separators]);
-  } else {
-    return str;
-  }
-  for (var lastSeparatorIndex = -1, i = 0; i < separators.length; i++) {
-    if ("" != separators[i]) {
-      var currentSeparatorIndex = str.lastIndexOf(separators[i]);
-      currentSeparatorIndex > lastSeparatorIndex && (lastSeparatorIndex = currentSeparatorIndex);
-    }
-  }
-  return -1 == lastSeparatorIndex ? str : str.slice(lastSeparatorIndex + 1);
-};
-goog.string.editDistance = function(a, b) {
-  var v0 = [], v1 = [];
-  if (a == b) {
-    return 0;
-  }
-  if (!a.length || !b.length) {
-    return Math.max(a.length, b.length);
-  }
-  for (var i = 0; i < b.length + 1; i++) {
-    v0[i] = i;
-  }
-  for (var i$25 = 0; i$25 < a.length; i$25++) {
-    v1[0] = i$25 + 1;
-    for (var j = 0; j < b.length; j++) {
-      v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + Number(a[i$25] != b[j]));
-    }
-    for (var j$26 = 0; j$26 < v0.length; j$26++) {
-      v0[j$26] = v1[j$26];
-    }
-  }
-  return v1[b.length];
-};
-goog.labs.userAgent.engine = {};
-goog.labs.userAgent.engine.isPresto = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Presto");
-};
-goog.labs.userAgent.engine.isTrident = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Trident") || goog.labs.userAgent.util.matchUserAgent("MSIE");
-};
-goog.labs.userAgent.engine.isEdge = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Edge");
-};
-goog.labs.userAgent.engine.isWebKit = function() {
-  return goog.labs.userAgent.util.matchUserAgentIgnoreCase("WebKit") && !goog.labs.userAgent.engine.isEdge();
-};
-goog.labs.userAgent.engine.isGecko = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Gecko") && !goog.labs.userAgent.engine.isWebKit() && !goog.labs.userAgent.engine.isTrident() && !goog.labs.userAgent.engine.isEdge();
-};
-goog.labs.userAgent.engine.getVersion = function() {
-  var userAgentString = goog.labs.userAgent.util.getUserAgent();
-  if (userAgentString) {
-    var tuples = goog.labs.userAgent.util.extractVersionTuples(userAgentString), engineTuple = goog.labs.userAgent.engine.getEngineTuple_(tuples);
-    if (engineTuple) {
-      return "Gecko" == engineTuple[0] ? goog.labs.userAgent.engine.getVersionForKey_(tuples, "Firefox") : engineTuple[1];
-    }
-    var browserTuple = tuples[0], info;
-    if (browserTuple && (info = browserTuple[2])) {
-      var match = /Trident\/([^\s;]+)/.exec(info);
-      if (match) {
-        return match[1];
-      }
-    }
-  }
-  return "";
-};
-goog.labs.userAgent.engine.getEngineTuple_ = function(tuples) {
-  if (!goog.labs.userAgent.engine.isEdge()) {
-    return tuples[1];
-  }
-  for (var i = 0; i < tuples.length; i++) {
-    var tuple = tuples[i];
-    if ("Edge" == tuple[0]) {
-      return tuple;
-    }
-  }
-};
-goog.labs.userAgent.engine.isVersionOrHigher = function(version) {
-  return 0 <= goog.string.compareVersions(goog.labs.userAgent.engine.getVersion(), version);
-};
-goog.labs.userAgent.engine.getVersionForKey_ = function(tuples, key) {
-  var pair = module$contents$goog$array_find(tuples, function(pair) {
-    return key == pair[0];
-  });
-  return pair && pair[1] || "";
-};
-goog.labs.userAgent.platform = {};
-goog.labs.userAgent.platform.isAndroid = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Android");
-};
-goog.labs.userAgent.platform.isIpod = function() {
-  return goog.labs.userAgent.util.matchUserAgent("iPod");
-};
-goog.labs.userAgent.platform.isIphone = function() {
-  return goog.labs.userAgent.util.matchUserAgent("iPhone") && !goog.labs.userAgent.util.matchUserAgent("iPod") && !goog.labs.userAgent.util.matchUserAgent("iPad");
-};
-goog.labs.userAgent.platform.isIpad = function() {
-  return goog.labs.userAgent.util.matchUserAgent("iPad");
-};
-goog.labs.userAgent.platform.isIos = function() {
-  return goog.labs.userAgent.platform.isIphone() || goog.labs.userAgent.platform.isIpad() || goog.labs.userAgent.platform.isIpod();
-};
-goog.labs.userAgent.platform.isMacintosh = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Macintosh");
-};
-goog.labs.userAgent.platform.isLinux = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Linux");
-};
-goog.labs.userAgent.platform.isWindows = function() {
-  return goog.labs.userAgent.util.matchUserAgent("Windows");
-};
-goog.labs.userAgent.platform.isChromeOS = function() {
-  return goog.labs.userAgent.util.matchUserAgent("CrOS");
-};
-goog.labs.userAgent.platform.isChromecast = function() {
-  return goog.labs.userAgent.util.matchUserAgent("CrKey");
-};
-goog.labs.userAgent.platform.isKaiOS = function() {
-  return goog.labs.userAgent.util.matchUserAgentIgnoreCase("KaiOS");
-};
-goog.labs.userAgent.platform.getVersion = function() {
-  var userAgentString = goog.labs.userAgent.util.getUserAgent(), version = "";
-  if (goog.labs.userAgent.platform.isWindows()) {
-    var re = /Windows (?:NT|Phone) ([0-9.]+)/;
-    var match = re.exec(userAgentString);
-    version = match ? match[1] : "0.0";
-  } else {
-    goog.labs.userAgent.platform.isIos() ? (re = /(?:iPhone|iPod|iPad|CPU)\s+OS\s+(\S+)/, version = (match = re.exec(userAgentString)) && match[1].replace(/_/g, ".")) : goog.labs.userAgent.platform.isMacintosh() ? (re = /Mac OS X ([0-9_.]+)/, version = (match = re.exec(userAgentString)) ? match[1].replace(/_/g, ".") : "10") : goog.labs.userAgent.platform.isKaiOS() ? (re = /(?:KaiOS)\/(\S+)/i, version = (match = re.exec(userAgentString)) && match[1]) : goog.labs.userAgent.platform.isAndroid() ? (re = 
-    /Android\s+([^\);]+)(\)|;)/, version = (match = re.exec(userAgentString)) && match[1]) : goog.labs.userAgent.platform.isChromeOS() && (re = /(?:CrOS\s+(?:i686|x86_64)\s+([0-9.]+))/, version = (match = re.exec(userAgentString)) && match[1]);
-  }
-  return version || "";
-};
-goog.labs.userAgent.platform.isVersionOrHigher = function(version) {
-  return 0 <= goog.string.compareVersions(goog.labs.userAgent.platform.getVersion(), version);
-};
-goog.reflect = {};
-goog.reflect.object = function(type, object) {
-  return object;
-};
-goog.reflect.objectProperty = function(prop, object) {
-  return prop;
-};
-goog.reflect.sinkValue = function(x) {
-  goog.reflect.sinkValue[" "](x);
-  return x;
-};
-goog.reflect.sinkValue[" "] = goog.nullFunction;
-goog.reflect.canAccessProperty = function(obj, prop) {
-  try {
-    return goog.reflect.sinkValue(obj[prop]), !0;
-  } catch (e) {
-  }
-  return !1;
-};
-goog.reflect.cache = function(cacheObj, key, valueFn, opt_keyFn) {
-  var storedKey = opt_keyFn ? opt_keyFn(key) : key;
-  return Object.prototype.hasOwnProperty.call(cacheObj, storedKey) ? cacheObj[storedKey] : cacheObj[storedKey] = valueFn(key);
-};
-goog.userAgent = {};
-goog.userAgent.ASSUME_IE = !1;
-goog.userAgent.ASSUME_EDGE = !1;
-goog.userAgent.ASSUME_GECKO = !1;
-goog.userAgent.ASSUME_WEBKIT = !1;
-goog.userAgent.ASSUME_MOBILE_WEBKIT = !1;
-goog.userAgent.ASSUME_OPERA = !1;
-goog.userAgent.ASSUME_ANY_VERSION = !1;
-goog.userAgent.BROWSER_KNOWN_ = goog.userAgent.ASSUME_IE || goog.userAgent.ASSUME_EDGE || goog.userAgent.ASSUME_GECKO || goog.userAgent.ASSUME_MOBILE_WEBKIT || goog.userAgent.ASSUME_WEBKIT || goog.userAgent.ASSUME_OPERA;
-goog.userAgent.getUserAgentString = function() {
-  return goog.labs.userAgent.util.getUserAgent();
-};
-goog.userAgent.getNavigatorTyped = function() {
-  return goog.global.navigator || null;
-};
-goog.userAgent.getNavigator = function() {
-  return goog.userAgent.getNavigatorTyped();
-};
-goog.userAgent.OPERA = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_OPERA : goog.labs.userAgent.browser.isOpera();
-goog.userAgent.IE = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_IE : goog.labs.userAgent.browser.isIE();
-goog.userAgent.EDGE = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_EDGE : goog.labs.userAgent.engine.isEdge();
-goog.userAgent.EDGE_OR_IE = goog.userAgent.EDGE || goog.userAgent.IE;
-goog.userAgent.GECKO = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_GECKO : goog.labs.userAgent.engine.isGecko();
-goog.userAgent.WEBKIT = goog.userAgent.BROWSER_KNOWN_ ? goog.userAgent.ASSUME_WEBKIT || goog.userAgent.ASSUME_MOBILE_WEBKIT : goog.labs.userAgent.engine.isWebKit();
-goog.userAgent.isMobile_ = function() {
-  return goog.userAgent.WEBKIT && goog.labs.userAgent.util.matchUserAgent("Mobile");
-};
-goog.userAgent.MOBILE = goog.userAgent.ASSUME_MOBILE_WEBKIT || goog.userAgent.isMobile_();
-goog.userAgent.SAFARI = goog.userAgent.WEBKIT;
-goog.userAgent.determinePlatform_ = function() {
-  var navigator = goog.userAgent.getNavigatorTyped();
-  return navigator && navigator.platform || "";
-};
-goog.userAgent.PLATFORM = goog.userAgent.determinePlatform_();
-goog.userAgent.ASSUME_MAC = !1;
-goog.userAgent.ASSUME_WINDOWS = !1;
-goog.userAgent.ASSUME_LINUX = !1;
-goog.userAgent.ASSUME_X11 = !1;
-goog.userAgent.ASSUME_ANDROID = !1;
-goog.userAgent.ASSUME_IPHONE = !1;
-goog.userAgent.ASSUME_IPAD = !1;
-goog.userAgent.ASSUME_IPOD = !1;
-goog.userAgent.ASSUME_KAIOS = !1;
-goog.userAgent.PLATFORM_KNOWN_ = goog.userAgent.ASSUME_MAC || goog.userAgent.ASSUME_WINDOWS || goog.userAgent.ASSUME_LINUX || goog.userAgent.ASSUME_X11 || goog.userAgent.ASSUME_ANDROID || goog.userAgent.ASSUME_IPHONE || goog.userAgent.ASSUME_IPAD || goog.userAgent.ASSUME_IPOD;
-goog.userAgent.MAC = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_MAC : goog.labs.userAgent.platform.isMacintosh();
-goog.userAgent.WINDOWS = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_WINDOWS : goog.labs.userAgent.platform.isWindows();
-goog.userAgent.isLegacyLinux_ = function() {
-  return goog.labs.userAgent.platform.isLinux() || goog.labs.userAgent.platform.isChromeOS();
-};
-goog.userAgent.LINUX = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_LINUX : goog.userAgent.isLegacyLinux_();
-goog.userAgent.isX11_ = function() {
-  var navigator = goog.userAgent.getNavigatorTyped();
-  return !!navigator && goog.string.contains(navigator.appVersion || "", "X11");
-};
-goog.userAgent.X11 = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_X11 : goog.userAgent.isX11_();
-goog.userAgent.ANDROID = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_ANDROID : goog.labs.userAgent.platform.isAndroid();
-goog.userAgent.IPHONE = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPHONE : goog.labs.userAgent.platform.isIphone();
-goog.userAgent.IPAD = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPAD : goog.labs.userAgent.platform.isIpad();
-goog.userAgent.IPOD = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPOD : goog.labs.userAgent.platform.isIpod();
-goog.userAgent.IOS = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_IPHONE || goog.userAgent.ASSUME_IPAD || goog.userAgent.ASSUME_IPOD : goog.labs.userAgent.platform.isIos();
-goog.userAgent.KAIOS = goog.userAgent.PLATFORM_KNOWN_ ? goog.userAgent.ASSUME_KAIOS : goog.labs.userAgent.platform.isKaiOS();
-goog.userAgent.determineVersion_ = function() {
-  var version = "", arr = goog.userAgent.getVersionRegexResult_();
-  arr && (version = arr ? arr[1] : "");
-  if (goog.userAgent.IE) {
-    var docMode = goog.userAgent.getDocumentMode_();
-    if (null != docMode && docMode > parseFloat(version)) {
-      return String(docMode);
-    }
-  }
-  return version;
-};
-goog.userAgent.getVersionRegexResult_ = function() {
-  var userAgent = goog.userAgent.getUserAgentString();
-  if (goog.userAgent.GECKO) {
-    return /rv:([^\);]+)(\)|;)/.exec(userAgent);
-  }
-  if (goog.userAgent.EDGE) {
-    return /Edge\/([\d\.]+)/.exec(userAgent);
-  }
-  if (goog.userAgent.IE) {
-    return /\b(?:MSIE|rv)[: ]([^\);]+)(\)|;)/.exec(userAgent);
-  }
-  if (goog.userAgent.WEBKIT) {
-    return /WebKit\/(\S+)/.exec(userAgent);
-  }
-  if (goog.userAgent.OPERA) {
-    return /(?:Version)[ \/]?(\S+)/.exec(userAgent);
-  }
-};
-goog.userAgent.getDocumentMode_ = function() {
-  var doc = goog.global.document;
-  return doc ? doc.documentMode : void 0;
-};
-goog.userAgent.VERSION = goog.userAgent.determineVersion_();
-goog.userAgent.compare = function(v1, v2) {
-  return goog.string.compareVersions(v1, v2);
-};
-goog.userAgent.isVersionOrHigherCache_ = {};
-goog.userAgent.isVersionOrHigher = function(version) {
-  return goog.userAgent.ASSUME_ANY_VERSION || goog.reflect.cache(goog.userAgent.isVersionOrHigherCache_, version, function() {
-    return 0 <= goog.string.compareVersions(goog.userAgent.VERSION, version);
-  });
-};
-goog.userAgent.isDocumentModeOrHigher = function(documentMode) {
-  return Number(goog.userAgent.DOCUMENT_MODE) >= documentMode;
-};
-goog.userAgent.isDocumentMode = goog.userAgent.isDocumentModeOrHigher;
-goog.userAgent.DOCUMENT_MODE = function() {
-  if (goog.global.document && goog.userAgent.IE) {
-    var documentMode = goog.userAgent.getDocumentMode_();
-    return documentMode ? documentMode : parseInt(goog.userAgent.VERSION, 10) || void 0;
-  }
-}();
-goog.debug.LOGGING_ENABLED = goog.DEBUG;
-goog.debug.FORCE_SLOPPY_STACKS = !1;
-goog.debug.CHECK_FOR_THROWN_EVENT = !1;
-goog.debug.catchErrors = function(logFunc, opt_cancel, opt_target) {
-  var target = opt_target || goog.global, oldErrorHandler = target.onerror, retVal = !!opt_cancel;
-  goog.userAgent.WEBKIT && !goog.userAgent.isVersionOrHigher("535.3") && (retVal = !retVal);
-  target.onerror = function(message, url, line, opt_col, opt_error) {
-    oldErrorHandler && oldErrorHandler(message, url, line, opt_col, opt_error);
-    logFunc({message:message, fileName:url, line:line, lineNumber:line, col:opt_col, error:opt_error});
-    return retVal;
-  };
-};
-goog.debug.expose = function(obj, opt_showFn) {
-  if ("undefined" == typeof obj) {
-    return "undefined";
-  }
-  if (null == obj) {
-    return "NULL";
-  }
-  var str = [], x;
-  for (x in obj) {
-    if (opt_showFn || "function" !== typeof obj[x]) {
-      var s = x + " = ";
-      try {
-        s += obj[x];
-      } catch (e) {
-        s += "*** " + e + " ***";
-      }
-      str.push(s);
-    }
-  }
-  return str.join("\n");
-};
-goog.debug.deepExpose = function(obj$jscomp$0, opt_showFn) {
-  var str$jscomp$0 = [], uidsToCleanup = [], ancestorUids = {}, helper = function(obj, space) {
-    var nestspace = space + "  ", indentMultiline = function(str) {
-      return str.replace(/\n/g, "\n" + space);
-    };
-    try {
-      if (void 0 === obj) {
-        str$jscomp$0.push("undefined");
-      } else {
-        if (null === obj) {
-          str$jscomp$0.push("NULL");
-        } else {
-          if ("string" === typeof obj) {
-            str$jscomp$0.push('"' + indentMultiline(obj) + '"');
-          } else {
-            if ("function" === typeof obj) {
-              str$jscomp$0.push(indentMultiline(String(obj)));
-            } else {
-              if (goog.isObject(obj)) {
-                goog.hasUid(obj) || uidsToCleanup.push(obj);
-                var uid = goog.getUid(obj);
-                if (ancestorUids[uid]) {
-                  str$jscomp$0.push("*** reference loop detected (id=" + uid + ") ***");
-                } else {
-                  ancestorUids[uid] = !0;
-                  str$jscomp$0.push("{");
-                  for (var x in obj) {
-                    if (opt_showFn || "function" !== typeof obj[x]) {
-                      str$jscomp$0.push("\n"), str$jscomp$0.push(nestspace), str$jscomp$0.push(x + " = "), helper(obj[x], nestspace);
-                    }
-                  }
-                  str$jscomp$0.push("\n" + space + "}");
-                  delete ancestorUids[uid];
-                }
-              } else {
-                str$jscomp$0.push(obj);
-              }
-            }
-          }
-        }
-      }
-    } catch (e) {
-      str$jscomp$0.push("*** " + e + " ***");
-    }
-  };
-  helper(obj$jscomp$0, "");
-  for (var i = 0; i < uidsToCleanup.length; i++) {
-    goog.removeUid(uidsToCleanup[i]);
-  }
-  return str$jscomp$0.join("");
-};
-goog.debug.exposeArray = function(arr) {
-  for (var str = [], i = 0; i < arr.length; i++) {
-    Array.isArray(arr[i]) ? str.push(goog.debug.exposeArray(arr[i])) : str.push(arr[i]);
-  }
-  return "[ " + str.join(", ") + " ]";
-};
-goog.debug.normalizeErrorObject = function(err) {
-  var href = goog.getObjectByName("window.location.href");
-  null == err && (err = 'Unknown Error of type "null/undefined"');
-  if ("string" === typeof err) {
-    return {message:err, name:"Unknown error", lineNumber:"Not available", fileName:href, stack:"Not available"};
-  }
-  var threwError = !1;
-  try {
-    var lineNumber = err.lineNumber || err.line || "Not available";
-  } catch (e) {
-    lineNumber = "Not available", threwError = !0;
-  }
-  try {
-    var fileName = err.fileName || err.filename || err.sourceURL || goog.global.$googDebugFname || href;
-  } catch (e$27) {
-    fileName = "Not available", threwError = !0;
-  }
-  var stack = goog.debug.serializeErrorStack_(err);
-  if (!(!threwError && err.lineNumber && err.fileName && err.stack && err.message && err.name)) {
-    var message = err.message;
-    if (null == message) {
-      if (err.constructor && err.constructor instanceof Function) {
-        var ctorName = err.constructor.name ? err.constructor.name : goog.debug.getFunctionName(err.constructor);
-        message = 'Unknown Error of type "' + ctorName + '"';
-        if (goog.debug.CHECK_FOR_THROWN_EVENT && "Event" == ctorName) {
-          try {
-            message = message + ' with Event.type "' + (err.type || "") + '"';
-          } catch (e$28) {
-          }
-        }
-      } else {
-        message = "Unknown Error of unknown type";
-      }
-      "function" === typeof err.toString && Object.prototype.toString !== err.toString && (message += ": " + err.toString());
-    }
-    return {message:message, name:err.name || "UnknownError", lineNumber:lineNumber, fileName:fileName, stack:stack || "Not available"};
-  }
-  err.stack = stack;
-  return {message:err.message, name:err.name, lineNumber:err.lineNumber, fileName:err.fileName, stack:err.stack};
-};
-goog.debug.serializeErrorStack_ = function(e, seen) {
-  seen || (seen = {});
-  seen[goog.debug.serializeErrorAsKey_(e)] = !0;
-  var stack = e.stack || "", cause = e.cause;
-  cause && !seen[goog.debug.serializeErrorAsKey_(cause)] && (stack += "\nCaused by: ", cause.stack && 0 == cause.stack.indexOf(cause.toString()) || (stack += "string" === typeof cause ? cause : cause.message + "\n"), stack += goog.debug.serializeErrorStack_(cause, seen));
-  return stack;
-};
-goog.debug.serializeErrorAsKey_ = function(e) {
-  var keyPrefix = "";
-  "function" === typeof e.toString && (keyPrefix = "" + e);
-  return keyPrefix + e.stack;
-};
-goog.debug.enhanceError = function(err, opt_message) {
-  if (err instanceof Error) {
-    var error = err;
-  } else {
-    error = Error(err), Error.captureStackTrace && Error.captureStackTrace(error, goog.debug.enhanceError);
-  }
-  error.stack || (error.stack = goog.debug.getStacktrace(goog.debug.enhanceError));
-  if (opt_message) {
-    for (var x = 0; error["message" + x];) {
-      ++x;
-    }
-    error["message" + x] = String(opt_message);
-  }
-  return error;
-};
-goog.debug.enhanceErrorWithContext = function(err, opt_context) {
-  var error = goog.debug.enhanceError(err);
-  if (opt_context) {
-    for (var key in opt_context) {
-      goog.debug.errorcontext.addErrorContext(error, key, opt_context[key]);
-    }
-  }
-  return error;
-};
-goog.debug.getStacktraceSimple = function(opt_depth) {
-  if (!goog.debug.FORCE_SLOPPY_STACKS) {
-    var stack = goog.debug.getNativeStackTrace_(goog.debug.getStacktraceSimple);
-    if (stack) {
-      return stack;
-    }
-  }
-  for (var sb = [], fn = arguments.callee.caller, depth = 0; fn && (!opt_depth || depth < opt_depth);) {
-    sb.push(goog.debug.getFunctionName(fn));
-    sb.push("()\n");
-    try {
-      fn = fn.caller;
-    } catch (e) {
-      sb.push("[exception trying to get caller]\n");
-      break;
-    }
-    depth++;
-    if (depth >= goog.debug.MAX_STACK_DEPTH) {
-      sb.push("[...long stack...]");
-      break;
-    }
-  }
-  opt_depth && depth >= opt_depth ? sb.push("[...reached max depth limit...]") : sb.push("[end]");
-  return sb.join("");
-};
-goog.debug.MAX_STACK_DEPTH = 50;
-goog.debug.getNativeStackTrace_ = function(fn) {
-  var tempErr = Error();
-  if (Error.captureStackTrace) {
-    return Error.captureStackTrace(tempErr, fn), String(tempErr.stack);
-  }
-  try {
-    throw tempErr;
-  } catch (e) {
-    tempErr = e;
-  }
-  var stack = tempErr.stack;
-  return stack ? String(stack) : null;
-};
-goog.debug.getStacktrace = function(fn) {
-  var stack;
-  goog.debug.FORCE_SLOPPY_STACKS || (stack = goog.debug.getNativeStackTrace_(fn || goog.debug.getStacktrace));
-  stack || (stack = goog.debug.getStacktraceHelper_(fn || arguments.callee.caller, []));
-  return stack;
-};
-goog.debug.getStacktraceHelper_ = function(fn, visited) {
-  var sb = [];
-  if (module$contents$goog$array_contains(visited, fn)) {
-    sb.push("[...circular reference...]");
-  } else {
-    if (fn && visited.length < goog.debug.MAX_STACK_DEPTH) {
-      sb.push(goog.debug.getFunctionName(fn) + "(");
-      for (var args = fn.arguments, i = 0; args && i < args.length; i++) {
-        0 < i && sb.push(", ");
-        var arg = args[i];
-        switch(typeof arg) {
-          case "object":
-            var argDesc = arg ? "object" : "null";
-            break;
-          case "string":
-            argDesc = arg;
-            break;
-          case "number":
-            argDesc = String(arg);
-            break;
-          case "boolean":
-            argDesc = arg ? "true" : "false";
-            break;
-          case "function":
-            argDesc = (argDesc = goog.debug.getFunctionName(arg)) ? argDesc : "[fn]";
-            break;
-          default:
-            argDesc = typeof arg;
-        }
-        40 < argDesc.length && (argDesc = argDesc.substr(0, 40) + "...");
-        sb.push(argDesc);
-      }
-      visited.push(fn);
-      sb.push(")\n");
-      try {
-        sb.push(goog.debug.getStacktraceHelper_(fn.caller, visited));
-      } catch (e) {
-        sb.push("[exception trying to get caller]\n");
-      }
-    } else {
-      fn ? sb.push("[...long stack...]") : sb.push("[end]");
-    }
-  }
-  return sb.join("");
-};
-goog.debug.getFunctionName = function(fn) {
-  if (goog.debug.fnNameCache_[fn]) {
-    return goog.debug.fnNameCache_[fn];
-  }
-  var functionSource = String(fn);
-  if (!goog.debug.fnNameCache_[functionSource]) {
-    var matches = /function\s+([^\(]+)/m.exec(functionSource);
-    goog.debug.fnNameCache_[functionSource] = matches ? matches[1] : "[Anonymous]";
-  }
-  return goog.debug.fnNameCache_[functionSource];
-};
-goog.debug.makeWhitespaceVisible = function(string) {
-  return string.replace(/ /g, "[_]").replace(/\f/g, "[f]").replace(/\n/g, "[n]\n").replace(/\r/g, "[r]").replace(/\t/g, "[t]");
-};
-goog.debug.runtimeType = function(value) {
-  return value instanceof Function ? value.displayName || value.name || "unknown type name" : value instanceof Object ? value.constructor.displayName || value.constructor.name || Object.prototype.toString.call(value) : null === value ? "null" : typeof value;
-};
-goog.debug.fnNameCache_ = {};
-goog.debug.freezeInternal_ = goog.DEBUG && Object.freeze || function(arg) {
-  return arg;
-};
-goog.debug.freeze = function(arg) {
-  return function() {
-    return goog.debug.freezeInternal_(arg);
-  }();
-};
-goog.events.BrowserFeature = {HAS_W3C_BUTTON:!0, HAS_W3C_EVENT_SUPPORT:!0, SET_KEY_CODE_TO_PREVENT_DEFAULT:!1, HAS_NAVIGATOR_ONLINE_PROPERTY:!0, HAS_HTML5_NETWORK_EVENT_SUPPORT:!0, HTML5_NETWORK_EVENTS_FIRE_ON_BODY:!1, TOUCH_ENABLED:"ontouchstart" in goog.global || !!(goog.global.document && document.documentElement && "ontouchstart" in document.documentElement) || !(!goog.global.navigator || !goog.global.navigator.maxTouchPoints && !goog.global.navigator.msMaxTouchPoints), POINTER_EVENTS:"PointerEvent" in 
-goog.global, MSPOINTER_EVENTS:"MSPointerEvent" in goog.global && !(!goog.global.navigator || !goog.global.navigator.msPointerEnabled), PASSIVE_EVENTS:function(fn) {
-  return {valueOf:fn}.valueOf();
-}(function() {
-  if (!goog.global.addEventListener || !Object.defineProperty) {
-    return !1;
-  }
-  var passive = !1, options = Object.defineProperty({}, "passive", {get:function() {
-    passive = !0;
-  }});
-  try {
-    goog.global.addEventListener("test", goog.nullFunction, options), goog.global.removeEventListener("test", goog.nullFunction, options);
-  } catch (e) {
-  }
-  return passive;
-})};
-goog.events.getVendorPrefixedName_ = function(eventName) {
-  return goog.userAgent.WEBKIT ? "webkit" + eventName : goog.userAgent.OPERA ? "o" + eventName.toLowerCase() : eventName.toLowerCase();
-};
-goog.events.EventType = {CLICK:"click", RIGHTCLICK:"rightclick", DBLCLICK:"dblclick", AUXCLICK:"auxclick", MOUSEDOWN:"mousedown", MOUSEUP:"mouseup", MOUSEOVER:"mouseover", MOUSEOUT:"mouseout", MOUSEMOVE:"mousemove", MOUSEENTER:"mouseenter", MOUSELEAVE:"mouseleave", MOUSECANCEL:"mousecancel", SELECTIONCHANGE:"selectionchange", SELECTSTART:"selectstart", WHEEL:"wheel", KEYPRESS:"keypress", KEYDOWN:"keydown", KEYUP:"keyup", BLUR:"blur", FOCUS:"focus", DEACTIVATE:"deactivate", FOCUSIN:"focusin", FOCUSOUT:"focusout", 
-CHANGE:"change", RESET:"reset", SELECT:"select", SUBMIT:"submit", INPUT:"input", PROPERTYCHANGE:"propertychange", DRAGSTART:"dragstart", DRAG:"drag", DRAGENTER:"dragenter", DRAGOVER:"dragover", DRAGLEAVE:"dragleave", DROP:"drop", DRAGEND:"dragend", TOUCHSTART:"touchstart", TOUCHMOVE:"touchmove", TOUCHEND:"touchend", TOUCHCANCEL:"touchcancel", BEFOREUNLOAD:"beforeunload", CONSOLEMESSAGE:"consolemessage", CONTEXTMENU:"contextmenu", DEVICECHANGE:"devicechange", DEVICEMOTION:"devicemotion", DEVICEORIENTATION:"deviceorientation", 
-DOMCONTENTLOADED:"DOMContentLoaded", ERROR:"error", HELP:"help", LOAD:"load", LOSECAPTURE:"losecapture", ORIENTATIONCHANGE:"orientationchange", READYSTATECHANGE:"readystatechange", RESIZE:"resize", SCROLL:"scroll", UNLOAD:"unload", CANPLAY:"canplay", CANPLAYTHROUGH:"canplaythrough", DURATIONCHANGE:"durationchange", EMPTIED:"emptied", ENDED:"ended", LOADEDDATA:"loadeddata", LOADEDMETADATA:"loadedmetadata", PAUSE:"pause", PLAY:"play", PLAYING:"playing", PROGRESS:"progress", RATECHANGE:"ratechange", 
-SEEKED:"seeked", SEEKING:"seeking", STALLED:"stalled", SUSPEND:"suspend", TIMEUPDATE:"timeupdate", VOLUMECHANGE:"volumechange", WAITING:"waiting", SOURCEOPEN:"sourceopen", SOURCEENDED:"sourceended", SOURCECLOSED:"sourceclosed", ABORT:"abort", UPDATE:"update", UPDATESTART:"updatestart", UPDATEEND:"updateend", HASHCHANGE:"hashchange", PAGEHIDE:"pagehide", PAGESHOW:"pageshow", POPSTATE:"popstate", COPY:"copy", PASTE:"paste", CUT:"cut", BEFORECOPY:"beforecopy", BEFORECUT:"beforecut", BEFOREPASTE:"beforepaste", 
-ONLINE:"online", OFFLINE:"offline", MESSAGE:"message", CONNECT:"connect", INSTALL:"install", ACTIVATE:"activate", FETCH:"fetch", FOREIGNFETCH:"foreignfetch", MESSAGEERROR:"messageerror", STATECHANGE:"statechange", UPDATEFOUND:"updatefound", CONTROLLERCHANGE:"controllerchange", ANIMATIONSTART:goog.events.getVendorPrefixedName_("AnimationStart"), ANIMATIONEND:goog.events.getVendorPrefixedName_("AnimationEnd"), ANIMATIONITERATION:goog.events.getVendorPrefixedName_("AnimationIteration"), TRANSITIONEND:goog.events.getVendorPrefixedName_("TransitionEnd"), 
-POINTERDOWN:"pointerdown", POINTERUP:"pointerup", POINTERCANCEL:"pointercancel", POINTERMOVE:"pointermove", POINTEROVER:"pointerover", POINTEROUT:"pointerout", POINTERENTER:"pointerenter", POINTERLEAVE:"pointerleave", GOTPOINTERCAPTURE:"gotpointercapture", LOSTPOINTERCAPTURE:"lostpointercapture", MSGESTURECHANGE:"MSGestureChange", MSGESTUREEND:"MSGestureEnd", MSGESTUREHOLD:"MSGestureHold", MSGESTURESTART:"MSGestureStart", MSGESTURETAP:"MSGestureTap", MSGOTPOINTERCAPTURE:"MSGotPointerCapture", MSINERTIASTART:"MSInertiaStart", 
-MSLOSTPOINTERCAPTURE:"MSLostPointerCapture", MSPOINTERCANCEL:"MSPointerCancel", MSPOINTERDOWN:"MSPointerDown", MSPOINTERENTER:"MSPointerEnter", MSPOINTERHOVER:"MSPointerHover", MSPOINTERLEAVE:"MSPointerLeave", MSPOINTERMOVE:"MSPointerMove", MSPOINTEROUT:"MSPointerOut", MSPOINTEROVER:"MSPointerOver", MSPOINTERUP:"MSPointerUp", TEXT:"text", TEXTINPUT:goog.userAgent.IE ? "textinput" : "textInput", COMPOSITIONSTART:"compositionstart", COMPOSITIONUPDATE:"compositionupdate", COMPOSITIONEND:"compositionend", 
-BEFOREINPUT:"beforeinput", EXIT:"exit", LOADABORT:"loadabort", LOADCOMMIT:"loadcommit", LOADREDIRECT:"loadredirect", LOADSTART:"loadstart", LOADSTOP:"loadstop", RESPONSIVE:"responsive", SIZECHANGED:"sizechanged", UNRESPONSIVE:"unresponsive", VISIBILITYCHANGE:"visibilitychange", STORAGE:"storage", DOMSUBTREEMODIFIED:"DOMSubtreeModified", DOMNODEINSERTED:"DOMNodeInserted", DOMNODEREMOVED:"DOMNodeRemoved", DOMNODEREMOVEDFROMDOCUMENT:"DOMNodeRemovedFromDocument", DOMNODEINSERTEDINTODOCUMENT:"DOMNodeInsertedIntoDocument", 
-DOMATTRMODIFIED:"DOMAttrModified", DOMCHARACTERDATAMODIFIED:"DOMCharacterDataModified", BEFOREPRINT:"beforeprint", AFTERPRINT:"afterprint", BEFOREINSTALLPROMPT:"beforeinstallprompt", APPINSTALLED:"appinstalled"};
-goog.events.getPointerFallbackEventName_ = function(pointerEventName, msPointerEventName, fallbackEventName) {
-  return goog.events.BrowserFeature.POINTER_EVENTS ? pointerEventName : goog.events.BrowserFeature.MSPOINTER_EVENTS ? msPointerEventName : fallbackEventName;
-};
-goog.events.PointerFallbackEventType = {POINTERDOWN:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERDOWN, goog.events.EventType.MSPOINTERDOWN, goog.events.EventType.MOUSEDOWN), POINTERUP:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERUP, goog.events.EventType.MSPOINTERUP, goog.events.EventType.MOUSEUP), POINTERCANCEL:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERCANCEL, goog.events.EventType.MSPOINTERCANCEL, goog.events.EventType.MOUSECANCEL), 
-POINTERMOVE:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERMOVE, goog.events.EventType.MSPOINTERMOVE, goog.events.EventType.MOUSEMOVE), POINTEROVER:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTEROVER, goog.events.EventType.MSPOINTEROVER, goog.events.EventType.MOUSEOVER), POINTEROUT:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTEROUT, goog.events.EventType.MSPOINTEROUT, goog.events.EventType.MOUSEOUT), POINTERENTER:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERENTER, 
-goog.events.EventType.MSPOINTERENTER, goog.events.EventType.MOUSEENTER), POINTERLEAVE:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERLEAVE, goog.events.EventType.MSPOINTERLEAVE, goog.events.EventType.MOUSELEAVE)};
-goog.events.PointerTouchFallbackEventType = {POINTERDOWN:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERDOWN, goog.events.EventType.MSPOINTERDOWN, goog.events.EventType.TOUCHSTART), POINTERUP:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERUP, goog.events.EventType.MSPOINTERUP, goog.events.EventType.TOUCHEND), POINTERCANCEL:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERCANCEL, goog.events.EventType.MSPOINTERCANCEL, goog.events.EventType.TOUCHCANCEL), 
-POINTERMOVE:goog.events.getPointerFallbackEventName_(goog.events.EventType.POINTERMOVE, goog.events.EventType.MSPOINTERMOVE, goog.events.EventType.TOUCHMOVE)};
-goog.events.PointerAsMouseEventType = {MOUSEDOWN:goog.events.PointerFallbackEventType.POINTERDOWN, MOUSEUP:goog.events.PointerFallbackEventType.POINTERUP, MOUSECANCEL:goog.events.PointerFallbackEventType.POINTERCANCEL, MOUSEMOVE:goog.events.PointerFallbackEventType.POINTERMOVE, MOUSEOVER:goog.events.PointerFallbackEventType.POINTEROVER, MOUSEOUT:goog.events.PointerFallbackEventType.POINTEROUT, MOUSEENTER:goog.events.PointerFallbackEventType.POINTERENTER, MOUSELEAVE:goog.events.PointerFallbackEventType.POINTERLEAVE};
-goog.events.MouseAsMouseEventType = {MOUSEDOWN:goog.events.EventType.MOUSEDOWN, MOUSEUP:goog.events.EventType.MOUSEUP, MOUSECANCEL:goog.events.EventType.MOUSECANCEL, MOUSEMOVE:goog.events.EventType.MOUSEMOVE, MOUSEOVER:goog.events.EventType.MOUSEOVER, MOUSEOUT:goog.events.EventType.MOUSEOUT, MOUSEENTER:goog.events.EventType.MOUSEENTER, MOUSELEAVE:goog.events.EventType.MOUSELEAVE};
-goog.events.PointerAsTouchEventType = {TOUCHCANCEL:goog.events.PointerTouchFallbackEventType.POINTERCANCEL, TOUCHEND:goog.events.PointerTouchFallbackEventType.POINTERUP, TOUCHMOVE:goog.events.PointerTouchFallbackEventType.POINTERMOVE, TOUCHSTART:goog.events.PointerTouchFallbackEventType.POINTERDOWN};
-goog.events.USE_LAYER_XY_AS_OFFSET_XY = !1;
-goog.events.BrowserEvent = function(opt_e, opt_currentTarget) {
-  goog.events.Event.call(this, opt_e ? opt_e.type : "");
-  this.relatedTarget = this.currentTarget = this.target = null;
-  this.button = this.screenY = this.screenX = this.clientY = this.clientX = this.offsetY = this.offsetX = 0;
-  this.key = "";
-  this.charCode = this.keyCode = 0;
-  this.metaKey = this.shiftKey = this.altKey = this.ctrlKey = !1;
-  this.state = null;
-  this.platformModifierKey = !1;
-  this.pointerId = 0;
-  this.pointerType = "";
-  this.event_ = null;
-  opt_e && this.init(opt_e, opt_currentTarget);
-};
-goog.inherits(goog.events.BrowserEvent, goog.events.Event);
-goog.events.BrowserEvent.MouseButton = {LEFT:0, MIDDLE:1, RIGHT:2};
-goog.events.BrowserEvent.PointerType = {MOUSE:"mouse", PEN:"pen", TOUCH:"touch"};
-goog.events.BrowserEvent.IEButtonMap = goog.debug.freeze([1, 4, 2]);
-goog.events.BrowserEvent.IE_BUTTON_MAP = goog.events.BrowserEvent.IEButtonMap;
-goog.events.BrowserEvent.IE_POINTER_TYPE_MAP = goog.debug.freeze({2:goog.events.BrowserEvent.PointerType.TOUCH, 3:goog.events.BrowserEvent.PointerType.PEN, 4:goog.events.BrowserEvent.PointerType.MOUSE});
-goog.events.BrowserEvent.prototype.init = function(e, opt_currentTarget) {
-  var type = this.type = e.type, relevantTouch = e.changedTouches && e.changedTouches.length ? e.changedTouches[0] : null;
-  this.target = e.target || e.srcElement;
-  this.currentTarget = opt_currentTarget;
-  var relatedTarget = e.relatedTarget;
-  relatedTarget ? goog.userAgent.GECKO && (goog.reflect.canAccessProperty(relatedTarget, "nodeName") || (relatedTarget = null)) : type == goog.events.EventType.MOUSEOVER ? relatedTarget = e.fromElement : type == goog.events.EventType.MOUSEOUT && (relatedTarget = e.toElement);
-  this.relatedTarget = relatedTarget;
-  relevantTouch ? (this.clientX = void 0 !== relevantTouch.clientX ? relevantTouch.clientX : relevantTouch.pageX, this.clientY = void 0 !== relevantTouch.clientY ? relevantTouch.clientY : relevantTouch.pageY, this.screenX = relevantTouch.screenX || 0, this.screenY = relevantTouch.screenY || 0) : (goog.events.USE_LAYER_XY_AS_OFFSET_XY ? (this.offsetX = void 0 !== e.layerX ? e.layerX : e.offsetX, this.offsetY = void 0 !== e.layerY ? e.layerY : e.offsetY) : (this.offsetX = goog.userAgent.WEBKIT || void 0 !== 
-  e.offsetX ? e.offsetX : e.layerX, this.offsetY = goog.userAgent.WEBKIT || void 0 !== e.offsetY ? e.offsetY : e.layerY), this.clientX = void 0 !== e.clientX ? e.clientX : e.pageX, this.clientY = void 0 !== e.clientY ? e.clientY : e.pageY, this.screenX = e.screenX || 0, this.screenY = e.screenY || 0);
-  this.button = e.button;
-  this.keyCode = e.keyCode || 0;
-  this.key = e.key || "";
-  this.charCode = e.charCode || ("keypress" == type ? e.keyCode : 0);
-  this.ctrlKey = e.ctrlKey;
-  this.altKey = e.altKey;
-  this.shiftKey = e.shiftKey;
-  this.metaKey = e.metaKey;
-  this.platformModifierKey = goog.userAgent.MAC ? e.metaKey : e.ctrlKey;
-  this.pointerId = e.pointerId || 0;
-  this.pointerType = goog.events.BrowserEvent.getPointerType_(e);
-  this.state = e.state;
-  this.event_ = e;
-  e.defaultPrevented && goog.events.BrowserEvent.superClass_.preventDefault.call(this);
-};
-goog.events.BrowserEvent.prototype.isButton = function(button) {
-  return goog.events.BrowserFeature.HAS_W3C_BUTTON ? this.event_.button == button : "click" == this.type ? button == goog.events.BrowserEvent.MouseButton.LEFT : !!(this.event_.button & goog.events.BrowserEvent.IEButtonMap[button]);
-};
-goog.events.BrowserEvent.prototype.isMouseActionButton = function() {
-  return this.isButton(goog.events.BrowserEvent.MouseButton.LEFT) && !(goog.userAgent.MAC && this.ctrlKey);
-};
-goog.events.BrowserEvent.prototype.stopPropagation = function() {
-  goog.events.BrowserEvent.superClass_.stopPropagation.call(this);
-  this.event_.stopPropagation ? this.event_.stopPropagation() : this.event_.cancelBubble = !0;
-};
-goog.events.BrowserEvent.prototype.preventDefault = function() {
-  goog.events.BrowserEvent.superClass_.preventDefault.call(this);
-  var be = this.event_;
-  if (be.preventDefault) {
-    be.preventDefault();
-  } else {
-    if (be.returnValue = !1, goog.events.BrowserFeature.SET_KEY_CODE_TO_PREVENT_DEFAULT) {
-      try {
-        if (be.ctrlKey || 112 <= be.keyCode && 123 >= be.keyCode) {
-          be.keyCode = -1;
-        }
-      } catch (ex) {
-      }
-    }
-  }
-};
-goog.events.BrowserEvent.prototype.getBrowserEvent = function() {
-  return this.event_;
-};
-goog.events.BrowserEvent.getPointerType_ = function(e) {
-  return "string" === typeof e.pointerType ? e.pointerType : goog.events.BrowserEvent.IE_POINTER_TYPE_MAP[e.pointerType] || "";
-};
-goog.events.Listenable = function() {
-};
-goog.events.Listenable.IMPLEMENTED_BY_PROP = "closure_listenable_" + (1e6 * Math.random() | 0);
-goog.events.Listenable.addImplementation = function(cls) {
-  cls.prototype[goog.events.Listenable.IMPLEMENTED_BY_PROP] = !0;
-};
-goog.events.Listenable.isImplementedBy = function(obj) {
-  return !(!obj || !obj[goog.events.Listenable.IMPLEMENTED_BY_PROP]);
-};
-goog.events.Listenable.prototype.listen = function(type, listener, opt_useCapture, opt_listenerScope) {
-};
-goog.events.Listenable.prototype.listenOnce = function(type, listener, opt_useCapture, opt_listenerScope) {
-};
-goog.events.Listenable.prototype.unlisten = function(type, listener, opt_useCapture, opt_listenerScope) {
-};
-goog.events.Listenable.prototype.unlistenByKey = function(key) {
-};
-goog.events.Listenable.prototype.dispatchEvent = function(e) {
-};
-goog.events.Listenable.prototype.removeAllListeners = function(opt_type) {
-};
-goog.events.Listenable.prototype.getParentEventTarget = function() {
-};
-goog.events.Listenable.prototype.fireListeners = function(type, capture, eventObject) {
-};
-goog.events.Listenable.prototype.getListeners = function(type, capture) {
-};
-goog.events.Listenable.prototype.getListener = function(type, listener, capture, opt_listenerScope) {
-};
-goog.events.Listenable.prototype.hasListener = function(opt_type, opt_capture) {
-};
-goog.events.ListenableKey = function() {
-};
-goog.events.ListenableKey.counter_ = 0;
-goog.events.ListenableKey.reserveKey = function() {
-  return ++goog.events.ListenableKey.counter_;
-};
-goog.events.Listener = function(listener, proxy, src, type, capture, opt_handler) {
-  goog.events.Listener.ENABLE_MONITORING && (this.creationStack = Error().stack);
-  this.listener = listener;
-  this.proxy = proxy;
-  this.src = src;
-  this.type = type;
-  this.capture = !!capture;
-  this.handler = opt_handler;
-  this.key = goog.events.ListenableKey.reserveKey();
-  this.removed = this.callOnce = !1;
-};
-goog.events.Listener.ENABLE_MONITORING = !1;
-goog.events.Listener.prototype.markAsRemoved = function() {
-  this.removed = !0;
-  this.handler = this.src = this.proxy = this.listener = null;
-};
 goog.events.ListenerMap = function(src) {
   this.src = src;
   this.listeners = {};
@@ -5304,7 +3879,9 @@ goog.events.ListenerMap.findListenerIndex_ = function(listenerArray, listener, o
   }
   return -1;
 };
-goog.events.LISTENER_MAP_PROP_ = "closure_lm_" + (1e6 * Math.random() | 0);
+goog.events.Key = {};
+goog.events.ListenableType = {};
+goog.events.LISTENER_MAP_PROP_ = "closure_lm_" + (1E6 * Math.random() | 0);
 goog.events.onString_ = "on";
 goog.events.onStringMap_ = {};
 goog.events.CaptureSimulationMode = {OFF_AND_FAIL:0, OFF_AND_SILENT:1, ON:2};
@@ -5327,16 +3904,7 @@ goog.events.listen_ = function(src, type, listener, callOnce, opt_options, opt_h
   if (!type) {
     throw Error("Invalid event type");
   }
-  var capture = goog.isObject(opt_options) ? !!opt_options.capture : !!opt_options;
-  if (capture && !goog.events.BrowserFeature.HAS_W3C_EVENT_SUPPORT) {
-    if (goog.events.CAPTURE_SIMULATION_MODE == goog.events.CaptureSimulationMode.OFF_AND_FAIL) {
-      return goog.asserts.fail("Can not register capture listener in IE8-."), null;
-    }
-    if (goog.events.CAPTURE_SIMULATION_MODE == goog.events.CaptureSimulationMode.OFF_AND_SILENT) {
-      return null;
-    }
-  }
-  var listenerMap = goog.events.getListenerMap_(src);
+  var capture = goog.isObject(opt_options) ? !!opt_options.capture : !!opt_options, listenerMap = goog.events.getListenerMap_(src);
   listenerMap || (src[goog.events.LISTENER_MAP_PROP_] = listenerMap = new goog.events.ListenerMap(src));
   var listenerObj = listenerMap.add(type, listener, callOnce, capture, opt_handler);
   if (listenerObj.proxy) {
@@ -5348,28 +3916,19 @@ goog.events.listen_ = function(src, type, listener, callOnce, opt_options, opt_h
   proxy.listener = listenerObj;
   if (src.addEventListener) {
     goog.events.BrowserFeature.PASSIVE_EVENTS || (opt_options = capture), void 0 === opt_options && (opt_options = !1), src.addEventListener(type.toString(), proxy, opt_options);
+  } else if (src.attachEvent) {
+    src.attachEvent(goog.events.getOnString_(type.toString()), proxy);
+  } else if (src.addListener && src.removeListener) {
+    goog.asserts.assert("change" === type, "MediaQueryList only has a change event"), src.addListener(proxy);
   } else {
-    if (src.attachEvent) {
-      src.attachEvent(goog.events.getOnString_(type.toString()), proxy);
-    } else {
-      if (src.addListener && src.removeListener) {
-        goog.asserts.assert("change" === type, "MediaQueryList only has a change event"), src.addListener(proxy);
-      } else {
-        throw Error("addEventListener and attachEvent are unavailable.");
-      }
-    }
+    throw Error("addEventListener and attachEvent are unavailable.");
   }
   goog.events.listenerCountEstimate_++;
   return listenerObj;
 };
 goog.events.getProxy = function() {
-  var proxyCallbackFunction = goog.events.handleBrowserEvent_, f = goog.events.BrowserFeature.HAS_W3C_EVENT_SUPPORT ? function(eventObject) {
+  var proxyCallbackFunction = goog.events.handleBrowserEvent_, f = function(eventObject) {
     return proxyCallbackFunction.call(f.src, f.listener, eventObject);
-  } : function(eventObject) {
-    var v = proxyCallbackFunction.call(f.src, f.listener, eventObject);
-    if (!v) {
-      return v;
-    }
   };
   return f;
 };
@@ -5524,32 +4083,7 @@ goog.events.protectBrowserEventEntryPoint = function(errorHandler) {
   goog.events.handleBrowserEvent_ = errorHandler.protectEntryPoint(goog.events.handleBrowserEvent_);
 };
 goog.events.handleBrowserEvent_ = function(listener, opt_evt) {
-  if (listener.removed) {
-    return !0;
-  }
-  if (!goog.events.BrowserFeature.HAS_W3C_EVENT_SUPPORT) {
-    var ieEvent = opt_evt || goog.getObjectByName("window.event"), evt = new goog.events.BrowserEvent(ieEvent, this), retval = !0;
-    if (goog.events.CAPTURE_SIMULATION_MODE == goog.events.CaptureSimulationMode.ON) {
-      if (!goog.events.isMarkedIeEvent_(ieEvent)) {
-        goog.events.markIeEvent_(ieEvent);
-        for (var ancestors = [], parent = evt.currentTarget; parent; parent = parent.parentNode) {
-          ancestors.push(parent);
-        }
-        for (var type = listener.type, i = ancestors.length - 1; !evt.hasPropagationStopped() && 0 <= i; i--) {
-          evt.currentTarget = ancestors[i];
-          var result = goog.events.fireListeners_(ancestors[i], type, !0, evt);
-          retval = retval && result;
-        }
-        for (i = 0; !evt.hasPropagationStopped() && i < ancestors.length; i++) {
-          evt.currentTarget = ancestors[i], result = goog.events.fireListeners_(ancestors[i], type, !1, evt), retval = retval && result;
-        }
-      }
-    } else {
-      retval = goog.events.fireListener(listener, evt);
-    }
-    return retval;
-  }
-  return goog.events.fireListener(listener, new goog.events.BrowserEvent(opt_evt, this));
+  return listener.removed ? !0 : goog.events.fireListener(listener, new goog.events.BrowserEvent(opt_evt, this));
 };
 goog.events.markIeEvent_ = function(e) {
   var useReturnValue = !1;
@@ -5576,7 +4110,7 @@ goog.events.getListenerMap_ = function(src) {
   var listenerMap = src[goog.events.LISTENER_MAP_PROP_];
   return listenerMap instanceof goog.events.ListenerMap ? listenerMap : null;
 };
-goog.events.LISTENER_WRAPPER_PROP_ = "__closure_events_fn_" + (1e9 * Math.random() >>> 0);
+goog.events.LISTENER_WRAPPER_PROP_ = "__closure_events_fn_" + (1E9 * Math.random() >>> 0);
 goog.events.wrapListener = function(listener) {
   goog.asserts.assert(listener, "Listener can not be null.");
   if ("function" === typeof listener) {
@@ -5599,7 +4133,7 @@ goog.events.EventTarget = function() {
 };
 goog.inherits(goog.events.EventTarget, goog.Disposable);
 goog.events.Listenable.addImplementation(goog.events.EventTarget);
-goog.events.EventTarget.MAX_ANCESTORS_ = 1000;
+goog.events.EventTarget.MAX_ANCESTORS_ = 1E3;
 goog.events.EventTarget.prototype.getParentEventTarget = function() {
   return this.parentEventTarget_;
 };
@@ -5679,14 +4213,12 @@ goog.events.EventTarget.dispatchEventInternal_ = function(target, e, opt_ancesto
   var type = e.type || e;
   if ("string" === typeof e) {
     e = new goog.events.Event(e, target);
+  } else if (e instanceof goog.events.Event) {
+    e.target = e.target || target;
   } else {
-    if (e instanceof goog.events.Event) {
-      e.target = e.target || target;
-    } else {
-      var oldEvent = e;
-      e = new goog.events.Event(type, target);
-      module$contents$goog$object_extend(e, oldEvent);
-    }
+    var oldEvent = e;
+    e = new goog.events.Event(type, target);
+    module$contents$goog$object_extend(e, oldEvent);
   }
   var rv = !0;
   if (opt_ancestorsTree) {
@@ -5712,22 +4244,22 @@ function module$contents$goog$collections$iters_getIterator(iterable) {
   return iterable[goog.global.Symbol.iterator]();
 }
 goog.collections.iters.getIterator = module$contents$goog$collections$iters_getIterator;
-goog.collections.iters.forEach = function(iterable, f) {
-  for (var $jscomp$iter$5 = $jscomp.makeIterator(iterable), $jscomp$key$elem = $jscomp$iter$5.next(); !$jscomp$key$elem.done; $jscomp$key$elem = $jscomp$iter$5.next()) {
-    f($jscomp$key$elem.value);
+function module$contents$goog$collections$iters_forEach(iterator, f) {
+  for (var result; !(result = iterator.next()).done;) {
+    f(result.value);
   }
-};
+}
+goog.collections.iters.forEach = module$contents$goog$collections$iters_forEach;
 var module$contents$goog$collections$iters_MapIterator = function(childIter, mapFn) {
   this.childIterator_ = module$contents$goog$collections$iters_getIterator(childIter);
   this.mapFn_ = mapFn;
-  this.nextIndex_ = 0;
 };
 module$contents$goog$collections$iters_MapIterator.prototype[Symbol.iterator] = function() {
   return this;
 };
 module$contents$goog$collections$iters_MapIterator.prototype.next = function() {
   var childResult = this.childIterator_.next();
-  return {value:childResult.done ? void 0 : this.mapFn_.call(void 0, childResult.value, this.nextIndex_++), done:childResult.done, };
+  return {value:childResult.done ? void 0 : this.mapFn_.call(void 0, childResult.value), done:childResult.done,};
 };
 goog.collections.iters.map = function(iterable, f) {
   return new module$contents$goog$collections$iters_MapIterator(iterable, f);
@@ -5735,7 +4267,6 @@ goog.collections.iters.map = function(iterable, f) {
 var module$contents$goog$collections$iters_FilterIterator = function(childIter, filterFn) {
   this.childIter_ = module$contents$goog$collections$iters_getIterator(childIter);
   this.filterFn_ = filterFn;
-  this.nextIndex_ = 0;
 };
 module$contents$goog$collections$iters_FilterIterator.prototype[Symbol.iterator] = function() {
   return this;
@@ -5746,7 +4277,7 @@ module$contents$goog$collections$iters_FilterIterator.prototype.next = function(
     if (childResult.done) {
       return {done:!0, value:void 0};
     }
-    if (this.filterFn_.call(void 0, childResult.value, this.nextIndex_++)) {
+    if (this.filterFn_.call(void 0, childResult.value)) {
       return childResult;
     }
   }
@@ -5771,11 +4302,187 @@ module$contents$goog$collections$iters_ConcatIterator.prototype.next = function(
   }
   return {done:!0};
 };
-goog.collections.iters.concat = function(iterables) {
-  for (var $jscomp$restParams = [], $jscomp$restIndex = 0; $jscomp$restIndex < arguments.length; ++$jscomp$restIndex) {
-    $jscomp$restParams[$jscomp$restIndex - 0] = arguments[$jscomp$restIndex];
-  }
-  return new module$contents$goog$collections$iters_ConcatIterator($jscomp$restParams.map(module$contents$goog$collections$iters_getIterator));
+goog.collections.iters.concat = function() {
+  return new module$contents$goog$collections$iters_ConcatIterator($jscomp.getRestArguments.apply(0, arguments).map(module$contents$goog$collections$iters_getIterator));
+};
+goog.collections.iters.toArray = function(iterator) {
+  var arr = [];
+  module$contents$goog$collections$iters_forEach(iterator, function(e) {
+    return arr.push(e);
+  });
+  return arr;
+};
+goog.functions = {};
+goog.functions.constant = function(retValue) {
+  return function() {
+    return retValue;
+  };
+};
+goog.functions.FALSE = function() {
+  return !1;
+};
+goog.functions.TRUE = function() {
+  return !0;
+};
+goog.functions.NULL = function() {
+  return null;
+};
+goog.functions.UNDEFINED = function() {
+};
+goog.functions.EMPTY = goog.functions.UNDEFINED;
+goog.functions.identity = function(opt_returnValue, var_args) {
+  return opt_returnValue;
+};
+goog.functions.error = function(message) {
+  return function() {
+    throw Error(message);
+  };
+};
+goog.functions.fail = function(err) {
+  return function() {
+    throw err;
+  };
+};
+goog.functions.lock = function(f, opt_numArgs) {
+  opt_numArgs = opt_numArgs || 0;
+  return function() {
+    return f.apply(this, Array.prototype.slice.call(arguments, 0, opt_numArgs));
+  };
+};
+goog.functions.nth = function(n) {
+  return function() {
+    return arguments[n];
+  };
+};
+goog.functions.partialRight = function(fn, var_args) {
+  var rightArgs = Array.prototype.slice.call(arguments, 1);
+  return function() {
+    var self = this;
+    self === goog.global && (self = void 0);
+    var newArgs = Array.prototype.slice.call(arguments);
+    newArgs.push.apply(newArgs, rightArgs);
+    return fn.apply(self, newArgs);
+  };
+};
+goog.functions.withReturnValue = function(f, retValue) {
+  return goog.functions.sequence(f, goog.functions.constant(retValue));
+};
+goog.functions.equalTo = function(value, opt_useLooseComparison) {
+  return function(other) {
+    return opt_useLooseComparison ? value == other : value === other;
+  };
+};
+goog.functions.compose = function(fn, var_args) {
+  var functions = arguments, length = functions.length;
+  return function() {
+    var result;
+    length && (result = functions[length - 1].apply(this, arguments));
+    for (var i = length - 2; 0 <= i; i--) {
+      result = functions[i].call(this, result);
+    }
+    return result;
+  };
+};
+goog.functions.sequence = function(var_args) {
+  var functions = arguments, length = functions.length;
+  return function() {
+    for (var result, i = 0; i < length; i++) {
+      result = functions[i].apply(this, arguments);
+    }
+    return result;
+  };
+};
+goog.functions.and = function(var_args) {
+  var functions = arguments, length = functions.length;
+  return function() {
+    for (var i = 0; i < length; i++) {
+      if (!functions[i].apply(this, arguments)) {
+        return !1;
+      }
+    }
+    return !0;
+  };
+};
+goog.functions.or = function(var_args) {
+  var functions = arguments, length = functions.length;
+  return function() {
+    for (var i = 0; i < length; i++) {
+      if (functions[i].apply(this, arguments)) {
+        return !0;
+      }
+    }
+    return !1;
+  };
+};
+goog.functions.not = function(f) {
+  return function() {
+    return !f.apply(this, arguments);
+  };
+};
+goog.functions.create = function(constructor, var_args) {
+  var temp = function() {
+  };
+  temp.prototype = constructor.prototype;
+  var obj = new temp();
+  constructor.apply(obj, Array.prototype.slice.call(arguments, 1));
+  return obj;
+};
+goog.functions.CACHE_RETURN_VALUE = !0;
+goog.functions.cacheReturnValue = function(fn) {
+  var called = !1, value;
+  return function() {
+    if (!goog.functions.CACHE_RETURN_VALUE) {
+      return fn();
+    }
+    called || (value = fn(), called = !0);
+    return value;
+  };
+};
+goog.functions.once = function(f) {
+  var inner = f;
+  return function() {
+    if (inner) {
+      var tmp = inner;
+      inner = null;
+      tmp();
+    }
+  };
+};
+goog.functions.debounce = function(f, interval, opt_scope) {
+  var timeout = 0;
+  return function(var_args) {
+    goog.global.clearTimeout(timeout);
+    var args = arguments;
+    timeout = goog.global.setTimeout(function() {
+      f.apply(opt_scope, args);
+    }, interval);
+  };
+};
+goog.functions.throttle = function(f, interval, opt_scope) {
+  var timeout = 0, shouldFire = !1, storedArgs = [], handleTimeout = function() {
+    timeout = 0;
+    shouldFire && (shouldFire = !1, fire());
+  }, fire = function() {
+    timeout = goog.global.setTimeout(handleTimeout, interval);
+    var args = storedArgs;
+    storedArgs = [];
+    f.apply(opt_scope, args);
+  };
+  return function(var_args) {
+    storedArgs = arguments;
+    timeout ? shouldFire = !0 : fire();
+  };
+};
+goog.functions.rateLimit = function(f, interval, opt_scope) {
+  var timeout = 0, handleTimeout = function() {
+    timeout = 0;
+  };
+  return function(var_args) {
+    timeout || (timeout = goog.global.setTimeout(handleTimeout, interval), f.apply(opt_scope, arguments));
+  };
+};
+goog.functions.isFunction = function(val) {
+  return "function" === typeof val;
 };
 goog.math = {};
 goog.math.randomInt = function(a) {
@@ -5795,7 +4502,7 @@ goog.math.lerp = function(a, b, x) {
   return a + x * (b - a);
 };
 goog.math.nearlyEquals = function(a, b, opt_tolerance) {
-  return Math.abs(a - b) <= (opt_tolerance || 0.000001);
+  return Math.abs(a - b) <= (opt_tolerance || 1E-6);
 };
 goog.math.standardAngle = function(angle) {
   return goog.math.modulo(angle, 360);
@@ -5888,21 +4595,22 @@ goog.math.log10Floor = function(num) {
 };
 goog.math.safeFloor = function(num, opt_epsilon) {
   goog.asserts.assert(void 0 === opt_epsilon || 0 < opt_epsilon);
-  return Math.floor(num + (opt_epsilon || 2e-15));
+  return Math.floor(num + (opt_epsilon || 2E-15));
 };
 goog.math.safeCeil = function(num, opt_epsilon) {
   goog.asserts.assert(void 0 === opt_epsilon || 0 < opt_epsilon);
-  return Math.ceil(num - (opt_epsilon || 2e-15));
+  return Math.ceil(num - (opt_epsilon || 2E-15));
 };
 goog.iter = {};
-goog.iter.StopIteration = "StopIteration" in goog.global ? goog.global.StopIteration : {message:"StopIteration", stack:""};
+goog.iter.Iterable = {};
 goog.iter.Iterator = function() {
 };
 goog.iter.Iterator.prototype.next = function() {
-  return goog.iter.Iterator.prototype.nextValueOrThrow.call(this);
+  return goog.iter.ES6_ITERATOR_DONE;
 };
-goog.iter.Iterator.prototype.nextValueOrThrow = function() {
-  throw goog.iter.StopIteration;
+goog.iter.ES6_ITERATOR_DONE = goog.debug.freeze({done:!0, value:void 0});
+goog.iter.createEs6IteratorYield = function(value) {
+  return {value:value, done:!1};
 };
 goog.iter.Iterator.prototype.__iterator__ = function(opt_keys) {
   return this;
@@ -5915,14 +4623,14 @@ goog.iter.toIterator = function(iterable) {
     return iterable.__iterator__(!1);
   }
   if (goog.isArrayLike(iterable)) {
-    var i = 0, newIter = new goog.iter.Iterator;
+    var i = 0, newIter = new goog.iter.Iterator();
     newIter.next = function() {
       for (;;) {
         if (i >= iterable.length) {
-          throw goog.iter.StopIteration;
+          return goog.iter.ES6_ITERATOR_DONE;
         }
         if (i in iterable) {
-          return iterable[i++];
+          return goog.iter.createEs6IteratorYield(iterable[i++]);
         }
         i++;
       }
@@ -5933,33 +4641,27 @@ goog.iter.toIterator = function(iterable) {
 };
 goog.iter.forEach = function(iterable, f, opt_obj) {
   if (goog.isArrayLike(iterable)) {
-    try {
-      module$contents$goog$array_forEach(iterable, f, opt_obj);
-    } catch (ex) {
-      if (ex !== goog.iter.StopIteration) {
-        throw ex;
-      }
-    }
+    module$contents$goog$array_forEach(iterable, f, opt_obj);
   } else {
-    iterable = goog.iter.toIterator(iterable);
-    try {
-      for (;;) {
-        f.call(opt_obj, iterable.next(), void 0, iterable);
+    for (var iterator = goog.iter.toIterator(iterable);;) {
+      var $jscomp$destructuring$var12 = iterator.next();
+      if ($jscomp$destructuring$var12.done) {
+        break;
       }
-    } catch (ex$30) {
-      if (ex$30 !== goog.iter.StopIteration) {
-        throw ex$30;
-      }
+      f.call(opt_obj, $jscomp$destructuring$var12.value, void 0, iterator);
     }
   }
 };
 goog.iter.filter = function(iterable, f, opt_obj) {
-  var iterator = goog.iter.toIterator(iterable), newIter = new goog.iter.Iterator;
+  var iterator = goog.iter.toIterator(iterable), newIter = new goog.iter.Iterator();
   newIter.next = function() {
     for (;;) {
-      var val = iterator.next();
-      if (f.call(opt_obj, val, void 0, iterator)) {
-        return val;
+      var $jscomp$destructuring$var13 = iterator.next(), value = $jscomp$destructuring$var13.value;
+      if ($jscomp$destructuring$var13.done) {
+        return goog.iter.ES6_ITERATOR_DONE;
+      }
+      if (f.call(opt_obj, value, void 0, iterator)) {
+        return goog.iter.createEs6IteratorYield(value);
       }
     }
   };
@@ -5974,14 +4676,14 @@ goog.iter.range = function(startOrStop, opt_stop, opt_step) {
   if (0 == step) {
     throw Error("Range step argument must not be zero");
   }
-  var newIter = new goog.iter.Iterator;
+  var newIter = new goog.iter.Iterator();
   newIter.next = function() {
     if (0 < step && start >= stop || 0 > step && start <= stop) {
-      throw goog.iter.StopIteration;
+      return goog.iter.ES6_ITERATOR_DONE;
     }
     var rv = start;
     start += step;
-    return rv;
+    return goog.iter.createEs6IteratorYield(rv);
   };
   return newIter;
 };
@@ -5989,10 +4691,14 @@ goog.iter.join = function(iterable, deliminator) {
   return goog.iter.toArray(iterable).join(deliminator);
 };
 goog.iter.map = function(iterable, f, opt_obj) {
-  var iterator = goog.iter.toIterator(iterable), newIter = new goog.iter.Iterator;
+  var iterator = goog.iter.toIterator(iterable), newIter = new goog.iter.Iterator();
   newIter.next = function() {
-    var val = iterator.next();
-    return f.call(opt_obj, val, void 0, iterator);
+    var $jscomp$destructuring$var14 = iterator.next();
+    if ($jscomp$destructuring$var14.done) {
+      return goog.iter.ES6_ITERATOR_DONE;
+    }
+    var mappedVal = f.call(opt_obj, $jscomp$destructuring$var14.value, void 0, iterator);
+    return goog.iter.createEs6IteratorYield(mappedVal);
   };
   return newIter;
 };
@@ -6004,78 +4710,71 @@ goog.iter.reduce = function(iterable, f, val$jscomp$0, opt_obj) {
   return rval;
 };
 goog.iter.some = function(iterable, f, opt_obj) {
-  iterable = goog.iter.toIterator(iterable);
-  try {
-    for (;;) {
-      if (f.call(opt_obj, iterable.next(), void 0, iterable)) {
-        return !0;
-      }
+  for (var iterator = goog.iter.toIterator(iterable);;) {
+    var $jscomp$destructuring$var15 = iterator.next();
+    if ($jscomp$destructuring$var15.done) {
+      return !1;
     }
-  } catch (ex) {
-    if (ex !== goog.iter.StopIteration) {
-      throw ex;
+    if (f.call(opt_obj, $jscomp$destructuring$var15.value, void 0, iterator)) {
+      return !0;
     }
   }
-  return !1;
 };
 goog.iter.every = function(iterable, f, opt_obj) {
-  iterable = goog.iter.toIterator(iterable);
-  try {
-    for (;;) {
-      if (!f.call(opt_obj, iterable.next(), void 0, iterable)) {
-        return !1;
-      }
+  for (var iterator = goog.iter.toIterator(iterable);;) {
+    var $jscomp$destructuring$var16 = iterator.next();
+    if ($jscomp$destructuring$var16.done) {
+      return !0;
     }
-  } catch (ex) {
-    if (ex !== goog.iter.StopIteration) {
-      throw ex;
+    if (!f.call(opt_obj, $jscomp$destructuring$var16.value, void 0, iterator)) {
+      return !1;
     }
   }
-  return !0;
 };
 goog.iter.chain = function(var_args) {
   return goog.iter.chainFromIterable(arguments);
 };
 goog.iter.chainFromIterable = function(iterable) {
-  var iterator = goog.iter.toIterator(iterable), iter = new goog.iter.Iterator, current = null;
+  var iteratorOfIterators = goog.iter.toIterator(iterable), iter = new goog.iter.Iterator(), current = null;
   iter.next = function() {
     for (;;) {
       if (null == current) {
-        var it = iterator.next();
-        current = goog.iter.toIterator(it);
-      }
-      try {
-        return current.next();
-      } catch (ex) {
-        if (ex !== goog.iter.StopIteration) {
-          throw ex;
+        var it = iteratorOfIterators.next();
+        if (it.done) {
+          return goog.iter.ES6_ITERATOR_DONE;
         }
+        current = goog.iter.toIterator(it.value);
+      }
+      var it$40 = current.next();
+      if (it$40.done) {
         current = null;
+      } else {
+        return goog.iter.createEs6IteratorYield(it$40.value);
       }
     }
   };
   return iter;
 };
 goog.iter.dropWhile = function(iterable, f, opt_obj) {
-  var iterator = goog.iter.toIterator(iterable), newIter = new goog.iter.Iterator, dropping = !0;
+  var iterator = goog.iter.toIterator(iterable), newIter = new goog.iter.Iterator(), dropping = !0;
   newIter.next = function() {
     for (;;) {
-      var val = iterator.next();
-      if (!dropping || !f.call(opt_obj, val, void 0, iterator)) {
-        return dropping = !1, val;
+      var $jscomp$destructuring$var17 = iterator.next(), value = $jscomp$destructuring$var17.value;
+      if ($jscomp$destructuring$var17.done) {
+        return goog.iter.ES6_ITERATOR_DONE;
+      }
+      if (!dropping || !f.call(opt_obj, value, void 0, iterator)) {
+        return dropping = !1, goog.iter.createEs6IteratorYield(value);
       }
     }
   };
   return newIter;
 };
 goog.iter.takeWhile = function(iterable, f, opt_obj) {
-  var iterator = goog.iter.toIterator(iterable), iter = new goog.iter.Iterator;
+  var iterator = goog.iter.toIterator(iterable), iter = new goog.iter.Iterator();
   iter.next = function() {
-    var val = iterator.next();
-    if (f.call(opt_obj, val, void 0, iterator)) {
-      return val;
-    }
-    throw goog.iter.StopIteration;
+    var $jscomp$destructuring$var18 = iterator.next(), value = $jscomp$destructuring$var18.value;
+    return $jscomp$destructuring$var18.done ? goog.iter.ES6_ITERATOR_DONE : f.call(opt_obj, value, void 0, iterator) ? goog.iter.createEs6IteratorYield(value) : goog.iter.ES6_ITERATOR_DONE;
   };
   return iter;
 };
@@ -6097,127 +4796,146 @@ goog.iter.equals = function(iterable1, iterable2, opt_equalsFn) {
   });
 };
 goog.iter.nextOrValue = function(iterable, defaultValue) {
-  try {
-    return goog.iter.toIterator(iterable).next();
-  } catch (e) {
-    if (e != goog.iter.StopIteration) {
-      throw e;
-    }
-    return defaultValue;
-  }
+  var $jscomp$destructuring$var19 = goog.iter.toIterator(iterable).next();
+  return $jscomp$destructuring$var19.done ? defaultValue : $jscomp$destructuring$var19.value;
 };
 goog.iter.product = function(var_args) {
   if (Array.prototype.some.call(arguments, function(arr) {
     return !arr.length;
   }) || !arguments.length) {
-    return new goog.iter.Iterator;
+    return new goog.iter.Iterator();
   }
-  var iter = new goog.iter.Iterator, arrays = arguments, indicies = module$contents$goog$array_repeat(0, arrays.length);
+  var iter = new goog.iter.Iterator(), arrays = arguments, indices = module$contents$goog$array_repeat(0, arrays.length);
   iter.next = function() {
-    if (indicies) {
-      for (var retVal = module$contents$goog$array_map(indicies, function(valueIndex, arrayIndex) {
+    if (indices) {
+      for (var retVal = module$contents$goog$array_map(indices, function(valueIndex, arrayIndex) {
         return arrays[arrayIndex][valueIndex];
-      }), i = indicies.length - 1; 0 <= i; i--) {
-        goog.asserts.assert(indicies);
-        if (indicies[i] < arrays[i].length - 1) {
-          indicies[i]++;
+      }), i = indices.length - 1; 0 <= i; i--) {
+        goog.asserts.assert(indices);
+        if (indices[i] < arrays[i].length - 1) {
+          indices[i]++;
           break;
         }
         if (0 == i) {
-          indicies = null;
+          indices = null;
           break;
         }
-        indicies[i] = 0;
+        indices[i] = 0;
       }
-      return retVal;
+      return goog.iter.createEs6IteratorYield(retVal);
     }
-    throw goog.iter.StopIteration;
+    return goog.iter.ES6_ITERATOR_DONE;
   };
   return iter;
 };
 goog.iter.cycle = function(iterable) {
-  var baseIterator = goog.iter.toIterator(iterable), cache = [], cacheIndex = 0, iter = new goog.iter.Iterator, useCache = !1;
+  var baseIterator = goog.iter.toIterator(iterable), cache = [], cacheIndex = 0, iter = new goog.iter.Iterator(), useCache = !1;
   iter.next = function() {
     var returnElement = null;
     if (!useCache) {
-      try {
-        return returnElement = baseIterator.next(), cache.push(returnElement), returnElement;
-      } catch (e) {
-        if (e != goog.iter.StopIteration || module$contents$goog$array_isEmpty(cache)) {
-          throw e;
+      var it = baseIterator.next();
+      if (it.done) {
+        if (module$contents$goog$array_isEmpty(cache)) {
+          return goog.iter.ES6_ITERATOR_DONE;
         }
         useCache = !0;
+      } else {
+        return cache.push(it.value), it;
       }
     }
     returnElement = cache[cacheIndex];
     cacheIndex = (cacheIndex + 1) % cache.length;
-    return returnElement;
+    return goog.iter.createEs6IteratorYield(returnElement);
   };
   return iter;
 };
 goog.iter.count = function(opt_start, opt_step) {
-  var counter = opt_start || 0, step = void 0 !== opt_step ? opt_step : 1, iter = new goog.iter.Iterator;
+  var counter = opt_start || 0, step = void 0 !== opt_step ? opt_step : 1, iter = new goog.iter.Iterator();
   iter.next = function() {
     var returnValue = counter;
     counter += step;
-    return returnValue;
+    return goog.iter.createEs6IteratorYield(returnValue);
   };
   return iter;
 };
 goog.iter.repeat = function(value) {
-  var iter = new goog.iter.Iterator;
-  iter.next = goog.functions.constant(value);
+  var iter = new goog.iter.Iterator();
+  iter.next = function() {
+    return goog.iter.createEs6IteratorYield(value);
+  };
   return iter;
 };
 goog.iter.accumulate = function(iterable) {
-  var iterator = goog.iter.toIterator(iterable), total = 0, iter = new goog.iter.Iterator;
+  var iterator = goog.iter.toIterator(iterable), total = 0, iter = new goog.iter.Iterator();
   iter.next = function() {
-    return total += iterator.next();
+    var $jscomp$destructuring$var20 = iterator.next();
+    if ($jscomp$destructuring$var20.done) {
+      return goog.iter.ES6_ITERATOR_DONE;
+    }
+    total += $jscomp$destructuring$var20.value;
+    return goog.iter.createEs6IteratorYield(total);
   };
   return iter;
 };
 goog.iter.zip = function(var_args) {
-  var args = arguments, iter = new goog.iter.Iterator;
+  var args = arguments, iter = new goog.iter.Iterator();
   if (0 < args.length) {
-    var iterators = module$contents$goog$array_map(args, goog.iter.toIterator);
+    var iterators = module$contents$goog$array_map(args, goog.iter.toIterator), allDone = !1;
     iter.next = function() {
-      return module$contents$goog$array_map(iterators, function(it) {
-        return it.next();
-      });
+      if (allDone) {
+        return goog.iter.ES6_ITERATOR_DONE;
+      }
+      for (var arr = [], i = 0, iterator = void 0; iterator = iterators[i++];) {
+        var it = iterator.next();
+        if (it.done) {
+          return allDone = !0, goog.iter.ES6_ITERATOR_DONE;
+        }
+        arr.push(it.value);
+      }
+      return goog.iter.createEs6IteratorYield(arr);
     };
   }
   return iter;
 };
 goog.iter.zipLongest = function(fillValue, var_args) {
-  var args = Array.prototype.slice.call(arguments, 1), iter = new goog.iter.Iterator;
+  var args = Array.prototype.slice.call(arguments, 1), iter = new goog.iter.Iterator();
   if (0 < args.length) {
-    var iterators = module$contents$goog$array_map(args, goog.iter.toIterator);
+    var iterators = module$contents$goog$array_map(args, goog.iter.toIterator), allDone = !1;
     iter.next = function() {
-      var iteratorsHaveValues = !1, arr = module$contents$goog$array_map(iterators, function(it) {
-        try {
-          var returnValue = it.next();
-          iteratorsHaveValues = !0;
-        } catch (ex) {
-          if (ex !== goog.iter.StopIteration) {
-            throw ex;
-          }
-          returnValue = fillValue;
-        }
-        return returnValue;
-      });
-      if (!iteratorsHaveValues) {
-        throw goog.iter.StopIteration;
+      if (allDone) {
+        return goog.iter.ES6_ITERATOR_DONE;
       }
-      return arr;
+      for (var iteratorsHaveValues = !1, arr = [], i = 0, iterator = void 0; iterator = iterators[i++];) {
+        var it = iterator.next();
+        it.done ? arr.push(fillValue) : (arr.push(it.value), iteratorsHaveValues = !0);
+      }
+      return iteratorsHaveValues ? goog.iter.createEs6IteratorYield(arr) : (allDone = !0, goog.iter.ES6_ITERATOR_DONE);
     };
   }
   return iter;
 };
 goog.iter.compress = function(iterable, selectors) {
-  var selectorIterator = goog.iter.toIterator(selectors);
-  return goog.iter.filter(iterable, function() {
-    return !!selectorIterator.next();
-  });
+  var valueIterator = goog.iter.toIterator(iterable), selectorIterator = goog.iter.toIterator(selectors), iter = new goog.iter.Iterator(), allDone = !1;
+  iter.next = function() {
+    if (allDone) {
+      return goog.iter.ES6_ITERATOR_DONE;
+    }
+    for (;;) {
+      var valIt = valueIterator.next();
+      if (valIt.done) {
+        return allDone = !0, goog.iter.ES6_ITERATOR_DONE;
+      }
+      var selectorIt = selectorIterator.next();
+      if (selectorIt.done) {
+        return allDone = !0, goog.iter.ES6_ITERATOR_DONE;
+      }
+      var val = valIt.value;
+      if (selectorIt.value) {
+        return goog.iter.createEs6IteratorYield(val);
+      }
+    }
+  };
+  return iter;
 };
 goog.iter.GroupByIterator_ = function(iterable, opt_keyFunc) {
   this.iterator = goog.iter.toIterator(iterable);
@@ -6226,22 +4944,24 @@ goog.iter.GroupByIterator_ = function(iterable, opt_keyFunc) {
 goog.inherits(goog.iter.GroupByIterator_, goog.iter.Iterator);
 goog.iter.GroupByIterator_.prototype.next = function() {
   for (; this.currentKey == this.targetKey;) {
-    this.currentValue = this.iterator.next(), this.currentKey = this.keyFunc(this.currentValue);
+    var it = this.iterator.next();
+    if (it.done) {
+      return goog.iter.ES6_ITERATOR_DONE;
+    }
+    this.currentValue = it.value;
+    this.currentKey = this.keyFunc(this.currentValue);
   }
   this.targetKey = this.currentKey;
-  return [this.currentKey, this.groupItems_(this.targetKey)];
+  return goog.iter.createEs6IteratorYield([this.currentKey, this.groupItems_(this.targetKey)]);
 };
 goog.iter.GroupByIterator_.prototype.groupItems_ = function(targetKey) {
   for (var arr = []; this.currentKey == targetKey;) {
     arr.push(this.currentValue);
-    try {
-      this.currentValue = this.iterator.next();
-    } catch (ex) {
-      if (ex !== goog.iter.StopIteration) {
-        throw ex;
-      }
+    var it = this.iterator.next();
+    if (it.done) {
       break;
     }
+    this.currentValue = it.value;
     this.currentKey = this.keyFunc(this.currentValue);
   }
   return arr;
@@ -6250,28 +4970,39 @@ goog.iter.groupBy = function(iterable, opt_keyFunc) {
   return new goog.iter.GroupByIterator_(iterable, opt_keyFunc);
 };
 goog.iter.starMap = function(iterable, f, opt_obj) {
-  var iterator = goog.iter.toIterator(iterable), iter = new goog.iter.Iterator;
+  var iterator = goog.iter.toIterator(iterable), iter = new goog.iter.Iterator();
   iter.next = function() {
-    var args = goog.iter.toArray(iterator.next());
-    return f.apply(opt_obj, module$contents$goog$array_concat(args, void 0, iterator));
+    var it = iterator.next();
+    if (it.done) {
+      return goog.iter.ES6_ITERATOR_DONE;
+    }
+    var args = goog.iter.toArray(it.value), value = f.apply(opt_obj, module$contents$goog$array_concat(args, void 0, iterator));
+    return goog.iter.createEs6IteratorYield(value);
   };
   return iter;
 };
 goog.iter.tee = function(iterable, opt_num) {
+  function addNextIteratorValueToBuffers() {
+    var $jscomp$destructuring$var21 = iterator.next(), value = $jscomp$destructuring$var21.value;
+    if ($jscomp$destructuring$var21.done) {
+      return !1;
+    }
+    for (var i = 0, buffer = void 0; buffer = buffers[i++];) {
+      buffer.push(value);
+    }
+    return !0;
+  }
   var iterator = goog.iter.toIterator(iterable), buffers = module$contents$goog$array_map(module$contents$goog$array_range("number" === typeof opt_num ? opt_num : 2), function() {
     return [];
-  }), addNextIteratorValueToBuffers = function() {
-    var val = iterator.next();
-    module$contents$goog$array_forEach(buffers, function(buffer) {
-      buffer.push(val);
-    });
-  };
-  return module$contents$goog$array_map(buffers, function(buffer) {
-    var iter = new goog.iter.Iterator;
+  });
+  return module$contents$goog$array_map(buffers, function createIterator(buffer) {
+    var iter = new goog.iter.Iterator();
     iter.next = function() {
-      module$contents$goog$array_isEmpty(buffer) && addNextIteratorValueToBuffers();
+      if (module$contents$goog$array_isEmpty(buffer) && !addNextIteratorValueToBuffers()) {
+        return goog.iter.ES6_ITERATOR_DONE;
+      }
       goog.asserts.assert(!module$contents$goog$array_isEmpty(buffer));
-      return buffer.shift();
+      return goog.iter.createEs6IteratorYield(buffer.shift());
     };
     return iter;
   });
@@ -6281,12 +5012,9 @@ goog.iter.enumerate = function(iterable, opt_start) {
 };
 goog.iter.limit = function(iterable, limitSize) {
   goog.asserts.assert(goog.math.isInt(limitSize) && 0 <= limitSize);
-  var iterator = goog.iter.toIterator(iterable), iter = new goog.iter.Iterator, remaining = limitSize;
+  var iterator = goog.iter.toIterator(iterable), iter = new goog.iter.Iterator(), remaining = limitSize;
   iter.next = function() {
-    if (0 < remaining--) {
-      return iterator.next();
-    }
-    throw goog.iter.StopIteration;
+    return 0 < remaining-- ? iterator.next() : goog.iter.ES6_ITERATOR_DONE;
   };
   return iter;
 };
@@ -6320,9 +5048,10 @@ goog.iter.combinations = function(iterable, length) {
   }
   var elements = goog.iter.toArray(iterable), indexes = goog.iter.range(elements.length), indexIterator = goog.iter.permutations(indexes, length), sortedIndexIterator = goog.iter.filter(indexIterator, function(arr) {
     return module$contents$goog$array_isSorted(arr);
-  }), iter = new goog.iter.Iterator;
+  }), iter = new goog.iter.Iterator();
   iter.next = function() {
-    return module$contents$goog$array_map(sortedIndexIterator.next(), getIndexFromElements);
+    var $jscomp$destructuring$var22 = sortedIndexIterator.next();
+    return $jscomp$destructuring$var22.done ? goog.iter.ES6_ITERATOR_DONE : goog.iter.createEs6IteratorYield(module$contents$goog$array_map($jscomp$destructuring$var22.value, getIndexFromElements));
   };
   return iter;
 };
@@ -6332,9 +5061,10 @@ goog.iter.combinationsWithReplacement = function(iterable, length) {
   }
   var elements = goog.iter.toArray(iterable), indexes = module$contents$goog$array_range(elements.length), indexIterator = goog.iter.product.apply(void 0, module$contents$goog$array_repeat(indexes, length)), sortedIndexIterator = goog.iter.filter(indexIterator, function(arr) {
     return module$contents$goog$array_isSorted(arr);
-  }), iter = new goog.iter.Iterator;
+  }), iter = new goog.iter.Iterator();
   iter.next = function() {
-    return module$contents$goog$array_map(sortedIndexIterator.next(), getIndexFromElements);
+    var $jscomp$destructuring$var23 = sortedIndexIterator.next();
+    return $jscomp$destructuring$var23.done ? goog.iter.ES6_ITERATOR_DONE : goog.iter.createEs6IteratorYield(module$contents$goog$array_map($jscomp$destructuring$var23.value, getIndexFromElements));
   };
   return iter;
 };
@@ -6353,7 +5083,7 @@ module$contents$goog$iter$es6_ShimIterable.of = function(iter) {
   }
   if ("function" == typeof iter.next) {
     return new module$contents$goog$iter$es6_ShimIterableImpl(function() {
-      return module$contents$goog$iter$es6_wrapGoog(iter);
+      return iter;
     });
   }
   if ("function" == typeof iter[Symbol.iterator]) {
@@ -6363,31 +5093,12 @@ module$contents$goog$iter$es6_ShimIterable.of = function(iter) {
   }
   if ("function" == typeof iter.__iterator__) {
     return new module$contents$goog$iter$es6_ShimIterableImpl(function() {
-      return module$contents$goog$iter$es6_wrapGoog(iter.__iterator__());
+      return iter.__iterator__();
     });
   }
   throw Error("Not an iterator or iterable.");
 };
-var module$contents$goog$iter$es6_wrapGoog = function(iter) {
-  if (!(iter instanceof goog.iter.Iterator)) {
-    return iter;
-  }
-  var done = !1;
-  return {next:function() {
-    for (var value; !done;) {
-      try {
-        value = iter.next();
-        break;
-      } catch (err$31) {
-        if (err$31 !== goog.iter.StopIteration) {
-          throw err$31;
-        }
-        done = !0;
-      }
-    }
-    return {value:value, done:done};
-  }, };
-}, module$contents$goog$iter$es6_ShimIterableImpl = function(func) {
+var module$contents$goog$iter$es6_ShimIterableImpl = function(func) {
   this.func_ = func;
 };
 module$contents$goog$iter$es6_ShimIterableImpl.prototype.__iterator__ = function() {
@@ -6408,11 +5119,7 @@ var module$contents$goog$iter$es6_ShimGoogIterator = function(iter) {
 };
 $jscomp.inherits(module$contents$goog$iter$es6_ShimGoogIterator, goog.iter.Iterator);
 module$contents$goog$iter$es6_ShimGoogIterator.prototype.next = function() {
-  var result = this.iter_.next();
-  if (result.done) {
-    throw goog.iter.StopIteration;
-  }
-  return result.value;
+  return this.iter_.next();
 };
 module$contents$goog$iter$es6_ShimGoogIterator.prototype.toGoog = function() {
   return this;
@@ -6560,7 +5267,7 @@ goog.structs.Map.prototype.clone = function() {
   return new goog.structs.Map(this);
 };
 goog.structs.Map.prototype.transpose = function() {
-  for (var transposed = new goog.structs.Map, i = 0; i < this.keys_.length; i++) {
+  for (var transposed = new goog.structs.Map(), i = 0; i < this.keys_.length; i++) {
     var key = this.keys_[i];
     transposed.set(this.map_[key], key);
   }
@@ -6594,16 +5301,16 @@ goog.structs.Map.prototype.entries = function() {
 };
 goog.structs.Map.prototype.__iterator__ = function(opt_keys) {
   this.cleanupKeysArray_();
-  var i = 0, version = this.version_, selfObj = this, newIter = new goog.iter.Iterator;
+  var i = 0, version = this.version_, selfObj = this, newIter = new goog.iter.Iterator();
   newIter.next = function() {
     if (version != selfObj.version_) {
       throw Error("The map has changed since the iterator was created");
     }
     if (i >= selfObj.keys_.length) {
-      throw goog.iter.StopIteration;
+      return goog.iter.ES6_ITERATOR_DONE;
     }
     var key = selfObj.keys_[i++];
-    return opt_keys ? key : selfObj.map_[key];
+    return goog.iter.createEs6IteratorYield(opt_keys ? key : selfObj.map_[key]);
   };
   return newIter;
 };
@@ -6657,7 +5364,7 @@ goog.structs.contains = function(col, val) {
   return col.contains && "function" == typeof col.contains ? col.contains(val) : col.containsValue && "function" == typeof col.containsValue ? col.containsValue(val) : goog.isArrayLike(col) || "string" === typeof col ? module$contents$goog$array_contains(col, val) : module$contents$goog$object_containsValue(col, val);
 };
 goog.structs.isEmpty = function(col) {
-  return col.isEmpty && "function" == typeof col.isEmpty ? col.isEmpty() : goog.isArrayLike(col) || "string" === typeof col ? module$contents$goog$array_isEmpty(col) : module$contents$goog$object_isEmpty(col);
+  return col.isEmpty && "function" == typeof col.isEmpty ? col.isEmpty() : goog.isArrayLike(col) || "string" === typeof col ? 0 === col.length : module$contents$goog$object_isEmpty(col);
 };
 goog.structs.clear = function(col) {
   col.clear && "function" == typeof col.clear ? col.clear() : goog.isArrayLike(col) ? module$contents$goog$array_clear(col) : module$contents$goog$object_clear(col);
@@ -6665,13 +5372,11 @@ goog.structs.clear = function(col) {
 goog.structs.forEach = function(col, f, opt_obj) {
   if (col.forEach && "function" == typeof col.forEach) {
     col.forEach(f, opt_obj);
+  } else if (goog.isArrayLike(col) || "string" === typeof col) {
+    Array.prototype.forEach.call(col, f, opt_obj);
   } else {
-    if (goog.isArrayLike(col) || "string" === typeof col) {
-      module$contents$goog$array_forEach(col, f, opt_obj);
-    } else {
-      for (var keys = goog.structs.getKeys(col), values = goog.structs.getValues(col), l = values.length, i = 0; i < l; i++) {
-        f.call(opt_obj, values[i], keys && keys[i], col);
-      }
+    for (var keys = goog.structs.getKeys(col), values = goog.structs.getValues(col), l = values.length, i = 0; i < l; i++) {
+      f.call(opt_obj, values[i], keys && keys[i], col);
     }
   }
 };
@@ -6680,7 +5385,7 @@ goog.structs.filter = function(col, f, opt_obj) {
     return col.filter(f, opt_obj);
   }
   if (goog.isArrayLike(col) || "string" === typeof col) {
-    return module$contents$goog$array_filter(col, f, opt_obj);
+    return Array.prototype.filter.call(col, f, opt_obj);
   }
   var keys = goog.structs.getKeys(col), values = goog.structs.getValues(col), l = values.length;
   if (keys) {
@@ -6700,7 +5405,7 @@ goog.structs.map = function(col, f, opt_obj) {
     return col.map(f, opt_obj);
   }
   if (goog.isArrayLike(col) || "string" === typeof col) {
-    return module$contents$goog$array_map(col, f, opt_obj);
+    return Array.prototype.map.call(col, f, opt_obj);
   }
   var keys = goog.structs.getKeys(col), values = goog.structs.getValues(col), l = values.length;
   if (keys) {
@@ -6720,7 +5425,7 @@ goog.structs.some = function(col, f, opt_obj) {
     return col.some(f, opt_obj);
   }
   if (goog.isArrayLike(col) || "string" === typeof col) {
-    return module$contents$goog$array_some(col, f, opt_obj);
+    return Array.prototype.some.call(col, f, opt_obj);
   }
   for (var keys = goog.structs.getKeys(col), values = goog.structs.getValues(col), l = values.length, i = 0; i < l; i++) {
     if (f.call(opt_obj, values[i], keys && keys[i], col)) {
@@ -6734,7 +5439,7 @@ goog.structs.every = function(col, f, opt_obj) {
     return col.every(f, opt_obj);
   }
   if (goog.isArrayLike(col) || "string" === typeof col) {
-    return module$contents$goog$array_every(col, f, opt_obj);
+    return Array.prototype.every.call(col, f, opt_obj);
   }
   for (var keys = goog.structs.getKeys(col), values = goog.structs.getValues(col), l = values.length, i = 0; i < l; i++) {
     if (!f.call(opt_obj, values[i], keys && keys[i], col)) {
@@ -6744,14 +5449,14 @@ goog.structs.every = function(col, f, opt_obj) {
   return !0;
 };
 goog.structs.Set = function(opt_values) {
-  this.map_ = new goog.structs.Map;
+  this.map_ = new goog.structs.Map();
   this.size = 0;
   opt_values && this.addAll(opt_values);
 };
 goog.structs.Set.getUid_ = goog.getUid;
 goog.structs.Set.getKey_ = function(val) {
   var type = typeof val;
-  return "object" == type && val || "function" == type ? "o" + goog.getUid(val) : type.substr(0, 1) + val;
+  return "object" == type && val || "function" == type ? "o" + goog.getUid(val) : type.slice(0, 1) + val;
 };
 goog.structs.Set.prototype.getCount = function() {
   return this.map_.size;
@@ -6797,7 +5502,7 @@ goog.structs.Set.prototype.containsAll = function(col) {
   return goog.structs.every(col, this.contains, this);
 };
 goog.structs.Set.prototype.intersection = function(col) {
-  for (var result = new goog.structs.Set, values = goog.structs.getValues(col), i = 0; i < values.length; i++) {
+  for (var result = new goog.structs.Set(), values = goog.structs.getValues(col), i = 0; i < values.length; i++) {
     var value = values[i];
     this.contains(value) && result.add(value);
   }
@@ -6844,7 +5549,7 @@ var ee = {AbstractOverlay:function(url, mapId, token, opt_init, opt_profiler) {
   this.mapId = mapId;
   this.token = token;
   this.tilesLoading = [];
-  this.tilesFailed = new goog.structs.Set;
+  this.tilesFailed = new goog.structs.Set();
   this.tileCounter = 0;
   this.url = url;
 }};
@@ -6871,7 +5576,7 @@ var module$exports$tslib = {}, module$contents$tslib_extendStatics = Object.setP
   d.__proto__ = b;
 } || function(d, b) {
   for (var p in b) {
-    b.hasOwnProperty(p) && (d[p] = b[p]);
+    Object.prototype.hasOwnProperty.call(b, p) && (d[p] = b[p]);
   }
 };
 module$exports$tslib.__extends = function(d, b) {
@@ -6879,7 +5584,7 @@ module$exports$tslib.__extends = function(d, b) {
     this.constructor = d;
   }
   module$contents$tslib_extendStatics(d, b);
-  d.prototype = null === b ? Object.create(b) : (__.prototype = b.prototype, new __);
+  d.prototype = null === b ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 module$exports$tslib.__assign = Object.assign || function(t) {
   for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -6898,7 +5603,7 @@ module$exports$tslib.__rest = function(s, e) {
   if (null != s && "function" === typeof Object.getOwnPropertySymbols) {
     var i = 0;
     for (p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-      0 > e.indexOf(p[i]) && (t[p[i]] = s[p[i]]);
+      0 > e.indexOf(p[i]) && Object.prototype.propertyIsEnumerable.call(s, p[i]) && (t[p[i]] = s[p[i]]);
     }
   }
   return t;
@@ -6916,18 +5621,23 @@ module$exports$tslib.__decorate = function(decorators, target, key, desc) {
   }
   return 3 < c && r && Object.defineProperty(target, key, r), r;
 };
-module$exports$tslib.__metadata = function(metadataKey, metadataValue) {
-  if ("object" === typeof Reflect && Reflect && "function" === typeof Reflect.metadata) {
-    return Reflect.metadata(metadataKey, metadataValue);
-  }
-};
 module$exports$tslib.__param = function(paramIndex, decorator) {
   return function(target, key) {
     decorator(target, key, paramIndex);
   };
 };
+module$exports$tslib.__metadata = function(metadataKey, metadataValue) {
+  if ("object" === typeof Reflect && Reflect && "function" === typeof Reflect.metadata) {
+    return Reflect.metadata(metadataKey, metadataValue);
+  }
+};
 module$exports$tslib.__awaiter = function(thisArg, _arguments, P, generator) {
-  return new (P || (P = Promise))(function(resolve$jscomp$0, reject) {
+  function adopt(value) {
+    return value instanceof P ? value : new P(function(resolve) {
+      resolve(value);
+    });
+  }
+  return new (P || (P = Promise))(function(resolve, reject) {
     function fulfilled(value) {
       try {
         step(generator.next(value));
@@ -6943,11 +5653,9 @@ module$exports$tslib.__awaiter = function(thisArg, _arguments, P, generator) {
       }
     }
     function step(result) {
-      result.done ? resolve$jscomp$0(result.value) : (new P(function(resolve) {
-        resolve(result.value);
-      })).then(fulfilled, rejected);
+      result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
     }
-    step((generator = generator.apply(thisArg, _arguments)).next());
+    step((generator = generator.apply(thisArg, _arguments || [])).next());
   });
 };
 module$exports$tslib.__generator = function(thisArg, body) {
@@ -6962,11 +5670,11 @@ module$exports$tslib.__generator = function(thisArg, body) {
     }
     for (; _;) {
       try {
-        if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) {
+        if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) {
           return t;
         }
         if (y = 0, t) {
-          op = [0, t.value];
+          op = [op[0] & 2, t.value];
         }
         switch(op[0]) {
           case 0:
@@ -7027,9 +5735,9 @@ module$exports$tslib.__generator = function(thisArg, body) {
     return g;
   }), g;
 };
-module$exports$tslib.__exportStar = function(m, e) {
+module$exports$tslib.__exportStar = function(m, o) {
   for (var p in m) {
-    e.hasOwnProperty(p) || (e[p] = m[p]);
+    o.hasOwnProperty(p) || (o[p] = m[p]);
   }
 };
 module$exports$tslib.__values = function(o) {
@@ -7080,19 +5788,21 @@ module$exports$tslib.__spreadArrays = function() {
   }
   return r;
 };
-module$exports$tslib.__spreadArray = function(to, from) {
+module$exports$tslib.__spreadArray = function(to, from, pack) {
   if (!(Array.isArray(from) || from instanceof NodeList)) {
     throw new TypeError("Expected an Array or NodeList: " + String(from));
   }
-  for (var i = 0, il = from.length, j = to.length; i < il; i++, j++) {
-    to[j] = from[i];
+  if (pack || 2 === arguments.length) {
+    for (var i = 0, l = from.length, ar; i < l; i++) {
+      !ar && i in from || (ar || (ar = Array.prototype.slice.call(from, 0, i)), ar[i] = from[i]);
+    }
   }
-  return to;
+  return to.concat(ar || Array.prototype.slice.call(from));
 };
 module$exports$tslib.__await = function(v) {
   return this instanceof module$exports$tslib.__await ? (this.v = v, this) : new module$exports$tslib.__await(v);
 };
-module$exports$tslib.__asyncGenerator = function __asyncGenerator(thisArg, _arguments, generator) {
+module$exports$tslib.__asyncGenerator = function(thisArg, _arguments, generator) {
   function verb(n) {
     g[n] && (i[n] = function(v) {
       return new Promise(function(a, b) {
@@ -7129,9 +5839,9 @@ module$exports$tslib.__asyncGenerator = function __asyncGenerator(thisArg, _argu
 };
 module$exports$tslib.__asyncDelegator = function(o) {
   function verb(n, f) {
-    o[n] && (i[n] = function(v) {
+    i[n] = o[n] ? function(v) {
       return (p = !p) ? {value:new module$exports$tslib.__await(o[n](v)), done:"return" === n} : f ? f(v) : v;
-    });
+    } : f;
   }
   var i, p;
   return i = {}, verb("next"), verb("throw", function(e) {
@@ -7141,28 +5851,57 @@ module$exports$tslib.__asyncDelegator = function(o) {
   }, i;
 };
 module$exports$tslib.__asyncValues = function(o) {
+  function verb(n) {
+    i[n] = o[n] && function(v) {
+      return new Promise(function(resolve, reject) {
+        v = o[n](v);
+        settle(resolve, reject, v.done, v.value);
+      });
+    };
+  }
+  function settle(resolve, reject, d, v$jscomp$0) {
+    Promise.resolve(v$jscomp$0).then(function(v) {
+      resolve({value:v, done:d});
+    }, reject);
+  }
   if (!Symbol.asyncIterator) {
     throw new TypeError("Symbol.asyncIterator is not defined.");
   }
-  var m = o[Symbol.asyncIterator];
-  return m ? m.call(o) : "function" === typeof __values ? __values(o) : o[Symbol.iterator]();
+  var m = o[Symbol.asyncIterator], i;
+  return m ? m.call(o) : (o = "function" === typeof __values ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
+    return this;
+  }, i);
 };
 module$exports$tslib.__makeTemplateObject = function(cooked, raw) {
   Object.defineProperty ? Object.defineProperty(cooked, "raw", {value:raw}) : cooked.raw = raw;
   return cooked;
 };
-module$exports$tslib.__classPrivateFieldGet = function(receiver, privateMap) {
-  if (!privateMap.has(receiver)) {
-    throw new TypeError("attempted to get private field on non-instance");
+module$exports$tslib.__classPrivateFieldGet = function(receiver, state, kind, f) {
+  if ("a" === kind && !f) {
+    throw new TypeError("Private accessor was defined without a getter");
   }
-  return privateMap.get(receiver);
+  if ("function" === typeof state ? receiver !== state || !f : !state.has(receiver)) {
+    throw new TypeError("Cannot read private member from an object whose class did not declare it");
+  }
+  return "m" === kind ? f : "a" === kind ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-module$exports$tslib.__classPrivateFieldSet = function(receiver, privateMap, value) {
-  if (!privateMap.has(receiver)) {
-    throw new TypeError("attempted to set private field on non-instance");
+module$exports$tslib.__classPrivateFieldSet = function(receiver, state, value, kind, f) {
+  if ("m" === kind) {
+    throw new TypeError("Private method is not writable");
   }
-  privateMap.set(receiver, value);
-  return value;
+  if ("a" === kind && !f) {
+    throw new TypeError("Private accessor was defined without a setter");
+  }
+  if ("function" === typeof state ? receiver !== state || !f : !state.has(receiver)) {
+    throw new TypeError("Cannot write private member to an object whose class did not declare it");
+  }
+  return "a" === kind ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+};
+module$exports$tslib.__classPrivateFieldIn = function(state, receiver) {
+  if (null === receiver || "object" !== typeof receiver && "function" !== typeof receiver) {
+    throw new TypeError("Cannot use 'in' operator on non-object");
+  }
+  return "function" === typeof state ? receiver === state : state.has(receiver);
 };
 var module$exports$eeapiclient$domain_object = {}, module$contents$eeapiclient$domain_object_module = module$contents$eeapiclient$domain_object_module || {id:"javascript/typescript/contrib/apiclient/core/domain_object.closure.js"};
 module$exports$eeapiclient$domain_object.ObjectMapMetadata = function module$contents$eeapiclient$domain_object_ObjectMapMetadata() {
@@ -7172,11 +5911,11 @@ module$exports$eeapiclient$domain_object.ClassMetadata = function module$content
 };
 var module$contents$eeapiclient$domain_object_NullClass = function() {
 };
-module$exports$eeapiclient$domain_object.NULL_VALUE = new module$contents$eeapiclient$domain_object_NullClass;
+module$exports$eeapiclient$domain_object.NULL_VALUE = new module$contents$eeapiclient$domain_object_NullClass();
 module$exports$eeapiclient$domain_object.ISerializable = function module$contents$eeapiclient$domain_object_ISerializable() {
 };
 function module$contents$eeapiclient$domain_object_buildClassMetadataFromPartial(partialClassMetadata) {
-  return Object.assign({arrays:{}, descriptions:{}, keys:[], objectMaps:{}, objects:{}, enums:{}, emptyArrayIsUnset:!1}, partialClassMetadata);
+  return Object.assign({}, {arrays:{}, descriptions:{}, keys:[], objectMaps:{}, objects:{}, enums:{}, emptyArrayIsUnset:!1}, partialClassMetadata);
 }
 module$exports$eeapiclient$domain_object.buildClassMetadataFromPartial = module$contents$eeapiclient$domain_object_buildClassMetadataFromPartial;
 module$exports$eeapiclient$domain_object.Serializable = function() {
@@ -7216,7 +5955,7 @@ function module$contents$eeapiclient$domain_object_serializeInstanciator(ctor) {
   return {};
 }
 function module$contents$eeapiclient$domain_object_deserialize(type, raw) {
-  var result = new type;
+  var result = new type();
   return null == raw ? result : module$contents$eeapiclient$domain_object_deepCopy(raw, module$contents$eeapiclient$domain_object_deserializeGetter, module$contents$eeapiclient$domain_object_deserializeSetter, module$contents$eeapiclient$domain_object_deserializeInstanciator, type);
 }
 module$exports$eeapiclient$domain_object.deserialize = module$contents$eeapiclient$domain_object_deserialize;
@@ -7230,15 +5969,15 @@ function module$contents$eeapiclient$domain_object_deserializeInstanciator(ctor)
   if (null == ctor) {
     throw Error("Cannot deserialize, target constructor was null.");
   }
-  return new ctor;
+  return new ctor();
 }
 module$exports$eeapiclient$domain_object.strictDeserialize = function module$contents$eeapiclient$domain_object_strictDeserialize(type, raw) {
   return module$contents$eeapiclient$domain_object_deserialize(type, raw);
 };
 var module$contents$eeapiclient$domain_object_CopyValueGetter, module$contents$eeapiclient$domain_object_CopyValueSetter, module$contents$eeapiclient$domain_object_CopyConstructor, module$contents$eeapiclient$domain_object_CopyInstanciator;
 function module$contents$eeapiclient$domain_object_deepCopy(source, valueGetter, valueSetter, copyInstanciator, targetConstructor) {
-  for (var target = copyInstanciator(targetConstructor), metadata = module$contents$eeapiclient$domain_object_deepCopyMetadata(source, target), arrays = metadata.arrays || {}, objects = metadata.objects || {}, objectMaps = metadata.objectMaps || {}, $jscomp$loop$59 = {}, $jscomp$iter$6 = $jscomp.makeIterator(metadata.keys || []), $jscomp$key$key = $jscomp$iter$6.next(); !$jscomp$key$key.done; $jscomp$loop$59 = {$jscomp$loop$prop$mapMetadata$60:$jscomp$loop$59.$jscomp$loop$prop$mapMetadata$60}, 
-  $jscomp$key$key = $jscomp$iter$6.next()) {
+  for (var target = copyInstanciator(targetConstructor), metadata = module$contents$eeapiclient$domain_object_deepCopyMetadata(source, target), arrays = metadata.arrays || {}, objects = metadata.objects || {}, objectMaps = metadata.objectMaps || {}, $jscomp$loop$66 = {}, $jscomp$iter$7 = $jscomp.makeIterator(metadata.keys || []), $jscomp$key$key = $jscomp$iter$7.next(); !$jscomp$key$key.done; $jscomp$loop$66 = {$jscomp$loop$prop$mapMetadata$67:$jscomp$loop$66.$jscomp$loop$prop$mapMetadata$67}, 
+  $jscomp$key$key = $jscomp$iter$7.next()) {
     var key = $jscomp$key$key.value, value = valueGetter(key, source);
     if (null != value) {
       var copy = void 0;
@@ -7247,27 +5986,21 @@ function module$contents$eeapiclient$domain_object_deepCopy(source, valueGetter,
           continue;
         }
         copy = module$contents$eeapiclient$domain_object_deepCopyValue(value, valueGetter, valueSetter, copyInstanciator, !0, !0, arrays[key]);
-      } else {
-        if (objects.hasOwnProperty(key)) {
-          copy = module$contents$eeapiclient$domain_object_deepCopyValue(value, valueGetter, valueSetter, copyInstanciator, !1, !0, objects[key]);
-        } else {
-          if (objectMaps.hasOwnProperty(key)) {
-            $jscomp$loop$59.$jscomp$loop$prop$mapMetadata$60 = objectMaps[key], copy = $jscomp$loop$59.$jscomp$loop$prop$mapMetadata$60.isPropertyArray ? value.map(function($jscomp$loop$59) {
-              return function(v) {
-                return module$contents$eeapiclient$domain_object_deepCopyObjectMap(v, $jscomp$loop$59.$jscomp$loop$prop$mapMetadata$60, valueGetter, valueSetter, copyInstanciator);
-              };
-            }($jscomp$loop$59)) : module$contents$eeapiclient$domain_object_deepCopyObjectMap(value, $jscomp$loop$59.$jscomp$loop$prop$mapMetadata$60, valueGetter, valueSetter, copyInstanciator);
-          } else {
-            if (Array.isArray(value)) {
-              if (metadata.emptyArrayIsUnset && 0 === value.length) {
-                continue;
-              }
-              copy = module$contents$eeapiclient$domain_object_deepCopyValue(value, valueGetter, valueSetter, copyInstanciator, !0, !1);
-            } else {
-              copy = value instanceof module$contents$eeapiclient$domain_object_NullClass ? null : value;
-            }
-          }
+      } else if (objects.hasOwnProperty(key)) {
+        copy = module$contents$eeapiclient$domain_object_deepCopyValue(value, valueGetter, valueSetter, copyInstanciator, !1, !0, objects[key]);
+      } else if (objectMaps.hasOwnProperty(key)) {
+        $jscomp$loop$66.$jscomp$loop$prop$mapMetadata$67 = objectMaps[key], copy = $jscomp$loop$66.$jscomp$loop$prop$mapMetadata$67.isPropertyArray ? value.map(function($jscomp$loop$66) {
+          return function(v) {
+            return module$contents$eeapiclient$domain_object_deepCopyObjectMap(v, $jscomp$loop$66.$jscomp$loop$prop$mapMetadata$67, valueGetter, valueSetter, copyInstanciator);
+          };
+        }($jscomp$loop$66)) : module$contents$eeapiclient$domain_object_deepCopyObjectMap(value, $jscomp$loop$66.$jscomp$loop$prop$mapMetadata$67, valueGetter, valueSetter, copyInstanciator);
+      } else if (Array.isArray(value)) {
+        if (metadata.emptyArrayIsUnset && 0 === value.length) {
+          continue;
         }
+        copy = module$contents$eeapiclient$domain_object_deepCopyValue(value, valueGetter, valueSetter, copyInstanciator, !0, !1);
+      } else {
+        copy = value instanceof module$contents$eeapiclient$domain_object_NullClass ? null : value;
       }
       valueSetter(key, target, copy);
     }
@@ -7275,7 +6008,7 @@ function module$contents$eeapiclient$domain_object_deepCopy(source, valueGetter,
   return target;
 }
 function module$contents$eeapiclient$domain_object_deepCopyObjectMap(value, mapMetadata, valueGetter, valueSetter, copyInstanciator) {
-  for (var objMap = {}, $jscomp$iter$7 = $jscomp.makeIterator(Object.keys(value)), $jscomp$key$mapKey = $jscomp$iter$7.next(); !$jscomp$key$mapKey.done; $jscomp$key$mapKey = $jscomp$iter$7.next()) {
+  for (var objMap = {}, $jscomp$iter$8 = $jscomp.makeIterator(Object.keys(value)), $jscomp$key$mapKey = $jscomp$iter$8.next(); !$jscomp$key$mapKey.done; $jscomp$key$mapKey = $jscomp$iter$8.next()) {
     var mapKey = $jscomp$key$mapKey.value, mapValue = value[mapKey];
     null != mapValue && (objMap[mapKey] = module$contents$eeapiclient$domain_object_deepCopyValue(mapValue, valueGetter, valueSetter, copyInstanciator, mapMetadata.isValueArray, mapMetadata.isSerializable, mapMetadata.ctor));
   }
@@ -7294,12 +6027,10 @@ function module$contents$eeapiclient$domain_object_deepCopyValue(value, valueGet
 function module$contents$eeapiclient$domain_object_deepCopyMetadata(source, target) {
   if (target instanceof module$exports$eeapiclient$domain_object.Serializable) {
     var metadata = target.getClassMetadata();
+  } else if (source instanceof module$exports$eeapiclient$domain_object.Serializable) {
+    metadata = source.getClassMetadata();
   } else {
-    if (source instanceof module$exports$eeapiclient$domain_object.Serializable) {
-      metadata = source.getClassMetadata();
-    } else {
-      throw Error("Cannot find ClassMetadata.");
-    }
+    throw Error("Cannot find ClassMetadata.");
   }
   return metadata;
 }
@@ -7308,50 +6039,40 @@ function module$contents$eeapiclient$domain_object_deepEquals(serializable1, ser
   if (!(module$contents$eeapiclient$domain_object_sameKeys(keys1, metadata2.keys || []) && module$contents$eeapiclient$domain_object_sameKeys(arrays1, arrays2) && module$contents$eeapiclient$domain_object_sameKeys(objects1, objects2) && module$contents$eeapiclient$domain_object_sameKeys(objectMaps1, objectMaps2))) {
     return !1;
   }
-  for (var $jscomp$loop$61 = {}, $jscomp$iter$8 = $jscomp.makeIterator(keys1), $jscomp$key$key = $jscomp$iter$8.next(); !$jscomp$key$key.done; $jscomp$loop$61 = {$jscomp$loop$prop$value2$62:$jscomp$loop$61.$jscomp$loop$prop$value2$62, $jscomp$loop$prop$mapMetadata$63:$jscomp$loop$61.$jscomp$loop$prop$mapMetadata$63}, $jscomp$key$key = $jscomp$iter$8.next()) {
+  for (var $jscomp$loop$68 = {}, $jscomp$iter$9 = $jscomp.makeIterator(keys1), $jscomp$key$key = $jscomp$iter$9.next(); !$jscomp$key$key.done; $jscomp$loop$68 = {$jscomp$loop$prop$value2$69:$jscomp$loop$68.$jscomp$loop$prop$value2$69, $jscomp$loop$prop$mapMetadata$70:$jscomp$loop$68.$jscomp$loop$prop$mapMetadata$70}, $jscomp$key$key = $jscomp$iter$9.next()) {
     var key = $jscomp$key$key.value, has1 = module$contents$eeapiclient$domain_object_hasAndIsNotEmptyArray(serializable1, key, metadata1), has2 = module$contents$eeapiclient$domain_object_hasAndIsNotEmptyArray(serializable2, key, metadata2);
     if (has1 !== has2) {
       return !1;
     }
     if (has1) {
       var value1 = serializable1.Serializable$get(key);
-      $jscomp$loop$61.$jscomp$loop$prop$value2$62 = serializable2.Serializable$get(key);
+      $jscomp$loop$68.$jscomp$loop$prop$value2$69 = serializable2.Serializable$get(key);
       if (arrays1.hasOwnProperty(key)) {
-        if (!module$contents$eeapiclient$domain_object_deepEqualsValue(value1, $jscomp$loop$61.$jscomp$loop$prop$value2$62, !0, !0)) {
+        if (!module$contents$eeapiclient$domain_object_deepEqualsValue(value1, $jscomp$loop$68.$jscomp$loop$prop$value2$69, !0, !0)) {
           return !1;
         }
-      } else {
-        if (objects1.hasOwnProperty(key)) {
-          if (!module$contents$eeapiclient$domain_object_deepEqualsValue(value1, $jscomp$loop$61.$jscomp$loop$prop$value2$62, !1, !0)) {
+      } else if (objects1.hasOwnProperty(key)) {
+        if (!module$contents$eeapiclient$domain_object_deepEqualsValue(value1, $jscomp$loop$68.$jscomp$loop$prop$value2$69, !1, !0)) {
+          return !1;
+        }
+      } else if (objectMaps1.hasOwnProperty(key)) {
+        if ($jscomp$loop$68.$jscomp$loop$prop$mapMetadata$70 = objectMaps1[key], $jscomp$loop$68.$jscomp$loop$prop$mapMetadata$70.isPropertyArray) {
+          if (!module$contents$eeapiclient$domain_object_sameKeys(value1, $jscomp$loop$68.$jscomp$loop$prop$value2$69) || value1.some(function($jscomp$loop$68) {
+            return function(v1, i) {
+              return !module$contents$eeapiclient$domain_object_deepEqualsObjectMap(v1, $jscomp$loop$68.$jscomp$loop$prop$value2$69[i], $jscomp$loop$68.$jscomp$loop$prop$mapMetadata$70);
+            };
+          }($jscomp$loop$68))) {
             return !1;
           }
-        } else {
-          if (objectMaps1.hasOwnProperty(key)) {
-            if ($jscomp$loop$61.$jscomp$loop$prop$mapMetadata$63 = objectMaps1[key], $jscomp$loop$61.$jscomp$loop$prop$mapMetadata$63.isPropertyArray) {
-              if (!module$contents$eeapiclient$domain_object_sameKeys(value1, $jscomp$loop$61.$jscomp$loop$prop$value2$62) || value1.some(function($jscomp$loop$61) {
-                return function(v1, i) {
-                  return !module$contents$eeapiclient$domain_object_deepEqualsObjectMap(v1, $jscomp$loop$61.$jscomp$loop$prop$value2$62[i], $jscomp$loop$61.$jscomp$loop$prop$mapMetadata$63);
-                };
-              }($jscomp$loop$61))) {
-                return !1;
-              }
-            } else {
-              if (!module$contents$eeapiclient$domain_object_deepEqualsObjectMap(value1, $jscomp$loop$61.$jscomp$loop$prop$value2$62, $jscomp$loop$61.$jscomp$loop$prop$mapMetadata$63)) {
-                return !1;
-              }
-            }
-          } else {
-            if (Array.isArray(value1)) {
-              if (!module$contents$eeapiclient$domain_object_deepEqualsValue(value1, $jscomp$loop$61.$jscomp$loop$prop$value2$62, !0, !1)) {
-                return !1;
-              }
-            } else {
-              if (!module$contents$eeapiclient$domain_object_deepEqualsValue(value1, $jscomp$loop$61.$jscomp$loop$prop$value2$62, !1, !1)) {
-                return !1;
-              }
-            }
-          }
+        } else if (!module$contents$eeapiclient$domain_object_deepEqualsObjectMap(value1, $jscomp$loop$68.$jscomp$loop$prop$value2$69, $jscomp$loop$68.$jscomp$loop$prop$mapMetadata$70)) {
+          return !1;
         }
+      } else if (Array.isArray(value1)) {
+        if (!module$contents$eeapiclient$domain_object_deepEqualsValue(value1, $jscomp$loop$68.$jscomp$loop$prop$value2$69, !0, !1)) {
+          return !1;
+        }
+      } else if (!module$contents$eeapiclient$domain_object_deepEqualsValue(value1, $jscomp$loop$68.$jscomp$loop$prop$value2$69, !1, !1)) {
+        return !1;
       }
     }
   }
@@ -7372,7 +6093,7 @@ function module$contents$eeapiclient$domain_object_deepEqualsObjectMap(value1, v
   if (!module$contents$eeapiclient$domain_object_sameKeys(value1, value2)) {
     return !1;
   }
-  for (var $jscomp$iter$9 = $jscomp.makeIterator(Object.keys(value1)), $jscomp$key$mapKey = $jscomp$iter$9.next(); !$jscomp$key$mapKey.done; $jscomp$key$mapKey = $jscomp$iter$9.next()) {
+  for (var $jscomp$iter$10 = $jscomp.makeIterator(Object.keys(value1)), $jscomp$key$mapKey = $jscomp$iter$10.next(); !$jscomp$key$mapKey.done; $jscomp$key$mapKey = $jscomp$iter$10.next()) {
     var mapKey = $jscomp$key$mapKey.value;
     if (!module$contents$eeapiclient$domain_object_deepEqualsValue(value1[mapKey], value2[mapKey], mapMetadata.isValueArray, mapMetadata.isSerializable)) {
       return !1;
@@ -7390,23 +6111,22 @@ function module$contents$eeapiclient$domain_object_deepEqualsValue(value1, value
     })) {
       return !1;
     }
+  } else if (isArray && !isSerializable) {
+    if (!module$contents$eeapiclient$domain_object_sameKeys(value1, value2) || value1.some(function(v, i) {
+      return v !== value2[i];
+    })) {
+      return !1;
+    }
   } else {
-    if (isArray && !isSerializable) {
-      if (!module$contents$eeapiclient$domain_object_sameKeys(value1, value2) || value1.some(function(v, i) {
-        return v !== value2[i];
-      })) {
+    if (isSerializable) {
+      return module$contents$eeapiclient$domain_object_deepEquals(value1, value2);
+    }
+    if ("object" === typeof value1) {
+      if (JSON.stringify(value1) !== JSON.stringify(value2)) {
         return !1;
       }
-    } else {
-      if ("object" === typeof value1) {
-        if (JSON.stringify(value1) !== JSON.stringify(value2)) {
-          return !1;
-        }
-      } else {
-        if (value1 !== value2) {
-          return !1;
-        }
-      }
+    } else if (value1 !== value2) {
+      return !1;
     }
   }
   return !0;
@@ -7432,8 +6152,1636 @@ module$exports$eeapiclient$domain_object.serializableEqualityTester = function m
     return module$contents$eeapiclient$domain_object_deepEquals(left, right);
   }
 };
+goog.dom.asserts = {};
+goog.dom.asserts.assertIsLocation = function(o) {
+  if (goog.asserts.ENABLE_ASSERTS) {
+    var win = goog.dom.asserts.getWindow_(o);
+    win && (!o || !(o instanceof win.Location) && o instanceof win.Element) && goog.asserts.fail("Argument is not a Location (or a non-Element mock); got: %s", goog.dom.asserts.debugStringForType_(o));
+  }
+  return o;
+};
+goog.dom.asserts.assertIsElementType_ = function(o, typename) {
+  if (goog.asserts.ENABLE_ASSERTS) {
+    var win = goog.dom.asserts.getWindow_(o);
+    win && "undefined" != typeof win[typename] && (o && (o instanceof win[typename] || !(o instanceof win.Location || o instanceof win.Element)) || goog.asserts.fail("Argument is not a %s (or a non-Element, non-Location mock); got: %s", typename, goog.dom.asserts.debugStringForType_(o)));
+  }
+  return o;
+};
+goog.dom.asserts.assertIsHTMLAnchorElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLAnchorElement");
+};
+goog.dom.asserts.assertIsHTMLButtonElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLButtonElement");
+};
+goog.dom.asserts.assertIsHTMLLinkElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLLinkElement");
+};
+goog.dom.asserts.assertIsHTMLImageElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLImageElement");
+};
+goog.dom.asserts.assertIsHTMLAudioElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLAudioElement");
+};
+goog.dom.asserts.assertIsHTMLVideoElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLVideoElement");
+};
+goog.dom.asserts.assertIsHTMLInputElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLInputElement");
+};
+goog.dom.asserts.assertIsHTMLTextAreaElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLTextAreaElement");
+};
+goog.dom.asserts.assertIsHTMLCanvasElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLCanvasElement");
+};
+goog.dom.asserts.assertIsHTMLEmbedElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLEmbedElement");
+};
+goog.dom.asserts.assertIsHTMLFormElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLFormElement");
+};
+goog.dom.asserts.assertIsHTMLFrameElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLFrameElement");
+};
+goog.dom.asserts.assertIsHTMLIFrameElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLIFrameElement");
+};
+goog.dom.asserts.assertIsHTMLObjectElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLObjectElement");
+};
+goog.dom.asserts.assertIsHTMLScriptElement = function(o) {
+  return goog.dom.asserts.assertIsElementType_(o, "HTMLScriptElement");
+};
+goog.dom.asserts.debugStringForType_ = function(value) {
+  if (goog.isObject(value)) {
+    try {
+      return value.constructor.displayName || value.constructor.name || Object.prototype.toString.call(value);
+    } catch (e) {
+      return "<object could not be stringified>";
+    }
+  } else {
+    return void 0 === value ? "undefined" : null === value ? "null" : typeof value;
+  }
+};
+goog.dom.asserts.getWindow_ = function(o) {
+  try {
+    var doc = o && o.ownerDocument, win = doc && (doc.defaultView || doc.parentWindow);
+    win = win || goog.global;
+    if (win.Element && win.Location) {
+      return win;
+    }
+  } catch (ex) {
+  }
+  return null;
+};
+goog.dom.HtmlElement = function() {
+};
+goog.dom.TagName = function() {
+};
+goog.dom.TagName.cast = function(name, type) {
+  return name;
+};
+goog.dom.TagName.prototype.toString = function() {
+};
+goog.dom.TagName.A = "A";
+goog.dom.TagName.ABBR = "ABBR";
+goog.dom.TagName.ACRONYM = "ACRONYM";
+goog.dom.TagName.ADDRESS = "ADDRESS";
+goog.dom.TagName.APPLET = "APPLET";
+goog.dom.TagName.AREA = "AREA";
+goog.dom.TagName.ARTICLE = "ARTICLE";
+goog.dom.TagName.ASIDE = "ASIDE";
+goog.dom.TagName.AUDIO = "AUDIO";
+goog.dom.TagName.B = "B";
+goog.dom.TagName.BASE = "BASE";
+goog.dom.TagName.BASEFONT = "BASEFONT";
+goog.dom.TagName.BDI = "BDI";
+goog.dom.TagName.BDO = "BDO";
+goog.dom.TagName.BIG = "BIG";
+goog.dom.TagName.BLOCKQUOTE = "BLOCKQUOTE";
+goog.dom.TagName.BODY = "BODY";
+goog.dom.TagName.BR = "BR";
+goog.dom.TagName.BUTTON = "BUTTON";
+goog.dom.TagName.CANVAS = "CANVAS";
+goog.dom.TagName.CAPTION = "CAPTION";
+goog.dom.TagName.CENTER = "CENTER";
+goog.dom.TagName.CITE = "CITE";
+goog.dom.TagName.CODE = "CODE";
+goog.dom.TagName.COL = "COL";
+goog.dom.TagName.COLGROUP = "COLGROUP";
+goog.dom.TagName.COMMAND = "COMMAND";
+goog.dom.TagName.DATA = "DATA";
+goog.dom.TagName.DATALIST = "DATALIST";
+goog.dom.TagName.DD = "DD";
+goog.dom.TagName.DEL = "DEL";
+goog.dom.TagName.DETAILS = "DETAILS";
+goog.dom.TagName.DFN = "DFN";
+goog.dom.TagName.DIALOG = "DIALOG";
+goog.dom.TagName.DIR = "DIR";
+goog.dom.TagName.DIV = "DIV";
+goog.dom.TagName.DL = "DL";
+goog.dom.TagName.DT = "DT";
+goog.dom.TagName.EM = "EM";
+goog.dom.TagName.EMBED = "EMBED";
+goog.dom.TagName.FIELDSET = "FIELDSET";
+goog.dom.TagName.FIGCAPTION = "FIGCAPTION";
+goog.dom.TagName.FIGURE = "FIGURE";
+goog.dom.TagName.FONT = "FONT";
+goog.dom.TagName.FOOTER = "FOOTER";
+goog.dom.TagName.FORM = "FORM";
+goog.dom.TagName.FRAME = "FRAME";
+goog.dom.TagName.FRAMESET = "FRAMESET";
+goog.dom.TagName.H1 = "H1";
+goog.dom.TagName.H2 = "H2";
+goog.dom.TagName.H3 = "H3";
+goog.dom.TagName.H4 = "H4";
+goog.dom.TagName.H5 = "H5";
+goog.dom.TagName.H6 = "H6";
+goog.dom.TagName.HEAD = "HEAD";
+goog.dom.TagName.HEADER = "HEADER";
+goog.dom.TagName.HGROUP = "HGROUP";
+goog.dom.TagName.HR = "HR";
+goog.dom.TagName.HTML = "HTML";
+goog.dom.TagName.I = "I";
+goog.dom.TagName.IFRAME = "IFRAME";
+goog.dom.TagName.IMG = "IMG";
+goog.dom.TagName.INPUT = "INPUT";
+goog.dom.TagName.INS = "INS";
+goog.dom.TagName.ISINDEX = "ISINDEX";
+goog.dom.TagName.KBD = "KBD";
+goog.dom.TagName.KEYGEN = "KEYGEN";
+goog.dom.TagName.LABEL = "LABEL";
+goog.dom.TagName.LEGEND = "LEGEND";
+goog.dom.TagName.LI = "LI";
+goog.dom.TagName.LINK = "LINK";
+goog.dom.TagName.MAIN = "MAIN";
+goog.dom.TagName.MAP = "MAP";
+goog.dom.TagName.MARK = "MARK";
+goog.dom.TagName.MATH = "MATH";
+goog.dom.TagName.MENU = "MENU";
+goog.dom.TagName.MENUITEM = "MENUITEM";
+goog.dom.TagName.META = "META";
+goog.dom.TagName.METER = "METER";
+goog.dom.TagName.NAV = "NAV";
+goog.dom.TagName.NOFRAMES = "NOFRAMES";
+goog.dom.TagName.NOSCRIPT = "NOSCRIPT";
+goog.dom.TagName.OBJECT = "OBJECT";
+goog.dom.TagName.OL = "OL";
+goog.dom.TagName.OPTGROUP = "OPTGROUP";
+goog.dom.TagName.OPTION = "OPTION";
+goog.dom.TagName.OUTPUT = "OUTPUT";
+goog.dom.TagName.P = "P";
+goog.dom.TagName.PARAM = "PARAM";
+goog.dom.TagName.PICTURE = "PICTURE";
+goog.dom.TagName.PRE = "PRE";
+goog.dom.TagName.PROGRESS = "PROGRESS";
+goog.dom.TagName.Q = "Q";
+goog.dom.TagName.RP = "RP";
+goog.dom.TagName.RT = "RT";
+goog.dom.TagName.RTC = "RTC";
+goog.dom.TagName.RUBY = "RUBY";
+goog.dom.TagName.S = "S";
+goog.dom.TagName.SAMP = "SAMP";
+goog.dom.TagName.SCRIPT = "SCRIPT";
+goog.dom.TagName.SECTION = "SECTION";
+goog.dom.TagName.SELECT = "SELECT";
+goog.dom.TagName.SMALL = "SMALL";
+goog.dom.TagName.SOURCE = "SOURCE";
+goog.dom.TagName.SPAN = "SPAN";
+goog.dom.TagName.STRIKE = "STRIKE";
+goog.dom.TagName.STRONG = "STRONG";
+goog.dom.TagName.STYLE = "STYLE";
+goog.dom.TagName.SUB = "SUB";
+goog.dom.TagName.SUMMARY = "SUMMARY";
+goog.dom.TagName.SUP = "SUP";
+goog.dom.TagName.SVG = "SVG";
+goog.dom.TagName.TABLE = "TABLE";
+goog.dom.TagName.TBODY = "TBODY";
+goog.dom.TagName.TD = "TD";
+goog.dom.TagName.TEMPLATE = "TEMPLATE";
+goog.dom.TagName.TEXTAREA = "TEXTAREA";
+goog.dom.TagName.TFOOT = "TFOOT";
+goog.dom.TagName.TH = "TH";
+goog.dom.TagName.THEAD = "THEAD";
+goog.dom.TagName.TIME = "TIME";
+goog.dom.TagName.TITLE = "TITLE";
+goog.dom.TagName.TR = "TR";
+goog.dom.TagName.TRACK = "TRACK";
+goog.dom.TagName.TT = "TT";
+goog.dom.TagName.U = "U";
+goog.dom.TagName.UL = "UL";
+goog.dom.TagName.VAR = "VAR";
+goog.dom.TagName.VIDEO = "VIDEO";
+goog.dom.TagName.WBR = "WBR";
+goog.dom.tags = {};
+goog.dom.tags.VOID_TAGS_ = {area:!0, base:!0, br:!0, col:!0, command:!0, embed:!0, hr:!0, img:!0, input:!0, keygen:!0, link:!0, meta:!0, param:!0, source:!0, track:!0, wbr:!0};
+goog.dom.tags.isVoidTag = function(tagName) {
+  return !0 === goog.dom.tags.VOID_TAGS_[tagName];
+};
+goog.html = {};
+goog.html.trustedtypes = {};
+goog.html.trustedtypes.POLICY_NAME = goog.TRUSTED_TYPES_POLICY_NAME ? goog.TRUSTED_TYPES_POLICY_NAME + "#html" : "";
+goog.html.trustedtypes.getPolicyPrivateDoNotAccessOrElse = function() {
+  if (!goog.html.trustedtypes.POLICY_NAME) {
+    return null;
+  }
+  void 0 === goog.html.trustedtypes.cachedPolicy_ && (goog.html.trustedtypes.cachedPolicy_ = goog.createTrustedTypesPolicy(goog.html.trustedtypes.POLICY_NAME));
+  return goog.html.trustedtypes.cachedPolicy_;
+};
+goog.string.TypedString = function() {
+};
+goog.string.Const = function(opt_token, opt_content) {
+  this.stringConstValueWithSecurityContract__googStringSecurityPrivate_ = opt_token === goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_ && opt_content || "";
+  this.STRING_CONST_TYPE_MARKER__GOOG_STRING_SECURITY_PRIVATE_ = goog.string.Const.TYPE_MARKER_;
+};
+goog.string.Const.prototype.implementsGoogStringTypedString = !0;
+goog.string.Const.prototype.getTypedStringValue = function() {
+  return this.stringConstValueWithSecurityContract__googStringSecurityPrivate_;
+};
+goog.DEBUG && (goog.string.Const.prototype.toString = function() {
+  return "Const{" + this.stringConstValueWithSecurityContract__googStringSecurityPrivate_ + "}";
+});
+goog.string.Const.unwrap = function(stringConst) {
+  if (stringConst instanceof goog.string.Const && stringConst.constructor === goog.string.Const && stringConst.STRING_CONST_TYPE_MARKER__GOOG_STRING_SECURITY_PRIVATE_ === goog.string.Const.TYPE_MARKER_) {
+    return stringConst.stringConstValueWithSecurityContract__googStringSecurityPrivate_;
+  }
+  goog.asserts.fail("expected object of type Const, got '" + stringConst + "'");
+  return "type_error:Const";
+};
+goog.string.Const.from = function(s) {
+  return new goog.string.Const(goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_, s);
+};
+goog.string.Const.TYPE_MARKER_ = {};
+goog.string.Const.GOOG_STRING_CONSTRUCTOR_TOKEN_PRIVATE_ = {};
+goog.string.Const.EMPTY = goog.string.Const.from("");
+var module$contents$goog$html$SafeScript_CONSTRUCTOR_TOKEN_PRIVATE = {}, module$contents$goog$html$SafeScript_SafeScript = function(value, token) {
+  this.privateDoNotAccessOrElseSafeScriptWrappedValue_ = token === module$contents$goog$html$SafeScript_CONSTRUCTOR_TOKEN_PRIVATE ? value : "";
+  this.implementsGoogStringTypedString = !0;
+};
+module$contents$goog$html$SafeScript_SafeScript.prototype.toString = function() {
+  return this.privateDoNotAccessOrElseSafeScriptWrappedValue_.toString();
+};
+module$contents$goog$html$SafeScript_SafeScript.fromConstant = function(script) {
+  var scriptString = goog.string.Const.unwrap(script);
+  return 0 === scriptString.length ? module$contents$goog$html$SafeScript_SafeScript.EMPTY : module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(scriptString);
+};
+module$contents$goog$html$SafeScript_SafeScript.fromJson = function(val) {
+  return module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(module$contents$goog$html$SafeScript_SafeScript.stringify_(val));
+};
+module$contents$goog$html$SafeScript_SafeScript.prototype.getTypedStringValue = function() {
+  return this.privateDoNotAccessOrElseSafeScriptWrappedValue_.toString();
+};
+module$contents$goog$html$SafeScript_SafeScript.unwrap = function(safeScript) {
+  return module$contents$goog$html$SafeScript_SafeScript.unwrapTrustedScript(safeScript).toString();
+};
+module$contents$goog$html$SafeScript_SafeScript.unwrapTrustedScript = function(safeScript) {
+  if (safeScript instanceof module$contents$goog$html$SafeScript_SafeScript && safeScript.constructor === module$contents$goog$html$SafeScript_SafeScript) {
+    return safeScript.privateDoNotAccessOrElseSafeScriptWrappedValue_;
+  }
+  (0,goog.asserts.fail)("expected object of type SafeScript, got '" + safeScript + "' of type " + goog.typeOf(safeScript));
+  return "type_error:SafeScript";
+};
+module$contents$goog$html$SafeScript_SafeScript.stringify_ = function(val) {
+  return JSON.stringify(val).replace(/</g, "\\x3c");
+};
+module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse = function(script) {
+  var noinlineScript = script, policy = goog.html.trustedtypes.getPolicyPrivateDoNotAccessOrElse(), trustedScript = policy ? policy.createScript(noinlineScript) : noinlineScript;
+  return new module$contents$goog$html$SafeScript_SafeScript(trustedScript, module$contents$goog$html$SafeScript_CONSTRUCTOR_TOKEN_PRIVATE);
+};
+module$contents$goog$html$SafeScript_SafeScript.EMPTY = function() {
+  return module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse("");
+}();
+goog.html.SafeScript = module$contents$goog$html$SafeScript_SafeScript;
+goog.fs = {};
+goog.fs.url = {};
+goog.fs.url.createObjectUrl = function(obj) {
+  return goog.fs.url.getUrlObject_().createObjectURL(obj);
+};
+goog.fs.url.revokeObjectUrl = function(url) {
+  goog.fs.url.getUrlObject_().revokeObjectURL(url);
+};
+goog.fs.url.UrlObject_ = function() {
+};
+goog.fs.url.UrlObject_.prototype.createObjectURL = function(arg) {
+};
+goog.fs.url.UrlObject_.prototype.revokeObjectURL = function(s) {
+};
+goog.fs.url.getUrlObject_ = function() {
+  var urlObject = goog.fs.url.findUrlObject_();
+  if (null != urlObject) {
+    return urlObject;
+  }
+  throw Error("This browser doesn't seem to support blob URLs");
+};
+goog.fs.url.findUrlObject_ = function() {
+  return void 0 !== goog.global.URL && void 0 !== goog.global.URL.createObjectURL ? goog.global.URL : void 0 !== goog.global.createObjectURL ? goog.global : null;
+};
+goog.fs.url.browserSupportsObjectUrls = function() {
+  return null != goog.fs.url.findUrlObject_();
+};
+goog.fs.blob = {};
+goog.fs.blob.getBlob = function(var_args) {
+  var BlobBuilder = goog.global.BlobBuilder || goog.global.WebKitBlobBuilder;
+  if (void 0 !== BlobBuilder) {
+    for (var bb = new BlobBuilder(), i = 0; i < arguments.length; i++) {
+      bb.append(arguments[i]);
+    }
+    return bb.getBlob();
+  }
+  return goog.fs.blob.getBlobWithProperties(Array.prototype.slice.call(arguments));
+};
+goog.fs.blob.getBlobWithProperties = function(parts, opt_type, opt_endings) {
+  var BlobBuilder = goog.global.BlobBuilder || goog.global.WebKitBlobBuilder;
+  if (void 0 !== BlobBuilder) {
+    for (var bb = new BlobBuilder(), i = 0; i < parts.length; i++) {
+      bb.append(parts[i], opt_endings);
+    }
+    return bb.getBlob(opt_type);
+  }
+  if (void 0 !== goog.global.Blob) {
+    var properties = {};
+    opt_type && (properties.type = opt_type);
+    opt_endings && (properties.endings = opt_endings);
+    return new Blob(parts, properties);
+  }
+  throw Error("This browser doesn't seem to support creating Blobs");
+};
+goog.html.TrustedResourceUrl = function(value, token) {
+  this.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue_ = token === goog.html.TrustedResourceUrl.CONSTRUCTOR_TOKEN_PRIVATE_ ? value : "";
+};
+goog.html.TrustedResourceUrl.prototype.toString = function() {
+  return this.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue_ + "";
+};
+goog.html.TrustedResourceUrl.prototype.implementsGoogStringTypedString = !0;
+goog.html.TrustedResourceUrl.prototype.getTypedStringValue = function() {
+  return this.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue_.toString();
+};
+goog.html.TrustedResourceUrl.prototype.cloneWithParams = function(searchParams, opt_hashParams) {
+  var url = goog.html.TrustedResourceUrl.unwrap(this), parts = goog.html.TrustedResourceUrl.URL_PARAM_PARSER_.exec(url), urlHash = parts[3] || "";
+  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(parts[1] + goog.html.TrustedResourceUrl.stringifyParams_("?", parts[2] || "", searchParams) + goog.html.TrustedResourceUrl.stringifyParams_("#", urlHash, opt_hashParams));
+};
+goog.html.TrustedResourceUrl.unwrap = function(trustedResourceUrl) {
+  return goog.html.TrustedResourceUrl.unwrapTrustedScriptURL(trustedResourceUrl).toString();
+};
+goog.html.TrustedResourceUrl.unwrapTrustedScriptURL = function(trustedResourceUrl) {
+  if (trustedResourceUrl instanceof goog.html.TrustedResourceUrl && trustedResourceUrl.constructor === goog.html.TrustedResourceUrl) {
+    return trustedResourceUrl.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue_;
+  }
+  goog.asserts.fail("expected object of type TrustedResourceUrl, got '" + trustedResourceUrl + "' of type " + goog.typeOf(trustedResourceUrl));
+  return "type_error:TrustedResourceUrl";
+};
+goog.html.TrustedResourceUrl.format = function(format, args) {
+  var formatStr = goog.string.Const.unwrap(format);
+  if (!goog.html.TrustedResourceUrl.BASE_URL_.test(formatStr)) {
+    throw Error("Invalid TrustedResourceUrl format: " + formatStr);
+  }
+  var result = formatStr.replace(goog.html.TrustedResourceUrl.FORMAT_MARKER_, function(match, id) {
+    if (!Object.prototype.hasOwnProperty.call(args, id)) {
+      throw Error('Found marker, "' + id + '", in format string, "' + formatStr + '", but no valid label mapping found in args: ' + JSON.stringify(args));
+    }
+    var arg = args[id];
+    return arg instanceof goog.string.Const ? goog.string.Const.unwrap(arg) : encodeURIComponent(String(arg));
+  });
+  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(result);
+};
+goog.html.TrustedResourceUrl.FORMAT_MARKER_ = /%{(\w+)}/g;
+goog.html.TrustedResourceUrl.BASE_URL_ = RegExp("^((https:)?//[0-9a-z.:[\\]-]+/|/[^/\\\\]|[^:/\\\\%]+/|[^:/\\\\%]*[?#]|about:blank#)", "i");
+goog.html.TrustedResourceUrl.URL_PARAM_PARSER_ = /^([^?#]*)(\?[^#]*)?(#[\s\S]*)?/;
+goog.html.TrustedResourceUrl.formatWithParams = function(format, args, searchParams, opt_hashParams) {
+  return goog.html.TrustedResourceUrl.format(format, args).cloneWithParams(searchParams, opt_hashParams);
+};
+goog.html.TrustedResourceUrl.fromConstant = function(url) {
+  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(goog.string.Const.unwrap(url));
+};
+goog.html.TrustedResourceUrl.fromConstants = function(parts) {
+  for (var unwrapped = "", i = 0; i < parts.length; i++) {
+    unwrapped += goog.string.Const.unwrap(parts[i]);
+  }
+  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(unwrapped);
+};
+goog.html.TrustedResourceUrl.fromSafeScript = function(safeScript) {
+  var blob = goog.fs.blob.getBlobWithProperties([module$contents$goog$html$SafeScript_SafeScript.unwrap(safeScript)], "text/javascript"), url = goog.fs.url.createObjectUrl(blob);
+  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(url);
+};
+goog.html.TrustedResourceUrl.CONSTRUCTOR_TOKEN_PRIVATE_ = {};
+goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse = function(url) {
+  var noinlineUrl = url, policy = goog.html.trustedtypes.getPolicyPrivateDoNotAccessOrElse(), value = policy ? policy.createScriptURL(noinlineUrl) : noinlineUrl;
+  return new goog.html.TrustedResourceUrl(value, goog.html.TrustedResourceUrl.CONSTRUCTOR_TOKEN_PRIVATE_);
+};
+goog.html.TrustedResourceUrl.stringifyParams_ = function(prefix, currentString, params) {
+  if (null == params) {
+    return currentString;
+  }
+  if ("string" === typeof params) {
+    return params ? prefix + encodeURIComponent(params) : "";
+  }
+  for (var key in params) {
+    if (Object.prototype.hasOwnProperty.call(params, key)) {
+      for (var value = params[key], outputValues = Array.isArray(value) ? value : [value], i = 0; i < outputValues.length; i++) {
+        var outputValue = outputValues[i];
+        null != outputValue && (currentString || (currentString = prefix), currentString += (currentString.length > prefix.length ? "&" : "") + encodeURIComponent(key) + "=" + encodeURIComponent(String(outputValue)));
+      }
+    }
+  }
+  return currentString;
+};
+goog.html.SafeUrl = function(value, token) {
+  this.privateDoNotAccessOrElseSafeUrlWrappedValue_ = token === goog.html.SafeUrl.CONSTRUCTOR_TOKEN_PRIVATE_ ? value : "";
+};
+goog.html.SafeUrl.prototype.toString = function() {
+  return this.privateDoNotAccessOrElseSafeUrlWrappedValue_.toString();
+};
+goog.html.SafeUrl.INNOCUOUS_STRING = "about:invalid#zClosurez";
+goog.html.SafeUrl.prototype.implementsGoogStringTypedString = !0;
+goog.html.SafeUrl.prototype.getTypedStringValue = function() {
+  return this.privateDoNotAccessOrElseSafeUrlWrappedValue_.toString();
+};
+goog.html.SafeUrl.unwrap = function(safeUrl) {
+  if (safeUrl instanceof goog.html.SafeUrl && safeUrl.constructor === goog.html.SafeUrl) {
+    return safeUrl.privateDoNotAccessOrElseSafeUrlWrappedValue_;
+  }
+  goog.asserts.fail("expected object of type SafeUrl, got '" + safeUrl + "' of type " + goog.typeOf(safeUrl));
+  return "type_error:SafeUrl";
+};
+goog.html.SafeUrl.fromConstant = function(url) {
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(goog.string.Const.unwrap(url));
+};
+goog.html.SAFE_MIME_TYPE_PATTERN_ = RegExp('^(?:audio/(?:3gpp2|3gpp|aac|L16|midi|mp3|mp4|mpeg|oga|ogg|opus|x-m4a|x-matroska|x-wav|wav|webm)|font/\\w+|image/(?:bmp|gif|jpeg|jpg|png|tiff|webp|x-icon|heic|heif)|video/(?:mpeg|mp4|ogg|webm|quicktime|x-matroska))(?:;\\w+=(?:\\w+|"[\\w;,= ]+"))*$', "i");
+goog.html.SafeUrl.isSafeMimeType = function(mimeType) {
+  return goog.html.SAFE_MIME_TYPE_PATTERN_.test(mimeType);
+};
+goog.html.SafeUrl.fromBlob = function(blob) {
+  var url = goog.html.SafeUrl.isSafeMimeType(blob.type) ? goog.fs.url.createObjectUrl(blob) : goog.html.SafeUrl.INNOCUOUS_STRING;
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
+};
+goog.html.SafeUrl.revokeObjectUrl = function(safeUrl) {
+  var url = safeUrl.getTypedStringValue();
+  url !== goog.html.SafeUrl.INNOCUOUS_STRING && goog.fs.url.revokeObjectUrl(url);
+};
+goog.html.SafeUrl.fromMediaSource = function(mediaSource) {
+  goog.asserts.assert("MediaSource" in goog.global, "No support for MediaSource");
+  var url = mediaSource instanceof MediaSource ? goog.fs.url.createObjectUrl(mediaSource) : goog.html.SafeUrl.INNOCUOUS_STRING;
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
+};
+goog.html.DATA_URL_PATTERN_ = /^data:(.*);base64,[a-z0-9+\/]+=*$/i;
+goog.html.SafeUrl.tryFromDataUrl = function(dataUrl) {
+  dataUrl = String(dataUrl);
+  var filteredDataUrl = dataUrl.replace(/(%0A|%0D)/g, "");
+  return filteredDataUrl.match(goog.html.DATA_URL_PATTERN_) ? goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(filteredDataUrl) : null;
+};
+goog.html.SafeUrl.fromDataUrl = function(dataUrl) {
+  return goog.html.SafeUrl.tryFromDataUrl(dataUrl) || goog.html.SafeUrl.INNOCUOUS_URL;
+};
+goog.html.SafeUrl.fromTelUrl = function(telUrl) {
+  goog.string.internal.caseInsensitiveStartsWith(telUrl, "tel:") || (telUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(telUrl);
+};
+goog.html.SIP_URL_PATTERN_ = RegExp("^sip[s]?:[+a-z0-9_.!$%&'*\\/=^`{|}~-]+@([a-z0-9-]+\\.)+[a-z0-9]{2,63}$", "i");
+goog.html.SafeUrl.fromSipUrl = function(sipUrl) {
+  goog.html.SIP_URL_PATTERN_.test(decodeURIComponent(sipUrl)) || (sipUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(sipUrl);
+};
+goog.html.SafeUrl.fromFacebookMessengerUrl = function(facebookMessengerUrl) {
+  goog.string.internal.caseInsensitiveStartsWith(facebookMessengerUrl, "fb-messenger://share") || (facebookMessengerUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(facebookMessengerUrl);
+};
+goog.html.SafeUrl.fromWhatsAppUrl = function(whatsAppUrl) {
+  goog.string.internal.caseInsensitiveStartsWith(whatsAppUrl, "whatsapp://send") || (whatsAppUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(whatsAppUrl);
+};
+goog.html.SafeUrl.fromSmsUrl = function(smsUrl) {
+  goog.string.internal.caseInsensitiveStartsWith(smsUrl, "sms:") && goog.html.SafeUrl.isSmsUrlBodyValid_(smsUrl) || (smsUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(smsUrl);
+};
+goog.html.SafeUrl.isSmsUrlBodyValid_ = function(smsUrl) {
+  var hash = smsUrl.indexOf("#");
+  0 < hash && (smsUrl = smsUrl.substring(0, hash));
+  var bodyParams = smsUrl.match(/[?&]body=/gi);
+  if (!bodyParams) {
+    return !0;
+  }
+  if (1 < bodyParams.length) {
+    return !1;
+  }
+  var bodyValue = smsUrl.match(/[?&]body=([^&]*)/)[1];
+  if (!bodyValue) {
+    return !0;
+  }
+  try {
+    decodeURIComponent(bodyValue);
+  } catch (error) {
+    return !1;
+  }
+  return /^(?:[a-z0-9\-_.~]|%[0-9a-f]{2})+$/i.test(bodyValue);
+};
+goog.html.SafeUrl.fromSshUrl = function(sshUrl) {
+  goog.string.internal.caseInsensitiveStartsWith(sshUrl, "ssh://") || (sshUrl = goog.html.SafeUrl.INNOCUOUS_STRING);
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(sshUrl);
+};
+goog.html.SafeUrl.sanitizeChromeExtensionUrl = function(url, extensionId) {
+  return goog.html.SafeUrl.sanitizeExtensionUrl_(/^chrome-extension:\/\/([^\/]+)\//, url, extensionId);
+};
+goog.html.SafeUrl.sanitizeFirefoxExtensionUrl = function(url, extensionId) {
+  return goog.html.SafeUrl.sanitizeExtensionUrl_(/^moz-extension:\/\/([^\/]+)\//, url, extensionId);
+};
+goog.html.SafeUrl.sanitizeEdgeExtensionUrl = function(url, extensionId) {
+  return goog.html.SafeUrl.sanitizeExtensionUrl_(/^ms-browser-extension:\/\/([^\/]+)\//, url, extensionId);
+};
+goog.html.SafeUrl.sanitizeExtensionUrl_ = function(scheme, url, extensionId) {
+  var matches = scheme.exec(url);
+  if (matches) {
+    var extractedExtensionId = matches[1];
+    -1 == (extensionId instanceof goog.string.Const ? [goog.string.Const.unwrap(extensionId)] : extensionId.map(function unwrap(x) {
+      return goog.string.Const.unwrap(x);
+    })).indexOf(extractedExtensionId) && (url = goog.html.SafeUrl.INNOCUOUS_STRING);
+  } else {
+    url = goog.html.SafeUrl.INNOCUOUS_STRING;
+  }
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
+};
+goog.html.SafeUrl.fromTrustedResourceUrl = function(trustedResourceUrl) {
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(goog.html.TrustedResourceUrl.unwrap(trustedResourceUrl));
+};
+goog.html.SAFE_URL_PATTERN_ = /^(?:(?:https?|mailto|ftp):|[^:/?#]*(?:[/?#]|$))/i;
+goog.html.SafeUrl.SAFE_URL_PATTERN = goog.html.SAFE_URL_PATTERN_;
+goog.html.SafeUrl.trySanitize = function(url) {
+  if (url instanceof goog.html.SafeUrl) {
+    return url;
+  }
+  url = "object" == typeof url && url.implementsGoogStringTypedString ? url.getTypedStringValue() : String(url);
+  return goog.html.SAFE_URL_PATTERN_.test(url) ? goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url) : goog.html.SafeUrl.tryFromDataUrl(url);
+};
+goog.html.SafeUrl.sanitize = function(url) {
+  return goog.html.SafeUrl.trySanitize(url) || goog.html.SafeUrl.INNOCUOUS_URL;
+};
+goog.html.SafeUrl.sanitizeAssertUnchanged = function(url, opt_allowDataUrl) {
+  if (url instanceof goog.html.SafeUrl) {
+    return url;
+  }
+  url = "object" == typeof url && url.implementsGoogStringTypedString ? url.getTypedStringValue() : String(url);
+  if (opt_allowDataUrl && /^data:/i.test(url)) {
+    var safeUrl = goog.html.SafeUrl.fromDataUrl(url);
+    if (safeUrl.getTypedStringValue() == url) {
+      return safeUrl;
+    }
+  }
+  goog.asserts.assert(goog.html.SAFE_URL_PATTERN_.test(url), "%s does not match the safe URL pattern", url) || (url = goog.html.SafeUrl.INNOCUOUS_STRING);
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
+};
+goog.html.SafeUrl.CONSTRUCTOR_TOKEN_PRIVATE_ = {};
+goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse = function(url) {
+  return new goog.html.SafeUrl(url, goog.html.SafeUrl.CONSTRUCTOR_TOKEN_PRIVATE_);
+};
+goog.html.SafeUrl.INNOCUOUS_URL = goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(goog.html.SafeUrl.INNOCUOUS_STRING);
+goog.html.SafeUrl.ABOUT_BLANK = goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse("about:blank");
+var module$contents$goog$html$SafeStyle_CONSTRUCTOR_TOKEN_PRIVATE = {}, module$contents$goog$html$SafeStyle_SafeStyle = function(value, token) {
+  this.privateDoNotAccessOrElseSafeStyleWrappedValue_ = token === module$contents$goog$html$SafeStyle_CONSTRUCTOR_TOKEN_PRIVATE ? value : "";
+  this.implementsGoogStringTypedString = !0;
+};
+module$contents$goog$html$SafeStyle_SafeStyle.fromConstant = function(style) {
+  var styleString = goog.string.Const.unwrap(style);
+  if (0 === styleString.length) {
+    return module$contents$goog$html$SafeStyle_SafeStyle.EMPTY;
+  }
+  (0,goog.asserts.assert)((0,goog.string.internal.endsWith)(styleString, ";"), "Last character of style string is not ';': " + styleString);
+  (0,goog.asserts.assert)((0,goog.string.internal.contains)(styleString, ":"), "Style string must contain at least one ':', to specify a \"name: value\" pair: " + styleString);
+  return module$contents$goog$html$SafeStyle_SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse(styleString);
+};
+module$contents$goog$html$SafeStyle_SafeStyle.prototype.getTypedStringValue = function() {
+  return this.privateDoNotAccessOrElseSafeStyleWrappedValue_;
+};
+module$contents$goog$html$SafeStyle_SafeStyle.prototype.toString = function() {
+  return this.privateDoNotAccessOrElseSafeStyleWrappedValue_.toString();
+};
+module$contents$goog$html$SafeStyle_SafeStyle.unwrap = function(safeStyle) {
+  if (safeStyle instanceof module$contents$goog$html$SafeStyle_SafeStyle && safeStyle.constructor === module$contents$goog$html$SafeStyle_SafeStyle) {
+    return safeStyle.privateDoNotAccessOrElseSafeStyleWrappedValue_;
+  }
+  (0,goog.asserts.fail)("expected object of type SafeStyle, got '" + safeStyle + "' of type " + goog.typeOf(safeStyle));
+  return "type_error:SafeStyle";
+};
+module$contents$goog$html$SafeStyle_SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse = function(style) {
+  return new module$contents$goog$html$SafeStyle_SafeStyle(style, module$contents$goog$html$SafeStyle_CONSTRUCTOR_TOKEN_PRIVATE);
+};
+module$contents$goog$html$SafeStyle_SafeStyle.create = function(map) {
+  var style = "", name;
+  for (name in map) {
+    if (Object.prototype.hasOwnProperty.call(map, name)) {
+      if (!/^[-_a-zA-Z0-9]+$/.test(name)) {
+        throw Error("Name allows only [-_a-zA-Z0-9], got: " + name);
+      }
+      var value = map[name];
+      null != value && (value = Array.isArray(value) ? value.map(module$contents$goog$html$SafeStyle_sanitizePropertyValue).join(" ") : module$contents$goog$html$SafeStyle_sanitizePropertyValue(value), style += name + ":" + value + ";");
+    }
+  }
+  return style ? module$contents$goog$html$SafeStyle_SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse(style) : module$contents$goog$html$SafeStyle_SafeStyle.EMPTY;
+};
+module$contents$goog$html$SafeStyle_SafeStyle.concat = function(var_args) {
+  var style = "", addArgument = function(argument) {
+    Array.isArray(argument) ? argument.forEach(addArgument) : style += module$contents$goog$html$SafeStyle_SafeStyle.unwrap(argument);
+  };
+  Array.prototype.forEach.call(arguments, addArgument);
+  return style ? module$contents$goog$html$SafeStyle_SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse(style) : module$contents$goog$html$SafeStyle_SafeStyle.EMPTY;
+};
+module$contents$goog$html$SafeStyle_SafeStyle.EMPTY = module$contents$goog$html$SafeStyle_SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse("");
+module$contents$goog$html$SafeStyle_SafeStyle.INNOCUOUS_STRING = "zClosurez";
+function module$contents$goog$html$SafeStyle_sanitizePropertyValue(value) {
+  if (value instanceof goog.html.SafeUrl) {
+    return 'url("' + goog.html.SafeUrl.unwrap(value).replace(/</g, "%3c").replace(/[\\"]/g, "\\$&") + '")';
+  }
+  var result = value instanceof goog.string.Const ? goog.string.Const.unwrap(value) : module$contents$goog$html$SafeStyle_sanitizePropertyValueString(String(value));
+  if (/[{;}]/.test(result)) {
+    throw new module$contents$goog$asserts_AssertionError("Value does not allow [{;}], got: %s.", [result]);
+  }
+  return result;
+}
+function module$contents$goog$html$SafeStyle_sanitizePropertyValueString(value) {
+  var valueWithoutFunctions = value.replace(module$contents$goog$html$SafeStyle_FUNCTIONS_RE, "$1").replace(module$contents$goog$html$SafeStyle_FUNCTIONS_RE, "$1").replace(module$contents$goog$html$SafeStyle_URL_RE, "url");
+  if (module$contents$goog$html$SafeStyle_VALUE_RE.test(valueWithoutFunctions)) {
+    if (module$contents$goog$html$SafeStyle_COMMENT_RE.test(value)) {
+      return (0,goog.asserts.fail)("String value disallows comments, got: " + value), module$contents$goog$html$SafeStyle_SafeStyle.INNOCUOUS_STRING;
+    }
+    if (!module$contents$goog$html$SafeStyle_hasBalancedQuotes(value)) {
+      return (0,goog.asserts.fail)("String value requires balanced quotes, got: " + value), module$contents$goog$html$SafeStyle_SafeStyle.INNOCUOUS_STRING;
+    }
+    if (!module$contents$goog$html$SafeStyle_hasBalancedSquareBrackets(value)) {
+      return (0,goog.asserts.fail)("String value requires balanced square brackets and one identifier per pair of brackets, got: " + value), module$contents$goog$html$SafeStyle_SafeStyle.INNOCUOUS_STRING;
+    }
+  } else {
+    return (0,goog.asserts.fail)("String value allows only [-,.\"'%_!#/ a-zA-Z0-9\\[\\]] and simple functions, got: " + value), module$contents$goog$html$SafeStyle_SafeStyle.INNOCUOUS_STRING;
+  }
+  return module$contents$goog$html$SafeStyle_sanitizeUrl(value);
+}
+function module$contents$goog$html$SafeStyle_hasBalancedQuotes(value) {
+  for (var outsideSingle = !0, outsideDouble = !0, i = 0; i < value.length; i++) {
+    var c = value.charAt(i);
+    "'" == c && outsideDouble ? outsideSingle = !outsideSingle : '"' == c && outsideSingle && (outsideDouble = !outsideDouble);
+  }
+  return outsideSingle && outsideDouble;
+}
+function module$contents$goog$html$SafeStyle_hasBalancedSquareBrackets(value) {
+  for (var outside = !0, tokenRe = /^[-_a-zA-Z0-9]$/, i = 0; i < value.length; i++) {
+    var c = value.charAt(i);
+    if ("]" == c) {
+      if (outside) {
+        return !1;
+      }
+      outside = !0;
+    } else if ("[" == c) {
+      if (!outside) {
+        return !1;
+      }
+      outside = !1;
+    } else if (!outside && !tokenRe.test(c)) {
+      return !1;
+    }
+  }
+  return outside;
+}
+var module$contents$goog$html$SafeStyle_VALUE_RE = RegExp("^[-,.\"'%_!#/ a-zA-Z0-9\\[\\]]+$"), module$contents$goog$html$SafeStyle_URL_RE = RegExp("\\b(url\\([ \t\n]*)('[ -&(-\\[\\]-~]*'|\"[ !#-\\[\\]-~]*\"|[!#-&*-\\[\\]-~]*)([ \t\n]*\\))", "g"), module$contents$goog$html$SafeStyle_FUNCTIONS_RE = RegExp("\\b(calc|cubic-bezier|fit-content|hsl|hsla|linear-gradient|matrix|minmax|radial-gradient|repeat|rgb|rgba|(rotate|scale|translate)(X|Y|Z|3d)?|var)\\([-+*/0-9a-zA-Z.%#\\[\\], ]+\\)", "g"), module$contents$goog$html$SafeStyle_COMMENT_RE = 
+/\/\*/;
+function module$contents$goog$html$SafeStyle_sanitizeUrl(value) {
+  return value.replace(module$contents$goog$html$SafeStyle_URL_RE, function(match$jscomp$0, before, url, after) {
+    var quote = "";
+    url = url.replace(/^(['"])(.*)\1$/, function(match, start, inside) {
+      quote = start;
+      return inside;
+    });
+    var sanitized = goog.html.SafeUrl.sanitize(url).getTypedStringValue();
+    return before + quote + sanitized + quote + after;
+  });
+}
+goog.html.SafeStyle = module$contents$goog$html$SafeStyle_SafeStyle;
+var module$contents$goog$html$SafeStyleSheet_CONSTRUCTOR_TOKEN_PRIVATE = {}, module$contents$goog$html$SafeStyleSheet_SafeStyleSheet = function(value, token) {
+  this.privateDoNotAccessOrElseSafeStyleSheetWrappedValue_ = token === module$contents$goog$html$SafeStyleSheet_CONSTRUCTOR_TOKEN_PRIVATE ? value : "";
+  this.implementsGoogStringTypedString = !0;
+};
+module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.prototype.toString = function() {
+  return this.privateDoNotAccessOrElseSafeStyleSheetWrappedValue_.toString();
+};
+module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createRule = function(selector, style) {
+  if ((0,goog.string.internal.contains)(selector, "<")) {
+    throw Error("Selector does not allow '<', got: " + selector);
+  }
+  var selectorToCheck = selector.replace(/('|")((?!\1)[^\r\n\f\\]|\\[\s\S])*\1/g, "");
+  if (!/^[-_a-zA-Z0-9#.:* ,>+~[\]()=^$|]+$/.test(selectorToCheck)) {
+    throw Error("Selector allows only [-_a-zA-Z0-9#.:* ,>+~[\\]()=^$|] and strings, got: " + selector);
+  }
+  if (!module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.hasBalancedBrackets_(selectorToCheck)) {
+    throw Error("() and [] in selector must be balanced, got: " + selector);
+  }
+  style instanceof module$contents$goog$html$SafeStyle_SafeStyle || (style = module$contents$goog$html$SafeStyle_SafeStyle.create(style));
+  var styleSheet = selector + "{" + module$contents$goog$html$SafeStyle_SafeStyle.unwrap(style).replace(/</g, "\\3C ") + "}";
+  return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse(styleSheet);
+};
+module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.hasBalancedBrackets_ = function(s) {
+  for (var brackets = {"(":")", "[":"]"}, expectedBrackets = [], i = 0; i < s.length; i++) {
+    var ch = s[i];
+    if (brackets[ch]) {
+      expectedBrackets.push(brackets[ch]);
+    } else if (module$contents$goog$object_contains(brackets, ch) && expectedBrackets.pop() != ch) {
+      return !1;
+    }
+  }
+  return 0 == expectedBrackets.length;
+};
+module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.concat = function(var_args) {
+  var result = "", addArgument = function(argument) {
+    Array.isArray(argument) ? argument.forEach(addArgument) : result += module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.unwrap(argument);
+  };
+  Array.prototype.forEach.call(arguments, addArgument);
+  return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse(result);
+};
+module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.fromConstant = function(styleSheet) {
+  var styleSheetString = goog.string.Const.unwrap(styleSheet);
+  if (0 === styleSheetString.length) {
+    return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.EMPTY;
+  }
+  (0,goog.asserts.assert)(!(0,goog.string.internal.contains)(styleSheetString, "<"), "Forbidden '<' character in style sheet string: " + styleSheetString);
+  return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse(styleSheetString);
+};
+module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.prototype.getTypedStringValue = function() {
+  return this.privateDoNotAccessOrElseSafeStyleSheetWrappedValue_;
+};
+module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.unwrap = function(safeStyleSheet) {
+  if (safeStyleSheet instanceof module$contents$goog$html$SafeStyleSheet_SafeStyleSheet && safeStyleSheet.constructor === module$contents$goog$html$SafeStyleSheet_SafeStyleSheet) {
+    return safeStyleSheet.privateDoNotAccessOrElseSafeStyleSheetWrappedValue_;
+  }
+  (0,goog.asserts.fail)("expected object of type SafeStyleSheet, got '" + safeStyleSheet + "' of type " + goog.typeOf(safeStyleSheet));
+  return "type_error:SafeStyleSheet";
+};
+module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse = function(styleSheet) {
+  return new module$contents$goog$html$SafeStyleSheet_SafeStyleSheet(styleSheet, module$contents$goog$html$SafeStyleSheet_CONSTRUCTOR_TOKEN_PRIVATE);
+};
+module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.EMPTY = module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse("");
+goog.html.SafeStyleSheet = module$contents$goog$html$SafeStyleSheet_SafeStyleSheet;
+var module$contents$goog$html$SafeHtml_CONSTRUCTOR_TOKEN_PRIVATE = {}, module$contents$goog$html$SafeHtml_SafeHtml = function(value, token) {
+  this.privateDoNotAccessOrElseSafeHtmlWrappedValue_ = token === module$contents$goog$html$SafeHtml_CONSTRUCTOR_TOKEN_PRIVATE ? value : "";
+  this.implementsGoogStringTypedString = !0;
+};
+module$contents$goog$html$SafeHtml_SafeHtml.prototype.getTypedStringValue = function() {
+  return this.privateDoNotAccessOrElseSafeHtmlWrappedValue_.toString();
+};
+module$contents$goog$html$SafeHtml_SafeHtml.prototype.toString = function() {
+  return this.privateDoNotAccessOrElseSafeHtmlWrappedValue_.toString();
+};
+module$contents$goog$html$SafeHtml_SafeHtml.unwrap = function(safeHtml) {
+  return module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML(safeHtml).toString();
+};
+module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML = function(safeHtml) {
+  if (safeHtml instanceof module$contents$goog$html$SafeHtml_SafeHtml && safeHtml.constructor === module$contents$goog$html$SafeHtml_SafeHtml) {
+    return safeHtml.privateDoNotAccessOrElseSafeHtmlWrappedValue_;
+  }
+  goog.asserts.fail("expected object of type SafeHtml, got '" + safeHtml + "' of type " + goog.typeOf(safeHtml));
+  return "type_error:SafeHtml";
+};
+module$contents$goog$html$SafeHtml_SafeHtml.htmlEscape = function(textOrHtml) {
+  return textOrHtml instanceof module$contents$goog$html$SafeHtml_SafeHtml ? textOrHtml : module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(goog.string.internal.htmlEscape("object" == typeof textOrHtml && textOrHtml.implementsGoogStringTypedString ? textOrHtml.getTypedStringValue() : String(textOrHtml)));
+};
+module$contents$goog$html$SafeHtml_SafeHtml.htmlEscapePreservingNewlines = function(textOrHtml) {
+  if (textOrHtml instanceof module$contents$goog$html$SafeHtml_SafeHtml) {
+    return textOrHtml;
+  }
+  var html = module$contents$goog$html$SafeHtml_SafeHtml.htmlEscape(textOrHtml);
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(goog.string.internal.newLineToBr(module$contents$goog$html$SafeHtml_SafeHtml.unwrap(html)));
+};
+module$contents$goog$html$SafeHtml_SafeHtml.htmlEscapePreservingNewlinesAndSpaces = function(textOrHtml) {
+  if (textOrHtml instanceof module$contents$goog$html$SafeHtml_SafeHtml) {
+    return textOrHtml;
+  }
+  var html = module$contents$goog$html$SafeHtml_SafeHtml.htmlEscape(textOrHtml);
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(goog.string.internal.whitespaceEscape(module$contents$goog$html$SafeHtml_SafeHtml.unwrap(html)));
+};
+module$contents$goog$html$SafeHtml_SafeHtml.comment = function(text) {
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse("\x3c!--" + goog.string.internal.htmlEscape(text) + "--\x3e");
+};
+module$contents$goog$html$SafeHtml_SafeHtml.create = function(tagName, attributes, content) {
+  module$contents$goog$html$SafeHtml_SafeHtml.verifyTagName(String(tagName));
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse(String(tagName), attributes, content);
+};
+module$contents$goog$html$SafeHtml_SafeHtml.verifyTagName = function(tagName) {
+  if (!module$contents$goog$html$SafeHtml_VALID_NAMES_IN_TAG.test(tagName)) {
+    throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? "Invalid tag name <" + tagName + ">." : "");
+  }
+  if (tagName.toUpperCase() in module$contents$goog$html$SafeHtml_NOT_ALLOWED_TAG_NAMES) {
+    throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? "Tag name <" + tagName + "> is not allowed for SafeHtml." : "");
+  }
+};
+module$contents$goog$html$SafeHtml_SafeHtml.createIframe = function(src, srcdoc, attributes, content) {
+  src && goog.html.TrustedResourceUrl.unwrap(src);
+  var fixedAttributes = {};
+  fixedAttributes.src = src || null;
+  fixedAttributes.srcdoc = srcdoc && module$contents$goog$html$SafeHtml_SafeHtml.unwrap(srcdoc);
+  var combinedAttrs = module$contents$goog$html$SafeHtml_SafeHtml.combineAttributes(fixedAttributes, {sandbox:""}, attributes);
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("iframe", combinedAttrs, content);
+};
+module$contents$goog$html$SafeHtml_SafeHtml.createSandboxIframe = function(src, srcdoc, attributes, content) {
+  if (!module$contents$goog$html$SafeHtml_SafeHtml.canUseSandboxIframe()) {
+    throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? "The browser does not support sandboxed iframes." : "");
+  }
+  var fixedAttributes = {};
+  fixedAttributes.src = src ? goog.html.SafeUrl.unwrap(goog.html.SafeUrl.sanitize(src)) : null;
+  fixedAttributes.srcdoc = srcdoc || null;
+  fixedAttributes.sandbox = "";
+  var combinedAttrs = module$contents$goog$html$SafeHtml_SafeHtml.combineAttributes(fixedAttributes, {}, attributes);
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("iframe", combinedAttrs, content);
+};
+module$contents$goog$html$SafeHtml_SafeHtml.canUseSandboxIframe = function() {
+  return goog.global.HTMLIFrameElement && "sandbox" in goog.global.HTMLIFrameElement.prototype;
+};
+module$contents$goog$html$SafeHtml_SafeHtml.createScriptSrc = function(src, attributes) {
+  goog.html.TrustedResourceUrl.unwrap(src);
+  var combinedAttrs = module$contents$goog$html$SafeHtml_SafeHtml.combineAttributes({src:src}, {}, attributes);
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("script", combinedAttrs);
+};
+module$contents$goog$html$SafeHtml_SafeHtml.createScript = function(script, attributes) {
+  for (var attr in attributes) {
+    if (Object.prototype.hasOwnProperty.call(attributes, attr)) {
+      var attrLower = attr.toLowerCase();
+      if ("language" == attrLower || "src" == attrLower || "text" == attrLower) {
+        throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? 'Cannot set "' + attrLower + '" attribute' : "");
+      }
+    }
+  }
+  var content = "";
+  script = module$contents$goog$array_concat(script);
+  for (var i = 0; i < script.length; i++) {
+    content += module$contents$goog$html$SafeScript_SafeScript.unwrap(script[i]);
+  }
+  var htmlContent = module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(content);
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("script", attributes, htmlContent);
+};
+module$contents$goog$html$SafeHtml_SafeHtml.createStyle = function(styleSheet, attributes) {
+  var combinedAttrs = module$contents$goog$html$SafeHtml_SafeHtml.combineAttributes({type:"text/css"}, {}, attributes), content = "";
+  styleSheet = module$contents$goog$array_concat(styleSheet);
+  for (var i = 0; i < styleSheet.length; i++) {
+    content += module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.unwrap(styleSheet[i]);
+  }
+  var htmlContent = module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(content);
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("style", combinedAttrs, htmlContent);
+};
+module$contents$goog$html$SafeHtml_SafeHtml.createMetaRefresh = function(url, secs) {
+  var unwrappedUrl = goog.html.SafeUrl.unwrap(goog.html.SafeUrl.sanitize(url));
+  (module$contents$goog$labs$userAgent$browser_matchIE() || module$contents$goog$labs$userAgent$browser_matchEdgeHtml()) && goog.string.internal.contains(unwrappedUrl, ";") && (unwrappedUrl = "'" + unwrappedUrl.replace(/'/g, "%27") + "'");
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse("meta", {"http-equiv":"refresh", content:(secs || 0) + "; url=" + unwrappedUrl,});
+};
+module$contents$goog$html$SafeHtml_SafeHtml.join = function(separator, parts) {
+  var separatorHtml = module$contents$goog$html$SafeHtml_SafeHtml.htmlEscape(separator), content = [], addArgument = function(argument) {
+    if (Array.isArray(argument)) {
+      argument.forEach(addArgument);
+    } else {
+      var html = module$contents$goog$html$SafeHtml_SafeHtml.htmlEscape(argument);
+      content.push(module$contents$goog$html$SafeHtml_SafeHtml.unwrap(html));
+    }
+  };
+  parts.forEach(addArgument);
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(content.join(module$contents$goog$html$SafeHtml_SafeHtml.unwrap(separatorHtml)));
+};
+module$contents$goog$html$SafeHtml_SafeHtml.concat = function(var_args) {
+  return module$contents$goog$html$SafeHtml_SafeHtml.join(module$contents$goog$html$SafeHtml_SafeHtml.EMPTY, Array.prototype.slice.call(arguments));
+};
+module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse = function(html) {
+  var noinlineHtml = html, policy = goog.html.trustedtypes.getPolicyPrivateDoNotAccessOrElse(), trustedHtml = policy ? policy.createHTML(noinlineHtml) : noinlineHtml;
+  return new module$contents$goog$html$SafeHtml_SafeHtml(trustedHtml, module$contents$goog$html$SafeHtml_CONSTRUCTOR_TOKEN_PRIVATE);
+};
+module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlTagSecurityPrivateDoNotAccessOrElse = function(tagName, attributes, content) {
+  var result = "<" + tagName + module$contents$goog$html$SafeHtml_SafeHtml.stringifyAttributes(tagName, attributes);
+  null == content ? content = [] : Array.isArray(content) || (content = [content]);
+  if (goog.dom.tags.isVoidTag(tagName.toLowerCase())) {
+    goog.asserts.assert(!content.length, "Void tag <" + tagName + "> does not allow content."), result += ">";
+  } else {
+    var html = module$contents$goog$html$SafeHtml_SafeHtml.concat(content);
+    result += ">" + module$contents$goog$html$SafeHtml_SafeHtml.unwrap(html) + "</" + tagName + ">";
+  }
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(result);
+};
+module$contents$goog$html$SafeHtml_SafeHtml.stringifyAttributes = function(tagName, attributes) {
+  var result = "";
+  if (attributes) {
+    for (var name in attributes) {
+      if (Object.prototype.hasOwnProperty.call(attributes, name)) {
+        if (!module$contents$goog$html$SafeHtml_VALID_NAMES_IN_TAG.test(name)) {
+          throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? 'Invalid attribute name "' + name + '".' : "");
+        }
+        var value = attributes[name];
+        null != value && (result += " " + module$contents$goog$html$SafeHtml_getAttrNameAndValue(tagName, name, value));
+      }
+    }
+  }
+  return result;
+};
+module$contents$goog$html$SafeHtml_SafeHtml.combineAttributes = function(fixedAttributes, defaultAttributes, attributes) {
+  var combinedAttributes = {}, name;
+  for (name in fixedAttributes) {
+    Object.prototype.hasOwnProperty.call(fixedAttributes, name) && (goog.asserts.assert(name.toLowerCase() == name, "Must be lower case"), combinedAttributes[name] = fixedAttributes[name]);
+  }
+  for (var name$42 in defaultAttributes) {
+    Object.prototype.hasOwnProperty.call(defaultAttributes, name$42) && (goog.asserts.assert(name$42.toLowerCase() == name$42, "Must be lower case"), combinedAttributes[name$42] = defaultAttributes[name$42]);
+  }
+  if (attributes) {
+    for (var name$43 in attributes) {
+      if (Object.prototype.hasOwnProperty.call(attributes, name$43)) {
+        var nameLower = name$43.toLowerCase();
+        if (nameLower in fixedAttributes) {
+          throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? 'Cannot override "' + nameLower + '" attribute, got "' + name$43 + '" with value "' + attributes[name$43] + '"' : "");
+        }
+        nameLower in defaultAttributes && delete combinedAttributes[nameLower];
+        combinedAttributes[name$43] = attributes[name$43];
+      }
+    }
+  }
+  return combinedAttributes;
+};
+module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES = goog.DEBUG;
+module$contents$goog$html$SafeHtml_SafeHtml.SUPPORT_STYLE_ATTRIBUTE = !0;
+module$contents$goog$html$SafeHtml_SafeHtml.from = module$contents$goog$html$SafeHtml_SafeHtml.htmlEscape;
+var module$contents$goog$html$SafeHtml_VALID_NAMES_IN_TAG = /^[a-zA-Z0-9-]+$/, module$contents$goog$html$SafeHtml_URL_ATTRIBUTES = {action:!0, cite:!0, data:!0, formaction:!0, href:!0, manifest:!0, poster:!0, src:!0}, module$contents$goog$html$SafeHtml_NOT_ALLOWED_TAG_NAMES = module$contents$goog$object_createSet(goog.dom.TagName.APPLET, goog.dom.TagName.BASE, goog.dom.TagName.EMBED, goog.dom.TagName.IFRAME, goog.dom.TagName.LINK, goog.dom.TagName.MATH, goog.dom.TagName.META, goog.dom.TagName.OBJECT, 
+goog.dom.TagName.SCRIPT, goog.dom.TagName.STYLE, goog.dom.TagName.SVG, goog.dom.TagName.TEMPLATE);
+function module$contents$goog$html$SafeHtml_getAttrNameAndValue(tagName, name, value) {
+  if (value instanceof goog.string.Const) {
+    value = goog.string.Const.unwrap(value);
+  } else if ("style" == name.toLowerCase()) {
+    if (module$contents$goog$html$SafeHtml_SafeHtml.SUPPORT_STYLE_ATTRIBUTE) {
+      value = module$contents$goog$html$SafeHtml_getStyleValue(value);
+    } else {
+      throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? 'Attribute "style" not supported.' : "");
+    }
+  } else {
+    if (/^on/i.test(name)) {
+      throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? 'Attribute "' + name + '" requires goog.string.Const value, "' + value + '" given.' : "");
+    }
+    if (name.toLowerCase() in module$contents$goog$html$SafeHtml_URL_ATTRIBUTES) {
+      if (value instanceof goog.html.TrustedResourceUrl) {
+        value = goog.html.TrustedResourceUrl.unwrap(value);
+      } else if (value instanceof goog.html.SafeUrl) {
+        value = goog.html.SafeUrl.unwrap(value);
+      } else if ("string" === typeof value) {
+        value = goog.html.SafeUrl.sanitize(value).getTypedStringValue();
+      } else {
+        throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? 'Attribute "' + name + '" on tag "' + tagName + '" requires goog.html.SafeUrl, goog.string.Const, or string, value "' + value + '" given.' : "");
+      }
+    }
+  }
+  value.implementsGoogStringTypedString && (value = value.getTypedStringValue());
+  goog.asserts.assert("string" === typeof value || "number" === typeof value, "String or number value expected, got " + typeof value + " with value: " + value);
+  return name + '="' + goog.string.internal.htmlEscape(String(value)) + '"';
+}
+function module$contents$goog$html$SafeHtml_getStyleValue(value) {
+  if (!goog.isObject(value)) {
+    throw Error(module$contents$goog$html$SafeHtml_SafeHtml.ENABLE_ERROR_MESSAGES ? 'The "style" attribute requires goog.html.SafeStyle or map of style properties, ' + typeof value + " given: " + value : "");
+  }
+  value instanceof module$contents$goog$html$SafeStyle_SafeStyle || (value = module$contents$goog$html$SafeStyle_SafeStyle.create(value));
+  return module$contents$goog$html$SafeStyle_SafeStyle.unwrap(value);
+}
+module$contents$goog$html$SafeHtml_SafeHtml.DOCTYPE_HTML = function() {
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse("<!DOCTYPE html>");
+}();
+module$contents$goog$html$SafeHtml_SafeHtml.EMPTY = new module$contents$goog$html$SafeHtml_SafeHtml(goog.global.trustedTypes && goog.global.trustedTypes.emptyHTML || "", module$contents$goog$html$SafeHtml_CONSTRUCTOR_TOKEN_PRIVATE);
+module$contents$goog$html$SafeHtml_SafeHtml.BR = function() {
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse("<br>");
+}();
+goog.html.SafeHtml = module$contents$goog$html$SafeHtml_SafeHtml;
+goog.html.uncheckedconversions = {};
+goog.html.uncheckedconversions.safeHtmlFromStringKnownToSatisfyTypeContract = function(justification, html) {
+  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
+  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
+  return module$contents$goog$html$SafeHtml_SafeHtml.createSafeHtmlSecurityPrivateDoNotAccessOrElse(html);
+};
+goog.html.uncheckedconversions.safeScriptFromStringKnownToSatisfyTypeContract = function(justification, script) {
+  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
+  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
+  return module$contents$goog$html$SafeScript_SafeScript.createSafeScriptSecurityPrivateDoNotAccessOrElse(script);
+};
+goog.html.uncheckedconversions.safeStyleFromStringKnownToSatisfyTypeContract = function(justification, style) {
+  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
+  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
+  return module$contents$goog$html$SafeStyle_SafeStyle.createSafeStyleSecurityPrivateDoNotAccessOrElse(style);
+};
+goog.html.uncheckedconversions.safeStyleSheetFromStringKnownToSatisfyTypeContract = function(justification, styleSheet) {
+  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
+  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
+  return module$contents$goog$html$SafeStyleSheet_SafeStyleSheet.createSafeStyleSheetSecurityPrivateDoNotAccessOrElse(styleSheet);
+};
+goog.html.uncheckedconversions.safeUrlFromStringKnownToSatisfyTypeContract = function(justification, url) {
+  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
+  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
+  return goog.html.SafeUrl.createSafeUrlSecurityPrivateDoNotAccessOrElse(url);
+};
+goog.html.uncheckedconversions.trustedResourceUrlFromStringKnownToSatisfyTypeContract = function(justification, url) {
+  goog.asserts.assertString(goog.string.Const.unwrap(justification), "must provide justification");
+  goog.asserts.assert(!goog.string.internal.isEmptyOrWhitespace(goog.string.Const.unwrap(justification)), "must provide non-empty justification");
+  return goog.html.TrustedResourceUrl.createTrustedResourceUrlSecurityPrivateDoNotAccessOrElse(url);
+};
+goog.dom.safe = {};
+goog.dom.safe.InsertAdjacentHtmlPosition = {AFTERBEGIN:"afterbegin", AFTEREND:"afterend", BEFOREBEGIN:"beforebegin", BEFOREEND:"beforeend"};
+goog.dom.safe.insertAdjacentHtml = function(node, position, html) {
+  node.insertAdjacentHTML(position, module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML(html));
+};
+goog.dom.safe.SET_INNER_HTML_DISALLOWED_TAGS_ = {MATH:!0, SCRIPT:!0, STYLE:!0, SVG:!0, TEMPLATE:!0};
+goog.dom.safe.isInnerHtmlCleanupRecursive_ = goog.functions.cacheReturnValue(function() {
+  if (goog.DEBUG && "undefined" === typeof document) {
+    return !1;
+  }
+  var div = document.createElement("div"), childDiv = document.createElement("div");
+  childDiv.appendChild(document.createElement("div"));
+  div.appendChild(childDiv);
+  if (goog.DEBUG && !div.firstChild) {
+    return !1;
+  }
+  var innerChild = div.firstChild.firstChild;
+  div.innerHTML = module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML(module$contents$goog$html$SafeHtml_SafeHtml.EMPTY);
+  return !innerChild.parentElement;
+});
+goog.dom.safe.unsafeSetInnerHtmlDoNotUseOrElse = function(elem, html) {
+  if (goog.dom.safe.isInnerHtmlCleanupRecursive_()) {
+    for (; elem.lastChild;) {
+      elem.removeChild(elem.lastChild);
+    }
+  }
+  elem.innerHTML = module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML(html);
+};
+goog.dom.safe.setInnerHtml = function(elem, html) {
+  if (goog.asserts.ENABLE_ASSERTS && elem.tagName && goog.dom.safe.SET_INNER_HTML_DISALLOWED_TAGS_[elem.tagName.toUpperCase()]) {
+    throw Error("goog.dom.safe.setInnerHtml cannot be used to set content of " + elem.tagName + ".");
+  }
+  goog.dom.safe.unsafeSetInnerHtmlDoNotUseOrElse(elem, html);
+};
+goog.dom.safe.setInnerHtmlFromConstant = function(element, constHtml) {
+  goog.dom.safe.setInnerHtml(element, goog.html.uncheckedconversions.safeHtmlFromStringKnownToSatisfyTypeContract(goog.string.Const.from("Constant HTML to be immediatelly used."), goog.string.Const.unwrap(constHtml)));
+};
+goog.dom.safe.setOuterHtml = function(elem, html) {
+  elem.outerHTML = module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML(html);
+};
+goog.dom.safe.setFormElementAction = function(form, url) {
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
+  goog.dom.asserts.assertIsHTMLFormElement(form).action = goog.html.SafeUrl.unwrap(safeUrl);
+};
+goog.dom.safe.setButtonFormAction = function(button, url) {
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
+  goog.dom.asserts.assertIsHTMLButtonElement(button).formAction = goog.html.SafeUrl.unwrap(safeUrl);
+};
+goog.dom.safe.setInputFormAction = function(input, url) {
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
+  goog.dom.asserts.assertIsHTMLInputElement(input).formAction = goog.html.SafeUrl.unwrap(safeUrl);
+};
+goog.dom.safe.setStyle = function(elem, style) {
+  elem.style.cssText = module$contents$goog$html$SafeStyle_SafeStyle.unwrap(style);
+};
+goog.dom.safe.documentWrite = function(doc, html) {
+  doc.write(module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML(html));
+};
+goog.dom.safe.setAnchorHref = function(anchor, url) {
+  goog.dom.asserts.assertIsHTMLAnchorElement(anchor);
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
+  anchor.href = goog.html.SafeUrl.unwrap(safeUrl);
+};
+goog.dom.safe.setImageSrc = function(imageElement, url) {
+  goog.dom.asserts.assertIsHTMLImageElement(imageElement);
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url, /^data:image\//i.test(url));
+  imageElement.src = goog.html.SafeUrl.unwrap(safeUrl);
+};
+goog.dom.safe.setAudioSrc = function(audioElement, url) {
+  goog.dom.asserts.assertIsHTMLAudioElement(audioElement);
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url, /^data:audio\//i.test(url));
+  audioElement.src = goog.html.SafeUrl.unwrap(safeUrl);
+};
+goog.dom.safe.setVideoSrc = function(videoElement, url) {
+  goog.dom.asserts.assertIsHTMLVideoElement(videoElement);
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url, /^data:video\//i.test(url));
+  videoElement.src = goog.html.SafeUrl.unwrap(safeUrl);
+};
+goog.dom.safe.setEmbedSrc = function(embed, url) {
+  goog.dom.asserts.assertIsHTMLEmbedElement(embed);
+  embed.src = goog.html.TrustedResourceUrl.unwrapTrustedScriptURL(url);
+};
+goog.dom.safe.setFrameSrc = function(frame, url) {
+  goog.dom.asserts.assertIsHTMLFrameElement(frame);
+  frame.src = goog.html.TrustedResourceUrl.unwrap(url);
+};
+goog.dom.safe.setIframeSrc = function(iframe, url) {
+  goog.dom.asserts.assertIsHTMLIFrameElement(iframe);
+  iframe.src = goog.html.TrustedResourceUrl.unwrap(url);
+};
+goog.dom.safe.setIframeSrcdoc = function(iframe, html) {
+  goog.dom.asserts.assertIsHTMLIFrameElement(iframe);
+  iframe.srcdoc = module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML(html);
+};
+goog.dom.safe.setLinkHrefAndRel = function(link, url, rel) {
+  goog.dom.asserts.assertIsHTMLLinkElement(link);
+  link.rel = rel;
+  if (goog.string.internal.caseInsensitiveContains(rel, "stylesheet")) {
+    goog.asserts.assert(url instanceof goog.html.TrustedResourceUrl, 'URL must be TrustedResourceUrl because "rel" contains "stylesheet"');
+    link.href = goog.html.TrustedResourceUrl.unwrap(url);
+    var nonce = goog.dom.safe.getStyleNonce(link.ownerDocument && link.ownerDocument.defaultView);
+    nonce && link.setAttribute("nonce", nonce);
+  } else {
+    link.href = url instanceof goog.html.TrustedResourceUrl ? goog.html.TrustedResourceUrl.unwrap(url) : url instanceof goog.html.SafeUrl ? goog.html.SafeUrl.unwrap(url) : goog.html.SafeUrl.unwrap(goog.html.SafeUrl.sanitizeAssertUnchanged(url));
+  }
+};
+goog.dom.safe.setObjectData = function(object, url) {
+  goog.dom.asserts.assertIsHTMLObjectElement(object);
+  object.data = goog.html.TrustedResourceUrl.unwrapTrustedScriptURL(url);
+};
+goog.dom.safe.setScriptSrc = function(script, url) {
+  goog.dom.asserts.assertIsHTMLScriptElement(script);
+  goog.dom.safe.setNonceForScriptElement_(script);
+  script.src = goog.html.TrustedResourceUrl.unwrapTrustedScriptURL(url);
+};
+goog.dom.safe.setScriptContent = function(script, content) {
+  goog.dom.asserts.assertIsHTMLScriptElement(script);
+  goog.dom.safe.setNonceForScriptElement_(script);
+  script.textContent = module$contents$goog$html$SafeScript_SafeScript.unwrapTrustedScript(content);
+};
+goog.dom.safe.setNonceForScriptElement_ = function(script) {
+  var nonce = goog.dom.safe.getScriptNonce(script.ownerDocument && script.ownerDocument.defaultView);
+  nonce && script.setAttribute("nonce", nonce);
+};
+goog.dom.safe.setLocationHref = function(loc, url) {
+  goog.dom.asserts.assertIsLocation(loc);
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
+  loc.href = goog.html.SafeUrl.unwrap(safeUrl);
+};
+goog.dom.safe.assignLocation = function(loc, url) {
+  goog.dom.asserts.assertIsLocation(loc);
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
+  loc.assign(goog.html.SafeUrl.unwrap(safeUrl));
+};
+goog.dom.safe.replaceLocation = function(loc, url) {
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
+  loc.replace(goog.html.SafeUrl.unwrap(safeUrl));
+};
+goog.dom.safe.openInWindow = function(url, opt_openerWin, opt_name, opt_specs) {
+  var safeUrl = url instanceof goog.html.SafeUrl ? url : goog.html.SafeUrl.sanitizeAssertUnchanged(url);
+  var win = opt_openerWin || goog.global, name = opt_name instanceof goog.string.Const ? goog.string.Const.unwrap(opt_name) : opt_name || "";
+  return void 0 !== opt_specs ? win.open(goog.html.SafeUrl.unwrap(safeUrl), name, opt_specs) : win.open(goog.html.SafeUrl.unwrap(safeUrl), name);
+};
+goog.dom.safe.parseFromStringHtml = function(parser, html) {
+  return goog.dom.safe.parseFromString(parser, html, "text/html");
+};
+goog.dom.safe.parseFromString = function(parser, content, type) {
+  return parser.parseFromString(module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML(content), type);
+};
+goog.dom.safe.createImageFromBlob = function(blob) {
+  if (!/^image\/.*/g.test(blob.type)) {
+    throw Error("goog.dom.safe.createImageFromBlob only accepts MIME type image/.*.");
+  }
+  var objectUrl = goog.global.URL.createObjectURL(blob), image = new goog.global.Image();
+  image.onload = function() {
+    goog.global.URL.revokeObjectURL(objectUrl);
+  };
+  goog.dom.safe.setImageSrc(image, goog.html.uncheckedconversions.safeUrlFromStringKnownToSatisfyTypeContract(goog.string.Const.from("Image blob URL."), objectUrl));
+  return image;
+};
+goog.dom.safe.createContextualFragment = function(range, html) {
+  return range.createContextualFragment(module$contents$goog$html$SafeHtml_SafeHtml.unwrapTrustedHTML(html));
+};
+goog.dom.safe.getScriptNonce = function(opt_window) {
+  return goog.dom.safe.getNonce_("script[nonce]", opt_window);
+};
+goog.dom.safe.getStyleNonce = function(opt_window) {
+  return goog.dom.safe.getNonce_('style[nonce],link[rel="stylesheet"][nonce]', opt_window);
+};
+goog.dom.safe.NONCE_PATTERN_ = /^[\w+/_-]+[=]{0,2}$/;
+goog.dom.safe.getNonce_ = function(selector, win) {
+  var doc = (win || goog.global).document;
+  if (!doc.querySelector) {
+    return "";
+  }
+  var el = doc.querySelector(selector);
+  if (el) {
+    var nonce = el.nonce || el.getAttribute("nonce");
+    if (nonce && goog.dom.safe.NONCE_PATTERN_.test(nonce)) {
+      return nonce;
+    }
+  }
+  return "";
+};
+goog.string.DETECT_DOUBLE_ESCAPING = !1;
+goog.string.FORCE_NON_DOM_HTML_UNESCAPING = !1;
+goog.string.Unicode = {NBSP:"\u00a0"};
+goog.string.startsWith = goog.string.internal.startsWith;
+goog.string.endsWith = goog.string.internal.endsWith;
+goog.string.caseInsensitiveStartsWith = goog.string.internal.caseInsensitiveStartsWith;
+goog.string.caseInsensitiveEndsWith = goog.string.internal.caseInsensitiveEndsWith;
+goog.string.caseInsensitiveEquals = goog.string.internal.caseInsensitiveEquals;
+goog.string.subs = function(str, var_args) {
+  for (var splitParts = str.split("%s"), returnString = "", subsArguments = Array.prototype.slice.call(arguments, 1); subsArguments.length && 1 < splitParts.length;) {
+    returnString += splitParts.shift() + subsArguments.shift();
+  }
+  return returnString + splitParts.join("%s");
+};
+goog.string.collapseWhitespace = function(str) {
+  return str.replace(/[\s\xa0]+/g, " ").replace(/^\s+|\s+$/g, "");
+};
+goog.string.isEmptyOrWhitespace = goog.string.internal.isEmptyOrWhitespace;
+goog.string.isEmptyString = function(str) {
+  return 0 == str.length;
+};
+goog.string.isEmpty = goog.string.isEmptyOrWhitespace;
+goog.string.isEmptyOrWhitespaceSafe = function(str) {
+  return goog.string.isEmptyOrWhitespace(goog.string.makeSafe(str));
+};
+goog.string.isEmptySafe = goog.string.isEmptyOrWhitespaceSafe;
+goog.string.isBreakingWhitespace = function(str) {
+  return !/[^\t\n\r ]/.test(str);
+};
+goog.string.isAlpha = function(str) {
+  return !/[^a-zA-Z]/.test(str);
+};
+goog.string.isNumeric = function(str) {
+  return !/[^0-9]/.test(str);
+};
+goog.string.isAlphaNumeric = function(str) {
+  return !/[^a-zA-Z0-9]/.test(str);
+};
+goog.string.isSpace = function(ch) {
+  return " " == ch;
+};
+goog.string.isUnicodeChar = function(ch) {
+  return 1 == ch.length && " " <= ch && "~" >= ch || "\u0080" <= ch && "\ufffd" >= ch;
+};
+goog.string.stripNewlines = function(str) {
+  return str.replace(/(\r\n|\r|\n)+/g, " ");
+};
+goog.string.canonicalizeNewlines = function(str) {
+  return str.replace(/(\r\n|\r|\n)/g, "\n");
+};
+goog.string.normalizeWhitespace = function(str) {
+  return str.replace(/\xa0|\s/g, " ");
+};
+goog.string.normalizeSpaces = function(str) {
+  return str.replace(/\xa0|[ \t]+/g, " ");
+};
+goog.string.collapseBreakingSpaces = function(str) {
+  return str.replace(/[\t\r\n ]+/g, " ").replace(/^[\t\r\n ]+|[\t\r\n ]+$/g, "");
+};
+goog.string.trim = goog.string.internal.trim;
+goog.string.trimLeft = function(str) {
+  return str.replace(/^[\s\xa0]+/, "");
+};
+goog.string.trimRight = function(str) {
+  return str.replace(/[\s\xa0]+$/, "");
+};
+goog.string.caseInsensitiveCompare = goog.string.internal.caseInsensitiveCompare;
+goog.string.numberAwareCompare_ = function(str1, str2, tokenizerRegExp) {
+  if (str1 == str2) {
+    return 0;
+  }
+  if (!str1) {
+    return -1;
+  }
+  if (!str2) {
+    return 1;
+  }
+  for (var tokens1 = str1.toLowerCase().match(tokenizerRegExp), tokens2 = str2.toLowerCase().match(tokenizerRegExp), count = Math.min(tokens1.length, tokens2.length), i = 0; i < count; i++) {
+    var a = tokens1[i], b = tokens2[i];
+    if (a != b) {
+      var num1 = parseInt(a, 10);
+      if (!isNaN(num1)) {
+        var num2 = parseInt(b, 10);
+        if (!isNaN(num2) && num1 - num2) {
+          return num1 - num2;
+        }
+      }
+      return a < b ? -1 : 1;
+    }
+  }
+  return tokens1.length != tokens2.length ? tokens1.length - tokens2.length : str1 < str2 ? -1 : 1;
+};
+goog.string.intAwareCompare = function(str1, str2) {
+  return goog.string.numberAwareCompare_(str1, str2, /\d+|\D+/g);
+};
+goog.string.floatAwareCompare = function(str1, str2) {
+  return goog.string.numberAwareCompare_(str1, str2, /\d+|\.\d+|\D+/g);
+};
+goog.string.numerateCompare = goog.string.floatAwareCompare;
+goog.string.urlEncode = function(str) {
+  return encodeURIComponent(String(str));
+};
+goog.string.urlDecode = function(str) {
+  return decodeURIComponent(str.replace(/\+/g, " "));
+};
+goog.string.newLineToBr = goog.string.internal.newLineToBr;
+goog.string.htmlEscape = function(str, opt_isLikelyToContainHtmlChars) {
+  str = goog.string.internal.htmlEscape(str, opt_isLikelyToContainHtmlChars);
+  goog.string.DETECT_DOUBLE_ESCAPING && (str = str.replace(goog.string.E_RE_, "&#101;"));
+  return str;
+};
+goog.string.E_RE_ = /e/g;
+goog.string.unescapeEntities = function(str) {
+  return goog.string.contains(str, "&") ? !goog.string.FORCE_NON_DOM_HTML_UNESCAPING && "document" in goog.global ? goog.string.unescapeEntitiesUsingDom_(str) : goog.string.unescapePureXmlEntities_(str) : str;
+};
+goog.string.unescapeEntitiesWithDocument = function(str, document) {
+  return goog.string.contains(str, "&") ? goog.string.unescapeEntitiesUsingDom_(str, document) : str;
+};
+goog.string.unescapeEntitiesUsingDom_ = function(str, opt_document) {
+  var seen = {"&amp;":"&", "&lt;":"<", "&gt;":">", "&quot;":'"'};
+  var div = opt_document ? opt_document.createElement("div") : goog.global.document.createElement("div");
+  return str.replace(goog.string.HTML_ENTITY_PATTERN_, function(s, entity) {
+    var value = seen[s];
+    if (value) {
+      return value;
+    }
+    if ("#" == entity.charAt(0)) {
+      var n = Number("0" + entity.slice(1));
+      isNaN(n) || (value = String.fromCharCode(n));
+    }
+    value || (goog.dom.safe.setInnerHtml(div, goog.html.uncheckedconversions.safeHtmlFromStringKnownToSatisfyTypeContract(goog.string.Const.from("Single HTML entity."), s + " ")), value = div.firstChild.nodeValue.slice(0, -1));
+    return seen[s] = value;
+  });
+};
+goog.string.unescapePureXmlEntities_ = function(str) {
+  return str.replace(/&([^;]+);/g, function(s, entity) {
+    switch(entity) {
+      case "amp":
+        return "&";
+      case "lt":
+        return "<";
+      case "gt":
+        return ">";
+      case "quot":
+        return '"';
+      default:
+        if ("#" == entity.charAt(0)) {
+          var n = Number("0" + entity.slice(1));
+          if (!isNaN(n)) {
+            return String.fromCharCode(n);
+          }
+        }
+        return s;
+    }
+  });
+};
+goog.string.HTML_ENTITY_PATTERN_ = /&([^;\s<&]+);?/g;
+goog.string.whitespaceEscape = function(str, opt_xml) {
+  return goog.string.newLineToBr(str.replace(/  /g, " &#160;"), opt_xml);
+};
+goog.string.preserveSpaces = function(str) {
+  return str.replace(/(^|[\n ]) /g, "$1" + goog.string.Unicode.NBSP);
+};
+goog.string.stripQuotes = function(str, quoteChars) {
+  for (var length = quoteChars.length, i = 0; i < length; i++) {
+    var quoteChar = 1 == length ? quoteChars : quoteChars.charAt(i);
+    if (str.charAt(0) == quoteChar && str.charAt(str.length - 1) == quoteChar) {
+      return str.substring(1, str.length - 1);
+    }
+  }
+  return str;
+};
+goog.string.truncate = function(str, chars, opt_protectEscapedCharacters) {
+  opt_protectEscapedCharacters && (str = goog.string.unescapeEntities(str));
+  str.length > chars && (str = str.substring(0, chars - 3) + "...");
+  opt_protectEscapedCharacters && (str = goog.string.htmlEscape(str));
+  return str;
+};
+goog.string.truncateMiddle = function(str, chars, opt_protectEscapedCharacters, opt_trailingChars) {
+  opt_protectEscapedCharacters && (str = goog.string.unescapeEntities(str));
+  if (opt_trailingChars && str.length > chars) {
+    opt_trailingChars > chars && (opt_trailingChars = chars), str = str.substring(0, chars - opt_trailingChars) + "..." + str.substring(str.length - opt_trailingChars);
+  } else if (str.length > chars) {
+    var half = Math.floor(chars / 2);
+    str = str.substring(0, half + chars % 2) + "..." + str.substring(str.length - half);
+  }
+  opt_protectEscapedCharacters && (str = goog.string.htmlEscape(str));
+  return str;
+};
+goog.string.specialEscapeChars_ = {"\x00":"\\0", "\b":"\\b", "\f":"\\f", "\n":"\\n", "\r":"\\r", "\t":"\\t", "\v":"\\x0B", '"':'\\"', "\\":"\\\\", "<":"\\u003C"};
+goog.string.jsEscapeCache_ = {"'":"\\'"};
+goog.string.quote = function(s) {
+  s = String(s);
+  for (var sb = ['"'], i = 0; i < s.length; i++) {
+    var ch = s.charAt(i), cc = ch.charCodeAt(0);
+    sb[i + 1] = goog.string.specialEscapeChars_[ch] || (31 < cc && 127 > cc ? ch : goog.string.escapeChar(ch));
+  }
+  sb.push('"');
+  return sb.join("");
+};
+goog.string.escapeString = function(str) {
+  for (var sb = [], i = 0; i < str.length; i++) {
+    sb[i] = goog.string.escapeChar(str.charAt(i));
+  }
+  return sb.join("");
+};
+goog.string.escapeChar = function(c) {
+  if (c in goog.string.jsEscapeCache_) {
+    return goog.string.jsEscapeCache_[c];
+  }
+  if (c in goog.string.specialEscapeChars_) {
+    return goog.string.jsEscapeCache_[c] = goog.string.specialEscapeChars_[c];
+  }
+  var rv = c, cc = c.charCodeAt(0);
+  if (31 < cc && 127 > cc) {
+    rv = c;
+  } else {
+    if (256 > cc) {
+      if (rv = "\\x", 16 > cc || 256 < cc) {
+        rv += "0";
+      }
+    } else {
+      rv = "\\u", 4096 > cc && (rv += "0");
+    }
+    rv += cc.toString(16).toUpperCase();
+  }
+  return goog.string.jsEscapeCache_[c] = rv;
+};
+goog.string.contains = goog.string.internal.contains;
+goog.string.caseInsensitiveContains = goog.string.internal.caseInsensitiveContains;
+goog.string.countOf = function(s, ss) {
+  return s && ss ? s.split(ss).length - 1 : 0;
+};
+goog.string.removeAt = function(s, index, stringLength) {
+  var resultStr = s;
+  0 <= index && index < s.length && 0 < stringLength && (resultStr = s.slice(0, index) + s.slice(index + stringLength));
+  return resultStr;
+};
+goog.string.remove = function(str, substr) {
+  return str.replace(substr, "");
+};
+goog.string.removeAll = function(s, ss) {
+  var re = new RegExp(goog.string.regExpEscape(ss), "g");
+  return s.replace(re, "");
+};
+goog.string.replaceAll = function(s, ss, replacement) {
+  var re = new RegExp(goog.string.regExpEscape(ss), "g");
+  return s.replace(re, replacement.replace(/\$/g, "$$$$"));
+};
+goog.string.regExpEscape = function(s) {
+  return String(s).replace(/([-()\[\]{}+?*.$\^|,:#<!\\])/g, "\\$1").replace(/\x08/g, "\\x08");
+};
+goog.string.repeat = String.prototype.repeat ? function(string, length) {
+  return string.repeat(length);
+} : function(string, length) {
+  return Array(length + 1).join(string);
+};
+goog.string.padNumber = function(num, length, opt_precision) {
+  if (!Number.isFinite(num)) {
+    return String(num);
+  }
+  var s = void 0 !== opt_precision ? num.toFixed(opt_precision) : String(num), index = s.indexOf(".");
+  -1 === index && (index = s.length);
+  var sign = "-" === s[0] ? "-" : "";
+  sign && (s = s.substring(1));
+  return sign + goog.string.repeat("0", Math.max(0, length - index)) + s;
+};
+goog.string.makeSafe = function(obj) {
+  return null == obj ? "" : String(obj);
+};
+goog.string.getRandomString = function() {
+  return Math.floor(2147483648 * Math.random()).toString(36) + Math.abs(Math.floor(2147483648 * Math.random()) ^ goog.now()).toString(36);
+};
+goog.string.compareVersions = goog.string.internal.compareVersions;
+goog.string.hashCode = function(str) {
+  for (var result = 0, i = 0; i < str.length; ++i) {
+    result = 31 * result + str.charCodeAt(i) >>> 0;
+  }
+  return result;
+};
+goog.string.uniqueStringCounter_ = 2147483648 * Math.random() | 0;
+goog.string.createUniqueString = function() {
+  return "goog_" + goog.string.uniqueStringCounter_++;
+};
+goog.string.toNumber = function(str) {
+  var num = Number(str);
+  return 0 == num && goog.string.isEmptyOrWhitespace(str) ? NaN : num;
+};
+goog.string.isLowerCamelCase = function(str) {
+  return /^[a-z]+([A-Z][a-z]*)*$/.test(str);
+};
+goog.string.isUpperCamelCase = function(str) {
+  return /^([A-Z][a-z]*)+$/.test(str);
+};
+goog.string.toCamelCase = function(str) {
+  return String(str).replace(/\-([a-z])/g, function(all, match) {
+    return match.toUpperCase();
+  });
+};
+goog.string.toSelectorCase = function(str) {
+  return String(str).replace(/([A-Z])/g, "-$1").toLowerCase();
+};
+goog.string.toTitleCase = function(str, opt_delimiters) {
+  var delimiters = "string" === typeof opt_delimiters ? goog.string.regExpEscape(opt_delimiters) : "\\s";
+  return str.replace(new RegExp("(^" + (delimiters ? "|[" + delimiters + "]+" : "") + ")([a-z])", "g"), function(all, p1, p2) {
+    return p1 + p2.toUpperCase();
+  });
+};
+goog.string.capitalize = function(str) {
+  return String(str.charAt(0)).toUpperCase() + String(str.slice(1)).toLowerCase();
+};
+goog.string.parseInt = function(value) {
+  isFinite(value) && (value = String(value));
+  return "string" === typeof value ? /^\s*-?0x/i.test(value) ? parseInt(value, 16) : parseInt(value, 10) : NaN;
+};
+goog.string.splitLimit = function(str, separator, limit) {
+  for (var parts = str.split(separator), returnVal = []; 0 < limit && parts.length;) {
+    returnVal.push(parts.shift()), limit--;
+  }
+  parts.length && returnVal.push(parts.join(separator));
+  return returnVal;
+};
+goog.string.lastComponent = function(str, separators) {
+  if (separators) {
+    "string" == typeof separators && (separators = [separators]);
+  } else {
+    return str;
+  }
+  for (var lastSeparatorIndex = -1, i = 0; i < separators.length; i++) {
+    if ("" != separators[i]) {
+      var currentSeparatorIndex = str.lastIndexOf(separators[i]);
+      currentSeparatorIndex > lastSeparatorIndex && (lastSeparatorIndex = currentSeparatorIndex);
+    }
+  }
+  return -1 == lastSeparatorIndex ? str : str.slice(lastSeparatorIndex + 1);
+};
+goog.string.editDistance = function(a, b) {
+  var v0 = [], v1 = [];
+  if (a == b) {
+    return 0;
+  }
+  if (!a.length || !b.length) {
+    return Math.max(a.length, b.length);
+  }
+  for (var i = 0; i < b.length + 1; i++) {
+    v0[i] = i;
+  }
+  for (var i$44 = 0; i$44 < a.length; i$44++) {
+    v1[0] = i$44 + 1;
+    for (var j = 0; j < b.length; j++) {
+      v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + Number(a[i$44] != b[j]));
+    }
+    for (var j$45 = 0; j$45 < v0.length; j$45++) {
+      v0[j$45] = v1[j$45];
+    }
+  }
+  return v1[b.length];
+};
+goog.collections.maps = {};
+var module$contents$goog$collections$maps_MapLike = function() {
+};
+module$contents$goog$collections$maps_MapLike.prototype.set = function(key, val) {
+};
+module$contents$goog$collections$maps_MapLike.prototype.get = function(key) {
+};
+module$contents$goog$collections$maps_MapLike.prototype.keys = function() {
+};
+module$contents$goog$collections$maps_MapLike.prototype.values = function() {
+};
+module$contents$goog$collections$maps_MapLike.prototype.has = function(key) {
+};
+goog.collections.maps.MapLike = module$contents$goog$collections$maps_MapLike;
+goog.collections.maps.setAll = function module$contents$goog$collections$maps_setAll(map, entries) {
+  if (entries) {
+    for (var $jscomp$iter$11 = $jscomp.makeIterator(entries), $jscomp$key$ = $jscomp$iter$11.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$11.next()) {
+      var $jscomp$destructuring$var25 = $jscomp.makeIterator($jscomp$key$.value), k = $jscomp$destructuring$var25.next().value, v = $jscomp$destructuring$var25.next().value;
+      map.set(k, v);
+    }
+  }
+};
+goog.collections.maps.hasValue = function module$contents$goog$collections$maps_hasValue(map, val, valueEqualityFn) {
+  valueEqualityFn = void 0 === valueEqualityFn ? module$contents$goog$collections$maps_defaultEqualityFn : valueEqualityFn;
+  for (var $jscomp$iter$12 = $jscomp.makeIterator(map.values()), $jscomp$key$v = $jscomp$iter$12.next(); !$jscomp$key$v.done; $jscomp$key$v = $jscomp$iter$12.next()) {
+    if (valueEqualityFn($jscomp$key$v.value, val)) {
+      return !0;
+    }
+  }
+  return !1;
+};
+var module$contents$goog$collections$maps_defaultEqualityFn = function(a, b) {
+  return a === b;
+};
+goog.collections.maps.equals = function module$contents$goog$collections$maps_equals(map, otherMap, valueEqualityFn) {
+  valueEqualityFn = void 0 === valueEqualityFn ? module$contents$goog$collections$maps_defaultEqualityFn : valueEqualityFn;
+  if (map === otherMap) {
+    return !0;
+  }
+  if (map.size !== otherMap.size) {
+    return !1;
+  }
+  for (var $jscomp$iter$13 = $jscomp.makeIterator(map.keys()), $jscomp$key$key = $jscomp$iter$13.next(); !$jscomp$key$key.done; $jscomp$key$key = $jscomp$iter$13.next()) {
+    var key = $jscomp$key$key.value;
+    if (!otherMap.has(key) || !valueEqualityFn(map.get(key), otherMap.get(key))) {
+      return !1;
+    }
+  }
+  return !0;
+};
+goog.collections.maps.transpose = function module$contents$goog$collections$maps_transpose(map) {
+  for (var transposed = new Map(), $jscomp$iter$14 = $jscomp.makeIterator(map.keys()), $jscomp$key$key = $jscomp$iter$14.next(); !$jscomp$key$key.done; $jscomp$key$key = $jscomp$iter$14.next()) {
+    var key = $jscomp$key$key.value, val = map.get(key);
+    transposed.set(val, key);
+  }
+  return transposed;
+};
+goog.collections.maps.toObject = function module$contents$goog$collections$maps_toObject(map) {
+  for (var obj = {}, $jscomp$iter$15 = $jscomp.makeIterator(map.keys()), $jscomp$key$key = $jscomp$iter$15.next(); !$jscomp$key$key.done; $jscomp$key$key = $jscomp$iter$15.next()) {
+    var key = $jscomp$key$key.value;
+    obj[key] = map.get(key);
+  }
+  return obj;
+};
 goog.uri = {};
 goog.uri.utils = {};
+goog.uri.utils.QueryArray = {};
+goog.uri.utils.QueryValue = {};
 goog.uri.utils.CharCode_ = {AMPERSAND:38, EQUAL:61, HASH:35, QUESTION:63};
 goog.uri.utils.buildFromEncodedParts = function(opt_scheme, opt_userInfo, opt_domain, opt_port, opt_path, opt_queryData, opt_fragment) {
   var out = "";
@@ -7444,7 +7792,7 @@ goog.uri.utils.buildFromEncodedParts = function(opt_scheme, opt_userInfo, opt_do
   opt_fragment && (out += "#" + opt_fragment);
   return out;
 };
-goog.uri.utils.splitRe_ = /^(?:([^:/?#.]+):)?(?:\/\/(?:([^\\/?#]*)@)?([^\\/?#]*?)(?::([0-9]+))?(?=[\\/?#]|$))?([^?#]+)?(?:\?([^#]*))?(?:#([\s\S]*))?$/;
+goog.uri.utils.splitRe_ = RegExp("^(?:([^:/?#.]+):)?(?://(?:([^\\\\/?#]*)@)?([^\\\\/?#]*?)(?::([0-9]+))?(?=[\\\\/?#]|$))?([^?#]+)?(?:\\?([^#]*))?(?:#([\\s\\S]*))?$");
 goog.uri.utils.ComponentIndex = {SCHEME:1, USER_INFO:2, DOMAIN:3, PORT:4, PATH:5, QUERY_DATA:6, FRAGMENT:7};
 goog.uri.utils.urlPackageSupportLoggingHandler_ = null;
 goog.uri.utils.setUrlPackageSupportLoggingHandler = function(handler) {
@@ -7466,10 +7814,7 @@ goog.uri.utils.getScheme = function(uri) {
 };
 goog.uri.utils.getEffectiveScheme = function(uri) {
   var scheme = goog.uri.utils.getScheme(uri);
-  if (!scheme && goog.global.self && goog.global.self.location) {
-    var protocol = goog.global.self.location.protocol;
-    scheme = protocol.substr(0, protocol.length - 1);
-  }
+  !scheme && goog.global.self && goog.global.self.location && (scheme = goog.global.self.location.protocol.slice(0, -1));
   return scheme ? scheme.toLowerCase() : "";
 };
 goog.uri.utils.getUserInfoEncoded = function(uri) {
@@ -7498,7 +7843,7 @@ goog.uri.utils.getQueryData = function(uri) {
 };
 goog.uri.utils.getFragmentEncoded = function(uri) {
   var hashIndex = uri.indexOf("#");
-  return 0 > hashIndex ? null : uri.substr(hashIndex + 1);
+  return 0 > hashIndex ? null : uri.slice(hashIndex + 1);
 };
 goog.uri.utils.setFragmentEncoded = function(uri, fragment) {
   return goog.uri.utils.removeFragment(uri) + (fragment ? "#" + fragment : "");
@@ -7520,7 +7865,7 @@ goog.uri.utils.getPathAndAfter = function(uri) {
 };
 goog.uri.utils.removeFragment = function(uri) {
   var hashIndex = uri.indexOf("#");
-  return 0 > hashIndex ? uri : uri.substr(0, hashIndex);
+  return 0 > hashIndex ? uri : uri.slice(0, hashIndex);
 };
 goog.uri.utils.haveSameDomain = function(uri1, uri2) {
   var pieces1 = goog.uri.utils.split(uri1), pieces2 = goog.uri.utils.split(uri2);
@@ -7548,7 +7893,7 @@ goog.uri.utils.splitQueryData_ = function(uri) {
   } else {
     queryData = uri.substring(questionIndex + 1, hashIndex);
   }
-  return [uri.substr(0, questionIndex), queryData, uri.substr(hashIndex)];
+  return [uri.slice(0, questionIndex), queryData, uri.slice(hashIndex)];
 };
 goog.uri.utils.joinQueryData_ = function(parts) {
   return parts[0] + (parts[1] ? "?" + parts[1] : "") + parts[2];
@@ -7628,7 +7973,7 @@ goog.uri.utils.getParamValue = function(uri, keyEncoded) {
     endPosition = hashOrEndIndex;
   }
   foundIndex += keyEncoded.length + 1;
-  return goog.string.urlDecode(uri.substr(foundIndex, endPosition - foundIndex));
+  return goog.string.urlDecode(uri.slice(foundIndex, -1 !== endPosition ? endPosition : 0));
 };
 goog.uri.utils.getParamValues = function(uri, keyEncoded) {
   for (var hashOrEndIndex = uri.search(goog.uri.utils.hashOrEndRe_), position = 0, foundIndex, result = []; 0 <= (foundIndex = goog.uri.utils.findParam_(uri, position, keyEncoded, hashOrEndIndex));) {
@@ -7637,7 +7982,7 @@ goog.uri.utils.getParamValues = function(uri, keyEncoded) {
       position = hashOrEndIndex;
     }
     foundIndex += keyEncoded.length + 1;
-    result.push(goog.string.urlDecode(uri.substr(foundIndex, position - foundIndex)));
+    result.push(goog.string.urlDecode(uri.slice(foundIndex, Math.max(position, 0))));
   }
   return result;
 };
@@ -7646,7 +7991,7 @@ goog.uri.utils.removeParam = function(uri, keyEncoded) {
   for (var hashOrEndIndex = uri.search(goog.uri.utils.hashOrEndRe_), position = 0, foundIndex, buffer = []; 0 <= (foundIndex = goog.uri.utils.findParam_(uri, position, keyEncoded, hashOrEndIndex));) {
     buffer.push(uri.substring(position, foundIndex)), position = Math.min(uri.indexOf("&", foundIndex) + 1 || hashOrEndIndex, hashOrEndIndex);
   }
-  buffer.push(uri.substr(position));
+  buffer.push(uri.slice(position));
   return buffer.join("").replace(goog.uri.utils.trailingQueryPunctuationRe_, "$1");
 };
 goog.uri.utils.setParam = function(uri, keyEncoded, value) {
@@ -7655,16 +8000,16 @@ goog.uri.utils.setParam = function(uri, keyEncoded, value) {
 goog.uri.utils.setParamsFromMap = function(uri, params) {
   var parts = goog.uri.utils.splitQueryData_(uri), queryData = parts[1], buffer = [];
   queryData && queryData.split("&").forEach(function(pair) {
-    var indexOfEquals = pair.indexOf("=");
-    params.hasOwnProperty(0 <= indexOfEquals ? pair.substr(0, indexOfEquals) : pair) || buffer.push(pair);
+    var indexOfEquals = pair.indexOf("="), name = 0 <= indexOfEquals ? pair.slice(0, indexOfEquals) : pair;
+    params.hasOwnProperty(name) || buffer.push(pair);
   });
   parts[1] = goog.uri.utils.appendQueryData_(buffer.join("&"), goog.uri.utils.buildQueryDataFromMap(params));
   return goog.uri.utils.joinQueryData_(parts);
 };
 goog.uri.utils.appendPath = function(baseUri, path) {
   goog.uri.utils.assertNoFragmentsOrQueries_(baseUri);
-  goog.string.endsWith(baseUri, "/") && (baseUri = baseUri.substr(0, baseUri.length - 1));
-  goog.string.startsWith(path, "/") && (path = path.substr(1));
+  goog.string.endsWith(baseUri, "/") && (baseUri = baseUri.slice(0, -1));
+  goog.string.startsWith(path, "/") && (path = path.slice(1));
   return "" + baseUri + "/" + path;
 };
 goog.uri.utils.setPath = function(uri, path) {
@@ -7721,7 +8066,7 @@ goog.Uri.prototype.resolve = function(relativeUri) {
           path = "/" + path;
         } else {
           var lastSlashIndex = absoluteUri.getPath().lastIndexOf("/");
-          -1 != lastSlashIndex && (path = absoluteUri.getPath().substr(0, lastSlashIndex + 1) + path);
+          -1 != lastSlashIndex && (path = absoluteUri.getPath().slice(0, lastSlashIndex + 1) + path);
         }
       }
       path = goog.Uri.removeDotSegments(path);
@@ -7949,7 +8294,7 @@ goog.Uri.QueryData = function(opt_query, opt_ignoreCase) {
   this.ignoreCase_ = !!opt_ignoreCase;
 };
 goog.Uri.QueryData.prototype.ensureKeyMapInitialized_ = function() {
-  if (!this.keyMap_ && (this.keyMap_ = new goog.structs.Map, this.count_ = 0, this.encodedQuery_)) {
+  if (!this.keyMap_ && (this.keyMap_ = new Map(), this.count_ = 0, this.encodedQuery_)) {
     var self = this;
     goog.uri.utils.parseQueryData(this.encodedQuery_, function(name, value) {
       self.add(goog.string.urlDecode(name), value);
@@ -7993,7 +8338,7 @@ goog.Uri.QueryData.prototype.add = function(key, value) {
 goog.Uri.QueryData.prototype.remove = function(key) {
   this.ensureKeyMapInitialized_();
   key = this.getKeyName_(key);
-  return this.keyMap_.containsKey(key) ? (this.invalidateCache_(), this.count_ = goog.asserts.assertNumber(this.count_) - this.keyMap_.get(key).length, this.keyMap_.remove(key)) : !1;
+  return this.keyMap_.has(key) ? (this.invalidateCache_(), this.count_ = goog.asserts.assertNumber(this.count_) - this.keyMap_.get(key).length, this.keyMap_.delete(key)) : !1;
 };
 goog.Uri.QueryData.prototype.clear = function() {
   this.invalidateCache_();
@@ -8007,7 +8352,7 @@ goog.Uri.QueryData.prototype.isEmpty = function() {
 goog.Uri.QueryData.prototype.containsKey = function(key) {
   this.ensureKeyMapInitialized_();
   key = this.getKeyName_(key);
-  return this.keyMap_.containsKey(key);
+  return this.keyMap_.has(key);
 };
 goog.Uri.QueryData.prototype.containsValue = function(value) {
   var vals = this.getValues();
@@ -8016,14 +8361,14 @@ goog.Uri.QueryData.prototype.containsValue = function(value) {
 goog.Uri.QueryData.prototype.forEach = function(f, opt_scope) {
   this.ensureKeyMapInitialized_();
   this.keyMap_.forEach(function(values, key) {
-    module$contents$goog$array_forEach(values, function(value) {
+    values.forEach(function(value) {
       f.call(opt_scope, value, key, this);
     }, this);
   }, this);
 };
 goog.Uri.QueryData.prototype.getKeys = function() {
   this.ensureKeyMapInitialized_();
-  for (var vals = this.keyMap_.getValues(), keys = this.keyMap_.getKeys(), rv = [], i = 0; i < keys.length; i++) {
+  for (var vals = Array.from(this.keyMap_.values()), keys = Array.from(this.keyMap_.keys()), rv = [], i = 0; i < keys.length; i++) {
     for (var val = vals[i], j = 0; j < val.length; j++) {
       rv.push(keys[i]);
     }
@@ -8034,10 +8379,10 @@ goog.Uri.QueryData.prototype.getValues = function(opt_key) {
   this.ensureKeyMapInitialized_();
   var rv = [];
   if ("string" === typeof opt_key) {
-    this.containsKey(opt_key) && (rv = module$contents$goog$array_concat(rv, this.keyMap_.get(this.getKeyName_(opt_key))));
+    this.containsKey(opt_key) && (rv = rv.concat(this.keyMap_.get(this.getKeyName_(opt_key))));
   } else {
-    for (var values = this.keyMap_.getValues(), i = 0; i < values.length; i++) {
-      rv = module$contents$goog$array_concat(rv, values[i]);
+    for (var values = Array.from(this.keyMap_.values()), i = 0; i < values.length; i++) {
+      rv = rv.concat(values[i]);
     }
   }
   return rv;
@@ -8069,7 +8414,7 @@ goog.Uri.QueryData.prototype.toString = function() {
   if (!this.keyMap_) {
     return "";
   }
-  for (var sb = [], keys = this.keyMap_.getKeys(), i = 0; i < keys.length; i++) {
+  for (var sb = [], keys = Array.from(this.keyMap_.keys()), i = 0; i < keys.length; i++) {
     for (var key = keys[i], encodedKey = goog.string.urlEncode(key), val = this.getValues(key), j = 0; j < val.length; j++) {
       var param = encodedKey;
       "" !== val[j] && (param += "=" + goog.string.urlEncode(val[j]));
@@ -8092,9 +8437,9 @@ goog.Uri.QueryData.prototype.filterKeys = function(keys) {
   return this;
 };
 goog.Uri.QueryData.prototype.clone = function() {
-  var rv = new goog.Uri.QueryData;
+  var rv = new goog.Uri.QueryData();
   rv.encodedQuery_ = this.encodedQuery_;
-  this.keyMap_ && (rv.keyMap_ = this.keyMap_.clone(), rv.count_ = this.count_);
+  this.keyMap_ && (rv.keyMap_ = new Map(this.keyMap_), rv.count_ = this.count_);
   return rv;
 };
 goog.Uri.QueryData.prototype.getKeyName_ = function(arg) {
@@ -8139,9 +8484,9 @@ var module$exports$goog$net$rpc$HttpCors = {HTTP_HEADERS_PARAM_NAME:"$httpHeader
   return url;
 }};
 var module$exports$eeapiclient$request_params = {}, module$contents$eeapiclient$request_params_module = module$contents$eeapiclient$request_params_module || {id:"javascript/typescript/contrib/apiclient/core/request_params.closure.js"};
-module$exports$eeapiclient$request_params.HttpMethodEnum = {GET:"GET", POST:"POST", PUT:"PUT", PATCH:"PATCH", DELETE:"DELETE", };
-module$exports$eeapiclient$request_params.AuthType = {AUTO:"auto", NONE:"none", OAUTH2:"oauth2", FIRST_PARTY:"1p", };
-module$exports$eeapiclient$request_params.StreamingType = {NONE:"NONE", CLIENT_SIDE:"CLIENT_SIDE", SERVER_SIDE:"SERVER_SIDE", BIDIRECTONAL:"BIDIRECTONAL", };
+module$exports$eeapiclient$request_params.HttpMethodEnum = {GET:"GET", POST:"POST", PUT:"PUT", PATCH:"PATCH", DELETE:"DELETE",};
+module$exports$eeapiclient$request_params.AuthType = {AUTO:"auto", NONE:"none", OAUTH2:"oauth2", FIRST_PARTY:"1p",};
+module$exports$eeapiclient$request_params.StreamingType = {NONE:"NONE", CLIENT_SIDE:"CLIENT_SIDE", SERVER_SIDE:"SERVER_SIDE", BIDIRECTONAL:"BIDIRECTONAL",};
 function module$contents$eeapiclient$request_params_MakeRequestParams() {
 }
 module$exports$eeapiclient$request_params.MakeRequestParams = module$contents$eeapiclient$request_params_MakeRequestParams;
@@ -8156,8 +8501,8 @@ function module$contents$eeapiclient$request_params_processParams(params) {
 }
 module$exports$eeapiclient$request_params.processParams = module$contents$eeapiclient$request_params_processParams;
 function module$contents$eeapiclient$request_params_buildQueryParams(params, mapping, passthroughParams) {
-  for (var urlQueryParams = passthroughParams = void 0 === passthroughParams ? {} : passthroughParams, $jscomp$iter$10 = $jscomp.makeIterator(Object.entries(mapping)), $jscomp$key$ = $jscomp$iter$10.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$10.next()) {
-    var $jscomp$destructuring$var1 = $jscomp.makeIterator($jscomp$key$.value), jsName = $jscomp$destructuring$var1.next().value, urlQueryParamName = $jscomp$destructuring$var1.next().value;
+  for (var urlQueryParams = passthroughParams = void 0 === passthroughParams ? {} : passthroughParams, $jscomp$iter$16 = $jscomp.makeIterator(Object.entries(mapping)), $jscomp$key$ = $jscomp$iter$16.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$16.next()) {
+    var $jscomp$destructuring$var27 = $jscomp.makeIterator($jscomp$key$.value), jsName__tsickle_destructured_1 = $jscomp$destructuring$var27.next().value, urlQueryParamName__tsickle_destructured_2 = $jscomp$destructuring$var27.next().value, jsName = jsName__tsickle_destructured_1, urlQueryParamName = urlQueryParamName__tsickle_destructured_2;
     jsName in params && (urlQueryParams[urlQueryParamName] = params[jsName]);
   }
   return urlQueryParams;
@@ -8168,8 +8513,8 @@ module$exports$eeapiclient$request_params.bypassCorsPreflight = function module$
   var safeHeaders = {}, unsafeHeaders = {}, hasUnsafeHeaders = !1, hasSafeHeaders = !1, hasContentType = !1;
   if (params.headers) {
     hasContentType = null != params.headers["Content-Type"];
-    for (var $jscomp$iter$11 = $jscomp.makeIterator(Object.entries(params.headers)), $jscomp$key$ = $jscomp$iter$11.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$11.next()) {
-      var $jscomp$destructuring$var3 = $jscomp.makeIterator($jscomp$key$.value), key = $jscomp$destructuring$var3.next().value, value = $jscomp$destructuring$var3.next().value;
+    for (var $jscomp$iter$17 = $jscomp.makeIterator(Object.entries(params.headers)), $jscomp$key$ = $jscomp$iter$17.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$17.next()) {
+      var $jscomp$destructuring$var29 = $jscomp.makeIterator($jscomp$key$.value), key__tsickle_destructured_3 = $jscomp$destructuring$var29.next().value, value__tsickle_destructured_4 = $jscomp$destructuring$var29.next().value, key = key__tsickle_destructured_3, value = value__tsickle_destructured_4;
       module$contents$eeapiclient$request_params_simpleCorsAllowedHeaders.includes(key) ? (safeHeaders[key] = value, hasSafeHeaders = !0) : (unsafeHeaders[key] = value, hasUnsafeHeaders = !0);
     }
   }
@@ -8187,8 +8532,8 @@ function module$contents$eeapiclient$request_params_addQueryParameter(params, ke
   if (params.queryParams) {
     params.queryParams[key] = value;
   } else {
-    var $jscomp$compprop0 = {};
-    params.queryParams = ($jscomp$compprop0[key] = value, $jscomp$compprop0);
+    var $jscomp$compprop2 = {};
+    params.queryParams = ($jscomp$compprop2[key] = value, $jscomp$compprop2);
   }
 }
 ;var module$exports$eeapiclient$multipart_request = {}, module$contents$eeapiclient$multipart_request_module = module$contents$eeapiclient$multipart_request_module || {id:"javascript/typescript/contrib/apiclient/core/multipart_request.closure.js"};
@@ -8219,7 +8564,7 @@ module$exports$eeapiclient$multipart_request.MultipartRequest.prototype.build = 
   return Promise.all(this.files.map(function(f) {
     return $jscomp$this.encodeFile(f);
   })).then(function(filePayloads) {
-    for (var $jscomp$iter$12 = $jscomp.makeIterator(filePayloads), $jscomp$key$filePayload = $jscomp$iter$12.next(); !$jscomp$key$filePayload.done; $jscomp$key$filePayload = $jscomp$iter$12.next()) {
+    for (var $jscomp$iter$18 = $jscomp.makeIterator(filePayloads), $jscomp$key$filePayload = $jscomp$iter$18.next(); !$jscomp$key$filePayload.done; $jscomp$key$filePayload = $jscomp$iter$18.next()) {
       payload += $jscomp$key$filePayload.value;
     }
     return payload += "\r\n--" + $jscomp$this._boundary + "--";
@@ -8227,15 +8572,15 @@ module$exports$eeapiclient$multipart_request.MultipartRequest.prototype.build = 
 };
 module$exports$eeapiclient$multipart_request.MultipartRequest.prototype.encodeFile = function(file) {
   return this.base64EncodeFile(file).then(function(base64Str) {
-    return "Content-Type: " + file.type + "\r\nContent-Transfer-Encoding: base64\r\n\r\n" + base64Str;
+    return "Content-Type: " + file.type + '\r\nContent-Disposition: form-data; name="file"; filename="' + (encodeURIComponent(file.name) + '"\r\nContent-Transfer-Encoding: base64\r\n\r\n') + base64Str;
   });
 };
 module$exports$eeapiclient$multipart_request.MultipartRequest.prototype.base64EncodeFile = function(file) {
   return new Promise(function(resolve, reject) {
-    var reader = new FileReader;
+    var reader = new FileReader();
     reader.onload = function(ev) {
       try {
-        var file$32 = ev.target.result, toResolve = file$32.substr(file$32.indexOf(",") + 1);
+        var file$46 = ev.target.result, toResolve = file$46.substr(file$46.indexOf(",") + 1);
         resolve(toResolve);
       } catch (e) {
         reject(e);
@@ -8264,7 +8609,8 @@ function module$contents$eeapiclient$api_client_toMultipartMakeRequestParams(req
   }
   var multipartRequest = requestParams.body;
   return multipartRequest.payloadPromise().then(function(body) {
-    return {path:requestParams.path, httpMethod:requestParams.httpMethod, methodId:requestParams.methodId, queryParams:{uploadType:"multipart"}, headers:{"X-Goog-Upload-Protocol":"multipart", "Content-Type":"multipart/related; boundary=" + multipartRequest.boundary()}, body:body, };
+    var $jscomp$nullish$tmp0, queryParams = null != ($jscomp$nullish$tmp0 = requestParams.queryParams) ? $jscomp$nullish$tmp0 : {};
+    return {path:requestParams.path, httpMethod:requestParams.httpMethod, methodId:requestParams.methodId, queryParams:Object.assign({}, queryParams, {uploadType:"multipart"}), headers:{"X-Goog-Upload-Protocol":"multipart", "Content-Type":"multipart/related; boundary=" + multipartRequest.boundary()}, body:body,};
   });
 }
 module$exports$eeapiclient$api_client.toMultipartMakeRequestParams = module$contents$eeapiclient$api_client_toMultipartMakeRequestParams;
@@ -8281,7 +8627,7 @@ module$exports$eeapiclient$api_request_hook.DefaultApiClientHookFactory.prototyp
   return {onBeforeSend:function() {
   }, onSuccess:function(response) {
   }, onError:function(error) {
-  }, };
+  },};
 };
 function module$contents$eeapiclient$api_request_hook_getRequestHook(factory, requestParams) {
   if (null == factory) {
@@ -8373,9 +8719,9 @@ module$exports$eeapiclient$ee_api_client.DataAccessOptionsLogModeEnum = {LOG_FAI
 }};
 module$exports$eeapiclient$ee_api_client.IEarthEngineAssetTypeEnum = function module$contents$eeapiclient$ee_api_client_IEarthEngineAssetTypeEnum() {
 };
-module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum = {CLASSIFIER:"CLASSIFIER", FOLDER:"FOLDER", IMAGE:"IMAGE", IMAGE_COLLECTION:"IMAGE_COLLECTION", TABLE:"TABLE", TYPE_UNSPECIFIED:"TYPE_UNSPECIFIED", values:function() {
+module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum = {CLASSIFIER:"CLASSIFIER", FEATURE_VIEW:"FEATURE_VIEW", FOLDER:"FOLDER", IMAGE:"IMAGE", IMAGE_COLLECTION:"IMAGE_COLLECTION", TABLE:"TABLE", TYPE_UNSPECIFIED:"TYPE_UNSPECIFIED", values:function() {
   return [module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum.TYPE_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum.IMAGE, module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum.IMAGE_COLLECTION, module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum.TABLE, module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum.FOLDER, 
-  module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum.CLASSIFIER];
+  module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum.CLASSIFIER, module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum.FEATURE_VIEW];
 }};
 module$exports$eeapiclient$ee_api_client.IEarthEngineMapFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IEarthEngineMapFileFormatEnum() {
 };
@@ -8387,6 +8733,17 @@ module$exports$eeapiclient$ee_api_client.IExportVideoMapRequestVersionEnum = fun
 };
 module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum = {V1:"V1", V2:"V2", VERSION_UNSPECIFIED:"VERSION_UNSPECIFIED", values:function() {
   return [module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum.VERSION_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum.V1, module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum.V2];
+}};
+module$exports$eeapiclient$ee_api_client.IFeatureViewAttributeTypeEnum = function module$contents$eeapiclient$ee_api_client_IFeatureViewAttributeTypeEnum() {
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewAttributeTypeEnum = {BOOLEAN:"BOOLEAN", DATE_TIME:"DATE_TIME", DOUBLE:"DOUBLE", INTEGER:"INTEGER", STRING:"STRING", TYPE_UNSPECIFIED:"TYPE_UNSPECIFIED", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.FeatureViewAttributeTypeEnum.TYPE_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.FeatureViewAttributeTypeEnum.INTEGER, module$exports$eeapiclient$ee_api_client.FeatureViewAttributeTypeEnum.BOOLEAN, module$exports$eeapiclient$ee_api_client.FeatureViewAttributeTypeEnum.DOUBLE, module$exports$eeapiclient$ee_api_client.FeatureViewAttributeTypeEnum.STRING, 
+  module$exports$eeapiclient$ee_api_client.FeatureViewAttributeTypeEnum.DATE_TIME];
+}};
+module$exports$eeapiclient$ee_api_client.IFeatureViewDestinationPermissionsEnum = function module$contents$eeapiclient$ee_api_client_IFeatureViewDestinationPermissionsEnum() {
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewDestinationPermissionsEnum = {FEATURE_VIEW_ASSET_PERMISSIONS_UNSPECIFIED:"FEATURE_VIEW_ASSET_PERMISSIONS_UNSPECIFIED", PUBLIC:"PUBLIC", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.FeatureViewDestinationPermissionsEnum.FEATURE_VIEW_ASSET_PERMISSIONS_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.FeatureViewDestinationPermissionsEnum.PUBLIC];
 }};
 module$exports$eeapiclient$ee_api_client.IFilmstripThumbnailFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IFilmstripThumbnailFileFormatEnum() {
 };
@@ -8413,21 +8770,21 @@ module$exports$eeapiclient$ee_api_client.GetPixelsRequestFileFormatEnum = {AUTO_
 }};
 module$exports$eeapiclient$ee_api_client.IImageAssetExportOptionsPyramidingPolicyEnum = function module$contents$eeapiclient$ee_api_client_IImageAssetExportOptionsPyramidingPolicyEnum() {
 };
-module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum = {MAX:"MAX", MEAN:"MEAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
+module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum = {MAX:"MAX", MEAN:"MEAN", MEDIAN:"MEDIAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
   return [module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum.PYRAMIDING_POLICY_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum.MEAN, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum.SAMPLE, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum.MIN, 
-  module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum.MAX, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum.MODE];
+  module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum.MAX, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum.MODE, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyEnum.MEDIAN];
 }};
 module$exports$eeapiclient$ee_api_client.IImageAssetExportOptionsPyramidingPolicyOverridesEnum = function module$contents$eeapiclient$ee_api_client_IImageAssetExportOptionsPyramidingPolicyOverridesEnum() {
 };
-module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum = {MAX:"MAX", MEAN:"MEAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
+module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum = {MAX:"MAX", MEAN:"MEAN", MEDIAN:"MEDIAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
   return [module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum.PYRAMIDING_POLICY_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MEAN, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum.SAMPLE, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MIN, 
-  module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MAX, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MODE];
+  module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MAX, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MODE, module$exports$eeapiclient$ee_api_client.ImageAssetExportOptionsPyramidingPolicyOverridesEnum.MEDIAN];
 }};
 module$exports$eeapiclient$ee_api_client.IImageBandPyramidingPolicyEnum = function module$contents$eeapiclient$ee_api_client_IImageBandPyramidingPolicyEnum() {
 };
-module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum = {MAX:"MAX", MEAN:"MEAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
+module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum = {MAX:"MAX", MEAN:"MEAN", MEDIAN:"MEDIAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
   return [module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum.PYRAMIDING_POLICY_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum.MEAN, module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum.SAMPLE, module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum.MIN, module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum.MAX, 
-  module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum.MODE];
+  module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum.MODE, module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum.MEDIAN];
 }};
 module$exports$eeapiclient$ee_api_client.IImageFileExportOptionsFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IImageFileExportOptionsFileFormatEnum() {
 };
@@ -8438,9 +8795,9 @@ module$exports$eeapiclient$ee_api_client.ImageFileExportOptionsFileFormatEnum = 
 }};
 module$exports$eeapiclient$ee_api_client.IImageManifestPyramidingPolicyEnum = function module$contents$eeapiclient$ee_api_client_IImageManifestPyramidingPolicyEnum() {
 };
-module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum = {MAX:"MAX", MEAN:"MEAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
+module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum = {MAX:"MAX", MEAN:"MEAN", MEDIAN:"MEDIAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
   return [module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum.PYRAMIDING_POLICY_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum.MEAN, module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum.SAMPLE, module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum.MIN, module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum.MAX, 
-  module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum.MODE];
+  module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum.MODE, module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum.MEDIAN];
 }};
 module$exports$eeapiclient$ee_api_client.IOperationMetadataStateEnum = function module$contents$eeapiclient$ee_api_client_IOperationMetadataStateEnum() {
 };
@@ -8448,10 +8805,30 @@ module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum = {CANCELLED
   return [module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum.STATE_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum.PENDING, module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum.RUNNING, module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum.CANCELLING, module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum.SUCCEEDED, 
   module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum.CANCELLED, module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum.FAILED];
 }};
+module$exports$eeapiclient$ee_api_client.IOperationNotificationSeverityEnum = function module$contents$eeapiclient$ee_api_client_IOperationNotificationSeverityEnum() {
+};
+module$exports$eeapiclient$ee_api_client.OperationNotificationSeverityEnum = {SEVERE:"SEVERE", SEVERITY_UNSPECIFIED:"SEVERITY_UNSPECIFIED", WARNING:"WARNING", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.OperationNotificationSeverityEnum.SEVERITY_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.OperationNotificationSeverityEnum.WARNING, module$exports$eeapiclient$ee_api_client.OperationNotificationSeverityEnum.SEVERE];
+}};
 module$exports$eeapiclient$ee_api_client.IPixelDataTypePrecisionEnum = function module$contents$eeapiclient$ee_api_client_IPixelDataTypePrecisionEnum() {
 };
 module$exports$eeapiclient$ee_api_client.PixelDataTypePrecisionEnum = {DOUBLE:"DOUBLE", FLOAT:"FLOAT", INT:"INT", PRECISION_UNSPECIFIED:"PRECISION_UNSPECIFIED", values:function() {
   return [module$exports$eeapiclient$ee_api_client.PixelDataTypePrecisionEnum.PRECISION_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.PixelDataTypePrecisionEnum.INT, module$exports$eeapiclient$ee_api_client.PixelDataTypePrecisionEnum.FLOAT, module$exports$eeapiclient$ee_api_client.PixelDataTypePrecisionEnum.DOUBLE];
+}};
+module$exports$eeapiclient$ee_api_client.IProjectRegistrationBillingConsentEnum = function module$contents$eeapiclient$ee_api_client_IProjectRegistrationBillingConsentEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectRegistrationBillingConsentEnum = {BILLING_CONSENT_FULL:"BILLING_CONSENT_FULL", BILLING_CONSENT_NONE:"BILLING_CONSENT_NONE", BILLING_CONSENT_UNSPECIFIED:"BILLING_CONSENT_UNSPECIFIED", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.ProjectRegistrationBillingConsentEnum.BILLING_CONSENT_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.ProjectRegistrationBillingConsentEnum.BILLING_CONSENT_NONE, module$exports$eeapiclient$ee_api_client.ProjectRegistrationBillingConsentEnum.BILLING_CONSENT_FULL];
+}};
+module$exports$eeapiclient$ee_api_client.IProjectRegistrationFreeQuotaEnum = function module$contents$eeapiclient$ee_api_client_IProjectRegistrationFreeQuotaEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectRegistrationFreeQuotaEnum = {FREE_QUOTA_FULL:"FREE_QUOTA_FULL", FREE_QUOTA_NONE:"FREE_QUOTA_NONE", FREE_QUOTA_UNSPECIFIED:"FREE_QUOTA_UNSPECIFIED", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.ProjectRegistrationFreeQuotaEnum.FREE_QUOTA_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.ProjectRegistrationFreeQuotaEnum.FREE_QUOTA_NONE, module$exports$eeapiclient$ee_api_client.ProjectRegistrationFreeQuotaEnum.FREE_QUOTA_FULL];
+}};
+module$exports$eeapiclient$ee_api_client.IRankByOneThingRuleDirectionEnum = function module$contents$eeapiclient$ee_api_client_IRankByOneThingRuleDirectionEnum() {
+};
+module$exports$eeapiclient$ee_api_client.RankByOneThingRuleDirectionEnum = {ASCENDING:"ASCENDING", DESCENDING:"DESCENDING", DIRECTION_UNSPECIFIED:"DIRECTION_UNSPECIFIED", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.RankByOneThingRuleDirectionEnum.DIRECTION_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.RankByOneThingRuleDirectionEnum.ASCENDING, module$exports$eeapiclient$ee_api_client.RankByOneThingRuleDirectionEnum.DESCENDING];
 }};
 module$exports$eeapiclient$ee_api_client.IRuleActionEnum = function module$contents$eeapiclient$ee_api_client_IRuleActionEnum() {
 };
@@ -8471,6 +8848,16 @@ module$exports$eeapiclient$ee_api_client.TableFileFormatEnum = {CSV:"CSV", GEO_J
   return [module$exports$eeapiclient$ee_api_client.TableFileFormatEnum.TABLE_FILE_FORMAT_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.TableFileFormatEnum.CSV, module$exports$eeapiclient$ee_api_client.TableFileFormatEnum.GEO_JSON, module$exports$eeapiclient$ee_api_client.TableFileFormatEnum.KML, module$exports$eeapiclient$ee_api_client.TableFileFormatEnum.KMZ, 
   module$exports$eeapiclient$ee_api_client.TableFileFormatEnum.SHP, module$exports$eeapiclient$ee_api_client.TableFileFormatEnum.TF_RECORD_TABLE];
 }};
+module$exports$eeapiclient$ee_api_client.ITableManifestCsvColumnDataTypeOverridesEnum = function module$contents$eeapiclient$ee_api_client_ITableManifestCsvColumnDataTypeOverridesEnum() {
+};
+module$exports$eeapiclient$ee_api_client.TableManifestCsvColumnDataTypeOverridesEnum = {CSV_COLUMN_DATA_TYPE_LONG:"CSV_COLUMN_DATA_TYPE_LONG", CSV_COLUMN_DATA_TYPE_NUMERIC:"CSV_COLUMN_DATA_TYPE_NUMERIC", CSV_COLUMN_DATA_TYPE_STRING:"CSV_COLUMN_DATA_TYPE_STRING", CSV_COLUMN_DATA_TYPE_UNSPECIFIED:"CSV_COLUMN_DATA_TYPE_UNSPECIFIED", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.TableManifestCsvColumnDataTypeOverridesEnum.CSV_COLUMN_DATA_TYPE_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.TableManifestCsvColumnDataTypeOverridesEnum.CSV_COLUMN_DATA_TYPE_STRING, module$exports$eeapiclient$ee_api_client.TableManifestCsvColumnDataTypeOverridesEnum.CSV_COLUMN_DATA_TYPE_NUMERIC, module$exports$eeapiclient$ee_api_client.TableManifestCsvColumnDataTypeOverridesEnum.CSV_COLUMN_DATA_TYPE_LONG];
+}};
+module$exports$eeapiclient$ee_api_client.IThinningOptionsThinningStrategyEnum = function module$contents$eeapiclient$ee_api_client_IThinningOptionsThinningStrategyEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ThinningOptionsThinningStrategyEnum = {GLOBALLY_CONSISTENT:"GLOBALLY_CONSISTENT", HIGHER_DENSITY:"HIGHER_DENSITY", UNKNOWN_THINNING_STRATEGY:"UNKNOWN_THINNING_STRATEGY", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.ThinningOptionsThinningStrategyEnum.UNKNOWN_THINNING_STRATEGY, module$exports$eeapiclient$ee_api_client.ThinningOptionsThinningStrategyEnum.GLOBALLY_CONSISTENT, module$exports$eeapiclient$ee_api_client.ThinningOptionsThinningStrategyEnum.HIGHER_DENSITY];
+}};
 module$exports$eeapiclient$ee_api_client.IThumbnailFileFormatEnum = function module$contents$eeapiclient$ee_api_client_IThumbnailFileFormatEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ThumbnailFileFormatEnum = {AUTO_JPEG_PNG:"AUTO_JPEG_PNG", GEO_TIFF:"GEO_TIFF", IMAGE_FILE_FORMAT_UNSPECIFIED:"IMAGE_FILE_FORMAT_UNSPECIFIED", JPEG:"JPEG", MULTI_BAND_IMAGE_TILE:"MULTI_BAND_IMAGE_TILE", NPY:"NPY", PNG:"PNG", TF_RECORD_IMAGE:"TF_RECORD_IMAGE", ZIPPED_GEO_TIFF:"ZIPPED_GEO_TIFF", ZIPPED_GEO_TIFF_PER_BAND:"ZIPPED_GEO_TIFF_PER_BAND", values:function() {
@@ -8479,9 +8866,9 @@ module$exports$eeapiclient$ee_api_client.ThumbnailFileFormatEnum = {AUTO_JPEG_PN
 }};
 module$exports$eeapiclient$ee_api_client.ITilesetBandPyramidingPolicyEnum = function module$contents$eeapiclient$ee_api_client_ITilesetBandPyramidingPolicyEnum() {
 };
-module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum = {MAX:"MAX", MEAN:"MEAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
+module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum = {MAX:"MAX", MEAN:"MEAN", MEDIAN:"MEDIAN", MIN:"MIN", MODE:"MODE", PYRAMIDING_POLICY_UNSPECIFIED:"PYRAMIDING_POLICY_UNSPECIFIED", SAMPLE:"SAMPLE", values:function() {
   return [module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum.PYRAMIDING_POLICY_UNSPECIFIED, module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum.MEAN, module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum.SAMPLE, module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum.MIN, module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum.MAX, 
-  module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum.MODE];
+  module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum.MODE, module$exports$eeapiclient$ee_api_client.TilesetBandPyramidingPolicyEnum.MEDIAN];
 }};
 module$exports$eeapiclient$ee_api_client.ITilesetDataTypeEnum = function module$contents$eeapiclient$ee_api_client_ITilesetDataTypeEnum() {
 };
@@ -8666,7 +9053,6 @@ module$exports$eeapiclient$ee_api_client.AuditConfig = function(parameters) {
   parameters = void 0 === parameters ? {} : parameters;
   module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("service", null == parameters.service ? null : parameters.service);
-  this.Serializable$set("exemptedMembers", null == parameters.exemptedMembers ? null : parameters.exemptedMembers);
   this.Serializable$set("auditLogConfigs", null == parameters.auditLogConfigs ? null : parameters.auditLogConfigs);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.AuditConfig, module$exports$eeapiclient$domain_object.Serializable);
@@ -8674,16 +9060,12 @@ module$exports$eeapiclient$ee_api_client.AuditConfig.prototype.getConstructor = 
   return module$exports$eeapiclient$ee_api_client.AuditConfig;
 };
 module$exports$eeapiclient$ee_api_client.AuditConfig.prototype.getPartialClassMetadata = function() {
-  return {arrays:{auditLogConfigs:module$exports$eeapiclient$ee_api_client.AuditLogConfig}, keys:["auditLogConfigs", "exemptedMembers", "service"]};
+  return {arrays:{auditLogConfigs:module$exports$eeapiclient$ee_api_client.AuditLogConfig}, keys:["auditLogConfigs", "service"]};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.AuditConfig.prototype, {auditLogConfigs:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("auditLogConfigs") ? this.Serializable$get("auditLogConfigs") : null;
 }, set:function(value) {
   this.Serializable$set("auditLogConfigs", value);
-}}, exemptedMembers:{configurable:!0, enumerable:!0, get:function() {
-  return this.Serializable$has("exemptedMembers") ? this.Serializable$get("exemptedMembers") : null;
-}, set:function(value) {
-  this.Serializable$set("exemptedMembers", value);
 }}, service:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("service") ? this.Serializable$get("service") : null;
 }, set:function(value) {
@@ -8922,13 +9304,14 @@ module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest = function(param
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("pageSize", null == parameters.pageSize ? null : parameters.pageSize);
   this.Serializable$set("pageToken", null == parameters.pageToken ? null : parameters.pageToken);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest;
 };
 module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["expression", "pageSize", "pageToken"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression}};
+  return {keys:["expression", "pageSize", "pageToken", "workloadTag"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputeFeaturesRequest.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
@@ -8942,6 +9325,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("pageToken") ? this.Serializable$get("pageToken") : null;
 }, set:function(value) {
   this.Serializable$set("pageToken", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponseParameters = function module$contents$eeapiclient$ee_api_client_ComputeFeaturesResponseParameters() {
 };
@@ -8980,13 +9367,14 @@ module$exports$eeapiclient$ee_api_client.ComputeImagesRequest = function(paramet
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("pageSize", null == parameters.pageSize ? null : parameters.pageSize);
   this.Serializable$set("pageToken", null == parameters.pageToken ? null : parameters.pageToken);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputeImagesRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ComputeImagesRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ComputeImagesRequest;
 };
 module$exports$eeapiclient$ee_api_client.ComputeImagesRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["expression", "pageSize", "pageToken"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression}};
+  return {keys:["expression", "pageSize", "pageToken", "workloadTag"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputeImagesRequest.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
@@ -9000,6 +9388,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("pageToken") ? this.Serializable$get("pageToken") : null;
 }, set:function(value) {
   this.Serializable$set("pageToken", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 module$exports$eeapiclient$ee_api_client.ComputeImagesResponseParameters = function module$contents$eeapiclient$ee_api_client_ComputeImagesResponseParameters() {
 };
@@ -9035,13 +9427,14 @@ module$exports$eeapiclient$ee_api_client.ComputePixelsRequest = function(paramet
   this.Serializable$set("grid", null == parameters.grid ? null : parameters.grid);
   this.Serializable$set("bandIds", null == parameters.bandIds ? null : parameters.bandIds);
   this.Serializable$set("visualizationOptions", null == parameters.visualizationOptions ? null : parameters.visualizationOptions);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputePixelsRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ComputePixelsRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ComputePixelsRequest;
 };
 module$exports$eeapiclient$ee_api_client.ComputePixelsRequest.prototype.getPartialClassMetadata = function() {
-  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.ComputePixelsRequestFileFormatEnum}, keys:["bandIds", "expression", "fileFormat", "grid", "visualizationOptions"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, grid:module$exports$eeapiclient$ee_api_client.PixelGrid, visualizationOptions:module$exports$eeapiclient$ee_api_client.VisualizationOptions}};
+  return {enums:{fileFormat:module$exports$eeapiclient$ee_api_client.ComputePixelsRequestFileFormatEnum}, keys:"bandIds expression fileFormat grid visualizationOptions workloadTag".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, grid:module$exports$eeapiclient$ee_api_client.PixelGrid, visualizationOptions:module$exports$eeapiclient$ee_api_client.VisualizationOptions}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputePixelsRequest.prototype, {bandIds:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bandIds") ? this.Serializable$get("bandIds") : null;
@@ -9063,6 +9456,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("visualizationOptions") ? this.Serializable$get("visualizationOptions") : null;
 }, set:function(value) {
   this.Serializable$set("visualizationOptions", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputePixelsRequest, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ComputePixelsRequestFileFormatEnum;
@@ -9073,18 +9470,23 @@ module$exports$eeapiclient$ee_api_client.ComputeValueRequest = function(paramete
   parameters = void 0 === parameters ? {} : parameters;
   module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ComputeValueRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ComputeValueRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ComputeValueRequest;
 };
 module$exports$eeapiclient$ee_api_client.ComputeValueRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:["expression"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression}};
+  return {keys:["expression", "workloadTag"], objects:{expression:module$exports$eeapiclient$ee_api_client.Expression}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ComputeValueRequest.prototype, {expression:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 module$exports$eeapiclient$ee_api_client.ComputeValueResponseParameters = function module$contents$eeapiclient$ee_api_client_ComputeValueResponseParameters() {
 };
@@ -9331,6 +9733,7 @@ module$exports$eeapiclient$ee_api_client.EarthEngineAsset = function(parameters)
   this.Serializable$set("cloudStorageLocation", null == parameters.cloudStorageLocation ? null : parameters.cloudStorageLocation);
   this.Serializable$set("tilestoreEntry", null == parameters.tilestoreEntry ? null : parameters.tilestoreEntry);
   this.Serializable$set("gcsLocation", null == parameters.gcsLocation ? null : parameters.gcsLocation);
+  this.Serializable$set("featureViewAssetLocation", null == parameters.featureViewAssetLocation ? null : parameters.featureViewAssetLocation);
   this.Serializable$set("type", null == parameters.type ? null : parameters.type);
   this.Serializable$set("name", null == parameters.name ? null : parameters.name);
   this.Serializable$set("id", null == parameters.id ? null : parameters.id);
@@ -9343,6 +9746,7 @@ module$exports$eeapiclient$ee_api_client.EarthEngineAsset = function(parameters)
   this.Serializable$set("geometry", null == parameters.geometry ? null : parameters.geometry);
   this.Serializable$set("bands", null == parameters.bands ? null : parameters.bands);
   this.Serializable$set("sizeBytes", null == parameters.sizeBytes ? null : parameters.sizeBytes);
+  this.Serializable$set("featureCount", null == parameters.featureCount ? null : parameters.featureCount);
   this.Serializable$set("quota", null == parameters.quota ? null : parameters.quota);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
 };
@@ -9351,9 +9755,9 @@ module$exports$eeapiclient$ee_api_client.EarthEngineAsset.prototype.getConstruct
   return module$exports$eeapiclient$ee_api_client.EarthEngineAsset;
 };
 module$exports$eeapiclient$ee_api_client.EarthEngineAsset.prototype.getPartialClassMetadata = function() {
-  return {arrays:{bands:module$exports$eeapiclient$ee_api_client.ImageBand}, enums:{type:module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum}, keys:"bands cloudStorageLocation description endTime expression gcsLocation geometry id name properties quota sizeBytes startTime tilestoreEntry tilestoreLocation title type updateTime".split(" "), objectMaps:{geometry:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}, 
-  properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{cloudStorageLocation:module$exports$eeapiclient$ee_api_client.CloudStorageLocation, expression:module$exports$eeapiclient$ee_api_client.Expression, gcsLocation:module$exports$eeapiclient$ee_api_client.GcsLocation, quota:module$exports$eeapiclient$ee_api_client.FolderQuota, 
-  tilestoreEntry:module$exports$eeapiclient$ee_api_client.TilestoreEntry, tilestoreLocation:module$exports$eeapiclient$ee_api_client.TilestoreLocation}};
+  return {arrays:{bands:module$exports$eeapiclient$ee_api_client.ImageBand}, enums:{type:module$exports$eeapiclient$ee_api_client.EarthEngineAssetTypeEnum}, keys:"bands cloudStorageLocation description endTime expression featureCount featureViewAssetLocation gcsLocation geometry id name properties quota sizeBytes startTime tilestoreEntry tilestoreLocation title type updateTime".split(" "), objectMaps:{geometry:{ctor:null, isPropertyArray:!1, 
+  isSerializable:!1, isValueArray:!1}, properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{cloudStorageLocation:module$exports$eeapiclient$ee_api_client.CloudStorageLocation, expression:module$exports$eeapiclient$ee_api_client.Expression, featureViewAssetLocation:module$exports$eeapiclient$ee_api_client.FeatureViewLocation, gcsLocation:module$exports$eeapiclient$ee_api_client.GcsLocation, 
+  quota:module$exports$eeapiclient$ee_api_client.FolderQuota, tilestoreEntry:module$exports$eeapiclient$ee_api_client.TilestoreEntry, tilestoreLocation:module$exports$eeapiclient$ee_api_client.TilestoreLocation}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.EarthEngineAsset.prototype, {bands:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("bands") ? this.Serializable$get("bands") : null;
@@ -9375,6 +9779,14 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
+}}, featureCount:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("featureCount") ? this.Serializable$get("featureCount") : null;
+}, set:function(value) {
+  this.Serializable$set("featureCount", value);
+}}, featureViewAssetLocation:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("featureViewAssetLocation") ? this.Serializable$get("featureViewAssetLocation") : null;
+}, set:function(value) {
+  this.Serializable$set("featureViewAssetLocation", value);
 }}, gcsLocation:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("gcsLocation") ? this.Serializable$get("gcsLocation") : null;
 }, set:function(value) {
@@ -9516,13 +9928,14 @@ module$exports$eeapiclient$ee_api_client.ExportClassifierRequest = function(para
   this.Serializable$set("assetExportOptions", null == parameters.assetExportOptions ? null : parameters.assetExportOptions);
   this.Serializable$set("maxWorkers", null == parameters.maxWorkers ? null : parameters.maxWorkers);
   this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportClassifierRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ExportClassifierRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ExportClassifierRequest;
 };
 module$exports$eeapiclient$ee_api_client.ExportClassifierRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:"assetExportOptions description expression maxWorkerCount maxWorkers requestId".split(" "), objects:{assetExportOptions:module$exports$eeapiclient$ee_api_client.ClassifierAssetExportOptions, expression:module$exports$eeapiclient$ee_api_client.Expression}};
+  return {keys:"assetExportOptions description expression maxWorkerCount maxWorkers requestId workloadTag".split(" "), objects:{assetExportOptions:module$exports$eeapiclient$ee_api_client.ClassifierAssetExportOptions, expression:module$exports$eeapiclient$ee_api_client.Expression}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportClassifierRequest.prototype, {assetExportOptions:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("assetExportOptions") ? this.Serializable$get("assetExportOptions") : null;
@@ -9548,6 +9961,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("requestId") ? this.Serializable$get("requestId") : null;
 }, set:function(value) {
   this.Serializable$set("requestId", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 module$exports$eeapiclient$ee_api_client.ExportImageRequestParameters = function module$contents$eeapiclient$ee_api_client_ExportImageRequestParameters() {
 };
@@ -9563,13 +9980,14 @@ module$exports$eeapiclient$ee_api_client.ExportImageRequest = function(parameter
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
   this.Serializable$set("maxWorkers", null == parameters.maxWorkers ? null : parameters.maxWorkers);
   this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportImageRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ExportImageRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ExportImageRequest;
 };
 module$exports$eeapiclient$ee_api_client.ExportImageRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:"assetExportOptions description expression fileExportOptions grid maxPixels maxWorkerCount maxWorkers requestId".split(" "), objects:{assetExportOptions:module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions, expression:module$exports$eeapiclient$ee_api_client.Expression, fileExportOptions:module$exports$eeapiclient$ee_api_client.ImageFileExportOptions, grid:module$exports$eeapiclient$ee_api_client.PixelGrid}};
+  return {keys:"assetExportOptions description expression fileExportOptions grid maxPixels maxWorkerCount maxWorkers requestId workloadTag".split(" "), objects:{assetExportOptions:module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions, expression:module$exports$eeapiclient$ee_api_client.Expression, fileExportOptions:module$exports$eeapiclient$ee_api_client.ImageFileExportOptions, grid:module$exports$eeapiclient$ee_api_client.PixelGrid}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportImageRequest.prototype, {assetExportOptions:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("assetExportOptions") ? this.Serializable$get("assetExportOptions") : null;
@@ -9607,6 +10025,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("requestId") ? this.Serializable$get("requestId") : null;
 }, set:function(value) {
   this.Serializable$set("requestId", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 module$exports$eeapiclient$ee_api_client.ExportMapRequestParameters = function module$contents$eeapiclient$ee_api_client_ExportMapRequestParameters() {
 };
@@ -9620,13 +10042,14 @@ module$exports$eeapiclient$ee_api_client.ExportMapRequest = function(parameters)
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
   this.Serializable$set("maxWorkers", null == parameters.maxWorkers ? null : parameters.maxWorkers);
   this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportMapRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ExportMapRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ExportMapRequest;
 };
 module$exports$eeapiclient$ee_api_client.ExportMapRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:"description expression maxWorkerCount maxWorkers requestId tileExportOptions tileOptions".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, tileExportOptions:module$exports$eeapiclient$ee_api_client.ImageFileExportOptions, tileOptions:module$exports$eeapiclient$ee_api_client.TileOptions}};
+  return {keys:"description expression maxWorkerCount maxWorkers requestId tileExportOptions tileOptions workloadTag".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, tileExportOptions:module$exports$eeapiclient$ee_api_client.ImageFileExportOptions, tileOptions:module$exports$eeapiclient$ee_api_client.TileOptions}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportMapRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("description") ? this.Serializable$get("description") : null;
@@ -9656,6 +10079,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("tileOptions") ? this.Serializable$get("tileOptions") : null;
 }, set:function(value) {
   this.Serializable$set("tileOptions", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 module$exports$eeapiclient$ee_api_client.ExportTableRequestParameters = function module$contents$eeapiclient$ee_api_client_ExportTableRequestParameters() {
 };
@@ -9664,6 +10091,7 @@ module$exports$eeapiclient$ee_api_client.ExportTableRequest = function(parameter
   module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("fileExportOptions", null == parameters.fileExportOptions ? null : parameters.fileExportOptions);
   this.Serializable$set("assetExportOptions", null == parameters.assetExportOptions ? null : parameters.assetExportOptions);
+  this.Serializable$set("featureViewExportOptions", null == parameters.featureViewExportOptions ? null : parameters.featureViewExportOptions);
   this.Serializable$set("expression", null == parameters.expression ? null : parameters.expression);
   this.Serializable$set("description", null == parameters.description ? null : parameters.description);
   this.Serializable$set("selectors", null == parameters.selectors ? null : parameters.selectors);
@@ -9672,13 +10100,16 @@ module$exports$eeapiclient$ee_api_client.ExportTableRequest = function(parameter
   this.Serializable$set("maxWorkers", null == parameters.maxWorkers ? null : parameters.maxWorkers);
   this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
   this.Serializable$set("maxVertices", null == parameters.maxVertices ? null : parameters.maxVertices);
+  this.Serializable$set("initialPolicy", null == parameters.initialPolicy ? null : parameters.initialPolicy);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportTableRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ExportTableRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ExportTableRequest;
 };
 module$exports$eeapiclient$ee_api_client.ExportTableRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:"assetExportOptions description expression fileExportOptions maxErrorMeters maxVertices maxWorkerCount maxWorkers requestId selectors".split(" "), objects:{assetExportOptions:module$exports$eeapiclient$ee_api_client.TableAssetExportOptions, expression:module$exports$eeapiclient$ee_api_client.Expression, fileExportOptions:module$exports$eeapiclient$ee_api_client.TableFileExportOptions}};
+  return {keys:"assetExportOptions description expression featureViewExportOptions fileExportOptions initialPolicy maxErrorMeters maxVertices maxWorkerCount maxWorkers requestId selectors workloadTag".split(" "), objects:{assetExportOptions:module$exports$eeapiclient$ee_api_client.TableAssetExportOptions, expression:module$exports$eeapiclient$ee_api_client.Expression, featureViewExportOptions:module$exports$eeapiclient$ee_api_client.FeatureViewAssetExportOptions, 
+  fileExportOptions:module$exports$eeapiclient$ee_api_client.TableFileExportOptions, initialPolicy:module$exports$eeapiclient$ee_api_client.Policy}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportTableRequest.prototype, {assetExportOptions:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("assetExportOptions") ? this.Serializable$get("assetExportOptions") : null;
@@ -9692,10 +10123,18 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("expression") ? this.Serializable$get("expression") : null;
 }, set:function(value) {
   this.Serializable$set("expression", value);
+}}, featureViewExportOptions:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("featureViewExportOptions") ? this.Serializable$get("featureViewExportOptions") : null;
+}, set:function(value) {
+  this.Serializable$set("featureViewExportOptions", value);
 }}, fileExportOptions:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("fileExportOptions") ? this.Serializable$get("fileExportOptions") : null;
 }, set:function(value) {
   this.Serializable$set("fileExportOptions", value);
+}}, initialPolicy:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("initialPolicy") ? this.Serializable$get("initialPolicy") : null;
+}, set:function(value) {
+  this.Serializable$set("initialPolicy", value);
 }}, maxErrorMeters:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("maxErrorMeters") ? this.Serializable$get("maxErrorMeters") : null;
 }, set:function(value) {
@@ -9720,6 +10159,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("selectors") ? this.Serializable$get("selectors") : null;
 }, set:function(value) {
   this.Serializable$set("selectors", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestParameters = function module$contents$eeapiclient$ee_api_client_ExportVideoMapRequestParameters() {
 };
@@ -9735,13 +10178,14 @@ module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest = function(parame
   this.Serializable$set("version", null == parameters.version ? null : parameters.version);
   this.Serializable$set("maxWorkers", null == parameters.maxWorkers ? null : parameters.maxWorkers);
   this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest;
 };
 module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest.prototype.getPartialClassMetadata = function() {
-  return {enums:{version:module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum}, keys:"description expression maxWorkerCount maxWorkers requestId tileExportOptions tileOptions version videoOptions".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, tileExportOptions:module$exports$eeapiclient$ee_api_client.VideoFileExportOptions, tileOptions:module$exports$eeapiclient$ee_api_client.TileOptions, 
+  return {enums:{version:module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum}, keys:"description expression maxWorkerCount maxWorkers requestId tileExportOptions tileOptions version videoOptions workloadTag".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, tileExportOptions:module$exports$eeapiclient$ee_api_client.VideoFileExportOptions, tileOptions:module$exports$eeapiclient$ee_api_client.TileOptions, 
   videoOptions:module$exports$eeapiclient$ee_api_client.VideoOptions}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
@@ -9780,6 +10224,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("videoOptions") ? this.Serializable$get("videoOptions") : null;
 }, set:function(value) {
   this.Serializable$set("videoOptions", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportVideoMapRequest, {Version:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ExportVideoMapRequestVersionEnum;
@@ -9796,13 +10244,14 @@ module$exports$eeapiclient$ee_api_client.ExportVideoRequest = function(parameter
   this.Serializable$set("requestId", null == parameters.requestId ? null : parameters.requestId);
   this.Serializable$set("maxWorkers", null == parameters.maxWorkers ? null : parameters.maxWorkers);
   this.Serializable$set("maxWorkerCount", null == parameters.maxWorkerCount ? null : parameters.maxWorkerCount);
+  this.Serializable$set("workloadTag", null == parameters.workloadTag ? null : parameters.workloadTag);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ExportVideoRequest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ExportVideoRequest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ExportVideoRequest;
 };
 module$exports$eeapiclient$ee_api_client.ExportVideoRequest.prototype.getPartialClassMetadata = function() {
-  return {keys:"description expression fileExportOptions maxWorkerCount maxWorkers requestId videoOptions".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, fileExportOptions:module$exports$eeapiclient$ee_api_client.VideoFileExportOptions, videoOptions:module$exports$eeapiclient$ee_api_client.VideoOptions}};
+  return {keys:"description expression fileExportOptions maxWorkerCount maxWorkers requestId videoOptions workloadTag".split(" "), objects:{expression:module$exports$eeapiclient$ee_api_client.Expression, fileExportOptions:module$exports$eeapiclient$ee_api_client.VideoFileExportOptions, videoOptions:module$exports$eeapiclient$ee_api_client.VideoOptions}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ExportVideoRequest.prototype, {description:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("description") ? this.Serializable$get("description") : null;
@@ -9832,6 +10281,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("videoOptions") ? this.Serializable$get("videoOptions") : null;
 }, set:function(value) {
   this.Serializable$set("videoOptions", value);
+}}, workloadTag:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("workloadTag") ? this.Serializable$get("workloadTag") : null;
+}, set:function(value) {
+  this.Serializable$set("workloadTag", value);
 }}});
 module$exports$eeapiclient$ee_api_client.ExprParameters = function module$contents$eeapiclient$ee_api_client_ExprParameters() {
 };
@@ -9919,6 +10372,200 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("type") ? this.Serializable$get("type") : null;
 }, set:function(value) {
   this.Serializable$set("type", value);
+}}});
+module$exports$eeapiclient$ee_api_client.FeatureViewParameters = function module$contents$eeapiclient$ee_api_client_FeatureViewParameters() {
+};
+module$exports$eeapiclient$ee_api_client.FeatureView = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("asset", null == parameters.asset ? null : parameters.asset);
+  this.Serializable$set("mapName", null == parameters.mapName ? null : parameters.mapName);
+  this.Serializable$set("name", null == parameters.name ? null : parameters.name);
+  this.Serializable$set("visualizationExpression", null == parameters.visualizationExpression ? null : parameters.visualizationExpression);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FeatureView, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FeatureView.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FeatureView;
+};
+module$exports$eeapiclient$ee_api_client.FeatureView.prototype.getPartialClassMetadata = function() {
+  return {keys:["asset", "mapName", "name", "visualizationExpression"], objects:{visualizationExpression:module$exports$eeapiclient$ee_api_client.Expression}};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FeatureView.prototype, {asset:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("asset") ? this.Serializable$get("asset") : null;
+}, set:function(value) {
+  this.Serializable$set("asset", value);
+}}, mapName:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("mapName") ? this.Serializable$get("mapName") : null;
+}, set:function(value) {
+  this.Serializable$set("mapName", value);
+}}, name:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("name") ? this.Serializable$get("name") : null;
+}, set:function(value) {
+  this.Serializable$set("name", value);
+}}, visualizationExpression:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("visualizationExpression") ? this.Serializable$get("visualizationExpression") : null;
+}, set:function(value) {
+  this.Serializable$set("visualizationExpression", value);
+}}});
+module$exports$eeapiclient$ee_api_client.FeatureViewAssetExportOptionsParameters = function module$contents$eeapiclient$ee_api_client_FeatureViewAssetExportOptionsParameters() {
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewAssetExportOptions = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("featureViewDestination", null == parameters.featureViewDestination ? null : parameters.featureViewDestination);
+  this.Serializable$set("ingestionTimeParameters", null == parameters.ingestionTimeParameters ? null : parameters.ingestionTimeParameters);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FeatureViewAssetExportOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FeatureViewAssetExportOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FeatureViewAssetExportOptions;
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewAssetExportOptions.prototype.getPartialClassMetadata = function() {
+  return {keys:["featureViewDestination", "ingestionTimeParameters"], objects:{featureViewDestination:module$exports$eeapiclient$ee_api_client.FeatureViewDestination, ingestionTimeParameters:module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParameters}};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FeatureViewAssetExportOptions.prototype, {featureViewDestination:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("featureViewDestination") ? this.Serializable$get("featureViewDestination") : null;
+}, set:function(value) {
+  this.Serializable$set("featureViewDestination", value);
+}}, ingestionTimeParameters:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("ingestionTimeParameters") ? this.Serializable$get("ingestionTimeParameters") : null;
+}, set:function(value) {
+  this.Serializable$set("ingestionTimeParameters", value);
+}}});
+module$exports$eeapiclient$ee_api_client.FeatureViewAttributeParameters = function module$contents$eeapiclient$ee_api_client_FeatureViewAttributeParameters() {
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewAttribute = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("name", null == parameters.name ? null : parameters.name);
+  this.Serializable$set("type", null == parameters.type ? null : parameters.type);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FeatureViewAttribute, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FeatureViewAttribute.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FeatureViewAttribute;
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewAttribute.prototype.getPartialClassMetadata = function() {
+  return {enums:{type:module$exports$eeapiclient$ee_api_client.FeatureViewAttributeTypeEnum}, keys:["name", "type"]};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FeatureViewAttribute.prototype, {name:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("name") ? this.Serializable$get("name") : null;
+}, set:function(value) {
+  this.Serializable$set("name", value);
+}}, type:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("type") ? this.Serializable$get("type") : null;
+}, set:function(value) {
+  this.Serializable$set("type", value);
+}}});
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FeatureViewAttribute, {Type:{configurable:!0, enumerable:!0, get:function() {
+  return module$exports$eeapiclient$ee_api_client.FeatureViewAttributeTypeEnum;
+}}});
+module$exports$eeapiclient$ee_api_client.FeatureViewDestinationParameters = function module$contents$eeapiclient$ee_api_client_FeatureViewDestinationParameters() {
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewDestination = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("name", null == parameters.name ? null : parameters.name);
+  this.Serializable$set("assetVersion", null == parameters.assetVersion ? null : parameters.assetVersion);
+  this.Serializable$set("permissions", null == parameters.permissions ? null : parameters.permissions);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FeatureViewDestination, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FeatureViewDestination.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FeatureViewDestination;
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewDestination.prototype.getPartialClassMetadata = function() {
+  return {enums:{permissions:module$exports$eeapiclient$ee_api_client.FeatureViewDestinationPermissionsEnum}, keys:["assetVersion", "name", "permissions"]};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FeatureViewDestination.prototype, {assetVersion:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("assetVersion") ? this.Serializable$get("assetVersion") : null;
+}, set:function(value) {
+  this.Serializable$set("assetVersion", value);
+}}, name:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("name") ? this.Serializable$get("name") : null;
+}, set:function(value) {
+  this.Serializable$set("name", value);
+}}, permissions:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("permissions") ? this.Serializable$get("permissions") : null;
+}, set:function(value) {
+  this.Serializable$set("permissions", value);
+}}});
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FeatureViewDestination, {Permissions:{configurable:!0, enumerable:!0, get:function() {
+  return module$exports$eeapiclient$ee_api_client.FeatureViewDestinationPermissionsEnum;
+}}});
+module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParametersParameters = function module$contents$eeapiclient$ee_api_client_FeatureViewIngestionTimeParametersParameters() {
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParameters = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("thinningOptions", null == parameters.thinningOptions ? null : parameters.thinningOptions);
+  this.Serializable$set("rankingOptions", null == parameters.rankingOptions ? null : parameters.rankingOptions);
+  this.Serializable$set("prerenderingOptions", null == parameters.prerenderingOptions ? null : parameters.prerenderingOptions);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParameters, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParameters.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParameters;
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParameters.prototype.getPartialClassMetadata = function() {
+  return {keys:["prerenderingOptions", "rankingOptions", "thinningOptions"], objects:{prerenderingOptions:module$exports$eeapiclient$ee_api_client.PrerenderingOptions, rankingOptions:module$exports$eeapiclient$ee_api_client.RankingOptions, thinningOptions:module$exports$eeapiclient$ee_api_client.ThinningOptions}};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParameters.prototype, {prerenderingOptions:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("prerenderingOptions") ? this.Serializable$get("prerenderingOptions") : null;
+}, set:function(value) {
+  this.Serializable$set("prerenderingOptions", value);
+}}, rankingOptions:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("rankingOptions") ? this.Serializable$get("rankingOptions") : null;
+}, set:function(value) {
+  this.Serializable$set("rankingOptions", value);
+}}, thinningOptions:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("thinningOptions") ? this.Serializable$get("thinningOptions") : null;
+}, set:function(value) {
+  this.Serializable$set("thinningOptions", value);
+}}});
+module$exports$eeapiclient$ee_api_client.FeatureViewLocationParameters = function module$contents$eeapiclient$ee_api_client_FeatureViewLocationParameters() {
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewLocation = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("location", null == parameters.location ? null : parameters.location);
+  this.Serializable$set("assetOptions", null == parameters.assetOptions ? null : parameters.assetOptions);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FeatureViewLocation, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FeatureViewLocation.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FeatureViewLocation;
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewLocation.prototype.getPartialClassMetadata = function() {
+  return {keys:["assetOptions", "location"], objects:{assetOptions:module$exports$eeapiclient$ee_api_client.FeatureViewOptions}};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FeatureViewLocation.prototype, {assetOptions:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("assetOptions") ? this.Serializable$get("assetOptions") : null;
+}, set:function(value) {
+  this.Serializable$set("assetOptions", value);
+}}, location:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("location") ? this.Serializable$get("location") : null;
+}, set:function(value) {
+  this.Serializable$set("location", value);
+}}});
+module$exports$eeapiclient$ee_api_client.FeatureViewOptionsParameters = function module$contents$eeapiclient$ee_api_client_FeatureViewOptionsParameters() {
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewOptions = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("featureViewAttributes", null == parameters.featureViewAttributes ? null : parameters.featureViewAttributes);
+  this.Serializable$set("ingestionTimeParameters", null == parameters.ingestionTimeParameters ? null : parameters.ingestionTimeParameters);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.FeatureViewOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.FeatureViewOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.FeatureViewOptions;
+};
+module$exports$eeapiclient$ee_api_client.FeatureViewOptions.prototype.getPartialClassMetadata = function() {
+  return {arrays:{featureViewAttributes:module$exports$eeapiclient$ee_api_client.FeatureViewAttribute}, keys:["featureViewAttributes", "ingestionTimeParameters"], objects:{ingestionTimeParameters:module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParameters}};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.FeatureViewOptions.prototype, {featureViewAttributes:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("featureViewAttributes") ? this.Serializable$get("featureViewAttributes") : null;
+}, set:function(value) {
+  this.Serializable$set("featureViewAttributes", value);
+}}, ingestionTimeParameters:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("ingestionTimeParameters") ? this.Serializable$get("ingestionTimeParameters") : null;
+}, set:function(value) {
+  this.Serializable$set("ingestionTimeParameters", value);
 }}});
 module$exports$eeapiclient$ee_api_client.FilmstripThumbnailParameters = function module$contents$eeapiclient$ee_api_client_FilmstripThumbnailParameters() {
 };
@@ -10436,16 +11083,21 @@ module$exports$eeapiclient$ee_api_client.ImageBand = function(parameters) {
   this.Serializable$set("pyramidingPolicy", null == parameters.pyramidingPolicy ? null : parameters.pyramidingPolicy);
   this.Serializable$set("tilesets", null == parameters.tilesets ? null : parameters.tilesets);
   this.Serializable$set("missingData", null == parameters.missingData ? null : parameters.missingData);
+  this.Serializable$set("cloudStorageLocation", null == parameters.cloudStorageLocation ? null : parameters.cloudStorageLocation);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImageBand, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ImageBand.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ImageBand;
 };
 module$exports$eeapiclient$ee_api_client.ImageBand.prototype.getPartialClassMetadata = function() {
-  return {arrays:{tilesets:module$exports$eeapiclient$ee_api_client.TilestoreTileset}, enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum}, keys:"dataType grid id missingData pyramidingPolicy tilesets".split(" "), objects:{dataType:module$exports$eeapiclient$ee_api_client.PixelDataType, grid:module$exports$eeapiclient$ee_api_client.PixelGrid, 
-  missingData:module$exports$eeapiclient$ee_api_client.MissingData}};
+  return {arrays:{tilesets:module$exports$eeapiclient$ee_api_client.TilestoreTileset}, enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageBandPyramidingPolicyEnum}, keys:"cloudStorageLocation dataType grid id missingData pyramidingPolicy tilesets".split(" "), objects:{cloudStorageLocation:module$exports$eeapiclient$ee_api_client.CloudStorageLocation, dataType:module$exports$eeapiclient$ee_api_client.PixelDataType, 
+  grid:module$exports$eeapiclient$ee_api_client.PixelGrid, missingData:module$exports$eeapiclient$ee_api_client.MissingData}};
 };
-$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageBand.prototype, {dataType:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageBand.prototype, {cloudStorageLocation:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("cloudStorageLocation") ? this.Serializable$get("cloudStorageLocation") : null;
+}, set:function(value) {
+  this.Serializable$set("cloudStorageLocation", value);
+}}, dataType:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("dataType") ? this.Serializable$get("dataType") : null;
 }, set:function(value) {
   this.Serializable$set("dataType", value);
@@ -10537,13 +11189,15 @@ module$exports$eeapiclient$ee_api_client.ImageManifest = function(parameters) {
   this.Serializable$set("pyramidingPolicy", null == parameters.pyramidingPolicy ? null : parameters.pyramidingPolicy);
   this.Serializable$set("startTime", null == parameters.startTime ? null : parameters.startTime);
   this.Serializable$set("endTime", null == parameters.endTime ? null : parameters.endTime);
+  this.Serializable$set("minTileAreaRatio", null == parameters.minTileAreaRatio ? null : parameters.minTileAreaRatio);
+  this.Serializable$set("skipMetadataRead", null == parameters.skipMetadataRead ? null : parameters.skipMetadataRead);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImageManifest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ImageManifest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ImageManifest;
 };
 module$exports$eeapiclient$ee_api_client.ImageManifest.prototype.getPartialClassMetadata = function() {
-  return {arrays:{bands:module$exports$eeapiclient$ee_api_client.TilesetBand, maskBands:module$exports$eeapiclient$ee_api_client.TilesetMaskBand, tilesets:module$exports$eeapiclient$ee_api_client.Tileset}, enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum}, keys:"bands endTime footprint maskBands missingData name properties pyramidingPolicy startTime tilesets uriPrefix".split(" "), 
+  return {arrays:{bands:module$exports$eeapiclient$ee_api_client.TilesetBand, maskBands:module$exports$eeapiclient$ee_api_client.TilesetMaskBand, tilesets:module$exports$eeapiclient$ee_api_client.Tileset}, enums:{pyramidingPolicy:module$exports$eeapiclient$ee_api_client.ImageManifestPyramidingPolicyEnum}, keys:"bands endTime footprint maskBands minTileAreaRatio missingData name properties pyramidingPolicy skipMetadataRead startTime tilesets uriPrefix".split(" "), 
   objectMaps:{properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{footprint:module$exports$eeapiclient$ee_api_client.PixelFootprint, missingData:module$exports$eeapiclient$ee_api_client.MissingData}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageManifest.prototype, {bands:{configurable:!0, enumerable:!0, get:function() {
@@ -10562,6 +11216,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("maskBands") ? this.Serializable$get("maskBands") : null;
 }, set:function(value) {
   this.Serializable$set("maskBands", value);
+}}, minTileAreaRatio:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("minTileAreaRatio") ? this.Serializable$get("minTileAreaRatio") : null;
+}, set:function(value) {
+  this.Serializable$set("minTileAreaRatio", value);
 }}, missingData:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("missingData") ? this.Serializable$get("missingData") : null;
 }, set:function(value) {
@@ -10578,6 +11236,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("pyramidingPolicy") ? this.Serializable$get("pyramidingPolicy") : null;
 }, set:function(value) {
   this.Serializable$set("pyramidingPolicy", value);
+}}, skipMetadataRead:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("skipMetadataRead") ? this.Serializable$get("skipMetadataRead") : null;
+}, set:function(value) {
+  this.Serializable$set("skipMetadataRead", value);
 }}, startTime:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("startTime") ? this.Serializable$get("startTime") : null;
 }, set:function(value) {
@@ -10601,18 +11263,23 @@ module$exports$eeapiclient$ee_api_client.ImageSource = function(parameters) {
   module$exports$eeapiclient$domain_object.Serializable.call(this);
   this.Serializable$set("uris", null == parameters.uris ? null : parameters.uris);
   this.Serializable$set("affineTransform", null == parameters.affineTransform ? null : parameters.affineTransform);
+  this.Serializable$set("dimensions", null == parameters.dimensions ? null : parameters.dimensions);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.ImageSource, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.ImageSource.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.ImageSource;
 };
 module$exports$eeapiclient$ee_api_client.ImageSource.prototype.getPartialClassMetadata = function() {
-  return {keys:["affineTransform", "uris"], objects:{affineTransform:module$exports$eeapiclient$ee_api_client.AffineTransform}};
+  return {keys:["affineTransform", "dimensions", "uris"], objects:{affineTransform:module$exports$eeapiclient$ee_api_client.AffineTransform, dimensions:module$exports$eeapiclient$ee_api_client.GridDimensions}};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ImageSource.prototype, {affineTransform:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("affineTransform") ? this.Serializable$get("affineTransform") : null;
 }, set:function(value) {
   this.Serializable$set("affineTransform", value);
+}}, dimensions:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("dimensions") ? this.Serializable$get("dimensions") : null;
+}, set:function(value) {
+  this.Serializable$set("dimensions", value);
 }}, uris:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("uris") ? this.Serializable$get("uris") : null;
 }, set:function(value) {
@@ -10949,18 +11616,24 @@ module$exports$eeapiclient$ee_api_client.OperationMetadata = function(parameters
   this.Serializable$set("attempt", null == parameters.attempt ? null : parameters.attempt);
   this.Serializable$set("scriptUri", null == parameters.scriptUri ? null : parameters.scriptUri);
   this.Serializable$set("destinationUris", null == parameters.destinationUris ? null : parameters.destinationUris);
+  this.Serializable$set("notifications", null == parameters.notifications ? null : parameters.notifications);
+  this.Serializable$set("batchEecuUsageSeconds", null == parameters.batchEecuUsageSeconds ? null : parameters.batchEecuUsageSeconds);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.OperationMetadata, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.OperationMetadata.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.OperationMetadata;
 };
 module$exports$eeapiclient$ee_api_client.OperationMetadata.prototype.getPartialClassMetadata = function() {
-  return {arrays:{stages:module$exports$eeapiclient$ee_api_client.OperationStage}, enums:{state:module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum}, keys:"attempt createTime description destinationUris endTime priority progress scriptUri stages startTime state type updateTime".split(" ")};
+  return {arrays:{notifications:module$exports$eeapiclient$ee_api_client.OperationNotification, stages:module$exports$eeapiclient$ee_api_client.OperationStage}, enums:{state:module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum}, keys:"attempt batchEecuUsageSeconds createTime description destinationUris endTime notifications priority progress scriptUri stages startTime state type updateTime".split(" ")};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.OperationMetadata.prototype, {attempt:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("attempt") ? this.Serializable$get("attempt") : null;
 }, set:function(value) {
   this.Serializable$set("attempt", value);
+}}, batchEecuUsageSeconds:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("batchEecuUsageSeconds") ? this.Serializable$get("batchEecuUsageSeconds") : null;
+}, set:function(value) {
+  this.Serializable$set("batchEecuUsageSeconds", value);
 }}, createTime:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("createTime") ? this.Serializable$get("createTime") : null;
 }, set:function(value) {
@@ -10977,6 +11650,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("endTime") ? this.Serializable$get("endTime") : null;
 }, set:function(value) {
   this.Serializable$set("endTime", value);
+}}, notifications:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("notifications") ? this.Serializable$get("notifications") : null;
+}, set:function(value) {
+  this.Serializable$set("notifications", value);
 }}, priority:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("priority") ? this.Serializable$get("priority") : null;
 }, set:function(value) {
@@ -11012,6 +11689,38 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
 }}});
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.OperationMetadata, {State:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.OperationMetadataStateEnum;
+}}});
+module$exports$eeapiclient$ee_api_client.OperationNotificationParameters = function module$contents$eeapiclient$ee_api_client_OperationNotificationParameters() {
+};
+module$exports$eeapiclient$ee_api_client.OperationNotification = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("severity", null == parameters.severity ? null : parameters.severity);
+  this.Serializable$set("topic", null == parameters.topic ? null : parameters.topic);
+  this.Serializable$set("detail", null == parameters.detail ? null : parameters.detail);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.OperationNotification, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.OperationNotification.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.OperationNotification;
+};
+module$exports$eeapiclient$ee_api_client.OperationNotification.prototype.getPartialClassMetadata = function() {
+  return {enums:{severity:module$exports$eeapiclient$ee_api_client.OperationNotificationSeverityEnum}, keys:["detail", "severity", "topic"]};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.OperationNotification.prototype, {detail:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("detail") ? this.Serializable$get("detail") : null;
+}, set:function(value) {
+  this.Serializable$set("detail", value);
+}}, severity:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("severity") ? this.Serializable$get("severity") : null;
+}, set:function(value) {
+  this.Serializable$set("severity", value);
+}}, topic:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("topic") ? this.Serializable$get("topic") : null;
+}, set:function(value) {
+  this.Serializable$set("topic", value);
+}}});
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.OperationNotification, {Severity:{configurable:!0, enumerable:!0, get:function() {
+  return module$exports$eeapiclient$ee_api_client.OperationNotificationSeverityEnum;
 }}});
 module$exports$eeapiclient$ee_api_client.OperationStageParameters = function module$contents$eeapiclient$ee_api_client_OperationStageParameters() {
 };
@@ -11147,14 +11856,13 @@ module$exports$eeapiclient$ee_api_client.Policy = function(parameters) {
   this.Serializable$set("auditConfigs", null == parameters.auditConfigs ? null : parameters.auditConfigs);
   this.Serializable$set("rules", null == parameters.rules ? null : parameters.rules);
   this.Serializable$set("etag", null == parameters.etag ? null : parameters.etag);
-  this.Serializable$set("iamOwned", null == parameters.iamOwned ? null : parameters.iamOwned);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.Policy, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.Policy.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.Policy;
 };
 module$exports$eeapiclient$ee_api_client.Policy.prototype.getPartialClassMetadata = function() {
-  return {arrays:{auditConfigs:module$exports$eeapiclient$ee_api_client.AuditConfig, bindings:module$exports$eeapiclient$ee_api_client.Binding, rules:module$exports$eeapiclient$ee_api_client.Rule}, keys:"auditConfigs bindings etag iamOwned rules version".split(" ")};
+  return {arrays:{auditConfigs:module$exports$eeapiclient$ee_api_client.AuditConfig, bindings:module$exports$eeapiclient$ee_api_client.Binding, rules:module$exports$eeapiclient$ee_api_client.Rule}, keys:["auditConfigs", "bindings", "etag", "rules", "version"]};
 };
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Policy.prototype, {auditConfigs:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("auditConfigs") ? this.Serializable$get("auditConfigs") : null;
@@ -11168,10 +11876,6 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("etag") ? this.Serializable$get("etag") : null;
 }, set:function(value) {
   this.Serializable$set("etag", value);
-}}, iamOwned:{configurable:!0, enumerable:!0, get:function() {
-  return this.Serializable$has("iamOwned") ? this.Serializable$get("iamOwned") : null;
-}, set:function(value) {
-  this.Serializable$set("iamOwned", value);
 }}, rules:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("rules") ? this.Serializable$get("rules") : null;
 }, set:function(value) {
@@ -11180,6 +11884,232 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("version") ? this.Serializable$get("version") : null;
 }, set:function(value) {
   this.Serializable$set("version", value);
+}}});
+module$exports$eeapiclient$ee_api_client.PrerenderingOptionsParameters = function module$contents$eeapiclient$ee_api_client_PrerenderingOptionsParameters() {
+};
+module$exports$eeapiclient$ee_api_client.PrerenderingOptions = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("prerenderTiles", null == parameters.prerenderTiles ? null : parameters.prerenderTiles);
+  this.Serializable$set("tileLimiting", null == parameters.tileLimiting ? null : parameters.tileLimiting);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.PrerenderingOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.PrerenderingOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.PrerenderingOptions;
+};
+module$exports$eeapiclient$ee_api_client.PrerenderingOptions.prototype.getPartialClassMetadata = function() {
+  return {keys:["prerenderTiles", "tileLimiting"], objects:{tileLimiting:module$exports$eeapiclient$ee_api_client.TileLimiting}};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.PrerenderingOptions.prototype, {prerenderTiles:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("prerenderTiles") ? this.Serializable$get("prerenderTiles") : null;
+}, set:function(value) {
+  this.Serializable$set("prerenderTiles", value);
+}}, tileLimiting:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("tileLimiting") ? this.Serializable$get("tileLimiting") : null;
+}, set:function(value) {
+  this.Serializable$set("tileLimiting", value);
+}}});
+module$exports$eeapiclient$ee_api_client.ProjectConfigParameters = function module$contents$eeapiclient$ee_api_client_ProjectConfigParameters() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectConfig = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("name", null == parameters.name ? null : parameters.name);
+  this.Serializable$set("registration", null == parameters.registration ? null : parameters.registration);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ProjectConfig, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ProjectConfig.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ProjectConfig;
+};
+module$exports$eeapiclient$ee_api_client.ProjectConfig.prototype.getPartialClassMetadata = function() {
+  return {keys:["name", "registration"], objects:{registration:module$exports$eeapiclient$ee_api_client.ProjectRegistration}};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ProjectConfig.prototype, {name:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("name") ? this.Serializable$get("name") : null;
+}, set:function(value) {
+  this.Serializable$set("name", value);
+}}, registration:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("registration") ? this.Serializable$get("registration") : null;
+}, set:function(value) {
+  this.Serializable$set("registration", value);
+}}});
+module$exports$eeapiclient$ee_api_client.ProjectRegistrationParameters = function module$contents$eeapiclient$ee_api_client_ProjectRegistrationParameters() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectRegistration = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("billingConsent", null == parameters.billingConsent ? null : parameters.billingConsent);
+  this.Serializable$set("freeQuota", null == parameters.freeQuota ? null : parameters.freeQuota);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ProjectRegistration, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ProjectRegistration.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ProjectRegistration;
+};
+module$exports$eeapiclient$ee_api_client.ProjectRegistration.prototype.getPartialClassMetadata = function() {
+  return {enums:{billingConsent:module$exports$eeapiclient$ee_api_client.ProjectRegistrationBillingConsentEnum, freeQuota:module$exports$eeapiclient$ee_api_client.ProjectRegistrationFreeQuotaEnum}, keys:["billingConsent", "freeQuota"]};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ProjectRegistration.prototype, {billingConsent:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("billingConsent") ? this.Serializable$get("billingConsent") : null;
+}, set:function(value) {
+  this.Serializable$set("billingConsent", value);
+}}, freeQuota:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("freeQuota") ? this.Serializable$get("freeQuota") : null;
+}, set:function(value) {
+  this.Serializable$set("freeQuota", value);
+}}});
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ProjectRegistration, {BillingConsent:{configurable:!0, enumerable:!0, get:function() {
+  return module$exports$eeapiclient$ee_api_client.ProjectRegistrationBillingConsentEnum;
+}}, FreeQuota:{configurable:!0, enumerable:!0, get:function() {
+  return module$exports$eeapiclient$ee_api_client.ProjectRegistrationFreeQuotaEnum;
+}}});
+module$exports$eeapiclient$ee_api_client.RankByAttributeRuleParameters = function module$contents$eeapiclient$ee_api_client_RankByAttributeRuleParameters() {
+};
+module$exports$eeapiclient$ee_api_client.RankByAttributeRule = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("attributeName", null == parameters.attributeName ? null : parameters.attributeName);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.RankByAttributeRule, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.RankByAttributeRule.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.RankByAttributeRule;
+};
+module$exports$eeapiclient$ee_api_client.RankByAttributeRule.prototype.getPartialClassMetadata = function() {
+  return {keys:["attributeName"]};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.RankByAttributeRule.prototype, {attributeName:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("attributeName") ? this.Serializable$get("attributeName") : null;
+}, set:function(value) {
+  this.Serializable$set("attributeName", value);
+}}});
+module$exports$eeapiclient$ee_api_client.RankByGeometryTypeRuleParameters = function module$contents$eeapiclient$ee_api_client_RankByGeometryTypeRuleParameters() {
+};
+module$exports$eeapiclient$ee_api_client.RankByGeometryTypeRule = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.RankByGeometryTypeRule, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.RankByGeometryTypeRule.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.RankByGeometryTypeRule;
+};
+module$exports$eeapiclient$ee_api_client.RankByGeometryTypeRule.prototype.getPartialClassMetadata = function() {
+  return {keys:[]};
+};
+module$exports$eeapiclient$ee_api_client.RankByMinVisibleLodRuleParameters = function module$contents$eeapiclient$ee_api_client_RankByMinVisibleLodRuleParameters() {
+};
+module$exports$eeapiclient$ee_api_client.RankByMinVisibleLodRule = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.RankByMinVisibleLodRule, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.RankByMinVisibleLodRule.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.RankByMinVisibleLodRule;
+};
+module$exports$eeapiclient$ee_api_client.RankByMinVisibleLodRule.prototype.getPartialClassMetadata = function() {
+  return {keys:[]};
+};
+module$exports$eeapiclient$ee_api_client.RankByMinZoomLevelRuleParameters = function module$contents$eeapiclient$ee_api_client_RankByMinZoomLevelRuleParameters() {
+};
+module$exports$eeapiclient$ee_api_client.RankByMinZoomLevelRule = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.RankByMinZoomLevelRule, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.RankByMinZoomLevelRule.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.RankByMinZoomLevelRule;
+};
+module$exports$eeapiclient$ee_api_client.RankByMinZoomLevelRule.prototype.getPartialClassMetadata = function() {
+  return {keys:[]};
+};
+module$exports$eeapiclient$ee_api_client.RankByOneThingRuleParameters = function module$contents$eeapiclient$ee_api_client_RankByOneThingRuleParameters() {
+};
+module$exports$eeapiclient$ee_api_client.RankByOneThingRule = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("rankByAttributeRule", null == parameters.rankByAttributeRule ? null : parameters.rankByAttributeRule);
+  this.Serializable$set("rankByMinVisibleLodRule", null == parameters.rankByMinVisibleLodRule ? null : parameters.rankByMinVisibleLodRule);
+  this.Serializable$set("rankByGeometryTypeRule", null == parameters.rankByGeometryTypeRule ? null : parameters.rankByGeometryTypeRule);
+  this.Serializable$set("rankByMinZoomLevelRule", null == parameters.rankByMinZoomLevelRule ? null : parameters.rankByMinZoomLevelRule);
+  this.Serializable$set("direction", null == parameters.direction ? null : parameters.direction);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.RankByOneThingRule, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.RankByOneThingRule.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.RankByOneThingRule;
+};
+module$exports$eeapiclient$ee_api_client.RankByOneThingRule.prototype.getPartialClassMetadata = function() {
+  return {enums:{direction:module$exports$eeapiclient$ee_api_client.RankByOneThingRuleDirectionEnum}, keys:["direction", "rankByAttributeRule", "rankByGeometryTypeRule", "rankByMinVisibleLodRule", "rankByMinZoomLevelRule"], objects:{rankByAttributeRule:module$exports$eeapiclient$ee_api_client.RankByAttributeRule, rankByGeometryTypeRule:module$exports$eeapiclient$ee_api_client.RankByGeometryTypeRule, 
+  rankByMinVisibleLodRule:module$exports$eeapiclient$ee_api_client.RankByMinVisibleLodRule, rankByMinZoomLevelRule:module$exports$eeapiclient$ee_api_client.RankByMinZoomLevelRule}};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.RankByOneThingRule.prototype, {direction:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("direction") ? this.Serializable$get("direction") : null;
+}, set:function(value) {
+  this.Serializable$set("direction", value);
+}}, rankByAttributeRule:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("rankByAttributeRule") ? this.Serializable$get("rankByAttributeRule") : null;
+}, set:function(value) {
+  this.Serializable$set("rankByAttributeRule", value);
+}}, rankByGeometryTypeRule:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("rankByGeometryTypeRule") ? this.Serializable$get("rankByGeometryTypeRule") : null;
+}, set:function(value) {
+  this.Serializable$set("rankByGeometryTypeRule", value);
+}}, rankByMinVisibleLodRule:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("rankByMinVisibleLodRule") ? this.Serializable$get("rankByMinVisibleLodRule") : null;
+}, set:function(value) {
+  this.Serializable$set("rankByMinVisibleLodRule", value);
+}}, rankByMinZoomLevelRule:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("rankByMinZoomLevelRule") ? this.Serializable$get("rankByMinZoomLevelRule") : null;
+}, set:function(value) {
+  this.Serializable$set("rankByMinZoomLevelRule", value);
+}}});
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.RankByOneThingRule, {Direction:{configurable:!0, enumerable:!0, get:function() {
+  return module$exports$eeapiclient$ee_api_client.RankByOneThingRuleDirectionEnum;
+}}});
+module$exports$eeapiclient$ee_api_client.RankingOptionsParameters = function module$contents$eeapiclient$ee_api_client_RankingOptionsParameters() {
+};
+module$exports$eeapiclient$ee_api_client.RankingOptions = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("zOrderRankingRule", null == parameters.zOrderRankingRule ? null : parameters.zOrderRankingRule);
+  this.Serializable$set("thinningRankingRule", null == parameters.thinningRankingRule ? null : parameters.thinningRankingRule);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.RankingOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.RankingOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.RankingOptions;
+};
+module$exports$eeapiclient$ee_api_client.RankingOptions.prototype.getPartialClassMetadata = function() {
+  return {keys:["thinningRankingRule", "zOrderRankingRule"], objects:{thinningRankingRule:module$exports$eeapiclient$ee_api_client.RankingRule, zOrderRankingRule:module$exports$eeapiclient$ee_api_client.RankingRule}};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.RankingOptions.prototype, {thinningRankingRule:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("thinningRankingRule") ? this.Serializable$get("thinningRankingRule") : null;
+}, set:function(value) {
+  this.Serializable$set("thinningRankingRule", value);
+}}, zOrderRankingRule:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("zOrderRankingRule") ? this.Serializable$get("zOrderRankingRule") : null;
+}, set:function(value) {
+  this.Serializable$set("zOrderRankingRule", value);
+}}});
+module$exports$eeapiclient$ee_api_client.RankingRuleParameters = function module$contents$eeapiclient$ee_api_client_RankingRuleParameters() {
+};
+module$exports$eeapiclient$ee_api_client.RankingRule = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("rankByOneThingRule", null == parameters.rankByOneThingRule ? null : parameters.rankByOneThingRule);
+  this.Serializable$set("pseudoRandomTiebreaking", null == parameters.pseudoRandomTiebreaking ? null : parameters.pseudoRandomTiebreaking);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.RankingRule, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.RankingRule.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.RankingRule;
+};
+module$exports$eeapiclient$ee_api_client.RankingRule.prototype.getPartialClassMetadata = function() {
+  return {arrays:{rankByOneThingRule:module$exports$eeapiclient$ee_api_client.RankByOneThingRule}, keys:["pseudoRandomTiebreaking", "rankByOneThingRule"]};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.RankingRule.prototype, {pseudoRandomTiebreaking:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("pseudoRandomTiebreaking") ? this.Serializable$get("pseudoRandomTiebreaking") : null;
+}, set:function(value) {
+  this.Serializable$set("pseudoRandomTiebreaking", value);
+}}, rankByOneThingRule:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("rankByOneThingRule") ? this.Serializable$get("rankByOneThingRule") : null;
+}, set:function(value) {
+  this.Serializable$set("rankByOneThingRule", value);
 }}});
 module$exports$eeapiclient$ee_api_client.RuleParameters = function module$contents$eeapiclient$ee_api_client_RuleParameters() {
 };
@@ -11395,15 +12325,22 @@ module$exports$eeapiclient$ee_api_client.TableManifest = function(parameters) {
   this.Serializable$set("sources", null == parameters.sources ? null : parameters.sources);
   this.Serializable$set("startTime", null == parameters.startTime ? null : parameters.startTime);
   this.Serializable$set("endTime", null == parameters.endTime ? null : parameters.endTime);
+  this.Serializable$set("csvColumnDataTypeOverrides", null == parameters.csvColumnDataTypeOverrides ? null : parameters.csvColumnDataTypeOverrides);
+  this.Serializable$set("policy", null == parameters.policy ? null : parameters.policy);
 };
 $jscomp.inherits(module$exports$eeapiclient$ee_api_client.TableManifest, module$exports$eeapiclient$domain_object.Serializable);
 module$exports$eeapiclient$ee_api_client.TableManifest.prototype.getConstructor = function() {
   return module$exports$eeapiclient$ee_api_client.TableManifest;
 };
 module$exports$eeapiclient$ee_api_client.TableManifest.prototype.getPartialClassMetadata = function() {
-  return {arrays:{sources:module$exports$eeapiclient$ee_api_client.TableSource}, keys:"endTime name properties sources startTime uriPrefix".split(" "), objectMaps:{properties:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}};
+  return {arrays:{sources:module$exports$eeapiclient$ee_api_client.TableSource}, enums:{csvColumnDataTypeOverrides:module$exports$eeapiclient$ee_api_client.TableManifestCsvColumnDataTypeOverridesEnum}, keys:"csvColumnDataTypeOverrides endTime name policy properties sources startTime uriPrefix".split(" "), objectMaps:{csvColumnDataTypeOverrides:{ctor:null, isPropertyArray:!1, isSerializable:!1, isValueArray:!1}, properties:{ctor:null, 
+  isPropertyArray:!1, isSerializable:!1, isValueArray:!1}}, objects:{policy:module$exports$eeapiclient$ee_api_client.Policy}};
 };
-$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TableManifest.prototype, {endTime:{configurable:!0, enumerable:!0, get:function() {
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TableManifest.prototype, {csvColumnDataTypeOverrides:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("csvColumnDataTypeOverrides") ? this.Serializable$get("csvColumnDataTypeOverrides") : null;
+}, set:function(value) {
+  this.Serializable$set("csvColumnDataTypeOverrides", value);
+}}, endTime:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("endTime") ? this.Serializable$get("endTime") : null;
 }, set:function(value) {
   this.Serializable$set("endTime", value);
@@ -11411,6 +12348,10 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("name") ? this.Serializable$get("name") : null;
 }, set:function(value) {
   this.Serializable$set("name", value);
+}}, policy:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("policy") ? this.Serializable$get("policy") : null;
+}, set:function(value) {
+  this.Serializable$set("policy", value);
 }}, properties:{configurable:!0, enumerable:!0, get:function() {
   return this.Serializable$has("properties") ? this.Serializable$get("properties") : null;
 }, set:function(value) {
@@ -11427,6 +12368,9 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
   return this.Serializable$has("uriPrefix") ? this.Serializable$get("uriPrefix") : null;
 }, set:function(value) {
   this.Serializable$set("uriPrefix", value);
+}}});
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TableManifest, {CsvColumnDataTypeOverrides:{configurable:!0, enumerable:!0, get:function() {
+  return module$exports$eeapiclient$ee_api_client.TableManifestCsvColumnDataTypeOverridesEnum;
 }}});
 module$exports$eeapiclient$ee_api_client.TableSourceParameters = function module$contents$eeapiclient$ee_api_client_TableSourceParameters() {
 };
@@ -11599,6 +12543,33 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
 }, set:function(value) {
   this.Serializable$set("tileDimensions", value);
 }}});
+module$exports$eeapiclient$ee_api_client.ThinningOptionsParameters = function module$contents$eeapiclient$ee_api_client_ThinningOptionsParameters() {
+};
+module$exports$eeapiclient$ee_api_client.ThinningOptions = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("maxFeaturesPerTile", null == parameters.maxFeaturesPerTile ? null : parameters.maxFeaturesPerTile);
+  this.Serializable$set("thinningStrategy", null == parameters.thinningStrategy ? null : parameters.thinningStrategy);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.ThinningOptions, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.ThinningOptions.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.ThinningOptions;
+};
+module$exports$eeapiclient$ee_api_client.ThinningOptions.prototype.getPartialClassMetadata = function() {
+  return {enums:{thinningStrategy:module$exports$eeapiclient$ee_api_client.ThinningOptionsThinningStrategyEnum}, keys:["maxFeaturesPerTile", "thinningStrategy"]};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ThinningOptions.prototype, {maxFeaturesPerTile:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("maxFeaturesPerTile") ? this.Serializable$get("maxFeaturesPerTile") : null;
+}, set:function(value) {
+  this.Serializable$set("maxFeaturesPerTile", value);
+}}, thinningStrategy:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("thinningStrategy") ? this.Serializable$get("thinningStrategy") : null;
+}, set:function(value) {
+  this.Serializable$set("thinningStrategy", value);
+}}});
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.ThinningOptions, {ThinningStrategy:{configurable:!0, enumerable:!0, get:function() {
+  return module$exports$eeapiclient$ee_api_client.ThinningOptionsThinningStrategyEnum;
+}}});
 module$exports$eeapiclient$ee_api_client.ThumbnailParameters = function module$contents$eeapiclient$ee_api_client_ThumbnailParameters() {
 };
 module$exports$eeapiclient$ee_api_client.Thumbnail = function(parameters) {
@@ -11650,6 +12621,40 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
 }}});
 $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.Thumbnail, {FileFormat:{configurable:!0, enumerable:!0, get:function() {
   return module$exports$eeapiclient$ee_api_client.ThumbnailFileFormatEnum;
+}}});
+module$exports$eeapiclient$ee_api_client.TileLimitingParameters = function module$contents$eeapiclient$ee_api_client_TileLimitingParameters() {
+};
+module$exports$eeapiclient$ee_api_client.TileLimiting = function(parameters) {
+  parameters = void 0 === parameters ? {} : parameters;
+  module$exports$eeapiclient$domain_object.Serializable.call(this);
+  this.Serializable$set("maxPrerenderZoom", null == parameters.maxPrerenderZoom ? null : parameters.maxPrerenderZoom);
+  this.Serializable$set("minVerticesPerTile", null == parameters.minVerticesPerTile ? null : parameters.minVerticesPerTile);
+  this.Serializable$set("neighborDepth", null == parameters.neighborDepth ? null : parameters.neighborDepth);
+  this.Serializable$set("minFeaturesPerTile", null == parameters.minFeaturesPerTile ? null : parameters.minFeaturesPerTile);
+};
+$jscomp.inherits(module$exports$eeapiclient$ee_api_client.TileLimiting, module$exports$eeapiclient$domain_object.Serializable);
+module$exports$eeapiclient$ee_api_client.TileLimiting.prototype.getConstructor = function() {
+  return module$exports$eeapiclient$ee_api_client.TileLimiting;
+};
+module$exports$eeapiclient$ee_api_client.TileLimiting.prototype.getPartialClassMetadata = function() {
+  return {keys:["maxPrerenderZoom", "minFeaturesPerTile", "minVerticesPerTile", "neighborDepth"]};
+};
+$jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.TileLimiting.prototype, {maxPrerenderZoom:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("maxPrerenderZoom") ? this.Serializable$get("maxPrerenderZoom") : null;
+}, set:function(value) {
+  this.Serializable$set("maxPrerenderZoom", value);
+}}, minFeaturesPerTile:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("minFeaturesPerTile") ? this.Serializable$get("minFeaturesPerTile") : null;
+}, set:function(value) {
+  this.Serializable$set("minFeaturesPerTile", value);
+}}, minVerticesPerTile:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("minVerticesPerTile") ? this.Serializable$get("minVerticesPerTile") : null;
+}, set:function(value) {
+  this.Serializable$set("minVerticesPerTile", value);
+}}, neighborDepth:{configurable:!0, enumerable:!0, get:function() {
+  return this.Serializable$has("neighborDepth") ? this.Serializable$get("neighborDepth") : null;
+}, set:function(value) {
+  this.Serializable$set("neighborDepth", value);
 }}});
 module$exports$eeapiclient$ee_api_client.TileOptionsParameters = function module$contents$eeapiclient$ee_api_client_TileOptionsParameters() {
 };
@@ -12218,8 +13223,8 @@ $jscomp.global.Object.defineProperties(module$exports$eeapiclient$ee_api_client.
 }, set:function(value) {
   this.Serializable$set("start", value);
 }}});
-var module$contents$eeapiclient$ee_api_client_PARAM_MAP_0 = {$Xgafv:"$.xgafv", access_token:"access_token", alt:"alt", assetId:"assetId", callback:"callback", endTime:"endTime", fields:"fields", filter:"filter", key:"key", oauth_token:"oauth_token", overwrite:"overwrite", pageSize:"pageSize", pageToken:"pageToken", prettyPrint:"prettyPrint", quotaUser:"quotaUser", region:"region", startTime:"startTime", uploadType:"uploadType", upload_protocol:"upload_protocol", 
-view:"view"};
+var module$contents$eeapiclient$ee_api_client_PARAM_MAP_0 = {$Xgafv:"$.xgafv", access_token:"access_token", alt:"alt", assetId:"assetId", callback:"callback", endTime:"endTime", fields:"fields", filter:"filter", key:"key", oauth_token:"oauth_token", overwrite:"overwrite", pageSize:"pageSize", pageToken:"pageToken", prettyPrint:"prettyPrint", quotaUser:"quotaUser", region:"region", startTime:"startTime", updateMask:"updateMask", uploadType:"uploadType", upload_protocol:"upload_protocol", 
+view:"view", workloadTag:"workloadTag"};
 module$exports$eeapiclient$ee_api_client.IProjectsAlgorithmsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsAlgorithmsApiClient$XgafvEnum() {
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClient$XgafvEnum = {1:"1", 2:"2", values:function() {
@@ -12237,7 +13242,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClientImpl = funct
 module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClientImpl.prototype.list = function(parent, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.algorithms.list", path:"/" + this.gapiVersion + "/" + parent + "/algorithms", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ListAlgorithmsResponse});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAlgorithmsApiClient = function() {
@@ -12264,14 +13269,26 @@ module$exports$eeapiclient$ee_api_client.ProjectsApiClientImpl = function(gapiVe
 module$exports$eeapiclient$ee_api_client.ProjectsApiClientImpl.prototype.getCapabilities = function(parent, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.getCapabilities", path:"/" + this.gapiVersion + "/" + parent + "/capabilities", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Capabilities});
+};
+module$exports$eeapiclient$ee_api_client.ProjectsApiClientImpl.prototype.getConfig = function(name, namedParameters, passthroughNamedParameters) {
+  namedParameters = void 0 === namedParameters ? {} : namedParameters;
+  passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/config$"));
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.getConfig", path:"/" + this.gapiVersion + "/" + name, queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ProjectConfig});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsApiClientImpl.prototype.listAssets = function(parent, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.listAssets", path:"/" + this.gapiVersion + "/" + parent + ":listAssets", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ListAssetsResponse});
+};
+module$exports$eeapiclient$ee_api_client.ProjectsApiClientImpl.prototype.updateConfig = function(name, $requestBody, namedParameters, passthroughNamedParameters) {
+  namedParameters = void 0 === namedParameters ? {} : namedParameters;
+  passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/config$"));
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"PATCH", methodId:"earthengine.projects.updateConfig", path:"/" + this.gapiVersion + "/" + name, queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ProjectConfig});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsApiClient = function() {
 };
@@ -12297,91 +13314,91 @@ module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl = function(
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.copy = function(sourceName, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(sourceName, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(sourceName, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.copy", path:"/" + this.gapiVersion + "/" + sourceName + ":copy", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.create", path:"/" + this.gapiVersion + "/" + parent + "/assets", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.delete = function(name, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:null, httpMethod:"DELETE", methodId:"earthengine.projects.assets.delete", path:"/" + this.gapiVersion + "/" + name, queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Empty});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.get = function(name, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.get", path:"/" + this.gapiVersion + "/" + name, queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.getIamPolicy = function(resource, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(resource, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(resource, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.getIamPolicy", path:"/" + this.gapiVersion + "/" + resource + ":getIamPolicy", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Policy});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.getLinked = function(name, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.getLinked", path:"/" + this.gapiVersion + "/" + name + ":getLinked", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.getPixels = function(name, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.link = function(sourceName, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(sourceName, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(sourceName, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.link", path:"/" + this.gapiVersion + "/" + sourceName + ":link", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.listAssets = function(parent, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.listAssets", path:"/" + this.gapiVersion + "/" + parent + ":listAssets", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ListAssetsResponse});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.listFeatures = function(asset, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(asset, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(asset, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.listFeatures", path:"/" + this.gapiVersion + "/" + asset + ":listFeatures", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ListFeaturesResponse});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.listImages = function(parent, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.assets.listImages", path:"/" + this.gapiVersion + "/" + parent + ":listImages", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ListImagesResponse});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.move = function(sourceName, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(sourceName, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(sourceName, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.move", path:"/" + this.gapiVersion + "/" + sourceName + ":move", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.patch = function(name, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"PATCH", methodId:"earthengine.projects.assets.patch", path:"/" + this.gapiVersion + "/" + name, queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.setIamPolicy = function(resource, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(resource, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(resource, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.setIamPolicy", path:"/" + this.gapiVersion + "/" + resource + ":setIamPolicy", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Policy});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClientImpl.prototype.testIamPermissions = function(resource, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(resource, /^projects\/[^/]+\/assets\/.*$/);
+  this.$apiClient.$validateParameter(resource, RegExp("^projects/[^/]+/assets/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.assets.testIamPermissions", path:"/" + this.gapiVersion + "/" + resource + ":testIamPermissions", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.TestIamPermissionsResponse});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsAssetsApiClient = function() {
@@ -12403,10 +13420,76 @@ module$exports$eeapiclient$ee_api_client.ProjectsClassifierApiClientImpl = funct
 module$exports$eeapiclient$ee_api_client.ProjectsClassifierApiClientImpl.prototype.export = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.classifier.export", path:"/" + this.gapiVersion + "/" + project + "/classifier:export", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsClassifierApiClient = function() {
+};
+module$exports$eeapiclient$ee_api_client.IProjectsFeatureViewApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsFeatureViewApiClient$XgafvEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClient$XgafvEnum = {1:"1", 2:"2", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClient$XgafvEnum[1], module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClient$XgafvEnum[2]];
+}};
+module$exports$eeapiclient$ee_api_client.IProjectsFeatureViewApiClientAltEnum = function module$contents$eeapiclient$ee_api_client_IProjectsFeatureViewApiClientAltEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClientAltEnum = {JSON:"json", MEDIA:"media", PROTO:"proto", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClientAltEnum.JSON, module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClientAltEnum.MEDIA, module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClientAltEnum.PROTO];
+}};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+  this.gapiVersion = gapiVersion;
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
+  namedParameters = void 0 === namedParameters ? {} : namedParameters;
+  passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.featureView.create", path:"/" + this.gapiVersion + "/" + parent + "/featureView", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.FeatureView});
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClient = function() {
+};
+module$exports$eeapiclient$ee_api_client.IProjectsFeatureViewsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsFeatureViewsApiClient$XgafvEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClient$XgafvEnum = {1:"1", 2:"2", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClient$XgafvEnum[1], module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClient$XgafvEnum[2]];
+}};
+module$exports$eeapiclient$ee_api_client.IProjectsFeatureViewsApiClientAltEnum = function module$contents$eeapiclient$ee_api_client_IProjectsFeatureViewsApiClientAltEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClientAltEnum = {JSON:"json", MEDIA:"media", PROTO:"proto", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClientAltEnum.JSON, module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClientAltEnum.MEDIA, module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClientAltEnum.PROTO];
+}};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+  this.gapiVersion = gapiVersion;
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
+  namedParameters = void 0 === namedParameters ? {} : namedParameters;
+  passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
+  return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.featureViews.create", path:"/" + this.gapiVersion + "/" + parent + "/featureViews", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.FeatureView});
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsApiClient = function() {
+};
+module$exports$eeapiclient$ee_api_client.IProjectsFeatureViewsTilesApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsFeatureViewsTilesApiClient$XgafvEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClient$XgafvEnum = {1:"1", 2:"2", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClient$XgafvEnum[1], module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClient$XgafvEnum[2]];
+}};
+module$exports$eeapiclient$ee_api_client.IProjectsFeatureViewsTilesApiClientAltEnum = function module$contents$eeapiclient$ee_api_client_IProjectsFeatureViewsTilesApiClientAltEnum() {
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClientAltEnum = {JSON:"json", MEDIA:"media", PROTO:"proto", values:function() {
+  return [module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClientAltEnum.JSON, module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClientAltEnum.MEDIA, module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClientAltEnum.PROTO];
+}};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClientImpl = function(gapiVersion, gapiRequestService, apiClientHookFactory) {
+  this.gapiVersion = gapiVersion;
+  this.$apiClient = new module$exports$eeapiclient$promise_api_client.PromiseApiClient(gapiRequestService, void 0 === apiClientHookFactory ? null : apiClientHookFactory);
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClientImpl.prototype.get = function(parent, zoom, x, y, namedParameters, passthroughNamedParameters) {
+  namedParameters = void 0 === namedParameters ? {} : namedParameters;
+  passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/featureViews/[^/]+$"));
+  return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.featureViews.tiles.get", path:"/" + this.gapiVersion + "/" + parent + "/tiles/" + zoom + "/" + x + "/" + y, queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
+};
+module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewsTilesApiClient = function() {
 };
 module$exports$eeapiclient$ee_api_client.IProjectsFilmstripThumbnailsApiClient$XgafvEnum = function module$contents$eeapiclient$ee_api_client_IProjectsFilmstripThumbnailsApiClient$XgafvEnum() {
 };
@@ -12425,13 +13508,13 @@ module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClientImp
 module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.filmstripThumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/filmstripThumbnails", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.FilmstripThumbnail});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClientImpl.prototype.getPixels = function(name, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/filmstripThumbnails\/[^/]+$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/filmstripThumbnails/[^/]+$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.filmstripThumbnails.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsFilmstripThumbnailsApiClient = function() {
@@ -12453,19 +13536,19 @@ module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientImpl = function(g
 module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientImpl.prototype.computePixels = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.image.computePixels", path:"/" + this.gapiVersion + "/" + project + "/image:computePixels", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientImpl.prototype.export = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.image.export", path:"/" + this.gapiVersion + "/" + project + "/image:export", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsImageApiClientImpl.prototype.import = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.image.import", path:"/" + this.gapiVersion + "/" + project + "/image:import", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsImageApiClient = function() {
@@ -12487,7 +13570,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsImageCollectionApiClientImpl = 
 module$exports$eeapiclient$ee_api_client.ProjectsImageCollectionApiClientImpl.prototype.computeImages = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.imageCollection.computeImages", path:"/" + this.gapiVersion + "/" + project + "/imageCollection:computeImages", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ComputeImagesResponse});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsImageCollectionApiClient = function() {
@@ -12509,7 +13592,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsLocationsAssetsApiClientImpl = 
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsAssetsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/locations\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/locations/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.locations.assets.create", path:"/" + this.gapiVersion + "/" + parent + "/assets", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineAsset});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsAssetsApiClient = function() {
@@ -12531,7 +13614,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsLocationsFilmstripThumbnailsApi
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsFilmstripThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/locations\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/locations/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.locations.filmstripThumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/filmstripThumbnails", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.FilmstripThumbnail});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsFilmstripThumbnailsApiClient = function() {
@@ -12553,7 +13636,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsLocationsMapsApiClientImpl = fu
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsMapsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/locations\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/locations/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.locations.maps.create", path:"/" + this.gapiVersion + "/" + parent + "/maps", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineMap});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsMapsApiClient = function() {
@@ -12575,7 +13658,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsLocationsTablesApiClientImpl = 
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsTablesApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/locations\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/locations/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.locations.tables.create", path:"/" + this.gapiVersion + "/" + parent + "/tables", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Table});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsTablesApiClient = function() {
@@ -12597,7 +13680,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsLocationsThumbnailsApiClientImp
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/locations\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/locations/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.locations.thumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/thumbnails", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Thumbnail});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsThumbnailsApiClient = function() {
@@ -12619,7 +13702,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsLocationsVideoThumbnailsApiClie
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsVideoThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/locations\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/locations/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.locations.videoThumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/videoThumbnails", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.VideoThumbnail});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsLocationsVideoThumbnailsApiClient = function() {
@@ -12641,7 +13724,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsMapApiClientImpl = function(gap
 module$exports$eeapiclient$ee_api_client.ProjectsMapApiClientImpl.prototype.export = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.map.export", path:"/" + this.gapiVersion + "/" + project + "/map:export", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsMapApiClient = function() {
@@ -12663,7 +13746,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsMapsApiClientImpl = function(ga
 module$exports$eeapiclient$ee_api_client.ProjectsMapsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.maps.create", path:"/" + this.gapiVersion + "/" + parent + "/maps", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.EarthEngineMap});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsMapsApiClient = function() {
@@ -12685,7 +13768,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsMapsTilesApiClientImpl = functi
 module$exports$eeapiclient$ee_api_client.ProjectsMapsTilesApiClientImpl.prototype.get = function(parent, zoom, x, y, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+\/maps\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+/maps/[^/]+$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.maps.tiles.get", path:"/" + this.gapiVersion + "/" + parent + "/tiles/" + zoom + "/" + x + "/" + y, queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsMapsTilesApiClient = function() {
@@ -12707,31 +13790,31 @@ module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl = funct
 module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype.cancel = function(name, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/operations\/.*$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/operations/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.operations.cancel", path:"/" + this.gapiVersion + "/" + name + ":cancel", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Empty});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype.delete = function(name, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/operations\/.*$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/operations/.*$"));
   return this.$apiClient.$request({body:null, httpMethod:"DELETE", methodId:"earthengine.projects.operations.delete", path:"/" + this.gapiVersion + "/" + name, queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Empty});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype.get = function(name, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/operations\/.*$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/operations/.*$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.operations.get", path:"/" + this.gapiVersion + "/" + name, queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype.list = function(name, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.operations.list", path:"/" + this.gapiVersion + "/" + name + "/operations", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ListOperationsResponse});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClientImpl.prototype.wait = function(name, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/operations\/.*$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/operations/.*$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.operations.wait", path:"/" + this.gapiVersion + "/" + name + ":wait", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsOperationsApiClient = function() {
@@ -12753,19 +13836,19 @@ module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientImpl = function(g
 module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientImpl.prototype.computeFeatures = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.table.computeFeatures", path:"/" + this.gapiVersion + "/" + project + "/table:computeFeatures", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ComputeFeaturesResponse});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientImpl.prototype.export = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.table.export", path:"/" + this.gapiVersion + "/" + project + "/table:export", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsTableApiClientImpl.prototype.import = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.table.import", path:"/" + this.gapiVersion + "/" + project + "/table:import", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsTableApiClient = function() {
@@ -12787,13 +13870,13 @@ module$exports$eeapiclient$ee_api_client.ProjectsTablesApiClientImpl = function(
 module$exports$eeapiclient$ee_api_client.ProjectsTablesApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.tables.create", path:"/" + this.gapiVersion + "/" + parent + "/tables", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Table});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsTablesApiClientImpl.prototype.getFeatures = function(name, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/tables\/[^/]+$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/tables/[^/]+$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.tables.getFeatures", path:"/" + this.gapiVersion + "/" + name + ":getFeatures", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsTablesApiClient = function() {
@@ -12815,13 +13898,13 @@ module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClientImpl = funct
 module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.thumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/thumbnails", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Thumbnail});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClientImpl.prototype.getPixels = function(name, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/thumbnails\/[^/]+$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/thumbnails/[^/]+$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.thumbnails.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClient = function() {
@@ -12843,7 +13926,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsValueApiClientImpl = function(g
 module$exports$eeapiclient$ee_api_client.ProjectsValueApiClientImpl.prototype.compute = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.value.compute", path:"/" + this.gapiVersion + "/" + project + "/value:compute", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.ComputeValueResponse});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsValueApiClient = function() {
@@ -12865,7 +13948,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsVideoApiClientImpl = function(g
 module$exports$eeapiclient$ee_api_client.ProjectsVideoApiClientImpl.prototype.export = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.video.export", path:"/" + this.gapiVersion + "/" + project + "/video:export", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsVideoApiClient = function() {
@@ -12887,7 +13970,7 @@ module$exports$eeapiclient$ee_api_client.ProjectsVideoMapApiClientImpl = functio
 module$exports$eeapiclient$ee_api_client.ProjectsVideoMapApiClientImpl.prototype.export = function(project, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(project, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(project, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.videoMap.export", path:"/" + this.gapiVersion + "/" + project + "/videoMap:export", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.Operation});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsVideoMapApiClient = function() {
@@ -12909,13 +13992,13 @@ module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClientImpl = 
 module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClientImpl.prototype.create = function(parent, $requestBody, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(parent, /^projects\/[^/]+$/);
+  this.$apiClient.$validateParameter(parent, RegExp("^projects/[^/]+$"));
   return this.$apiClient.$request({body:$requestBody, httpMethod:"POST", methodId:"earthengine.projects.videoThumbnails.create", path:"/" + this.gapiVersion + "/" + parent + "/videoThumbnails", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.VideoThumbnail});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClientImpl.prototype.getPixels = function(name, namedParameters, passthroughNamedParameters) {
   namedParameters = void 0 === namedParameters ? {} : namedParameters;
   passthroughNamedParameters = void 0 === passthroughNamedParameters ? {} : passthroughNamedParameters;
-  this.$apiClient.$validateParameter(name, /^projects\/[^/]+\/videoThumbnails\/[^/]+$/);
+  this.$apiClient.$validateParameter(name, RegExp("^projects/[^/]+/videoThumbnails/[^/]+$"));
   return this.$apiClient.$request({body:null, httpMethod:"GET", methodId:"earthengine.projects.videoThumbnails.getPixels", path:"/" + this.gapiVersion + "/" + name + ":getPixels", queryParams:module$contents$eeapiclient$request_params_buildQueryParams(namedParameters, module$contents$eeapiclient$ee_api_client_PARAM_MAP_0, passthroughNamedParameters), responseCtor:module$exports$eeapiclient$ee_api_client.HttpBody});
 };
 module$exports$eeapiclient$ee_api_client.ProjectsVideoThumbnailsApiClient = function() {
@@ -12933,14 +14016,14 @@ module$exports$eeapiclient$promise_request_service.PromiseRequestService.prototy
   });
 };
 goog.async = {};
-goog.async.FreeList = function(create, reset, limit) {
+var module$contents$goog$async$FreeList_FreeList = function(create, reset, limit) {
   this.limit_ = limit;
   this.create_ = create;
   this.reset_ = reset;
   this.occupants_ = 0;
   this.head_ = null;
 };
-goog.async.FreeList.prototype.get = function() {
+module$contents$goog$async$FreeList_FreeList.prototype.get = function() {
   if (0 < this.occupants_) {
     this.occupants_--;
     var item = this.head_;
@@ -12951,13 +14034,14 @@ goog.async.FreeList.prototype.get = function() {
   }
   return item;
 };
-goog.async.FreeList.prototype.put = function(item) {
+module$contents$goog$async$FreeList_FreeList.prototype.put = function(item) {
   this.reset_(item);
   this.occupants_ < this.limit_ && (this.occupants_++, item.next = this.head_, this.head_ = item);
 };
-goog.async.FreeList.prototype.occupants = function() {
+module$contents$goog$async$FreeList_FreeList.prototype.occupants = function() {
   return this.occupants_;
 };
+goog.async.FreeList = module$contents$goog$async$FreeList_FreeList;
 goog.dom.BrowserFeature = {};
 goog.dom.BrowserFeature.ASSUME_NO_OFFSCREEN_CANVAS = !1;
 goog.dom.BrowserFeature.ASSUME_OFFSCREEN_CANVAS = !1;
@@ -12969,12 +14053,11 @@ goog.dom.BrowserFeature.detectOffscreenCanvas_ = function(contextName) {
   return !1;
 };
 goog.dom.BrowserFeature.OFFSCREEN_CANVAS_2D = !goog.dom.BrowserFeature.ASSUME_NO_OFFSCREEN_CANVAS && (goog.dom.BrowserFeature.ASSUME_OFFSCREEN_CANVAS || goog.dom.BrowserFeature.detectOffscreenCanvas_("2d"));
-goog.dom.BrowserFeature.CAN_ADD_NAME_OR_TYPE_ATTRIBUTES = !goog.userAgent.IE || goog.userAgent.isDocumentModeOrHigher(9);
-goog.dom.BrowserFeature.CAN_USE_CHILDREN_ATTRIBUTE = !goog.userAgent.GECKO && !goog.userAgent.IE || goog.userAgent.IE && goog.userAgent.isDocumentModeOrHigher(9) || goog.userAgent.GECKO && goog.userAgent.isVersionOrHigher("1.9.1");
-goog.dom.BrowserFeature.CAN_USE_INNER_TEXT = goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("9");
-goog.dom.BrowserFeature.CAN_USE_PARENT_ELEMENT_PROPERTY = goog.userAgent.IE || goog.userAgent.OPERA || goog.userAgent.WEBKIT;
+goog.dom.BrowserFeature.CAN_ADD_NAME_OR_TYPE_ATTRIBUTES = !0;
+goog.dom.BrowserFeature.CAN_USE_CHILDREN_ATTRIBUTE = !0;
+goog.dom.BrowserFeature.CAN_USE_INNER_TEXT = !1;
+goog.dom.BrowserFeature.CAN_USE_PARENT_ELEMENT_PROPERTY = goog.userAgent.IE || goog.userAgent.WEBKIT;
 goog.dom.BrowserFeature.INNER_HTML_NEEDS_SCOPED_ELEMENT = goog.userAgent.IE;
-goog.dom.BrowserFeature.LEGACY_IE_RANGES = goog.userAgent.IE && !goog.userAgent.isDocumentModeOrHigher(9);
 goog.math.Coordinate = function(opt_x, opt_y) {
   this.x = void 0 !== opt_x ? opt_x : 0;
   this.y = void 0 !== opt_y ? opt_y : 0;
@@ -13107,11 +14190,12 @@ goog.math.Size.prototype.scaleToFit = function(target) {
   var s = this.aspectRatio() > target.aspectRatio() ? target.width / this.width : target.height / this.height;
   return this.scale(s);
 };
+goog.dom.Appendable = {};
 goog.dom.ASSUME_QUIRKS_MODE = !1;
 goog.dom.ASSUME_STANDARDS_MODE = !1;
 goog.dom.COMPAT_MODE_KNOWN_ = goog.dom.ASSUME_QUIRKS_MODE || goog.dom.ASSUME_STANDARDS_MODE;
 goog.dom.getDomHelper = function(opt_element) {
-  return opt_element ? new goog.dom.DomHelper(goog.dom.getOwnerDocument(opt_element)) : goog.dom.defaultDomHelper_ || (goog.dom.defaultDomHelper_ = new goog.dom.DomHelper);
+  return opt_element ? new goog.dom.DomHelper(goog.dom.getOwnerDocument(opt_element)) : goog.dom.defaultDomHelper_ || (goog.dom.defaultDomHelper_ = new goog.dom.DomHelper());
 };
 goog.dom.getDocument = function() {
   return document;
@@ -13119,11 +14203,18 @@ goog.dom.getDocument = function() {
 goog.dom.getElement = function(element) {
   return goog.dom.getElementHelper_(document, element);
 };
+goog.dom.getHTMLElement = function(id) {
+  var element = goog.dom.getElement(id);
+  return element ? goog.asserts.assertInstanceof(element, HTMLElement) : null;
+};
 goog.dom.getElementHelper_ = function(doc, element) {
   return "string" === typeof element ? doc.getElementById(element) : element;
 };
 goog.dom.getRequiredElement = function(id) {
   return goog.dom.getRequiredElementHelper_(document, id);
+};
+goog.dom.getRequiredHTMLElement = function(id) {
+  return goog.asserts.assertInstanceof(goog.dom.getRequiredElementHelper_(document, id), HTMLElement);
 };
 goog.dom.getRequiredElementHelper_ = function(doc, id) {
   goog.asserts.assertString(id);
@@ -13148,9 +14239,17 @@ goog.dom.getElementByClass = function(className, opt_el) {
   var parent = opt_el || document, retVal = null;
   return (retVal = parent.getElementsByClassName ? parent.getElementsByClassName(className)[0] : goog.dom.getElementByTagNameAndClass_(document, "*", className, opt_el)) || null;
 };
+goog.dom.getHTMLElementByClass = function(className, opt_parent) {
+  var element = goog.dom.getElementByClass(className, opt_parent);
+  return element ? goog.asserts.assertInstanceof(element, HTMLElement) : null;
+};
 goog.dom.getRequiredElementByClass = function(className, opt_root) {
   var retValue = goog.dom.getElementByClass(className, opt_root);
   return goog.asserts.assert(retValue, "No element found with className: " + className);
+};
+goog.dom.getRequiredHTMLElementByClass = function(className, opt_parent) {
+  var retValue = goog.dom.getElementByClass(className, opt_parent);
+  return goog.asserts.assertInstanceof(retValue, HTMLElement, "No HTMLElement found with className: " + className);
 };
 goog.dom.canUseQuerySelector_ = function(parent) {
   return !(!parent.querySelectorAll || !parent.querySelector);
@@ -13252,21 +14351,7 @@ goog.dom.createDom = function(tagName, opt_attributes, var_args) {
   return goog.dom.createDom_(document, arguments);
 };
 goog.dom.createDom_ = function(doc, args) {
-  var tagName = String(args[0]), attributes = args[1];
-  if (!goog.dom.BrowserFeature.CAN_ADD_NAME_OR_TYPE_ATTRIBUTES && attributes && (attributes.name || attributes.type)) {
-    var tagNameArr = ["<", tagName];
-    attributes.name && tagNameArr.push(' name="', goog.string.htmlEscape(attributes.name), '"');
-    if (attributes.type) {
-      tagNameArr.push(' type="', goog.string.htmlEscape(attributes.type), '"');
-      var clone = {};
-      module$contents$goog$object_extend(clone, attributes);
-      delete clone.type;
-      attributes = clone;
-    }
-    tagNameArr.push(">");
-    tagName = tagNameArr.join("");
-  }
-  var element = goog.dom.createElement_(doc, tagName);
+  var attributes = args[1], element = goog.dom.createElement_(doc, String(args[0]));
   attributes && ("string" === typeof attributes ? element.className = attributes : Array.isArray(attributes) ? element.className = attributes.join(" ") : goog.dom.setProperties(element, attributes));
   2 < args.length && goog.dom.append_(doc, element, args, 2);
   return element;
@@ -13315,7 +14400,7 @@ goog.dom.safeHtmlToNode = function(html) {
 };
 goog.dom.safeHtmlToNode_ = function(doc, html) {
   var tempDiv = goog.dom.createElement_(doc, goog.dom.TagName.DIV);
-  goog.userAgent.IE ? (goog.dom.safe.setInnerHtml(tempDiv, goog.html.SafeHtml.concat(goog.html.SafeHtml.BR, html)), tempDiv.removeChild(goog.asserts.assert(tempDiv.firstChild))) : goog.dom.safe.setInnerHtml(tempDiv, html);
+  goog.userAgent.IE ? (goog.dom.safe.setInnerHtml(tempDiv, module$contents$goog$html$SafeHtml_SafeHtml.concat(module$contents$goog$html$SafeHtml_SafeHtml.BR, html)), tempDiv.removeChild(goog.asserts.assert(tempDiv.firstChild))) : goog.dom.safe.setInnerHtml(tempDiv, html);
   return goog.dom.childrenToNode_(doc, tempDiv);
 };
 goog.dom.childrenToNode_ = function(doc, tempDiv) {
@@ -13419,7 +14504,7 @@ goog.dom.flattenElement = function(element) {
   }
 };
 goog.dom.getChildren = function(element) {
-  return goog.dom.BrowserFeature.CAN_USE_CHILDREN_ATTRIBUTE && void 0 != element.children ? element.children : module$contents$goog$array_filter(element.childNodes, function(node) {
+  return void 0 != element.children ? element.children : Array.prototype.filter.call(element.childNodes, function(node) {
     return node.nodeType == goog.dom.NodeType.ELEMENT;
   });
 };
@@ -13595,21 +14680,17 @@ goog.dom.setTextContent = function(node, text) {
   goog.asserts.assert(null != node, "goog.dom.setTextContent expects a non-null value for node");
   if ("textContent" in node) {
     node.textContent = text;
-  } else {
-    if (node.nodeType == goog.dom.NodeType.TEXT) {
-      node.data = String(text);
-    } else {
-      if (node.firstChild && node.firstChild.nodeType == goog.dom.NodeType.TEXT) {
-        for (; node.lastChild != node.firstChild;) {
-          node.removeChild(goog.asserts.assert(node.lastChild));
-        }
-        node.firstChild.data = String(text);
-      } else {
-        goog.dom.removeChildren(node);
-        var doc = goog.dom.getOwnerDocument(node);
-        node.appendChild(doc.createTextNode(String(text)));
-      }
+  } else if (node.nodeType == goog.dom.NodeType.TEXT) {
+    node.data = String(text);
+  } else if (node.firstChild && node.firstChild.nodeType == goog.dom.NodeType.TEXT) {
+    for (; node.lastChild != node.firstChild;) {
+      node.removeChild(goog.asserts.assert(node.lastChild));
     }
+    node.firstChild.data = String(text);
+  } else {
+    goog.dom.removeChildren(node);
+    var doc = goog.dom.getOwnerDocument(node);
+    node.appendChild(doc.createTextNode(String(text)));
   }
 };
 goog.dom.getOuterHtml = function(element) {
@@ -13685,10 +14766,6 @@ goog.dom.isFocusable = function(element) {
   return (focusable = goog.dom.nativelySupportsFocus_(element) ? !element.disabled && (!goog.dom.hasSpecifiedTabIndex_(element) || goog.dom.isTabIndexFocusable_(element)) : goog.dom.isFocusableTabIndex(element)) && goog.userAgent.IE ? goog.dom.hasNonZeroBoundingRect_(element) : focusable;
 };
 goog.dom.hasSpecifiedTabIndex_ = function(element) {
-  if (goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("9")) {
-    var attrNode = element.getAttributeNode("tabindex");
-    return null != attrNode && attrNode.specified;
-  }
   return element.hasAttribute("tabindex");
 };
 goog.dom.isTabIndexFocusable_ = function(element) {
@@ -13703,16 +14780,12 @@ goog.dom.hasNonZeroBoundingRect_ = function(element) {
   return null != rect && 0 < rect.height && 0 < rect.width;
 };
 goog.dom.getTextContent = function(node) {
-  if (goog.dom.BrowserFeature.CAN_USE_INNER_TEXT && null !== node && "innerText" in node) {
-    var textContent = goog.string.canonicalizeNewlines(node.innerText);
-  } else {
-    var buf = [];
-    goog.dom.getTextContent_(node, buf, !0);
-    textContent = buf.join("");
-  }
+  var buf = [];
+  goog.dom.getTextContent_(node, buf, !0);
+  var textContent = buf.join("");
   textContent = textContent.replace(/ \xAD /g, " ").replace(/\xAD/g, "");
   textContent = textContent.replace(/\u200B/g, "");
-  goog.dom.BrowserFeature.CAN_USE_INNER_TEXT || (textContent = textContent.replace(/ +/g, " "));
+  textContent = textContent.replace(/ +/g, " ");
   " " != textContent && (textContent = textContent.replace(/^\s*/, ""));
   return textContent;
 };
@@ -13725,13 +14798,11 @@ goog.dom.getTextContent_ = function(node, buf, normalizeWhitespace) {
   if (!(node.nodeName in goog.dom.TAGS_TO_IGNORE_)) {
     if (node.nodeType == goog.dom.NodeType.TEXT) {
       normalizeWhitespace ? buf.push(String(node.nodeValue).replace(/(\r\n|\r|\n)/g, "")) : buf.push(node.nodeValue);
+    } else if (node.nodeName in goog.dom.PREDEFINED_TAG_VALUES_) {
+      buf.push(goog.dom.PREDEFINED_TAG_VALUES_[node.nodeName]);
     } else {
-      if (node.nodeName in goog.dom.PREDEFINED_TAG_VALUES_) {
-        buf.push(goog.dom.PREDEFINED_TAG_VALUES_[node.nodeName]);
-      } else {
-        for (var child = node.firstChild; child;) {
-          goog.dom.getTextContent_(child, buf, normalizeWhitespace), child = child.nextSibling;
-        }
+      for (var child = node.firstChild; child;) {
+        goog.dom.getTextContent_(child, buf, normalizeWhitespace), child = child.nextSibling;
       }
     }
   }
@@ -13754,13 +14825,11 @@ goog.dom.getNodeAtOffset = function(parent, offset, opt_result) {
       if (cur.nodeType == goog.dom.NodeType.TEXT) {
         var text = cur.nodeValue.replace(/(\r\n|\r|\n)/g, "").replace(/ +/g, " ");
         pos += text.length;
+      } else if (cur.nodeName in goog.dom.PREDEFINED_TAG_VALUES_) {
+        pos += goog.dom.PREDEFINED_TAG_VALUES_[cur.nodeName].length;
       } else {
-        if (cur.nodeName in goog.dom.PREDEFINED_TAG_VALUES_) {
-          pos += goog.dom.PREDEFINED_TAG_VALUES_[cur.nodeName].length;
-        } else {
-          for (var i = cur.childNodes.length - 1; 0 <= i; i--) {
-            stack.push(cur.childNodes[i]);
-          }
+        for (var i = cur.childNodes.length - 1; 0 <= i; i--) {
+          stack.push(cur.childNodes[i]);
         }
       }
     }
@@ -13943,14 +15012,14 @@ goog.async.nextTick = function(callback, opt_context, opt_useSetImmediate) {
   var cb = callback;
   opt_context && (cb = goog.bind(callback, opt_context));
   cb = goog.async.nextTick.wrapCallback_(cb);
-  "function" === typeof goog.global.setImmediate && (opt_useSetImmediate || goog.async.nextTick.useSetImmediate_()) ? goog.global.setImmediate(cb) : (goog.async.nextTick.setImmediate_ || (goog.async.nextTick.setImmediate_ = goog.async.nextTick.getSetImmediateEmulator_()), goog.async.nextTick.setImmediate_(cb));
+  "function" === typeof goog.global.setImmediate && (opt_useSetImmediate || goog.async.nextTick.useSetImmediate_()) ? goog.global.setImmediate(cb) : (goog.async.nextTick.nextTickImpl || (goog.async.nextTick.nextTickImpl = goog.async.nextTick.getNextTickImpl_()), goog.async.nextTick.nextTickImpl(cb));
 };
 goog.async.nextTick.useSetImmediate_ = function() {
-  return goog.global.Window && goog.global.Window.prototype && !goog.labs.userAgent.browser.isEdge() && goog.global.Window.prototype.setImmediate == goog.global.setImmediate ? !1 : !0;
+  return goog.global.Window && goog.global.Window.prototype && !module$contents$goog$labs$userAgent$browser_matchEdgeHtml() && goog.global.Window.prototype.setImmediate == goog.global.setImmediate ? !1 : !0;
 };
-goog.async.nextTick.getSetImmediateEmulator_ = function() {
+goog.async.nextTick.getNextTickImpl_ = function() {
   var Channel = goog.global.MessageChannel;
-  "undefined" === typeof Channel && "undefined" !== typeof window && window.postMessage && window.addEventListener && !goog.labs.userAgent.engine.isPresto() && (Channel = function() {
+  "undefined" === typeof Channel && "undefined" !== typeof window && window.postMessage && window.addEventListener && !module$contents$goog$labs$userAgent$engine_isPresto() && (Channel = function() {
     var iframe = goog.dom.createElement(goog.dom.TagName.IFRAME);
     iframe.style.display = "none";
     document.documentElement.appendChild(iframe);
@@ -13968,8 +15037,8 @@ goog.async.nextTick.getSetImmediateEmulator_ = function() {
       win.postMessage(message, origin);
     }};
   });
-  if ("undefined" !== typeof Channel && !goog.labs.userAgent.browser.isIE()) {
-    var channel = new Channel, head = {}, tail = head;
+  if ("undefined" !== typeof Channel && !module$contents$goog$labs$userAgent$browser_matchIE()) {
+    var channel = new Channel(), head = {}, tail = head;
     channel.port1.onmessage = function() {
       if (void 0 !== head.next) {
         head = head.next;
@@ -14019,8 +15088,8 @@ module$contents$goog$async$WorkQueue_WorkQueue.prototype.getUnusedItem_ = functi
   return module$contents$goog$async$WorkQueue_WorkQueue.freelist_.get();
 };
 module$contents$goog$async$WorkQueue_WorkQueue.DEFAULT_MAX_UNUSED = 100;
-module$contents$goog$async$WorkQueue_WorkQueue.freelist_ = new goog.async.FreeList(function() {
-  return new module$contents$goog$async$WorkQueue_WorkItem;
+module$contents$goog$async$WorkQueue_WorkQueue.freelist_ = new module$contents$goog$async$FreeList_FreeList(function() {
+  return new module$contents$goog$async$WorkQueue_WorkItem();
 }, function(item) {
   return item.reset();
 }, module$contents$goog$async$WorkQueue_WorkQueue.DEFAULT_MAX_UNUSED);
@@ -14037,68 +15106,69 @@ module$contents$goog$async$WorkQueue_WorkItem.prototype.reset = function() {
 };
 goog.async.WorkQueue = module$contents$goog$async$WorkQueue_WorkQueue;
 goog.ASSUME_NATIVE_PROMISE = !1;
-goog.async.run = function(callback, opt_context) {
-  goog.async.run.schedule_ || goog.async.run.initializeRunner_();
-  goog.async.run.workQueueScheduled_ || (goog.async.run.schedule_(), goog.async.run.workQueueScheduled_ = !0);
-  goog.async.run.workQueue_.add(callback, opt_context);
-};
-goog.async.run.initializeRunner_ = function() {
+var module$contents$goog$async$run_schedule, module$contents$goog$async$run_workQueueScheduled = !1, module$contents$goog$async$run_workQueue = new module$contents$goog$async$WorkQueue_WorkQueue(), module$contents$goog$async$run_run = function(callback, context) {
+  module$contents$goog$async$run_schedule || module$contents$goog$async$run_initializeRunner();
+  module$contents$goog$async$run_workQueueScheduled || (module$contents$goog$async$run_schedule(), module$contents$goog$async$run_workQueueScheduled = !0);
+  module$contents$goog$async$run_workQueue.add(callback, context);
+}, module$contents$goog$async$run_initializeRunner = function() {
   if (goog.ASSUME_NATIVE_PROMISE || goog.global.Promise && goog.global.Promise.resolve) {
     var promise = goog.global.Promise.resolve(void 0);
-    goog.async.run.schedule_ = function() {
-      promise.then(goog.async.run.processWorkQueue);
+    module$contents$goog$async$run_schedule = function() {
+      promise.then(module$contents$goog$async$run_run.processWorkQueue);
     };
   } else {
-    goog.async.run.schedule_ = function() {
-      goog.async.nextTick(goog.async.run.processWorkQueue);
+    module$contents$goog$async$run_schedule = function() {
+      (0,goog.async.nextTick)(module$contents$goog$async$run_run.processWorkQueue);
     };
   }
 };
-goog.async.run.forceNextTick = function(opt_realSetTimeout) {
-  goog.async.run.schedule_ = function() {
-    goog.async.nextTick(goog.async.run.processWorkQueue);
-    opt_realSetTimeout && opt_realSetTimeout(goog.async.run.processWorkQueue);
+module$contents$goog$async$run_run.forceNextTick = function(realSetTimeout) {
+  module$contents$goog$async$run_schedule = function() {
+    (0,goog.async.nextTick)(module$contents$goog$async$run_run.processWorkQueue);
+    realSetTimeout && realSetTimeout(module$contents$goog$async$run_run.processWorkQueue);
   };
 };
-goog.async.run.workQueueScheduled_ = !1;
-goog.async.run.workQueue_ = new module$contents$goog$async$WorkQueue_WorkQueue;
-goog.DEBUG && (goog.async.run.resetQueue = function() {
-  goog.async.run.workQueueScheduled_ = !1;
-  goog.async.run.workQueue_ = new module$contents$goog$async$WorkQueue_WorkQueue;
+goog.DEBUG && (module$contents$goog$async$run_run.resetQueue = function() {
+  module$contents$goog$async$run_workQueueScheduled = !1;
+  module$contents$goog$async$run_workQueue = new module$contents$goog$async$WorkQueue_WorkQueue();
+}, module$contents$goog$async$run_run.resetSchedulerForTest = function() {
+  module$contents$goog$async$run_initializeRunner();
 });
-goog.async.run.processWorkQueue = function() {
-  for (var item = null; item = goog.async.run.workQueue_.remove();) {
+module$contents$goog$async$run_run.processWorkQueue = function() {
+  for (var item = null; item = module$contents$goog$async$run_workQueue.remove();) {
     try {
       item.fn.call(item.scope);
     } catch (e) {
       module$contents$goog$async$throwException_throwException(e);
     }
-    goog.async.run.workQueue_.returnUnused(item);
+    module$contents$goog$async$run_workQueue.returnUnused(item);
   }
-  goog.async.run.workQueueScheduled_ = !1;
+  module$contents$goog$async$run_workQueueScheduled = !1;
 };
+goog.async.run = module$contents$goog$async$run_run;
 goog.promise = {};
 goog.promise.Resolver = function() {
 };
-goog.Thenable = function() {
+function module$contents$goog$Thenable_Thenable() {
+}
+module$contents$goog$Thenable_Thenable.prototype.then = function(opt_onFulfilled, opt_onRejected, opt_context) {
 };
-goog.Thenable.prototype.then = function(opt_onFulfilled, opt_onRejected, opt_context) {
+module$contents$goog$Thenable_Thenable.IMPLEMENTED_BY_PROP = "$goog_Thenable";
+module$contents$goog$Thenable_Thenable.addImplementation = function(ctor) {
+  ctor.prototype[module$contents$goog$Thenable_Thenable.IMPLEMENTED_BY_PROP] = !0;
 };
-goog.Thenable.IMPLEMENTED_BY_PROP = "$goog_Thenable";
-goog.Thenable.addImplementation = function(ctor) {
-  ctor.prototype[goog.Thenable.IMPLEMENTED_BY_PROP] = !0;
-};
-goog.Thenable.isImplementedBy = function(object) {
+module$contents$goog$Thenable_Thenable.isImplementedBy = function(object) {
   if (!object) {
     return !1;
   }
   try {
-    return !!object[goog.Thenable.IMPLEMENTED_BY_PROP];
+    return !!object[module$contents$goog$Thenable_Thenable.IMPLEMENTED_BY_PROP];
     return !!object.$goog_Thenable;
   } catch (e) {
     return !1;
   }
 };
+goog.Thenable = module$contents$goog$Thenable_Thenable;
 goog.Promise = function(resolver, opt_context) {
   this.state_ = goog.Promise.State_.PENDING;
   this.result_ = void 0;
@@ -14106,7 +15176,7 @@ goog.Promise = function(resolver, opt_context) {
   this.executing_ = !1;
   0 < goog.Promise.UNHANDLED_REJECTION_DELAY ? this.unhandledRejectionId_ = 0 : 0 == goog.Promise.UNHANDLED_REJECTION_DELAY && (this.hadUnhandledRejection_ = !1);
   goog.Promise.LONG_STACK_TRACES && (this.stack_ = [], this.addStackTrace_(Error("created")), this.currentStep_ = 0);
-  if (resolver != goog.nullFunction) {
+  if (resolver != goog.functions.UNDEFINED) {
     try {
       var self = this;
       resolver.call(opt_context, function(value) {
@@ -14140,8 +15210,8 @@ goog.Promise.CallbackEntry_.prototype.reset = function() {
   this.always = !1;
 };
 goog.Promise.DEFAULT_MAX_UNUSED = 100;
-goog.Promise.freelist_ = new goog.async.FreeList(function() {
-  return new goog.Promise.CallbackEntry_;
+goog.Promise.freelist_ = new module$contents$goog$async$FreeList_FreeList(function() {
+  return new goog.Promise.CallbackEntry_();
 }, function(item) {
   item.reset();
 }, goog.Promise.DEFAULT_MAX_UNUSED);
@@ -14159,7 +15229,7 @@ goog.Promise.resolve = function(opt_value) {
   if (opt_value instanceof goog.Promise) {
     return opt_value;
   }
-  var promise = new goog.Promise(goog.nullFunction);
+  var promise = new goog.Promise(goog.functions.UNDEFINED);
   promise.resolve_(goog.Promise.State_.FULFILLED, opt_value);
   return promise;
 };
@@ -14169,7 +15239,7 @@ goog.Promise.reject = function(opt_reason) {
   });
 };
 goog.Promise.resolveThen_ = function(value, onFulfilled, onRejected) {
-  goog.Promise.maybeThen_(value, onFulfilled, onRejected, null) || goog.async.run(goog.partial(onFulfilled, value));
+  goog.Promise.maybeThen_(value, onFulfilled, onRejected, null) || module$contents$goog$async$run_run(goog.partial(onFulfilled, value));
 };
 goog.Promise.race = function(promises) {
   return new goog.Promise(function(resolve, reject) {
@@ -14244,12 +15314,12 @@ goog.Promise.prototype.then = function(opt_onFulfilled, opt_onRejected, opt_cont
   goog.Promise.LONG_STACK_TRACES && this.addStackTrace_(Error("then"));
   return this.addChildPromise_("function" === typeof opt_onFulfilled ? opt_onFulfilled : null, "function" === typeof opt_onRejected ? opt_onRejected : null, opt_context);
 };
-goog.Thenable.addImplementation(goog.Promise);
+module$contents$goog$Thenable_Thenable.addImplementation(goog.Promise);
 goog.Promise.prototype.thenVoid = function(opt_onFulfilled, opt_onRejected, opt_context) {
   null != opt_onFulfilled && goog.asserts.assertFunction(opt_onFulfilled, "opt_onFulfilled should be a function.");
   null != opt_onRejected && goog.asserts.assertFunction(opt_onRejected, "opt_onRejected should be a function. Did you pass opt_context as the second argument instead of the third?");
   goog.Promise.LONG_STACK_TRACES && this.addStackTrace_(Error("then"));
-  this.addCallbackEntry_(goog.Promise.getCallbackEntry_(opt_onFulfilled || goog.nullFunction, opt_onRejected || null, opt_context));
+  this.addCallbackEntry_(goog.Promise.getCallbackEntry_(opt_onFulfilled || goog.functions.UNDEFINED, opt_onRejected || null, opt_context));
 };
 goog.Promise.prototype.thenAlways = function(onSettled, opt_context) {
   goog.Promise.LONG_STACK_TRACES && this.addStackTrace_(Error("thenAlways"));
@@ -14262,10 +15332,11 @@ goog.Promise.prototype.thenCatch = function(onRejected, opt_context) {
   goog.Promise.LONG_STACK_TRACES && this.addStackTrace_(Error("thenCatch"));
   return this.addChildPromise_(null, onRejected, opt_context);
 };
+goog.Promise.prototype.catch = goog.Promise.prototype.thenCatch;
 goog.Promise.prototype.cancel = function(opt_message) {
   if (this.state_ == goog.Promise.State_.PENDING) {
     var err = new goog.Promise.CancellationError(opt_message);
-    goog.async.run(function() {
+    module$contents$goog$async$run_run(function() {
       this.cancelInternal_(err);
     }, this);
   }
@@ -14292,16 +15363,16 @@ goog.Promise.prototype.addChildPromise_ = function(onFulfilled, onRejected, opt_
       try {
         var result = onFulfilled.call(opt_context, value);
         resolve(result);
-      } catch (err$33) {
-        reject(err$33);
+      } catch (err$47) {
+        reject(err$47);
       }
     } : resolve;
     callbackEntry.onRejected = onRejected ? function(reason) {
       try {
         var result = onRejected.call(opt_context, reason);
         void 0 === result && reason instanceof goog.Promise.CancellationError ? reject(reason) : resolve(result);
-      } catch (err$34) {
-        reject(err$34);
+      } catch (err$48) {
+        reject(err$48);
       }
     } : reject;
   });
@@ -14327,7 +15398,7 @@ goog.Promise.maybeThen_ = function(value, onFulfilled, onRejected, context) {
   if (value instanceof goog.Promise) {
     return value.thenVoid(onFulfilled, onRejected, context), !0;
   }
-  if (goog.Thenable.isImplementedBy(value)) {
+  if (module$contents$goog$Thenable_Thenable.isImplementedBy(value)) {
     return value.then(onFulfilled, onRejected, context), !0;
   }
   if (goog.isObject(value)) {
@@ -14355,7 +15426,7 @@ goog.Promise.tryThen_ = function(thenable, then, onFulfilled, onRejected, contex
   }
 };
 goog.Promise.prototype.scheduleCallbacks_ = function() {
-  this.executing_ || (this.executing_ = !0, goog.async.run(this.executeCallbacks_, this));
+  this.executing_ || (this.executing_ = !0, module$contents$goog$async$run_run(this.executeCallbacks_, this));
 };
 goog.Promise.prototype.hasEntry_ = function() {
   return !!this.callbackEntries_;
@@ -14391,8 +15462,8 @@ goog.Promise.prototype.executeCallback_ = function(callbackEntry, state, result)
   } else {
     try {
       callbackEntry.always ? callbackEntry.onFulfilled.call(callbackEntry.context) : goog.Promise.invokeCallback_(callbackEntry, state, result);
-    } catch (err$35) {
-      goog.Promise.handleRejection_.call(null, err$35);
+    } catch (err$49) {
+      goog.Promise.handleRejection_.call(null, err$49);
     }
   }
   goog.Promise.returnEntry_(callbackEntry);
@@ -14423,11 +15494,9 @@ goog.Promise.prototype.removeUnhandledRejection_ = function() {
     for (var p = this; p && p.unhandledRejectionId_; p = p.parent_) {
       goog.global.clearTimeout(p.unhandledRejectionId_), p.unhandledRejectionId_ = 0;
     }
-  } else {
-    if (0 == goog.Promise.UNHANDLED_REJECTION_DELAY) {
-      for (p = this; p && p.hadUnhandledRejection_; p = p.parent_) {
-        p.hadUnhandledRejection_ = !1;
-      }
+  } else if (0 == goog.Promise.UNHANDLED_REJECTION_DELAY) {
+    for (p = this; p && p.hadUnhandledRejection_; p = p.parent_) {
+      p.hadUnhandledRejection_ = !1;
     }
   }
 };
@@ -14435,7 +15504,7 @@ goog.Promise.addUnhandledRejection_ = function(promise, reason) {
   0 < goog.Promise.UNHANDLED_REJECTION_DELAY ? promise.unhandledRejectionId_ = goog.global.setTimeout(function() {
     promise.appendLongStack_(reason);
     goog.Promise.handleRejection_.call(null, reason);
-  }, goog.Promise.UNHANDLED_REJECTION_DELAY) : 0 == goog.Promise.UNHANDLED_REJECTION_DELAY && (promise.hadUnhandledRejection_ = !0, goog.async.run(function() {
+  }, goog.Promise.UNHANDLED_REJECTION_DELAY) : 0 == goog.Promise.UNHANDLED_REJECTION_DELAY && (promise.hadUnhandledRejection_ = !0, module$contents$goog$async$run_run(function() {
     promise.hadUnhandledRejection_ && (promise.appendLongStack_(reason), goog.Promise.handleRejection_.call(null, reason));
   }));
 };
@@ -14466,7 +15535,7 @@ goog.Timer.MAX_TIMEOUT_ = 2147483647;
 goog.Timer.INVALID_TIMEOUT_ID_ = -1;
 goog.Timer.prototype.enabled = !1;
 goog.Timer.defaultTimerObject = goog.global;
-goog.Timer.intervalScale = 0.8;
+goog.Timer.intervalScale = .8;
 goog.Timer.prototype.timer_ = null;
 goog.Timer.prototype.getInterval = function() {
   return this.interval_;
@@ -14501,12 +15570,10 @@ goog.Timer.TICK = "tick";
 goog.Timer.callOnce = function(listener, opt_delay, opt_handler) {
   if ("function" === typeof listener) {
     opt_handler && (listener = goog.bind(listener, opt_handler));
+  } else if (listener && "function" == typeof listener.handleEvent) {
+    listener = goog.bind(listener.handleEvent, listener);
   } else {
-    if (listener && "function" == typeof listener.handleEvent) {
-      listener = goog.bind(listener.handleEvent, listener);
-    } else {
-      throw Error("Invalid listener argument");
-    }
+    throw Error("Invalid listener argument");
   }
   return Number(opt_delay) > goog.Timer.MAX_TIMEOUT_ ? goog.Timer.INVALID_TIMEOUT_ID_ : goog.Timer.defaultTimerObject.setTimeout(listener, opt_delay || 0);
 };
@@ -14567,10 +15634,15 @@ module$contents$goog$async$Throttle_Throttle.prototype.doAction_ = function() {
   this.listener_.apply(null, args);
 };
 goog.async.Throttle = module$contents$goog$async$Throttle_Throttle;
+goog.promise.deferredBase = {};
+function module$contents$goog$promise$deferredBase_DeferredBaseDoNotUse() {
+}
+goog.promise.deferredBase.DeferredBaseDoNotUse = module$contents$goog$promise$deferredBase_DeferredBaseDoNotUse;
 /*
- Portions of this code are from MochiKit, received by
- The Closure Authors under the MIT license. All other code is Copyright
- 2005-2009 The Closure Authors. All Rights Reserved.
+
+ Copyright 2005, 2007 Bob Ippolito. All Rights Reserved.
+ Copyright The Closure Library Authors.
+ SPDX-License-Identifier: MIT
 */
 goog.async.Deferred = function(opt_onCancelFunction, opt_defaultScope) {
   this.sequence_ = [];
@@ -14588,6 +15660,7 @@ goog.async.Deferred = function(opt_onCancelFunction, opt_defaultScope) {
     "string" == typeof target.stack && (this.constructorStack_ = target.stack.replace(/^[^\n]*\n/, ""));
   }
 };
+goog.inherits(goog.async.Deferred, module$contents$goog$promise$deferredBase_DeferredBaseDoNotUse);
 goog.async.Deferred.STRICT_ERRORS = !1;
 goog.async.Deferred.LONG_STACK_TRACES = !1;
 goog.async.Deferred.prototype.cancel = function(opt_deepCancel) {
@@ -14679,10 +15752,11 @@ goog.async.Deferred.prototype.then = function(opt_onFulfilled, opt_onRejected, o
   });
   this.addCallbacks(resolve, function(reason) {
     reason instanceof goog.async.Deferred.CanceledError ? promise.cancel() : reject(reason);
-  });
+    return goog.async.Deferred.CONVERTED_TO_PROMISE_;
+  }, this);
   return promise.then(opt_onFulfilled, opt_onRejected, opt_context);
 };
-goog.Thenable.addImplementation(goog.async.Deferred);
+module$contents$goog$Thenable_Thenable.addImplementation(goog.async.Deferred);
 goog.async.Deferred.prototype.chainDeferred = function(otherDeferred) {
   this.addCallbacks(otherDeferred.callback, otherDeferred.errback, otherDeferred);
   return this;
@@ -14693,7 +15767,7 @@ goog.async.Deferred.prototype.awaitDeferred = function(otherDeferred) {
   });
 };
 goog.async.Deferred.prototype.branch = function(opt_propagateCancel) {
-  var d = new goog.async.Deferred;
+  var d = new goog.async.Deferred();
   this.chainDeferred(d);
   opt_propagateCancel && (d.parent_ = this, this.branches_++);
   return d;
@@ -14712,16 +15786,19 @@ goog.async.Deferred.prototype.hasErrback_ = function() {
 goog.async.Deferred.prototype.getLastValueForMigration = function() {
   return this.hasFired() && !this.hadError_ ? this.result_ : void 0;
 };
+goog.async.Deferred.CONVERTED_TO_PROMISE_ = {};
 goog.async.Deferred.prototype.fire_ = function() {
   this.unhandledErrorId_ && this.hasFired() && this.hasErrback_() && (goog.async.Deferred.unscheduleError_(this.unhandledErrorId_), this.unhandledErrorId_ = 0);
   this.parent_ && (this.parent_.branches_--, delete this.parent_);
-  for (var res = this.result_, unhandledException = !1, isNewlyBlocked = !1; this.sequence_.length && !this.blocked_;) {
+  for (var res = this.result_, unhandledException = !1, isNewlyBlocked = !1, wasConvertedToPromise = !1; this.sequence_.length && !this.blocked_;) {
+    wasConvertedToPromise = !1;
     var sequenceEntry = this.sequence_.shift(), callback = sequenceEntry[0], errback = sequenceEntry[1], scope = sequenceEntry[2], f = this.hadError_ ? errback : callback;
     if (f) {
       try {
         var ret = f.call(scope || this.defaultScope_, res);
+        ret === goog.async.Deferred.CONVERTED_TO_PROMISE_ && (wasConvertedToPromise = !0, ret = void 0);
         void 0 !== ret && (this.hadError_ = this.hadError_ && (ret == res || this.isError(ret)), this.result_ = res = ret);
-        if (goog.Thenable.isImplementedBy(res) || "function" === typeof goog.global.Promise && res instanceof goog.global.Promise) {
+        if (module$contents$goog$Thenable_Thenable.isImplementedBy(res) || "function" === typeof goog.global.Promise && res instanceof goog.global.Promise) {
           this.blocked_ = isNewlyBlocked = !0;
         }
       } catch (ex) {
@@ -14734,17 +15811,17 @@ goog.async.Deferred.prototype.fire_ = function() {
     var onCallback = goog.bind(this.continue_, this, !0), onErrback = goog.bind(this.continue_, this, !1);
     res instanceof goog.async.Deferred ? (res.addCallbacks(onCallback, onErrback), res.blocking_ = !0) : res.then(onCallback, onErrback);
   } else {
-    !goog.async.Deferred.STRICT_ERRORS || !this.isError(res) || res instanceof goog.async.Deferred.CanceledError || (unhandledException = this.hadError_ = !0);
+    !goog.async.Deferred.STRICT_ERRORS || wasConvertedToPromise || !this.isError(res) || res instanceof goog.async.Deferred.CanceledError || (unhandledException = this.hadError_ = !0);
   }
   unhandledException && (this.unhandledErrorId_ = goog.async.Deferred.scheduleError_(res));
 };
 goog.async.Deferred.succeed = function(opt_result) {
-  var d = new goog.async.Deferred;
+  var d = new goog.async.Deferred();
   d.callback(opt_result);
   return d;
 };
 goog.async.Deferred.fromPromise = function(promise) {
-  var d = new goog.async.Deferred;
+  var d = new goog.async.Deferred();
   promise.then(function(value) {
     d.callback(value);
   }, function(error) {
@@ -14753,12 +15830,12 @@ goog.async.Deferred.fromPromise = function(promise) {
   return d;
 };
 goog.async.Deferred.fail = function(res) {
-  var d = new goog.async.Deferred;
+  var d = new goog.async.Deferred();
   d.errback(res);
   return d;
 };
 goog.async.Deferred.canceled = function() {
-  var d = new goog.async.Deferred;
+  var d = new goog.async.Deferred();
   d.cancel();
   return d;
 };
@@ -14811,8 +15888,9 @@ goog.async.Deferred.assertNoErrors = function() {
 };
 goog.net = {};
 goog.net.jsloader = {};
+goog.net.jsloader.Options = {};
 goog.net.jsloader.GLOBAL_VERIFY_OBJS_ = "closure_verification";
-goog.net.jsloader.DEFAULT_TIMEOUT = 5000;
+goog.net.jsloader.DEFAULT_TIMEOUT = 5E3;
 goog.net.jsloader.scriptsToLoad_ = [];
 goog.net.jsloader.safeLoadMany = function(trustedUris, opt_options) {
   if (!trustedUris.length) {
@@ -14871,7 +15949,7 @@ goog.net.jsloader.safeLoadAndVerify = function(trustedUri, verificationObjName, 
 };
 goog.net.jsloader.getScriptParentElement_ = function(doc) {
   var headElements = goog.dom.getElementsByTagName(goog.dom.TagName.HEAD, doc);
-  return !headElements || module$contents$goog$array_isEmpty(headElements) ? doc.documentElement : headElements[0];
+  return headElements && 0 !== headElements.length ? headElements[0] : doc.documentElement;
 };
 goog.net.jsloader.cancel_ = function() {
   if (this && this.script_) {
@@ -14881,14 +15959,17 @@ goog.net.jsloader.cancel_ = function() {
 };
 goog.net.jsloader.cleanup_ = function(scriptNode, removeScriptNode, opt_timeout) {
   null != opt_timeout && goog.global.clearTimeout(opt_timeout);
-  scriptNode.onload = goog.nullFunction;
-  scriptNode.onerror = goog.nullFunction;
-  scriptNode.onreadystatechange = goog.nullFunction;
+  scriptNode.onload = function() {
+  };
+  scriptNode.onerror = function() {
+  };
+  scriptNode.onreadystatechange = function() {
+  };
   removeScriptNode && window.setTimeout(function() {
     goog.dom.removeNode(scriptNode);
   }, 0);
 };
-goog.net.jsloader.ErrorCode = {LOAD_ERROR:0, TIMEOUT:1, VERIFY_ERROR:2, VERIFY_OBJECT_ALREADY_EXISTS:3, };
+goog.net.jsloader.ErrorCode = {LOAD_ERROR:0, TIMEOUT:1, VERIFY_ERROR:2, VERIFY_OBJECT_ALREADY_EXISTS:3,};
 goog.net.jsloader.Error = function(code, opt_message) {
   var msg = "Jsloader error (code #" + code + ")";
   opt_message && (msg += ": " + opt_message);
@@ -14897,22 +15978,22 @@ goog.net.jsloader.Error = function(code, opt_message) {
 };
 goog.inherits(goog.net.jsloader.Error, module$contents$goog$debug$Error_DebugError);
 goog.json = {};
+goog.json.Replacer = {};
+goog.json.Reviver = {};
 goog.json.USE_NATIVE_JSON = !1;
-goog.json.TRY_NATIVE_JSON = !0;
 goog.json.isValid = function(s) {
   return /^\s*$/.test(s) ? !1 : /^[\],:{}\s\u2028\u2029]*$/.test(s.replace(/\\["\\\/bfnrtu]/g, "@").replace(/(?:"[^"\\\n\r\u2028\u2029\x00-\x08\x0a-\x1f]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)[\s\u2028\u2029]*(?=:|,|]|}|$)/g, "]").replace(/(?:^|:|,)(?:[\s\u2028\u2029]*\[)+/g, ""));
 };
-goog.json.errorLogger_ = goog.nullFunction;
+goog.json.errorLogger_ = function() {
+};
 goog.json.setErrorLogger = function(errorLogger) {
   goog.json.errorLogger_ = errorLogger;
 };
 goog.json.parse = goog.json.USE_NATIVE_JSON ? goog.global.JSON.parse : function(s) {
-  if (goog.json.TRY_NATIVE_JSON) {
-    try {
-      return goog.global.JSON.parse(s);
-    } catch (ex) {
-      var error = ex;
-    }
+  try {
+    return goog.global.JSON.parse(s);
+  } catch (ex) {
+    var error = ex;
   }
   var o = String(s);
   if (goog.json.isValid(o)) {
@@ -14920,7 +16001,7 @@ goog.json.parse = goog.json.USE_NATIVE_JSON ? goog.global.JSON.parse : function(
       var result = eval("(" + o + ")");
       error && goog.json.errorLogger_("Invalid JSON: " + o, error);
       return result;
-    } catch (ex$36) {
+    } catch (ex$50) {
     }
   }
   throw Error("Invalid JSON string: " + o);
@@ -14970,12 +16051,12 @@ goog.json.Serializer.prototype.serializeInternal = function(object, sb) {
     }
   }
 };
-goog.json.Serializer.charToJsonCharCache_ = {'"':'\\"', "\\":"\\\\", "/":"\\/", "\b":"\\b", "\f":"\\f", "\n":"\\n", "\r":"\\r", "\t":"\\t", "\x0B":"\\u000b"};
+goog.json.Serializer.charToJsonCharCache_ = {'"':'\\"', "\\":"\\\\", "/":"\\/", "\b":"\\b", "\f":"\\f", "\n":"\\n", "\r":"\\r", "\t":"\\t", "\v":"\\u000b"};
 goog.json.Serializer.charsToReplace_ = /\uffff/.test("\uffff") ? /[\\"\x00-\x1f\x7f-\uffff]/g : /[\\"\x00-\x1f\x7f-\xff]/g;
 goog.json.Serializer.prototype.serializeString_ = function(s, sb) {
   sb.push('"', s.replace(goog.json.Serializer.charsToReplace_, function(c) {
     var rv = goog.json.Serializer.charToJsonCharCache_[c];
-    rv || (rv = "\\u" + (c.charCodeAt(0) | 65536).toString(16).substr(1), goog.json.Serializer.charToJsonCharCache_[c] = rv);
+    rv || (rv = "\\u" + (c.charCodeAt(0) | 65536).toString(16).slice(1), goog.json.Serializer.charToJsonCharCache_[c] = rv);
     return rv;
   }), '"');
 };
@@ -15041,7 +16122,7 @@ third_party$javascript$closure$log$log$classdecl$var0.prototype.toString = funct
 goog.log.Level = third_party$javascript$closure$log$log$classdecl$var0;
 goog.log.Level.OFF = new goog.log.Level("OFF", Infinity);
 goog.log.Level.SHOUT = new goog.log.Level("SHOUT", 1200);
-goog.log.Level.SEVERE = new goog.log.Level("SEVERE", 1000);
+goog.log.Level.SEVERE = new goog.log.Level("SEVERE", 1E3);
 goog.log.Level.WARNING = new goog.log.Level("WARNING", 900);
 goog.log.Level.INFO = new goog.log.Level("INFO", 800);
 goog.log.Level.CONFIG = new goog.log.Level("CONFIG", 700);
@@ -15128,7 +16209,7 @@ goog.log.LogBuffer.isBufferingEnabled = function() {
   return goog.log.LogBuffer.getInstance().isBufferingEnabled();
 };
 var third_party$javascript$closure$log$log$classdecl$var3 = function(level, msg, loggerName, time, sequenceNumber) {
-  this.exception_ = null;
+  this.exception_ = void 0;
   this.reset(level || goog.log.Level.OFF, msg, loggerName, time, sequenceNumber);
 };
 third_party$javascript$closure$log$log$classdecl$var3.prototype.reset = function(level, msg, loggerName, time, sequenceNumber) {
@@ -15136,7 +16217,7 @@ third_party$javascript$closure$log$log$classdecl$var3.prototype.reset = function
   this.level_ = level;
   this.msg_ = msg;
   this.loggerName_ = loggerName;
-  this.exception_ = null;
+  this.exception_ = void 0;
   this.sequenceNumber_ = "number" === typeof sequenceNumber ? sequenceNumber : goog.log.LogRecord.nextSequenceNumber_;
 };
 third_party$javascript$closure$log$log$classdecl$var3.prototype.getLoggerName = function() {
@@ -15212,7 +16293,7 @@ third_party$javascript$closure$log$log$classdecl$var5.prototype.getLogRegistryEn
   if (entry) {
     return void 0 !== level && (entry.level = level), entry;
   }
-  var lastDotIndex = name.lastIndexOf("."), parentLogRegistryEntry = this.getLogRegistryEntry(name.substr(0, lastDotIndex)), logRegistryEntry = new goog.log.LogRegistryEntry_(name, parentLogRegistryEntry);
+  var lastDotIndex = name.lastIndexOf("."), parentName = name.slice(0, Math.max(lastDotIndex, 0)), parentLogRegistryEntry = this.getLogRegistryEntry(parentName), logRegistryEntry = new goog.log.LogRegistryEntry_(name, parentLogRegistryEntry);
   this.entries[name] = logRegistryEntry;
   parentLogRegistryEntry.children.push(logRegistryEntry);
   void 0 !== level && (logRegistryEntry.level = level);
@@ -15226,7 +16307,7 @@ third_party$javascript$closure$log$log$classdecl$var5.prototype.getAllLoggers = 
 };
 goog.log.LogRegistry_ = third_party$javascript$closure$log$log$classdecl$var5;
 goog.log.LogRegistry_.getInstance = function() {
-  goog.log.LogRegistry_.instance_ || (goog.log.LogRegistry_.instance_ = new goog.log.LogRegistry_);
+  goog.log.LogRegistry_.instance_ || (goog.log.LogRegistry_.instance_ = new goog.log.LogRegistry_());
   return goog.log.LogRegistry_.instance_;
 };
 goog.log.getLogger = function(name, level) {
@@ -15264,7 +16345,7 @@ goog.log.getAllLoggers = function() {
 };
 goog.log.getLogRecord = function(logger, level, msg, exception) {
   var logRecord = goog.log.LogBuffer.getInstance().addRecord(level || goog.log.Level.OFF, msg, logger.getName());
-  exception && logRecord.setException(exception);
+  logRecord.setException(exception);
   return logRecord;
 };
 goog.log.publishLogRecord = function(logger, logRecord) {
@@ -15276,7 +16357,7 @@ goog.log.log = function(logger, level, msg, exception) {
     var loggerEntry = goog.log.LogRegistry_.getInstance().getLogRegistryEntry(logger.getName());
     "function" === typeof msg && (msg = msg());
     var logRecord = goog.log.LogBuffer.getInstance().addRecord(level, msg, logger.getName());
-    exception && logRecord.setException(exception);
+    logRecord.setException(exception);
     loggerEntry.publish(logRecord);
   }
 };
@@ -15292,7 +16373,7 @@ goog.log.info = function(logger, msg, exception) {
 goog.log.fine = function(logger, msg, exception) {
   goog.log.ENABLED && logger && goog.log.log(logger, goog.log.Level.FINE, msg, exception);
 };
-goog.net.ErrorCode = {NO_ERROR:0, ACCESS_DENIED:1, FILE_NOT_FOUND:2, FF_SILENT_ERROR:3, CUSTOM_ERROR:4, EXCEPTION:5, HTTP_ERROR:6, ABORT:7, TIMEOUT:8, OFFLINE:9, };
+goog.net.ErrorCode = {NO_ERROR:0, ACCESS_DENIED:1, FILE_NOT_FOUND:2, FF_SILENT_ERROR:3, CUSTOM_ERROR:4, EXCEPTION:5, HTTP_ERROR:6, ABORT:7, TIMEOUT:8, OFFLINE:9,};
 goog.net.ErrorCode.getDebugMessage = function(errorCode) {
   switch(errorCode) {
     case goog.net.ErrorCode.NO_ERROR:
@@ -15319,10 +16400,10 @@ goog.net.ErrorCode.getDebugMessage = function(errorCode) {
       return "Unrecognized error code";
   }
 };
-goog.net.EventType = {COMPLETE:"complete", SUCCESS:"success", ERROR:"error", ABORT:"abort", READY:"ready", READY_STATE_CHANGE:"readystatechange", TIMEOUT:"timeout", INCREMENTAL_DATA:"incrementaldata", PROGRESS:"progress", DOWNLOAD_PROGRESS:"downloadprogress", UPLOAD_PROGRESS:"uploadprogress", };
+goog.net.EventType = {COMPLETE:"complete", SUCCESS:"success", ERROR:"error", ABORT:"abort", READY:"ready", READY_STATE_CHANGE:"readystatechange", TIMEOUT:"timeout", INCREMENTAL_DATA:"incrementaldata", PROGRESS:"progress", DOWNLOAD_PROGRESS:"downloadprogress", UPLOAD_PROGRESS:"uploadprogress",};
 goog.net.HttpStatus = {CONTINUE:100, SWITCHING_PROTOCOLS:101, OK:200, CREATED:201, ACCEPTED:202, NON_AUTHORITATIVE_INFORMATION:203, NO_CONTENT:204, RESET_CONTENT:205, PARTIAL_CONTENT:206, MULTI_STATUS:207, MULTIPLE_CHOICES:300, MOVED_PERMANENTLY:301, FOUND:302, SEE_OTHER:303, NOT_MODIFIED:304, USE_PROXY:305, TEMPORARY_REDIRECT:307, PERMANENT_REDIRECT:308, BAD_REQUEST:400, UNAUTHORIZED:401, PAYMENT_REQUIRED:402, FORBIDDEN:403, NOT_FOUND:404, METHOD_NOT_ALLOWED:405, NOT_ACCEPTABLE:406, PROXY_AUTHENTICATION_REQUIRED:407, 
-REQUEST_TIMEOUT:408, CONFLICT:409, GONE:410, LENGTH_REQUIRED:411, PRECONDITION_FAILED:412, REQUEST_ENTITY_TOO_LARGE:413, REQUEST_URI_TOO_LONG:414, UNSUPPORTED_MEDIA_TYPE:415, REQUEST_RANGE_NOT_SATISFIABLE:416, EXPECTATION_FAILED:417, UNPROCESSABLE_ENTITY:422, LOCKED:423, FAILED_DEPENDENCY:424, PRECONDITION_REQUIRED:428, TOO_MANY_REQUESTS:429, REQUEST_HEADER_FIELDS_TOO_LARGE:431, INTERNAL_SERVER_ERROR:500, NOT_IMPLEMENTED:501, BAD_GATEWAY:502, SERVICE_UNAVAILABLE:503, GATEWAY_TIMEOUT:504, HTTP_VERSION_NOT_SUPPORTED:505, 
-INSUFFICIENT_STORAGE:507, NETWORK_AUTHENTICATION_REQUIRED:511, QUIRK_IE_NO_CONTENT:1223, };
+REQUEST_TIMEOUT:408, CONFLICT:409, GONE:410, LENGTH_REQUIRED:411, PRECONDITION_FAILED:412, REQUEST_ENTITY_TOO_LARGE:413, REQUEST_URI_TOO_LONG:414, UNSUPPORTED_MEDIA_TYPE:415, REQUEST_RANGE_NOT_SATISFIABLE:416, EXPECTATION_FAILED:417, UNPROCESSABLE_ENTITY:422, LOCKED:423, FAILED_DEPENDENCY:424, PRECONDITION_REQUIRED:428, TOO_MANY_REQUESTS:429, REQUEST_HEADER_FIELDS_TOO_LARGE:431, CLIENT_CLOSED_REQUEST:499, INTERNAL_SERVER_ERROR:500, NOT_IMPLEMENTED:501, BAD_GATEWAY:502, SERVICE_UNAVAILABLE:503, GATEWAY_TIMEOUT:504, 
+HTTP_VERSION_NOT_SUPPORTED:505, INSUFFICIENT_STORAGE:507, NETWORK_AUTHENTICATION_REQUIRED:511, QUIRK_IE_NO_CONTENT:1223,};
 goog.net.HttpStatus.isSuccess = function(status) {
   switch(status) {
     case goog.net.HttpStatus.OK:
@@ -15379,8 +16460,8 @@ goog.net.XmlHttpDefines.ASSUME_NATIVE_XHR = !1;
 goog.net.XmlHttp.getOptions = function() {
   return goog.net.XmlHttp.factory_.getOptions();
 };
-goog.net.XmlHttp.OptionType = {USE_NULL_FUNCTION:0, LOCAL_REQUEST_ERROR:1, };
-goog.net.XmlHttp.ReadyState = {UNINITIALIZED:0, LOADING:1, LOADED:2, INTERACTIVE:3, COMPLETE:4, };
+goog.net.XmlHttp.OptionType = {USE_NULL_FUNCTION:0, LOCAL_REQUEST_ERROR:1,};
+goog.net.XmlHttp.ReadyState = {UNINITIALIZED:0, LOADING:1, LOADED:2, INTERACTIVE:3, COMPLETE:4,};
 goog.net.XmlHttp.setFactory = function(factory, optionsFactory) {
   goog.net.XmlHttp.setGlobalFactory(new goog.net.WrapperXmlHttpFactory(goog.asserts.assert(factory), goog.asserts.assert(optionsFactory)));
 };
@@ -15392,7 +16473,7 @@ goog.net.DefaultXmlHttpFactory = function() {
 goog.inherits(goog.net.DefaultXmlHttpFactory, goog.net.XmlHttpFactory);
 goog.net.DefaultXmlHttpFactory.prototype.createInstance = function() {
   var progId = this.getProgId_();
-  return progId ? new ActiveXObject(progId) : new XMLHttpRequest;
+  return progId ? new ActiveXObject(progId) : new XMLHttpRequest();
 };
 goog.net.DefaultXmlHttpFactory.prototype.internalGetOptions = function() {
   var options = {};
@@ -15404,7 +16485,7 @@ goog.net.DefaultXmlHttpFactory.prototype.getProgId_ = function() {
     return "";
   }
   if (!this.ieProgId_ && "undefined" == typeof XMLHttpRequest && "undefined" != typeof ActiveXObject) {
-    for (var ACTIVE_X_IDENTS = ["MSXML2.XMLHTTP.6.0", "MSXML2.XMLHTTP.3.0", "MSXML2.XMLHTTP", "Microsoft.XMLHTTP", ], i = 0; i < ACTIVE_X_IDENTS.length; i++) {
+    for (var ACTIVE_X_IDENTS = ["MSXML2.XMLHTTP.6.0", "MSXML2.XMLHTTP.3.0", "MSXML2.XMLHTTP", "Microsoft.XMLHTTP",], i = 0; i < ACTIVE_X_IDENTS.length; i++) {
       var candidate = ACTIVE_X_IDENTS[i];
       try {
         return new ActiveXObject(candidate), this.ieProgId_ = candidate;
@@ -15415,10 +16496,10 @@ goog.net.DefaultXmlHttpFactory.prototype.getProgId_ = function() {
   }
   return this.ieProgId_;
 };
-goog.net.XmlHttp.setGlobalFactory(new goog.net.DefaultXmlHttpFactory);
+goog.net.XmlHttp.setGlobalFactory(new goog.net.DefaultXmlHttpFactory());
 goog.net.XhrIo = function(opt_xmlHttpFactory) {
   goog.events.EventTarget.call(this);
-  this.headers = new goog.structs.Map;
+  this.headers = new Map();
   this.xmlHttpFactory_ = opt_xmlHttpFactory || null;
   this.active_ = !1;
   this.xhrOptions_ = this.xhr_ = null;
@@ -15433,7 +16514,7 @@ goog.net.XhrIo = function(opt_xmlHttpFactory) {
   this.trustToken_ = null;
 };
 goog.inherits(goog.net.XhrIo, goog.events.EventTarget);
-goog.net.XhrIo.ResponseType = {DEFAULT:"", TEXT:"text", DOCUMENT:"document", BLOB:"blob", ARRAY_BUFFER:"arraybuffer", };
+goog.net.XhrIo.ResponseType = {DEFAULT:"", TEXT:"text", DOCUMENT:"document", BLOB:"blob", ARRAY_BUFFER:"arraybuffer",};
 goog.net.XhrIo.prototype.logger_ = goog.log.getLogger("goog.net.XhrIo");
 goog.net.XhrIo.CONTENT_TYPE_HEADER = "Content-Type";
 goog.net.XhrIo.CONTENT_TRANSFER_ENCODING = "Content-Transfer-Encoding";
@@ -15444,7 +16525,7 @@ goog.net.XhrIo.XHR2_TIMEOUT_ = "timeout";
 goog.net.XhrIo.XHR2_ON_TIMEOUT_ = "ontimeout";
 goog.net.XhrIo.sendInstances_ = [];
 goog.net.XhrIo.send = function(url, opt_callback, opt_method, opt_content, opt_headers, opt_timeoutInterval, opt_withCredentials) {
-  var x = new goog.net.XhrIo;
+  var x = new goog.net.XhrIo();
   goog.net.XhrIo.sendInstances_.push(x);
   opt_callback && x.listen(goog.net.EventType.COMPLETE, opt_callback);
   x.listenOnce(goog.net.EventType.READY, x.cleanupSend_);
@@ -15511,41 +16592,52 @@ goog.net.XhrIo.prototype.send = function(url, opt_method, opt_content, opt_heade
   }, this), this.xhr_.upload && (this.xhr_.upload.onprogress = goog.bind(this.onProgressHandler_, this)));
   try {
     goog.log.fine(this.logger_, this.formatMsg_("Opening Xhr")), this.inOpen_ = !0, this.xhr_.open(method, String(url), !0), this.inOpen_ = !1;
-  } catch (err$37) {
-    goog.log.fine(this.logger_, this.formatMsg_("Error opening Xhr: " + err$37.message));
-    this.error_(goog.net.ErrorCode.EXCEPTION, err$37);
+  } catch (err$51) {
+    goog.log.fine(this.logger_, this.formatMsg_("Error opening Xhr: " + err$51.message));
+    this.error_(goog.net.ErrorCode.EXCEPTION, err$51);
     return;
   }
-  var content = opt_content || "", headers = this.headers.clone();
-  opt_headers && goog.structs.forEach(opt_headers, function(value, key) {
-    headers.set(key, value);
-  });
-  var contentTypeKey = module$contents$goog$array_find(headers.getKeys(), goog.net.XhrIo.isContentTypeHeader_), contentIsFormData = goog.global.FormData && content instanceof goog.global.FormData;
+  var content = opt_content || "", headers = new Map(this.headers);
+  if (opt_headers) {
+    if (Object.getPrototypeOf(opt_headers) === Object.prototype) {
+      for (var key in opt_headers) {
+        headers.set(key, opt_headers[key]);
+      }
+    } else if ("function" === typeof opt_headers.keys && "function" === typeof opt_headers.get) {
+      for (var $jscomp$iter$19 = $jscomp.makeIterator(opt_headers.keys()), $jscomp$key$key = $jscomp$iter$19.next(); !$jscomp$key$key.done; $jscomp$key$key = $jscomp$iter$19.next()) {
+        var key$52 = $jscomp$key$key.value;
+        headers.set(key$52, opt_headers.get(key$52));
+      }
+    } else {
+      throw Error("Unknown input type for opt_headers: " + String(opt_headers));
+    }
+  }
+  var contentTypeKey = Array.from(headers.keys()).find(function(header) {
+    return goog.string.caseInsensitiveEquals(goog.net.XhrIo.CONTENT_TYPE_HEADER, header);
+  }), contentIsFormData = goog.global.FormData && content instanceof goog.global.FormData;
   !module$contents$goog$array_contains(goog.net.XhrIo.METHODS_WITH_FORM_DATA, method) || contentTypeKey || contentIsFormData || headers.set(goog.net.XhrIo.CONTENT_TYPE_HEADER, goog.net.XhrIo.FORM_CONTENT_TYPE);
-  headers.forEach(function(value, key) {
-    this.xhr_.setRequestHeader(key, value);
-  }, this);
+  for (var $jscomp$iter$20 = $jscomp.makeIterator(headers), $jscomp$key$ = $jscomp$iter$20.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$20.next()) {
+    var $jscomp$destructuring$var31 = $jscomp.makeIterator($jscomp$key$.value), key$53 = $jscomp$destructuring$var31.next().value, value = $jscomp$destructuring$var31.next().value;
+    this.xhr_.setRequestHeader(key$53, value);
+  }
   this.responseType_ && (this.xhr_.responseType = this.responseType_);
   "withCredentials" in this.xhr_ && this.xhr_.withCredentials !== this.withCredentials_ && (this.xhr_.withCredentials = this.withCredentials_);
   if ("setTrustToken" in this.xhr_ && this.trustToken_) {
     try {
       this.xhr_.setTrustToken(this.trustToken_);
-    } catch (err$38) {
-      goog.log.fine(this.logger_, this.formatMsg_("Error SetTrustToken: " + err$38.message));
+    } catch (err$54) {
+      goog.log.fine(this.logger_, this.formatMsg_("Error SetTrustToken: " + err$54.message));
     }
   }
   try {
     this.cleanUpTimeoutTimer_(), 0 < this.timeoutInterval_ && (this.useXhr2Timeout_ = goog.net.XhrIo.shouldUseXhr2Timeout_(this.xhr_), goog.log.fine(this.logger_, this.formatMsg_("Will abort after " + this.timeoutInterval_ + "ms if incomplete, xhr2 " + this.useXhr2Timeout_)), this.useXhr2Timeout_ ? (this.xhr_[goog.net.XhrIo.XHR2_TIMEOUT_] = this.timeoutInterval_, this.xhr_[goog.net.XhrIo.XHR2_ON_TIMEOUT_] = goog.bind(this.timeout_, this)) : this.timeoutId_ = goog.Timer.callOnce(this.timeout_, this.timeoutInterval_, 
     this)), goog.log.fine(this.logger_, this.formatMsg_("Sending request")), this.inSend_ = !0, this.xhr_.send(content), this.inSend_ = !1;
-  } catch (err$39) {
-    goog.log.fine(this.logger_, this.formatMsg_("Send error: " + err$39.message)), this.error_(goog.net.ErrorCode.EXCEPTION, err$39);
+  } catch (err$55) {
+    goog.log.fine(this.logger_, this.formatMsg_("Send error: " + err$55.message)), this.error_(goog.net.ErrorCode.EXCEPTION, err$55);
   }
 };
 goog.net.XhrIo.shouldUseXhr2Timeout_ = function(xhr) {
   return goog.userAgent.IE && goog.userAgent.isVersionOrHigher(9) && "number" === typeof xhr[goog.net.XhrIo.XHR2_TIMEOUT_] && void 0 !== xhr[goog.net.XhrIo.XHR2_ON_TIMEOUT_];
-};
-goog.net.XhrIo.isContentTypeHeader_ = function(header) {
-  return goog.string.caseInsensitiveEquals(goog.net.XhrIo.CONTENT_TYPE_HEADER, header);
 };
 goog.net.XhrIo.prototype.createXhr = function() {
   return this.xmlHttpFactory_ ? this.xmlHttpFactory_.createInstance() : goog.net.XmlHttp();
@@ -15610,12 +16702,13 @@ goog.net.XhrIo.prototype.onProgressHandler_ = function(e, opt_isDownload) {
   this.dispatchEvent(goog.net.XhrIo.buildProgressEvent_(e, opt_isDownload ? goog.net.EventType.DOWNLOAD_PROGRESS : goog.net.EventType.UPLOAD_PROGRESS));
 };
 goog.net.XhrIo.buildProgressEvent_ = function(e, eventType) {
-  return {type:eventType, lengthComputable:e.lengthComputable, loaded:e.loaded, total:e.total, };
+  return {type:eventType, lengthComputable:e.lengthComputable, loaded:e.loaded, total:e.total,};
 };
 goog.net.XhrIo.prototype.cleanUpXhr_ = function(opt_fromDispose) {
   if (this.xhr_) {
     this.cleanUpTimeoutTimer_();
-    var xhr = this.xhr_, clearedOnReadyStateChange = this.xhrOptions_[goog.net.XmlHttp.OptionType.USE_NULL_FUNCTION] ? goog.nullFunction : null;
+    var xhr = this.xhr_, clearedOnReadyStateChange = this.xhrOptions_[goog.net.XmlHttp.OptionType.USE_NULL_FUNCTION] ? function() {
+    } : null;
     this.xhrOptions_ = this.xhr_ = null;
     opt_fromDispose || this.dispatchEvent(goog.net.EventType.READY);
     try {
@@ -15724,7 +16817,7 @@ goog.net.XhrIo.prototype.getResponseHeader = function(key) {
   }
 };
 goog.net.XhrIo.prototype.getAllResponseHeaders = function() {
-  return this.xhr_ && this.isComplete() ? this.xhr_.getAllResponseHeaders() || "" : "";
+  return this.xhr_ && this.getReadyState() >= goog.net.XmlHttp.ReadyState.LOADED ? this.xhr_.getAllResponseHeaders() || "" : "";
 };
 goog.net.XhrIo.prototype.getResponseHeaders = function() {
   for (var headersObject = {}, headersArray = this.getAllResponseHeaders().split("\r\n"), i = 0; i < headersArray.length; i++) {
@@ -15763,7 +16856,7 @@ goog.debug.entryPointRegistry.register(function(transformer) {
 ee.apiclient = {};
 var module$contents$ee$apiclient_apiclient = {};
 ee.apiclient.VERSION = module$exports$ee$apiVersion.V1ALPHA;
-ee.apiclient.API_CLIENT_VERSION = "0.1.270";
+ee.apiclient.API_CLIENT_VERSION = "0.1.319";
 ee.apiclient.NULL_VALUE = module$exports$eeapiclient$domain_object.NULL_VALUE;
 ee.apiclient.PromiseRequestService = module$exports$eeapiclient$promise_request_service.PromiseRequestService;
 ee.apiclient.MakeRequestParams = module$contents$eeapiclient$request_params_MakeRequestParams;
@@ -15840,6 +16933,9 @@ module$contents$ee$apiclient_Call.prototype.videoMap = function() {
 module$contents$ee$apiclient_Call.prototype.classifier = function() {
   return new module$exports$eeapiclient$ee_api_client.ProjectsClassifierApiClientImpl(module$exports$ee$apiVersion.V1ALPHA, this.requestService);
 };
+module$contents$ee$apiclient_Call.prototype.featureView = function() {
+  return new module$exports$eeapiclient$ee_api_client.ProjectsFeatureViewApiClientImpl(module$exports$ee$apiVersion.V1ALPHA, this.requestService);
+};
 module$contents$ee$apiclient_Call.prototype.thumbnails = function() {
   return new module$exports$eeapiclient$ee_api_client.ProjectsThumbnailsApiClientImpl(module$exports$ee$apiVersion.V1ALPHA, this.requestService);
 };
@@ -15859,12 +16955,12 @@ module$contents$ee$apiclient_EERequestService.prototype.send = function(params, 
   module$contents$eeapiclient$request_params_processParams(params);
   var path = params.path || "", url = module$contents$ee$apiclient_apiclient.getSafeApiUrl() + path, args = module$contents$ee$apiclient_apiclient.makeRequest_(params.queryParams || {}), body = params.body ? JSON.stringify(params.body) : void 0;
   if (this.sync) {
-    var raw = module$contents$ee$apiclient_apiclient.send(url, args, void 0, params.httpMethod, body, this.retries), value$40 = responseCtor ? module$contents$eeapiclient$domain_object_deserialize(responseCtor, raw) : raw, thenable = function(v) {
+    var raw = module$contents$ee$apiclient_apiclient.send(url, args, void 0, params.httpMethod, body, this.retries), value$56 = responseCtor ? module$contents$eeapiclient$domain_object_deserialize(responseCtor, raw) : raw, thenable = function(v) {
       return {then:function(f) {
         return thenable(f(v));
       }};
     };
-    return thenable(value$40);
+    return thenable(value$56);
   }
   return (new Promise(function(resolve, reject) {
     module$contents$ee$apiclient_apiclient.send(url, args, function(value, error) {
@@ -15878,17 +16974,17 @@ module$contents$ee$apiclient_EERequestService.prototype.makeRequest = function(p
 };
 var module$contents$ee$apiclient_BatchCall = function(callback) {
   module$contents$ee$apiclient_Call.call(this, callback);
-  this.requestService = new module$contents$ee$apiclient_BatchRequestService;
+  this.requestService = new module$contents$ee$apiclient_BatchRequestService();
 };
 $jscomp.inherits(module$contents$ee$apiclient_BatchCall, module$contents$ee$apiclient_Call);
 module$contents$ee$apiclient_BatchCall.prototype.send = function(parts, getResponse) {
-  var $jscomp$this = this, batchUrl = module$contents$ee$apiclient_apiclient.getSafeApiUrl() + "/batch", body = parts.map(function($jscomp$destructuring$var4) {
-    var $jscomp$destructuring$var5 = $jscomp.makeIterator($jscomp$destructuring$var4), id = $jscomp$destructuring$var5.next().value, $jscomp$destructuring$var6 = $jscomp.makeIterator($jscomp$destructuring$var5.next().value), partBody = $jscomp$destructuring$var6.next().value, ctor = $jscomp$destructuring$var6.next().value;
+  var $jscomp$this = this, batchUrl = module$contents$ee$apiclient_apiclient.getSafeApiUrl() + "/batch", body = parts.map(function($jscomp$destructuring$var32) {
+    var $jscomp$destructuring$var33 = $jscomp.makeIterator($jscomp$destructuring$var32), id = $jscomp$destructuring$var33.next().value, $jscomp$destructuring$var34 = $jscomp.makeIterator($jscomp$destructuring$var33.next().value), partBody = $jscomp$destructuring$var34.next().value, ctor = $jscomp$destructuring$var34.next().value;
     return "--batch_EARTHENGINE_batch\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\nMIME-Version: 1.0\r\nContent-ID: <" + id + ">\r\n\r\n" + partBody + "\r\n";
   }).join("") + "--batch_EARTHENGINE_batch--\r\n", deserializeResponses = function(response) {
     var result = {};
-    parts.forEach(function($jscomp$destructuring$var7) {
-      var $jscomp$destructuring$var8 = $jscomp.makeIterator($jscomp$destructuring$var7), id = $jscomp$destructuring$var8.next().value, $jscomp$destructuring$var9 = $jscomp.makeIterator($jscomp$destructuring$var8.next().value), partBody = $jscomp$destructuring$var9.next().value, ctor = $jscomp$destructuring$var9.next().value;
+    parts.forEach(function($jscomp$destructuring$var35) {
+      var $jscomp$destructuring$var36 = $jscomp.makeIterator($jscomp$destructuring$var35), id = $jscomp$destructuring$var36.next().value, $jscomp$destructuring$var37 = $jscomp.makeIterator($jscomp$destructuring$var36.next().value), partBody = $jscomp$destructuring$var37.next().value, ctor = $jscomp$destructuring$var37.next().value;
       null != response[id] && (result[id] = module$contents$eeapiclient$domain_object_deserialize(ctor, response[id]));
     });
     return getResponse ? getResponse(result) : result;
@@ -15911,7 +17007,7 @@ module$contents$ee$apiclient_BatchRequestService.prototype.send = function(param
 module$contents$ee$apiclient_BatchRequestService.prototype.makeRequest = function(params) {
 };
 module$contents$ee$apiclient_apiclient.parseBatchReply = function(contentType, responseText, handle) {
-  for (var boundary = contentType.split("; boundary=")[1], $jscomp$iter$13 = $jscomp.makeIterator(responseText.split("--" + boundary)), $jscomp$key$part = $jscomp$iter$13.next(); !$jscomp$key$part.done; $jscomp$key$part = $jscomp$iter$13.next()) {
+  for (var boundary = contentType.split("; boundary=")[1], $jscomp$iter$21 = $jscomp.makeIterator(responseText.split("--" + boundary)), $jscomp$key$part = $jscomp$iter$21.next(); !$jscomp$key$part.done; $jscomp$key$part = $jscomp$iter$21.next()) {
     var groups = $jscomp$key$part.value.split("\r\n\r\n");
     if (!(3 > groups.length)) {
       var id = groups[0].match(/\r\nContent-ID: <response-([^>]*)>/)[1], status = Number(groups[1].match(/^HTTP\S*\s(\d+)\s/)[1]), text = groups.slice(2).join("\r\n\r\n");
@@ -16005,11 +17101,11 @@ module$contents$ee$apiclient_apiclient.setAuthClient = function(clientId, scopes
 module$contents$ee$apiclient_apiclient.setAppIdToken = function(token) {
   module$contents$ee$apiclient_apiclient.appIdToken_ = token;
 };
-module$contents$ee$apiclient_apiclient.initialize = function(apiBaseUrl, tileBaseUrl, xsrfToken) {
+module$contents$ee$apiclient_apiclient.initialize = function(apiBaseUrl, tileBaseUrl, xsrfToken, project) {
   null != apiBaseUrl ? module$contents$ee$apiclient_apiclient.apiBaseUrl_ = apiBaseUrl : module$contents$ee$apiclient_apiclient.initialized_ || (module$contents$ee$apiclient_apiclient.apiBaseUrl_ = module$contents$ee$apiclient_apiclient.DEFAULT_API_BASE_URL_);
   null != tileBaseUrl ? module$contents$ee$apiclient_apiclient.tileBaseUrl_ = tileBaseUrl : module$contents$ee$apiclient_apiclient.initialized_ || (module$contents$ee$apiclient_apiclient.tileBaseUrl_ = module$contents$ee$apiclient_apiclient.DEFAULT_TILE_BASE_URL_);
   void 0 !== xsrfToken && (module$contents$ee$apiclient_apiclient.xsrfToken_ = xsrfToken);
-  module$contents$ee$apiclient_apiclient.setProject(module$contents$ee$apiclient_apiclient.getProject() || module$contents$ee$apiclient_apiclient.DEFAULT_PROJECT_);
+  null != project ? module$contents$ee$apiclient_apiclient.setProject(project) : module$contents$ee$apiclient_apiclient.setProject(module$contents$ee$apiclient_apiclient.getProject() || module$contents$ee$apiclient_apiclient.DEFAULT_PROJECT_);
   module$contents$ee$apiclient_apiclient.initialized_ = !0;
 };
 module$contents$ee$apiclient_apiclient.reset = function() {
@@ -16041,22 +17137,20 @@ module$contents$ee$apiclient_apiclient.send = function(path, params, callback, m
   var profileHookAtCallTime = module$contents$ee$apiclient_apiclient.profileHook_, contentType = "application/x-www-form-urlencoded";
   body && (contentType = "application/json", method && method.startsWith("multipart") && (contentType = method, method = "POST"));
   method = method || "POST";
-  var headers = {"Content-Type":contentType, }, version = "0.1.270";
-  "0.1.270" === version && (version = "latest");
+  var headers = {"Content-Type":contentType,}, version = "0.1.319";
+  "0.1.319" === version && (version = "latest");
   headers[module$contents$ee$apiclient_apiclient.API_CLIENT_VERSION_HEADER] = "ee-js/" + version;
   var authToken = module$contents$ee$apiclient_apiclient.getAuthToken();
   if (null != authToken) {
     headers.Authorization = authToken;
-  } else {
-    if (callback && module$contents$ee$apiclient_apiclient.isAuthTokenRefreshingEnabled_()) {
-      return module$contents$ee$apiclient_apiclient.refreshAuthToken(function() {
-        module$contents$ee$apiclient_apiclient.withProfiling(profileHookAtCallTime, function() {
-          module$contents$ee$apiclient_apiclient.send(path, params, callback, method);
-        });
-      }), null;
-    }
+  } else if (callback && module$contents$ee$apiclient_apiclient.isAuthTokenRefreshingEnabled_()) {
+    return module$contents$ee$apiclient_apiclient.refreshAuthToken(function() {
+      module$contents$ee$apiclient_apiclient.withProfiling(profileHookAtCallTime, function() {
+        module$contents$ee$apiclient_apiclient.send(path, params, callback, method);
+      });
+    }), null;
   }
-  params = params ? params.clone() : new goog.Uri.QueryData;
+  params = params ? params.clone() : new goog.Uri.QueryData();
   null != module$contents$ee$apiclient_apiclient.cloudApiKey_ && params.add("key", module$contents$ee$apiclient_apiclient.cloudApiKey_);
   profileHookAtCallTime && (headers[module$contents$ee$apiclient_apiclient.PROFILE_REQUEST_HEADER] = "1");
   module$contents$ee$apiclient_apiclient.getProject() && module$contents$ee$apiclient_apiclient.getProject() !== module$contents$ee$apiclient_apiclient.DEFAULT_PROJECT_ && (headers[module$contents$ee$apiclient_apiclient.USER_PROJECT_OVERRIDE_HEADER_] = module$contents$ee$apiclient_apiclient.getProject());
@@ -16134,20 +17228,18 @@ module$contents$ee$apiclient_apiclient.handleResponse_ = function(status$jscomp$
     } else {
       errorMessage = response$jscomp$0;
     }
+  } else if ("multipart/mixed" === contentType) {
+    data = {};
+    var errors = [];
+    module$contents$ee$apiclient_apiclient.parseBatchReply(typeHeader, responseText, function(id, status, text) {
+      var response = parseJson(text);
+      response.parsed && (data[id] = response.parsed);
+      var error = (response.parsed ? "" : response) || statusError(status);
+      error && errors.push(id + ": " + error);
+    });
+    errors.length && (errorMessage = errors.join("\n"));
   } else {
-    if ("multipart/mixed" === contentType) {
-      data = {};
-      var errors = [];
-      module$contents$ee$apiclient_apiclient.parseBatchReply(typeHeader, responseText, function(id, status, text) {
-        var response = parseJson(text);
-        response.parsed && (data[id] = response.parsed);
-        var error = (response.parsed ? "" : response) || statusError(status);
-        error && errors.push(id + ": " + error);
-      });
-      errors.length && (errorMessage = errors.join("\n"));
-    } else {
-      var typeError = "Response was unexpectedly not JSON, but " + contentType;
-    }
+    var typeError = "Response was unexpectedly not JSON, but " + contentType;
   }
   errorMessage = errorMessage || statusError(status$jscomp$0) || typeError;
   if (callback) {
@@ -16181,7 +17273,7 @@ module$contents$ee$apiclient_apiclient.handleAuthResult_ = function(success, err
   if (result.access_token) {
     var token = result.token_type + " " + result.access_token;
     if (result.expires_in || 0 === result.expires_in) {
-      var expiresInMs = 900 * result.expires_in, timeout = setTimeout(module$contents$ee$apiclient_apiclient.refreshAuthToken, 0.9 * expiresInMs);
+      var expiresInMs = 900 * result.expires_in, timeout = setTimeout(module$contents$ee$apiclient_apiclient.refreshAuthToken, .9 * expiresInMs);
       void 0 !== timeout.unref && timeout.unref();
       module$contents$ee$apiclient_apiclient.authTokenExpiration_ = Date.now() + expiresInMs;
     }
@@ -16192,8 +17284,8 @@ module$contents$ee$apiclient_apiclient.handleAuthResult_ = function(success, err
   }
 };
 module$contents$ee$apiclient_apiclient.makeRequest_ = function(params) {
-  for (var request = new goog.Uri.QueryData, $jscomp$iter$14 = $jscomp.makeIterator(Object.entries(params)), $jscomp$key$ = $jscomp$iter$14.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$14.next()) {
-    var $jscomp$destructuring$var11 = $jscomp.makeIterator($jscomp$key$.value), name = $jscomp$destructuring$var11.next().value, item = $jscomp$destructuring$var11.next().value;
+  for (var request = new goog.Uri.QueryData(), $jscomp$iter$22 = $jscomp.makeIterator(Object.entries(params)), $jscomp$key$ = $jscomp$iter$22.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$22.next()) {
+    var $jscomp$destructuring$var39 = $jscomp.makeIterator($jscomp$key$.value), name = $jscomp$destructuring$var39.next().value, item = $jscomp$destructuring$var39.next().value;
     request.set(name, item);
   }
   return request;
@@ -16222,7 +17314,7 @@ module$contents$ee$apiclient_apiclient.setupMockSend = function(calls) {
     apiBaseUrl = apiBaseUrl || module$contents$ee$apiclient_apiclient.apiBaseUrl_;
     var responseData = getResponse(url, method, data), e = new function() {
       this.target = {};
-    };
+    }();
     e.target.getResponseText = function() {
       return responseData.text;
     };
@@ -16233,7 +17325,7 @@ module$contents$ee$apiclient_apiclient.setupMockSend = function(calls) {
       return "Content-Type" === header ? responseData.contentType : null;
     };
     setTimeout(goog.bind(callback, e, e), 0);
-    return new goog.net.XhrIo;
+    return new goog.net.XhrIo();
   };
   var fakeXmlHttp = function() {
   };
@@ -16254,7 +17346,7 @@ module$contents$ee$apiclient_apiclient.setupMockSend = function(calls) {
     this.contentType_ = responseData.contentType;
   };
   goog.net.XmlHttp.setGlobalFactory({createInstance:function() {
-    return new fakeXmlHttp;
+    return new fakeXmlHttp();
   }, getOptions:function() {
     return {};
   }});
@@ -16266,7 +17358,7 @@ module$contents$ee$apiclient_apiclient.calculateRetryWait_ = function(retryCount
   return Math.min(module$contents$ee$apiclient_apiclient.MAX_RETRY_WAIT_, Math.pow(2, retryCount) * module$contents$ee$apiclient_apiclient.BASE_RETRY_WAIT_);
 };
 module$contents$ee$apiclient_apiclient.sleep_ = function(timeInMs) {
-  for (var end = (new Date).getTime() + timeInMs; (new Date).getTime() < end;) {
+  for (var end = (new Date()).getTime() + timeInMs; (new Date()).getTime() < end;) {
   }
 };
 module$contents$ee$apiclient_apiclient.NetworkRequest_ = function() {
@@ -16298,13 +17390,13 @@ module$contents$ee$apiclient_apiclient.cloudApiKey_ = null;
 module$contents$ee$apiclient_apiclient.initialized_ = !1;
 module$contents$ee$apiclient_apiclient.deadlineMs_ = 0;
 module$contents$ee$apiclient_apiclient.profileHook_ = null;
-module$contents$ee$apiclient_apiclient.BASE_RETRY_WAIT_ = 1000;
-module$contents$ee$apiclient_apiclient.MAX_RETRY_WAIT_ = 120000;
+module$contents$ee$apiclient_apiclient.BASE_RETRY_WAIT_ = 1E3;
+module$contents$ee$apiclient_apiclient.MAX_RETRY_WAIT_ = 12E4;
 module$contents$ee$apiclient_apiclient.MAX_ASYNC_RETRIES_ = 10;
 module$contents$ee$apiclient_apiclient.MAX_SYNC_RETRIES_ = 5;
 module$contents$ee$apiclient_apiclient.APP_ID_TOKEN_HEADER_ = "X-Earth-Engine-App-ID-Token";
 module$contents$ee$apiclient_apiclient.PROFILE_HEADER = "X-Earth-Engine-Computation-Profile";
-module$contents$ee$apiclient_apiclient.PROFILE_REQUEST_HEADER = "X-Earth-Engine-Computation-Profile";
+module$contents$ee$apiclient_apiclient.PROFILE_REQUEST_HEADER = "X-Earth-Engine-Computation-Profiling";
 module$contents$ee$apiclient_apiclient.USER_PROJECT_OVERRIDE_HEADER_ = "X-Goog-User-Project";
 module$contents$ee$apiclient_apiclient.API_CLIENT_VERSION_HEADER = "x-goog-api-client";
 module$contents$ee$apiclient_apiclient.DEFAULT_API_BASE_URL_ = "https://earthengine.googleapis.com/api";
@@ -16363,6 +17455,8 @@ goog.exportSymbol("ee.api.EarthEngineAsset", module$exports$eeapiclient$ee_api_c
 goog.exportSymbol("ee.api.ListImagesResponse", module$exports$eeapiclient$ee_api_client.ListImagesResponse);
 goog.exportSymbol("ee.api.Image", module$exports$eeapiclient$ee_api_client.Image);
 goog.exportSymbol("ee.api.Operation", module$exports$eeapiclient$ee_api_client.Operation);
+goog.exportSymbol("ee.api.ListFeaturesResponse", module$exports$eeapiclient$ee_api_client.ListFeaturesResponse);
+goog.exportSymbol("ee.api.FeatureViewLocation", module$exports$eeapiclient$ee_api_client.FeatureViewLocation);
 ee.Encodable = function() {
 };
 ee.rpc_node = {};
@@ -16467,7 +17561,7 @@ ee.rpc_convert.bandList = function(bands) {
   throw Error("Invalid band list " + bands);
 };
 ee.rpc_convert.visualizationOptions = function(params) {
-  var result = new module$exports$eeapiclient$ee_api_client.VisualizationOptions, hasResult = !1;
+  var result = new module$exports$eeapiclient$ee_api_client.VisualizationOptions(), hasResult = !1;
   if ("palette" in params) {
     var pal = params.palette;
     result.paletteColors = "string" === typeof pal ? pal.split(",") : pal;
@@ -16483,10 +17577,8 @@ ee.rpc_convert.visualizationOptions = function(params) {
       var min = -pair.bias / pair.gain;
       return {min:min, max:valueRange / pair.gain + min};
     });
-  } else {
-    if ("min" in params || "max" in params) {
-      ranges = ee.rpc_convert.pairedValues(params, "min", "max");
-    }
+  } else if ("min" in params || "max" in params) {
+    ranges = ee.rpc_convert.pairedValues(params, "min", "max");
   }
   0 !== ranges.length && (result.ranges = ranges.map(function(range) {
     return new module$exports$eeapiclient$ee_api_client.DoubleRange(range);
@@ -16505,22 +17597,22 @@ ee.rpc_convert.pairedValues = function(obj, a, b) {
   var aValues = ee.rpc_convert.csvToNumbers(obj[a]), bValues = ee.rpc_convert.csvToNumbers(obj[b]);
   if (0 === aValues.length) {
     return bValues.map(function(value) {
-      var $jscomp$compprop1 = {};
-      return $jscomp$compprop1[a] = 0, $jscomp$compprop1[b] = value, $jscomp$compprop1;
+      var $jscomp$compprop3 = {};
+      return $jscomp$compprop3[a] = 0, $jscomp$compprop3[b] = value, $jscomp$compprop3;
     });
   }
   if (0 === bValues.length) {
     return aValues.map(function(value) {
-      var $jscomp$compprop2 = {};
-      return $jscomp$compprop2[a] = value, $jscomp$compprop2[b] = 1, $jscomp$compprop2;
+      var $jscomp$compprop4 = {};
+      return $jscomp$compprop4[a] = value, $jscomp$compprop4[b] = 1, $jscomp$compprop4;
     });
   }
   if (aValues.length !== bValues.length) {
     throw Error("Length of " + a + " and " + b + " must match.");
   }
   return aValues.map(function(value, index) {
-    var $jscomp$compprop3 = {};
-    return $jscomp$compprop3[a] = value, $jscomp$compprop3[b] = bValues[index], $jscomp$compprop3;
+    var $jscomp$compprop5 = {};
+    return $jscomp$compprop5[a] = value, $jscomp$compprop5[b] = bValues[index], $jscomp$compprop5;
   });
 };
 ee.rpc_convert.algorithms = function(result) {
@@ -16542,7 +17634,7 @@ ee.rpc_convert.algorithms = function(result) {
     algorithm.deprecated && (internalAlgorithm.deprecated = algorithm.deprecationReason);
     algorithm.sourceCodeUri && (internalAlgorithm.sourceCodeUri = algorithm.sourceCodeUri);
     return internalAlgorithm;
-  }, internalAlgorithms = {}, $jscomp$iter$15 = $jscomp.makeIterator(result.algorithms || []), $jscomp$key$algorithm = $jscomp$iter$15.next(); !$jscomp$key$algorithm.done; $jscomp$key$algorithm = $jscomp$iter$15.next()) {
+  }, internalAlgorithms = {}, $jscomp$iter$23 = $jscomp.makeIterator(result.algorithms || []), $jscomp$key$algorithm = $jscomp$iter$23.next(); !$jscomp$key$algorithm.done; $jscomp$key$algorithm = $jscomp$iter$23.next()) {
     var algorithm$jscomp$0 = $jscomp$key$algorithm.value, name = algorithm$jscomp$0.name.replace(/^algorithms\//, "");
     internalAlgorithms[name] = convertAlgorithm(algorithm$jscomp$0);
   }
@@ -16599,6 +17691,8 @@ ee.rpc_convert.assetTypeToLegacyAssetType = function(type) {
       return "Table";
     case "CLASSIFIER":
       return "Classifier";
+    case "FEATURE_VIEW":
+      return "FeatureView";
     default:
       return "Unknown";
   }
@@ -16627,14 +17721,14 @@ ee.rpc_convert.assetToLegacyResult = function(result) {
   result.geometry && (properties["system:footprint"] = result.geometry);
   "string" === typeof result.title && (properties["system:title"] = result.title);
   "string" === typeof result.description && (properties["system:description"] = result.description);
-  result.updateTime && (asset.version = 1000 * Date.parse(result.updateTime));
+  result.updateTime && (asset.version = 1E3 * Date.parse(result.updateTime));
   asset.properties = properties;
   result.bands && (asset.bands = result.bands.map(function(band) {
-    var legacyBand = {id:band.id, crs:band.grid.crsCode, dimensions:void 0, crs_transform:void 0, };
+    var legacyBand = {id:band.id, crs:band.grid.crsCode, dimensions:void 0, crs_transform:void 0,};
     if (band.grid) {
       if (null != band.grid.affineTransform) {
         var affine = band.grid.affineTransform;
-        legacyBand.crs_transform = [affine.scaleX || 0, affine.shearX || 0, affine.translateX || 0, affine.shearY || 0, affine.scaleY || 0, affine.translateY || 0, ];
+        legacyBand.crs_transform = [affine.scaleX || 0, affine.shearX || 0, affine.translateX || 0, affine.shearY || 0, affine.scaleY || 0, affine.translateY || 0,];
       }
       null != band.grid.dimensions && (legacyBand.dimensions = [band.grid.dimensions.width, band.grid.dimensions.height]);
     }
@@ -16646,10 +17740,12 @@ ee.rpc_convert.assetToLegacyResult = function(result) {
     }
     return legacyBand;
   }));
+  result.featureViewAssetLocation && (asset.mapLocation = result.featureViewAssetLocation);
+  result.featureCount && (asset.featureCount = result.featureCount);
   return asset;
 };
 ee.rpc_convert.legacyPropertiesToAssetUpdate = function(legacyProperties) {
-  var asset = new module$exports$eeapiclient$ee_api_client.EarthEngineAsset, toTimestamp = function(msec) {
+  var asset = new module$exports$eeapiclient$ee_api_client.EarthEngineAsset(), toTimestamp = function(msec) {
     return (new Date(Number(msec))).toISOString();
   }, asNull = function(value) {
     return null === value ? module$exports$eeapiclient$domain_object.NULL_VALUE : void 0;
@@ -16666,8 +17762,8 @@ ee.rpc_convert.legacyPropertiesToAssetUpdate = function(legacyProperties) {
   "string" !== typeof value$jscomp$0 && null !== value$jscomp$0 || null != properties.title || (properties.title = asNull(value$jscomp$0) || value$jscomp$0);
   extractValue("system:description");
   "string" !== typeof value$jscomp$0 && null !== value$jscomp$0 || null != properties.description || (properties.description = asNull(value$jscomp$0) || value$jscomp$0);
-  Object.entries(properties).forEach(function($jscomp$destructuring$var12) {
-    var $jscomp$destructuring$var13 = $jscomp.makeIterator($jscomp$destructuring$var12), key = $jscomp$destructuring$var13.next().value, value = $jscomp$destructuring$var13.next().value;
+  Object.entries(properties).forEach(function($jscomp$destructuring$var40) {
+    var $jscomp$destructuring$var41 = $jscomp.makeIterator($jscomp$destructuring$var40), key = $jscomp$destructuring$var41.next().value, value = $jscomp$destructuring$var41.next().value;
     properties[key] = asNull(value) || value;
   });
   asset.properties = properties;
@@ -16692,9 +17788,9 @@ ee.rpc_convert.getListToListImages = function(param) {
   param.bbox && (imagesRequest.region = ee.rpc_convert.boundingBoxToGeoJson(param.bbox));
   param.region && (imagesRequest.region = param.region);
   param.bbox && param.region && console.warn("Multiple request parameters converted to region");
-  for (var allKeys = "id num starttime endtime bbox region".split(" "), $jscomp$iter$16 = $jscomp.makeIterator(Object.keys(param).filter(function(k) {
+  for (var allKeys = "id num starttime endtime bbox region".split(" "), $jscomp$iter$24 = $jscomp.makeIterator(Object.keys(param).filter(function(k) {
     return !allKeys.includes(k);
-  })), $jscomp$key$key = $jscomp$iter$16.next(); !$jscomp$key$key.done; $jscomp$key$key = $jscomp$iter$16.next()) {
+  })), $jscomp$key$key = $jscomp$iter$24.next(); !$jscomp$key$key.done; $jscomp$key$key = $jscomp$iter$24.next()) {
     console.warn("Unrecognized key " + $jscomp$key$key.value + " ignored");
   }
   imagesRequest.fields = "assets(type,path)";
@@ -16710,34 +17806,41 @@ ee.rpc_convert.iamPolicyToAcl = function(result) {
   (result.bindings || []).forEach(function(binding) {
     bindingMap[binding.role] = binding.members;
   });
-  var groups = new Set, toAcl = function(member) {
-    var email = member.replace(/^group:|^user:|^serviceAccount:/, "");
+  var groups = new Set(), toAcl = function(member) {
+    var email = member.replace(/^domain:|^group:|^serviceAccount:|^user:/, "");
     member.startsWith("group:") && groups.add(email);
     return email;
   }, readersWithAll = bindingMap["roles/viewer"] || [], readers = readersWithAll.filter(function(reader) {
     return "allUsers" !== reader;
-  }), internalAcl = {owners:(bindingMap["roles/owner"] || []).map(toAcl), writers:(bindingMap["roles/editor"] || []).map(toAcl), readers:readers.map(toAcl), };
+  }), internalAcl = {owners:(bindingMap["roles/owner"] || []).map(toAcl), writers:(bindingMap["roles/editor"] || []).map(toAcl), readers:readers.map(toAcl),};
   0 < groups.size && (internalAcl.groups = groups);
   readersWithAll.length != readers.length && (internalAcl.all_users_can_read = !0);
   return internalAcl;
 };
 ee.rpc_convert.aclToIamPolicy = function(acls) {
-  var isGroup = function(email) {
+  var hasPrefix = function(email) {
+    return email.includes(":");
+  }, isDomain = function(email) {
+    return !email.includes("@");
+  }, isGroup = function(email) {
     return acls.groups && acls.groups.has(email);
   }, isServiceAccount = function(email) {
     return email.match(/[@|\.]gserviceaccount\.com$/);
   }, asMembers = function(aclName) {
     return (acls[aclName] || []).map(function(email) {
+      if (hasPrefix(email)) {
+        return email;
+      }
       var prefix = "user:";
-      isGroup(email) ? prefix = "group:" : isServiceAccount(email) && (prefix = "serviceAccount:");
+      isDomain(email) ? prefix = "domain:" : isGroup(email) ? prefix = "group:" : isServiceAccount(email) && (prefix = "serviceAccount:");
       return prefix + email;
     });
-  }, all = acls.all_users_can_read ? ["allUsers"] : [], bindings = [{role:"roles/owner", members:asMembers("owners")}, {role:"roles/viewer", members:asMembers("readers").concat(all)}, {role:"roles/editor", members:asMembers("writers")}, ].map(function(params) {
+  }, all = acls.all_users_can_read ? ["allUsers"] : [], bindings = [{role:"roles/owner", members:asMembers("owners")}, {role:"roles/viewer", members:asMembers("readers").concat(all)}, {role:"roles/editor", members:asMembers("writers")},].map(function(params) {
     return new module$exports$eeapiclient$ee_api_client.Binding(params);
   });
   return new module$exports$eeapiclient$ee_api_client.Policy({bindings:bindings.filter(function(binding) {
     return binding.members.length;
-  }), etag:null, });
+  }), etag:null,});
 };
 ee.rpc_convert.taskIdToOperationName = function(operationNameOrTaskId) {
   return "projects/" + ee.rpc_convert.operationNameToProject(operationNameOrTaskId) + "/operations/" + ee.rpc_convert.operationNameToTaskId(operationNameOrTaskId);
@@ -16882,7 +17985,7 @@ ee.rpc_convert.folderQuotaToAssetQuotaDetails = function(quota) {
   var toNumber = function(field) {
     return Number(field || 0);
   };
-  return {asset_count:{usage:toNumber(quota.assetCount), limit:toNumber(quota.maxAssetCount), }, asset_size:{usage:toNumber(quota.sizeBytes), limit:toNumber(quota.maxSizeBytes), }};
+  return {asset_count:{usage:toNumber(quota.assetCount), limit:toNumber(quota.maxAssetCount),}, asset_size:{usage:toNumber(quota.sizeBytes), limit:toNumber(quota.maxSizeBytes),}};
 };
 goog.crypt = {};
 goog.crypt.Hash = function() {
@@ -17103,11 +18206,12 @@ ee.Serializer = function(opt_isCompound) {
   this.scope_ = [];
   this.encoded_ = {};
   this.withHashes_ = [];
-  this.hashes_ = new WeakMap;
+  this.hashes_ = new WeakMap();
+  this.unboundName = void 0;
 };
 goog.exportSymbol("ee.Serializer", ee.Serializer);
-ee.Serializer.jsonSerializer_ = new goog.json.Serializer;
-ee.Serializer.hash_ = new goog.crypt.Md5;
+ee.Serializer.jsonSerializer_ = new goog.json.Serializer();
+ee.Serializer.hash_ = new goog.crypt.Md5();
 ee.Serializer.encode = function(obj, opt_isCompound) {
   return (new ee.Serializer(void 0 !== opt_isCompound ? opt_isCompound : !0)).encode_(obj);
 };
@@ -17149,24 +18253,20 @@ ee.Serializer.prototype.encodeValue_ = function(object) {
     if (!(Array.isArray(result) || goog.isObject(result) && "ArgumentRef" != result.type)) {
       return result;
     }
-  } else {
-    if (Array.isArray(object)) {
-      result = module$contents$goog$array_map(object, function(element) {
+  } else if (Array.isArray(object)) {
+    result = module$contents$goog$array_map(object, function(element) {
+      return this.encodeValue_(element);
+    }, this);
+  } else if (goog.isObject(object) && "function" !== typeof object) {
+    var encodedObject = module$contents$goog$object_map(object, function(element) {
+      if ("function" !== typeof element) {
         return this.encodeValue_(element);
-      }, this);
-    } else {
-      if (goog.isObject(object) && "function" !== typeof object) {
-        var encodedObject = module$contents$goog$object_map(object, function(element) {
-          if ("function" !== typeof element) {
-            return this.encodeValue_(element);
-          }
-        }, this);
-        module$contents$goog$object_remove(encodedObject, this.HASH_KEY);
-        result = {type:"Dictionary", value:encodedObject};
-      } else {
-        throw Error("Can't encode object: " + object);
       }
-    }
+    }, this);
+    module$contents$goog$object_remove(encodedObject, this.HASH_KEY);
+    result = {type:"Dictionary", value:encodedObject};
+  } else {
+    throw Error("Can't encode object: " + object);
   }
   if (this.isCompound_) {
     hash = ee.Serializer.computeHash(result);
@@ -17190,16 +18290,18 @@ ee.Serializer.encodeCloudApi = function(obj) {
   return module$contents$eeapiclient$domain_object_serialize(ee.Serializer.encodeCloudApiExpression(obj));
 };
 goog.exportSymbol("ee.Serializer.encodeCloudApi", ee.Serializer.encodeCloudApi);
-ee.Serializer.encodeCloudApiExpression = function(obj) {
-  return (new ee.Serializer(!0)).encodeForCloudApi_(obj);
+ee.Serializer.encodeCloudApiExpression = function(obj, unboundName) {
+  var serializer = new ee.Serializer(!0);
+  serializer.unboundName = unboundName;
+  return serializer.encodeForCloudApi_(obj);
 };
 ee.Serializer.encodeCloudApiPretty = function(obj) {
   var encoded = (new ee.Serializer(!1)).encodeForCloudApi_(obj), values = encoded.values, walkObject = function(object) {
     if (!goog.isObject(object)) {
       return object;
     }
-    for (var ret = Array.isArray(object) ? [] : {}, isNode = object instanceof Object.getPrototypeOf(module$exports$eeapiclient$ee_api_client.ValueNode), $jscomp$iter$17 = $jscomp.makeIterator(Object.entries(isNode ? object.Serializable$values : object)), $jscomp$key$ = $jscomp$iter$17.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$17.next()) {
-      var $jscomp$destructuring$var15 = $jscomp.makeIterator($jscomp$key$.value), key = $jscomp$destructuring$var15.next().value, val = $jscomp$destructuring$var15.next().value;
+    for (var ret = Array.isArray(object) ? [] : {}, isNode = object instanceof Object.getPrototypeOf(module$exports$eeapiclient$ee_api_client.ValueNode), $jscomp$iter$25 = $jscomp.makeIterator(Object.entries(isNode ? object.Serializable$values : object)), $jscomp$key$ = $jscomp$iter$25.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$25.next()) {
+      var $jscomp$destructuring$var43 = $jscomp.makeIterator($jscomp$key$.value), key = $jscomp$destructuring$var43.next().value, val = $jscomp$destructuring$var43.next().value;
       isNode ? null !== val && (ret[key] = "functionDefinitionValue" === key && null != val.body ? {argumentNames:val.argumentNames, body:walkObject(values[val.body])} : "functionInvocationValue" === key && null != val.functionReference ? {arguments:module$contents$goog$object_map(val.arguments, walkObject), functionReference:walkObject(values[val.functionReference])} : "constantValue" === key ? val === module$exports$eeapiclient$domain_object.NULL_VALUE ? 
       null : val : walkObject(val)) : ret[key] = walkObject(val);
     }
@@ -17218,13 +18320,13 @@ ee.Serializer.toReadableCloudApiJSON = function(obj) {
 goog.exportSymbol("ee.Serializer.toReadableCloudApiJSON", ee.Serializer.toReadableCloudApiJSON);
 ee.Serializer.prototype.encodeForCloudApi_ = function(obj) {
   try {
-    var result = this.makeCloudApiReference_(obj);
+    var result = this.makeReference(obj);
     return (new ExpressionOptimizer(result, this.scope_, this.isCompound_)).optimize();
   } finally {
-    this.hashes_ = new WeakMap, this.encoded_ = {}, this.scope_ = [];
+    this.hashes_ = new WeakMap(), this.encoded_ = {}, this.scope_ = [];
   }
 };
-ee.Serializer.prototype.makeCloudApiReference_ = function(obj) {
+ee.Serializer.prototype.makeReference = function(obj) {
   var $jscomp$this = this, makeRef = function(result) {
     var hash = ee.Serializer.computeHash(result);
     goog.isObject(obj) && $jscomp$this.hashes_.set(obj, hash);
@@ -17245,19 +18347,17 @@ ee.Serializer.prototype.makeCloudApiReference_ = function(obj) {
     return makeRef(ee.rpc_node.functionByName("Date", {value:ee.rpc_node.constant(Math.floor(obj.getTime()))}));
   }
   if (obj instanceof ee.Encodable) {
-    return makeRef(obj.encodeCloudValue(function(x) {
-      return $jscomp$this.makeCloudApiReference_(x);
-    }));
+    return makeRef(obj.encodeCloudValue(this));
   }
   if (Array.isArray(obj)) {
     return makeRef(ee.rpc_node.array(obj.map(function(x) {
-      return ee.rpc_node.reference($jscomp$this.makeCloudApiReference_(x));
+      return ee.rpc_node.reference($jscomp$this.makeReference(x));
     })));
   }
   if (goog.isObject(obj) && "function" !== typeof obj) {
     var values = {};
     Object.keys(obj).sort().forEach(function(k) {
-      values[k] = ee.rpc_node.reference($jscomp$this.makeCloudApiReference_(obj[k]));
+      values[k] = ee.rpc_node.reference($jscomp$this.makeReference(obj[k]));
     });
     return makeRef(ee.rpc_node.dictionary(values));
   }
@@ -17277,7 +18377,7 @@ var ExpressionOptimizer = function(rootReference, values, isCompound) {
 };
 ExpressionOptimizer.prototype.optimize = function() {
   var result = this.optimizeReference(this.rootReference);
-  return new module$exports$eeapiclient$ee_api_client.Expression({result:result, values:this.optimizedValues, });
+  return new module$exports$eeapiclient$ee_api_client.Expression({result:result, values:this.optimizedValues,});
 };
 ExpressionOptimizer.prototype.optimizeReference = function(ref) {
   if (ref in this.referenceMap) {
@@ -17310,8 +18410,8 @@ ExpressionOptimizer.prototype.optimizeValue = function(value, depth) {
     })) : ee.rpc_node.array(arr);
   }
   if (null != value.dictionaryValue) {
-    for (var values = {}, constantValues = {}, $jscomp$iter$18 = $jscomp.makeIterator(Object.entries(value.dictionaryValue.values || {})), $jscomp$key$ = $jscomp$iter$18.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$18.next()) {
-      var $jscomp$destructuring$var17 = $jscomp.makeIterator($jscomp$key$.value), k = $jscomp$destructuring$var17.next().value, v$jscomp$0 = $jscomp$destructuring$var17.next().value;
+    for (var values = {}, constantValues = {}, $jscomp$iter$26 = $jscomp.makeIterator(Object.entries(value.dictionaryValue.values || {})), $jscomp$key$ = $jscomp$iter$26.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$26.next()) {
+      var $jscomp$destructuring$var45 = $jscomp.makeIterator($jscomp$key$.value), k = $jscomp$destructuring$var45.next().value, v$jscomp$0 = $jscomp$destructuring$var45.next().value;
       values[k] = this.optimizeValue(v$jscomp$0, depth + 3);
       null !== constantValues && isConst(values[k]) ? constantValues[k] = serializeConst(values[k].constantValue) : constantValues = null;
     }
@@ -17322,9 +18422,9 @@ ExpressionOptimizer.prototype.optimizeValue = function(value, depth) {
     return ee.rpc_node.functionDefinition(def.argumentNames || [], this.optimizeReference(def.body || ""));
   }
   if (null != value.functionInvocationValue) {
-    for (var inv = value.functionInvocationValue, args = {}, $jscomp$iter$19 = $jscomp.makeIterator(Object.keys(inv.arguments || {})), $jscomp$key$k = $jscomp$iter$19.next(); !$jscomp$key$k.done; $jscomp$key$k = $jscomp$iter$19.next()) {
-      var k$41 = $jscomp$key$k.value;
-      args[k$41] = this.optimizeValue(inv.arguments[k$41], depth + 3);
+    for (var inv = value.functionInvocationValue, args = {}, $jscomp$iter$27 = $jscomp.makeIterator(Object.keys(inv.arguments || {})), $jscomp$key$k = $jscomp$iter$27.next(); !$jscomp$key$k.done; $jscomp$key$k = $jscomp$iter$27.next()) {
+      var k$57 = $jscomp$key$k.value;
+      args[k$57] = this.optimizeValue(inv.arguments[k$57], depth + 3);
     }
     return inv.functionName ? ee.rpc_node.functionByName(inv.functionName, args) : ee.rpc_node.functionByReference(this.optimizeReference(inv.functionReference || ""), args);
   }
@@ -17340,29 +18440,23 @@ ExpressionOptimizer.prototype.countReferences = function() {
   }, visitValue = function(value) {
     if (null != value.arrayValue) {
       value.arrayValue.values.forEach(visitValue);
+    } else if (null != value.dictionaryValue) {
+      Object.values(value.dictionaryValue.values).forEach(visitValue);
+    } else if (null != value.functionDefinitionValue) {
+      visitReference(value.functionDefinitionValue.body);
+    } else if (null != value.functionInvocationValue) {
+      var inv = value.functionInvocationValue;
+      null != inv.functionReference && visitReference(inv.functionReference);
+      Object.values(inv.arguments).forEach(visitValue);
     } else {
-      if (null != value.dictionaryValue) {
-        Object.values(value.dictionaryValue.values).forEach(visitValue);
-      } else {
-        if (null != value.functionDefinitionValue) {
-          visitReference(value.functionDefinitionValue.body);
-        } else {
-          if (null != value.functionInvocationValue) {
-            var inv = value.functionInvocationValue;
-            null != inv.functionReference && visitReference(inv.functionReference);
-            Object.values(inv.arguments).forEach(visitValue);
-          } else {
-            null != value.valueReference && visitReference(value.valueReference);
-          }
-        }
-      }
+      null != value.valueReference && visitReference(value.valueReference);
     }
   };
   visitReference(this.rootReference);
   return counts;
 };
 ee.rpc_convert_batch = {};
-ee.rpc_convert_batch.ExportDestination = {DRIVE:"DRIVE", GCS:"GOOGLE_CLOUD_STORAGE", ASSET:"ASSET", };
+ee.rpc_convert_batch.ExportDestination = {DRIVE:"DRIVE", GCS:"GOOGLE_CLOUD_STORAGE", ASSET:"ASSET", FEATURE_VIEW:"FEATURE_VIEW",};
 ee.rpc_convert_batch.taskToExportImageRequest = function(params) {
   if (null == params.element) {
     throw Error('"element" not found in params ' + params);
@@ -17387,7 +18481,8 @@ ee.rpc_convert_batch.taskToExportTableRequest = function(params) {
   }
   var selectors = params.selectors || null;
   null != selectors && "string" === typeof selectors && (selectors = selectors.split(","));
-  var result = new module$exports$eeapiclient$ee_api_client.ExportTableRequest({expression:ee.Serializer.encodeCloudApiExpression(params.element), description:stringOrNull_(params.description), fileExportOptions:null, assetExportOptions:null, selectors:selectors, maxErrorMeters:numberOrNull_(params.maxErrorMeters), requestId:stringOrNull_(params.id), maxVertices:numberOrNull_(params.maxVertices), maxWorkerCount:numberOrNull_(params.maxWorkers)}), destination = ee.rpc_convert_batch.guessDestination_(params);
+  var result = new module$exports$eeapiclient$ee_api_client.ExportTableRequest({expression:ee.Serializer.encodeCloudApiExpression(params.element), description:stringOrNull_(params.description), fileExportOptions:null, assetExportOptions:null, featureViewExportOptions:null, selectors:selectors, maxErrorMeters:numberOrNull_(params.maxErrorMeters), requestId:stringOrNull_(params.id), maxVertices:numberOrNull_(params.maxVertices), maxWorkerCount:numberOrNull_(params.maxWorkers)}), 
+  destination = ee.rpc_convert_batch.guessDestination_(params);
   switch(destination) {
     case ee.rpc_convert_batch.ExportDestination.GCS:
     case ee.rpc_convert_batch.ExportDestination.DRIVE:
@@ -17396,9 +18491,13 @@ ee.rpc_convert_batch.taskToExportTableRequest = function(params) {
     case ee.rpc_convert_batch.ExportDestination.ASSET:
       result.assetExportOptions = ee.rpc_convert_batch.buildTableAssetExportOptions_(params);
       break;
+    case ee.rpc_convert_batch.ExportDestination.FEATURE_VIEW:
+      result.featureViewExportOptions = ee.rpc_convert_batch.buildFeatureViewExportOptions_(params);
+      break;
     default:
       throw Error('Export destination "' + destination + '" unknown');
   }
+  params.workloadTag && (result.workloadTag = params.workloadTag);
   return result;
 };
 ee.rpc_convert_batch.taskToExportVideoRequest = function(params) {
@@ -17430,7 +18529,7 @@ ee.rpc_convert_batch.taskToExportClassifierRequest = function(params) {
   if (destination != ee.rpc_convert_batch.ExportDestination.ASSET) {
     throw Error('Export destination "' + destination + '" unknown');
   }
-  return new module$exports$eeapiclient$ee_api_client.ExportClassifierRequest({expression:ee.Serializer.encodeCloudApiExpression(params.element), description:stringOrNull_(params.description), requestId:stringOrNull_(params.id), assetExportOptions:new module$exports$eeapiclient$ee_api_client.ClassifierAssetExportOptions({earthEngineDestination:ee.rpc_convert_batch.buildEarthEngineDestination_(params)}), maxWorkerCount:numberOrNull_(params.maxWorkers), 
+  return new module$exports$eeapiclient$ee_api_client.ExportClassifierRequest({expression:ee.Serializer.encodeCloudApiExpression(params.element), description:stringOrNull_(params.description), requestId:stringOrNull_(params.id), assetExportOptions:new module$exports$eeapiclient$ee_api_client.ClassifierAssetExportOptions({earthEngineDestination:ee.rpc_convert_batch.buildEarthEngineDestination_(params)}), maxWorkerCount:numberOrNull_(params.maxWorkers),
   });
 };
 function stringOrNull_(value) {
@@ -17444,7 +18543,7 @@ ee.rpc_convert_batch.guessDestination_ = function(params) {
   if (null == params) {
     return destination;
   }
-  null != params.outputBucket || null != params.outputPrefix ? destination = ee.rpc_convert_batch.ExportDestination.GCS : null != params.assetId && (destination = ee.rpc_convert_batch.ExportDestination.ASSET);
+  null != params.outputBucket || null != params.outputPrefix ? destination = ee.rpc_convert_batch.ExportDestination.GCS : null != params.assetId ? destination = ee.rpc_convert_batch.ExportDestination.ASSET : null != params.mapName && (destination = ee.rpc_convert_batch.ExportDestination.FEATURE_VIEW);
   return destination;
 };
 ee.rpc_convert_batch.buildGeoTiffFormatOptions_ = function(params) {
@@ -17452,11 +18551,11 @@ ee.rpc_convert_batch.buildGeoTiffFormatOptions_ = function(params) {
     throw Error('Export cannot set both "fileDimensions" and "tiffFileDimensions".');
   }
   var tileSize = params.tiffShardSize || params.shardSize;
-  return new module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions({cloudOptimized:!!params.tiffCloudOptimized, skipEmptyFiles:!(!params.skipEmptyTiles && !params.tiffSkipEmptyFiles), tileDimensions:ee.rpc_convert_batch.buildGridDimensions_(params.fileDimensions || params.tiffFileDimensions), tileSize:numberOrNull_(tileSize), });
+  return new module$exports$eeapiclient$ee_api_client.GeoTiffImageExportOptions({cloudOptimized:!!params.tiffCloudOptimized, skipEmptyFiles:!(!params.skipEmptyTiles && !params.tiffSkipEmptyFiles), tileDimensions:ee.rpc_convert_batch.buildGridDimensions_(params.fileDimensions || params.tiffFileDimensions), tileSize:numberOrNull_(tileSize),});
 };
 ee.rpc_convert_batch.buildTfRecordFormatOptions_ = function(params) {
   var tfRecordOptions = new module$exports$eeapiclient$ee_api_client.TfRecordImageExportOptions({compress:!!params.tfrecordCompressed, maxSizeBytes:stringOrNull_(params.tfrecordMaxFileSize), sequenceData:!!params.tfrecordSequenceData, collapseBands:!!params.tfrecordCollapseBands, maxMaskedRatio:numberOrNull_(params.tfrecordMaskedThreshold), defaultValue:numberOrNull_(params.tfrecordDefaultValue), tileDimensions:ee.rpc_convert_batch.buildGridDimensions_(params.tfrecordPatchDimensions), 
-  marginDimensions:ee.rpc_convert_batch.buildGridDimensions_(params.tfrecordKernelSize), tensorDepths:null, }), tensorDepths = params.tfrecordTensorDepths;
+  marginDimensions:ee.rpc_convert_batch.buildGridDimensions_(params.tfrecordKernelSize), tensorDepths:null,}), tensorDepths = params.tfrecordTensorDepths;
   if (null != tensorDepths) {
     if (goog.isObject(tensorDepths)) {
       var result = {};
@@ -17474,7 +18573,7 @@ ee.rpc_convert_batch.buildTfRecordFormatOptions_ = function(params) {
   return tfRecordOptions;
 };
 ee.rpc_convert_batch.buildImageFileExportOptions_ = function(params, destination) {
-  var result = new module$exports$eeapiclient$ee_api_client.ImageFileExportOptions({gcsDestination:null, driveDestination:null, geoTiffOptions:null, tfRecordOptions:null, fileFormat:ee.rpc_convert.fileFormat(params.fileFormat), });
+  var result = new module$exports$eeapiclient$ee_api_client.ImageFileExportOptions({gcsDestination:null, driveDestination:null, geoTiffOptions:null, tfRecordOptions:null, fileFormat:ee.rpc_convert.fileFormat(params.fileFormat),});
   "GEO_TIFF" === result.fileFormat ? result.geoTiffOptions = ee.rpc_convert_batch.buildGeoTiffFormatOptions_(params) : "TF_RECORD_IMAGE" === result.fileFormat && (result.tfRecordOptions = ee.rpc_convert_batch.buildTfRecordFormatOptions_(params));
   destination === ee.rpc_convert_batch.ExportDestination.GCS ? result.gcsDestination = ee.rpc_convert_batch.buildGcsDestination_(params) : result.driveDestination = ee.rpc_convert_batch.buildDriveDestination_(params);
   return result;
@@ -17487,30 +18586,33 @@ ee.rpc_convert_batch.buildImageAssetExportOptions_ = function(params) {
   }
   var defaultPyramidingPolicy = "PYRAMIDING_POLICY_UNSPECIFIED";
   "string" === typeof allPolicies ? (defaultPyramidingPolicy = allPolicies, allPolicies = {}) : allPolicies[".default"] && (defaultPyramidingPolicy = allPolicies[".default"], delete allPolicies[".default"]);
-  return new module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions({earthEngineDestination:ee.rpc_convert_batch.buildEarthEngineDestination_(params), pyramidingPolicy:defaultPyramidingPolicy, pyramidingPolicyOverrides:module$contents$goog$object_isEmpty(allPolicies) ? null : allPolicies, tileSize:numberOrNull_(params.shardSize), });
+  return new module$exports$eeapiclient$ee_api_client.ImageAssetExportOptions({earthEngineDestination:ee.rpc_convert_batch.buildEarthEngineDestination_(params), pyramidingPolicy:defaultPyramidingPolicy, pyramidingPolicyOverrides:module$contents$goog$object_isEmpty(allPolicies) ? null : allPolicies, tileSize:numberOrNull_(params.shardSize),});
 };
 ee.rpc_convert_batch.buildTableFileExportOptions_ = function(params, destination) {
-  var result = new module$exports$eeapiclient$ee_api_client.TableFileExportOptions({gcsDestination:null, driveDestination:null, fileFormat:ee.rpc_convert.tableFileFormat(params.fileFormat), });
+  var result = new module$exports$eeapiclient$ee_api_client.TableFileExportOptions({gcsDestination:null, driveDestination:null, fileFormat:ee.rpc_convert.tableFileFormat(params.fileFormat),});
   destination === ee.rpc_convert_batch.ExportDestination.GCS ? result.gcsDestination = ee.rpc_convert_batch.buildGcsDestination_(params) : result.driveDestination = ee.rpc_convert_batch.buildDriveDestination_(params);
   return result;
 };
 ee.rpc_convert_batch.buildTableAssetExportOptions_ = function(params) {
   return new module$exports$eeapiclient$ee_api_client.TableAssetExportOptions({earthEngineDestination:ee.rpc_convert_batch.buildEarthEngineDestination_(params)});
 };
+ee.rpc_convert_batch.buildFeatureViewExportOptions_ = function(params) {
+  return new module$exports$eeapiclient$ee_api_client.FeatureViewAssetExportOptions({featureViewDestination:ee.rpc_convert_batch.buildFeatureViewDestination_(params), ingestionTimeParameters:ee.rpc_convert_batch.buildFeatureViewIngestionTimeParameters_(params),});
+};
 ee.rpc_convert_batch.buildVideoFileExportOptions_ = function(params, destination) {
-  var result = new module$exports$eeapiclient$ee_api_client.VideoFileExportOptions({gcsDestination:null, driveDestination:null, fileFormat:"MP4", });
+  var result = new module$exports$eeapiclient$ee_api_client.VideoFileExportOptions({gcsDestination:null, driveDestination:null, fileFormat:"MP4",});
   destination === ee.rpc_convert_batch.ExportDestination.GCS ? result.gcsDestination = ee.rpc_convert_batch.buildGcsDestination_(params) : result.driveDestination = ee.rpc_convert_batch.buildDriveDestination_(params);
   return result;
 };
 ee.rpc_convert_batch.buildVideoOptions_ = function(params) {
-  return new module$exports$eeapiclient$ee_api_client.VideoOptions({framesPerSecond:numberOrNull_(params.framesPerSecond), maxFrames:numberOrNull_(params.maxFrames), maxPixelsPerFrame:stringOrNull_(params.maxPixels), });
+  return new module$exports$eeapiclient$ee_api_client.VideoOptions({framesPerSecond:numberOrNull_(params.framesPerSecond), maxFrames:numberOrNull_(params.maxFrames), maxPixelsPerFrame:stringOrNull_(params.maxPixels),});
 };
 ee.rpc_convert_batch.buildVideoMapOptions_ = function(params) {
-  return new module$exports$eeapiclient$ee_api_client.VideoOptions({framesPerSecond:numberOrNull_(params.framesPerSecond), maxFrames:numberOrNull_(params.maxFrames), maxPixelsPerFrame:null, });
+  return new module$exports$eeapiclient$ee_api_client.VideoOptions({framesPerSecond:numberOrNull_(params.framesPerSecond), maxFrames:numberOrNull_(params.maxFrames), maxPixelsPerFrame:null,});
 };
 ee.rpc_convert_batch.buildTileOptions_ = function(params) {
   return new module$exports$eeapiclient$ee_api_client.TileOptions({maxZoom:numberOrNull_(params.maxZoom), scale:numberOrNull_(params.scale), minZoom:numberOrNull_(params.minZoom), skipEmptyTiles:!!params.skipEmptyTiles, mapsApiKey:stringOrNull_(params.mapsApiKey), tileDimensions:ee.rpc_convert_batch.buildGridDimensions_(params.tileDimensions), stride:numberOrNull_(params.stride), zoomSubset:ee.rpc_convert_batch.buildZoomSubset_(numberOrNull_(params.minTimeMachineZoomSubset), 
-  numberOrNull_(params.maxTimeMachineZoomSubset)), });
+  numberOrNull_(params.maxTimeMachineZoomSubset)),});
 };
 ee.rpc_convert_batch.buildZoomSubset_ = function(min, max) {
   if (null == min && null == max) {
@@ -17530,38 +18632,114 @@ ee.rpc_convert_batch.buildGridDimensions_ = function(dimensions) {
   if (Array.isArray(dimensions)) {
     if (2 === dimensions.length) {
       result.height = dimensions[0], result.width = dimensions[1];
+    } else if (1 === dimensions.length) {
+      result.height = dimensions[0], result.width = dimensions[0];
     } else {
-      if (1 === dimensions.length) {
-        result.height = dimensions[0], result.width = dimensions[0];
-      } else {
-        throw Error("Unable to construct grid from dimensions: " + dimensions);
-      }
+      throw Error("Unable to construct grid from dimensions: " + dimensions);
+    }
+  } else if ("number" !== typeof dimensions || isNaN(dimensions)) {
+    if (goog.isObject(dimensions) && null != dimensions.height && null != dimensions.width) {
+      result.height = dimensions.height, result.width = dimensions.width;
+    } else {
+      throw Error("Unable to construct grid from dimensions: " + dimensions);
     }
   } else {
-    if ("number" !== typeof dimensions || isNaN(dimensions)) {
-      if (goog.isObject(dimensions) && null != dimensions.height && null != dimensions.width) {
-        result.height = dimensions.height, result.width = dimensions.width;
-      } else {
-        throw Error("Unable to construct grid from dimensions: " + dimensions);
-      }
-    } else {
-      result.height = dimensions, result.width = dimensions;
-    }
+    result.height = dimensions, result.width = dimensions;
   }
   return result;
 };
 ee.rpc_convert_batch.buildGcsDestination_ = function(params) {
   var permissions = null;
   null != params.writePublicTiles && (permissions = params.writePublicTiles ? "PUBLIC" : "DEFAULT_OBJECT_ACL");
-  return new module$exports$eeapiclient$ee_api_client.GcsDestination({bucket:stringOrNull_(params.outputBucket), filenamePrefix:stringOrNull_(params.outputPrefix), bucketCorsUris:params.bucketCorsUris || null, permissions:permissions, });
+  return new module$exports$eeapiclient$ee_api_client.GcsDestination({bucket:stringOrNull_(params.outputBucket), filenamePrefix:stringOrNull_(params.outputPrefix), bucketCorsUris:params.bucketCorsUris || null, permissions:permissions,});
 };
 ee.rpc_convert_batch.buildDriveDestination_ = function(params) {
-  return new module$exports$eeapiclient$ee_api_client.DriveDestination({folder:stringOrNull_(params.driveFolder), filenamePrefix:stringOrNull_(params.driveFileNamePrefix), });
+  return new module$exports$eeapiclient$ee_api_client.DriveDestination({folder:stringOrNull_(params.driveFolder), filenamePrefix:stringOrNull_(params.driveFileNamePrefix),});
 };
 ee.rpc_convert_batch.buildEarthEngineDestination_ = function(params) {
   return new module$exports$eeapiclient$ee_api_client.EarthEngineDestination({name:ee.rpc_convert.assetIdToAssetName(params.assetId)});
 };
+ee.rpc_convert_batch.buildFeatureViewDestination_ = function(params) {
+  return new module$exports$eeapiclient$ee_api_client.FeatureViewDestination({name:ee.rpc_convert.assetIdToAssetName(params.mapName)});
+};
+ee.rpc_convert_batch.buildFeatureViewIngestionTimeParameters_ = function(params) {
+  return new module$exports$eeapiclient$ee_api_client.FeatureViewIngestionTimeParameters({thinningOptions:ee.rpc_convert_batch.buildThinningOptions_(params), rankingOptions:ee.rpc_convert_batch.buildRankingOptions_(params)});
+};
+ee.rpc_convert_batch.buildThinningOptions_ = function(params) {
+  return null == params ? null : new module$exports$eeapiclient$ee_api_client.ThinningOptions({maxFeaturesPerTile:numberOrNull_(params.maxFeaturesPerTile), thinningStrategy:params.thinningStrategy});
+};
+ee.rpc_convert_batch.buildRankingOptions_ = function(params) {
+  return null == params ? null : new module$exports$eeapiclient$ee_api_client.RankingOptions({zOrderRankingRule:ee.rpc_convert_batch.buildRankingRule_(params.zOrderRanking), thinningRankingRule:ee.rpc_convert_batch.buildRankingRule_(params.thinningRanking),});
+};
+ee.rpc_convert_batch.buildRankingRule_ = function(rules) {
+  if (!rules) {
+    return null;
+  }
+  var originalRules = rules;
+  "string" === typeof rules && (rules = rules.split(","));
+  if (Array.isArray(rules)) {
+    return new module$exports$eeapiclient$ee_api_client.RankingRule({rankByOneThingRule:(rules || []).map(ee.rpc_convert_batch.buildRankByOneThingRule_),});
+  }
+  throw Error("Unable to build ranking rule from rules: " + JSON.stringify(originalRules) + ". Rules should either be a comma-separated string or list of strings.");
+};
+ee.rpc_convert_batch.buildRankByOneThingRule_ = function(ruleString) {
+  var rankByOneThingRule = new module$exports$eeapiclient$ee_api_client.RankByOneThingRule({direction:null, rankByAttributeRule:null, rankByMinZoomLevelRule:null, rankByGeometryTypeRule:null,});
+  ruleString = ruleString.trim();
+  var matches = ruleString.match(/^([\S]+.*)\s+(ASC|DESC)$/);
+  if (null == matches) {
+    throw Error("Ranking rule format is invalid. Each rule should be defined by a rule type and a direction (ASC or DESC), separated by a space. Valid rule types are: .geometryType, .minZoomLevel, or a feature property name.");
+  }
+  var $jscomp$destructuring$var46 = $jscomp.makeIterator(matches);
+  $jscomp$destructuring$var46.next();
+  var ruleType = $jscomp$destructuring$var46.next().value, direction = $jscomp$destructuring$var46.next().value;
+  switch(direction.toUpperCase()) {
+    case "ASC":
+      rankByOneThingRule.direction = "ASCENDING";
+      break;
+    case "DESC":
+      rankByOneThingRule.direction = "DESCENDING";
+      break;
+    default:
+      throw Error("Ranking rule direction '" + direction + "' is invalid. Directions are: ASC, DESC.");
+  }
+  switch(ruleType.trim()) {
+    case ".geometryType":
+      rankByOneThingRule.rankByGeometryTypeRule = new module$exports$eeapiclient$ee_api_client.RankByGeometryTypeRule({});
+      break;
+    case ".minZoomLevel":
+      rankByOneThingRule.rankByMinZoomLevelRule = new module$exports$eeapiclient$ee_api_client.RankByMinZoomLevelRule({});
+      break;
+    default:
+      rankByOneThingRule.rankByAttributeRule = new module$exports$eeapiclient$ee_api_client.RankByAttributeRule({attributeName:stringOrNull_(ruleType)});
+  }
+  return rankByOneThingRule;
+};
+goog.singleton = {};
+var module$contents$goog$singleton_instantiatedSingletons = [], module$contents$goog$singleton_Singleton = function() {
+};
+goog.singleton.getInstance = function(ctor) {
+  (0,goog.asserts.assert)(!Object.isSealed(ctor), "Cannot use getInstance() with a sealed constructor.");
+  if (ctor.instance_ && ctor.hasOwnProperty("instance_")) {
+    return ctor.instance_;
+  }
+  goog.DEBUG && module$contents$goog$singleton_instantiatedSingletons.push(ctor);
+  var instance = new ctor();
+  ctor.instance_ = instance;
+  (0,goog.asserts.assert)(ctor.hasOwnProperty("instance_"), "Could not instantiate singleton.");
+  return instance;
+};
+goog.singleton.instantiatedSingletons = module$contents$goog$singleton_instantiatedSingletons;
 ee.data = {};
+ee.data.AbstractTaskConfig = {};
+ee.data.AlgorithmsRegistry = {};
+ee.data.AssetList = {};
+ee.data.ClassifierTaskConfig = {};
+ee.data.FeatureViewTaskConfig = {};
+ee.data.ImageTaskConfig = {};
+ee.data.MapTaskConfig = {};
+ee.data.TableTaskConfig = {};
+ee.data.VideoMapTaskConfig = {};
+ee.data.VideoTaskConfig = {};
 ee.data.authenticateViaOauth = function(clientId, success, opt_error, opt_extraScopes, opt_onImmediateFailed, opt_suppressDefaultScopes) {
   var scopes = module$contents$ee$apiclient_apiclient.mergeAuthScopes_(!opt_suppressDefaultScopes, !1, opt_extraScopes || []);
   module$contents$ee$apiclient_apiclient.setAuthClient(clientId, scopes);
@@ -17588,7 +18766,7 @@ ee.data.authenticateViaPrivateKey = function(privateKey, opt_success, opt_error,
   var jwtClient = new google.auth.JWT(privateKey.client_email, null, privateKey.private_key, scopes, null);
   ee.data.setAuthTokenRefresher(function(authArgs, callback) {
     jwtClient.authorize(function(error, token) {
-      error ? callback({error:error}) : callback({access_token:token.access_token, token_type:token.token_type, expires_in:(token.expiry_date - Date.now()) / 1000, });
+      error ? callback({error:error}) : callback({access_token:token.access_token, token_type:token.token_type, expires_in:(token.expiry_date - Date.now()) / 1E3,});
     });
   });
   ee.data.refreshAuthToken(opt_success, opt_error);
@@ -17639,7 +18817,7 @@ ee.data.getMapId = function(params, opt_callback) {
   if (void 0 !== params.version) {
     throw Error("Image version specification not supported.");
   }
-  var map = new module$exports$eeapiclient$ee_api_client.EarthEngineMap({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.image)), fileFormat:ee.rpc_convert.fileFormat(params.format), bandIds:ee.rpc_convert.bandList(params.bands), visualizationOptions:ee.rpc_convert.visualizationOptions(params), }), call = new module$contents$ee$apiclient_Call(opt_callback);
+  var map = new module$exports$eeapiclient$ee_api_client.EarthEngineMap({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.image)), fileFormat:ee.rpc_convert.fileFormat(params.format), bandIds:ee.rpc_convert.bandList(params.bands), visualizationOptions:ee.rpc_convert.visualizationOptions(params),}), call = new module$contents$ee$apiclient_Call(opt_callback);
   return call.handle(call.maps().create(call.projectsPath(), map, {fields:["name"]}).then(function(response) {
     return ee.data.makeMapId_(response.name, "");
   }));
@@ -17668,9 +18846,26 @@ ee.data.makeMapId_ = function(mapid, token, opt_urlFormat) {
     return urlFormat.replace("{x}", x).replace("{y}", y).replace("{z}", z);
   }, urlFormat:urlFormat};
 };
+ee.data.getFeatureViewTilesKey = function(params, opt_callback) {
+  var visualizationExpression = params.visParams ? ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.visParams)) : null, map = new module$exports$eeapiclient$ee_api_client.FeatureView({name:null, asset:params.assetId, mapName:params.mapName, visualizationExpression:visualizationExpression,}), call = new module$contents$ee$apiclient_Call(opt_callback);
+  return call.handle(call.featureView().create(call.projectsPath(), map, {fields:["name"]}).then(function(response) {
+    var token = response.name.split("/").pop(), rawTilesKey = token.substring(0, token.lastIndexOf("-"));
+    return {token:token, formatTileUrl:function(x, y, z) {
+      return module$contents$ee$apiclient_apiclient.getTileBaseUrl() + "/" + module$exports$ee$apiVersion.V1ALPHA + "/" + response.name + "/tiles/" + z + "/" + x + "/" + y;
+    }, rawTilesKey:rawTilesKey};
+  }));
+};
+goog.exportSymbol("ee.data.getFeatureViewTilesKey", ee.data.getFeatureViewTilesKey);
+ee.data.listFeatures = function(asset, params, opt_callback) {
+  var call = new module$contents$ee$apiclient_Call(opt_callback), name = ee.rpc_convert.assetIdToAssetName(asset);
+  return call.handle(call.assets().listFeatures(name, params));
+};
+goog.exportSymbol("ee.data.listFeatures", ee.data.listFeatures);
 ee.data.computeValue = function(obj, opt_callback) {
-  var expression = ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(obj)), call = new module$contents$ee$apiclient_Call(opt_callback);
-  return call.handle(call.value().compute(call.projectsPath(), new module$exports$eeapiclient$ee_api_client.ComputeValueRequest({expression:expression})).then(function(x) {
+  var request = {expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(obj))}, workloadTag = ee.data.getWorkloadTag();
+  workloadTag && (request.workloadTag = workloadTag);
+  var call = new module$contents$ee$apiclient_Call(opt_callback);
+  return call.handle(call.value().compute(call.projectsPath(), new module$exports$eeapiclient$ee_api_client.ComputeValueRequest(request)).then(function(x) {
     return x.result;
   }));
 };
@@ -17688,22 +18883,22 @@ ee.data.getThumbId = function(params, opt_callback) {
   if (void 0 !== params.dimensions) {
     throw Error('"dimensions" is not supported in call to ee.data.getThumbId. Use ee.Image.getThumbURL.');
   }
-  var thumbnail = new module$exports$eeapiclient$ee_api_client.Thumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.image)), fileFormat:ee.rpc_convert.fileFormat(params.format), filenamePrefix:params.name, bandIds:ee.rpc_convert.bandList(params.bands), visualizationOptions:ee.rpc_convert.visualizationOptions(params), grid:null, }), call = new module$contents$ee$apiclient_Call(opt_callback);
+  var thumbnail = new module$exports$eeapiclient$ee_api_client.Thumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.image)), fileFormat:ee.rpc_convert.fileFormat(params.format), filenamePrefix:params.name, bandIds:ee.rpc_convert.bandList(params.bands), visualizationOptions:ee.rpc_convert.visualizationOptions(params), grid:null,}), call = new module$contents$ee$apiclient_Call(opt_callback);
   return call.handle(call.thumbnails().create(call.projectsPath(), thumbnail, {fields:["name"]}).then(function(response) {
     return {thumbid:response.name, token:""};
   }));
 };
 goog.exportSymbol("ee.data.getThumbId", ee.data.getThumbId);
 ee.data.getVideoThumbId = function(params, opt_callback) {
-  var videoOptions = new module$exports$eeapiclient$ee_api_client.VideoOptions({framesPerSecond:params.framesPerSecond || null, maxFrames:params.maxFrames || null, maxPixelsPerFrame:params.maxPixelsPerFrame || null, }), request = new module$exports$eeapiclient$ee_api_client.VideoThumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.imageCollection)), fileFormat:ee.rpc_convert.fileFormat(params.format), 
-  videoOptions:videoOptions, grid:null, }), call = new module$contents$ee$apiclient_Call(opt_callback);
+  var videoOptions = new module$exports$eeapiclient$ee_api_client.VideoOptions({framesPerSecond:params.framesPerSecond || null, maxFrames:params.maxFrames || null, maxPixelsPerFrame:params.maxPixelsPerFrame || null,}), request = new module$exports$eeapiclient$ee_api_client.VideoThumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.imageCollection)), fileFormat:ee.rpc_convert.fileFormat(params.format), 
+  videoOptions:videoOptions, grid:null,}), call = new module$contents$ee$apiclient_Call(opt_callback);
   return call.handle(call.videoThumbnails().create(call.projectsPath(), request, {fields:["name"]}).then(function(response) {
     return {thumbid:response.name, token:""};
   }));
 };
 goog.exportSymbol("ee.data.getVideoThumbId", ee.data.getVideoThumbId);
 ee.data.getFilmstripThumbId = function(params, opt_callback) {
-  var request = new module$exports$eeapiclient$ee_api_client.FilmstripThumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.imageCollection)), fileFormat:ee.rpc_convert.fileFormat(params.format), orientation:ee.rpc_convert.orientation(params.orientation), grid:null, }), call = new module$contents$ee$apiclient_Call(opt_callback);
+  var request = new module$exports$eeapiclient$ee_api_client.FilmstripThumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(params.imageCollection)), fileFormat:ee.rpc_convert.fileFormat(params.format), orientation:ee.rpc_convert.orientation(params.orientation), grid:null,}), call = new module$contents$ee$apiclient_Call(opt_callback);
   return call.handle(call.filmstripThumbnails().create(call.projectsPath(), request, {fields:["name"]}).then(function(response) {
     return {thumbid:response.name, token:""};
   }));
@@ -17742,8 +18937,8 @@ ee.data.getDownloadId = function(params, opt_callback) {
   }) && (params.bands = params.bands.map(function(band) {
     return {id:band};
   }));
-  if (params.bands && params.bands.some(function($jscomp$destructuring$var18) {
-    return null == $jscomp$destructuring$var18.id;
+  if (params.bands && params.bands.some(function($jscomp$destructuring$var47) {
+    return null == $jscomp$destructuring$var47.id;
   })) {
     throw Error("Each band dictionary must have an id.");
   }
@@ -17751,12 +18946,12 @@ ee.data.getDownloadId = function(params, opt_callback) {
   if ("string" === typeof params.crs_transform) {
     try {
       params.crs_transform = JSON.parse(params.crs_transform);
-    } catch (e$42) {
+    } catch (e$58) {
     }
   }
   var image = ee.data.images.buildDownloadIdImage(params.image, params), thumbnail = new module$exports$eeapiclient$ee_api_client.Thumbnail({name:null, expression:ee.data.expressionAugmenter_(ee.Serializer.encodeCloudApiExpression(image)), fileFormat:ee.rpc_convert.fileFormat(params.format), filenamePrefix:params.name, bandIds:params.bands && ee.rpc_convert.bandList(params.bands.map(function(band) {
     return band.id;
-  })), grid:null, }), call = new module$contents$ee$apiclient_Call(opt_callback);
+  })), grid:null,}), call = new module$contents$ee$apiclient_Call(opt_callback);
   return call.handle(call.thumbnails().create(call.projectsPath(), thumbnail, {fields:["name"]}).then(function(response) {
     return {docid:response.name, token:""};
   }));
@@ -17772,17 +18967,15 @@ ee.data.getTableDownloadId = function(params, opt_callback) {
   if (null != params.selectors) {
     if ("string" === typeof params.selectors) {
       selectors = params.selectors.split(",");
+    } else if (Array.isArray(params.selectors) && params.selectors.every(function(x) {
+      return "string" === typeof x;
+    })) {
+      selectors = params.selectors;
     } else {
-      if (Array.isArray(params.selectors) && params.selectors.every(function(x) {
-        return "string" === typeof x;
-      })) {
-        selectors = params.selectors;
-      } else {
-        throw Error("'selectors' parameter must be an array of strings.");
-      }
+      throw Error("'selectors' parameter must be an array of strings.");
     }
   }
-  var table = new module$exports$eeapiclient$ee_api_client.Table({name:null, expression:expression, fileFormat:fileFormat, selectors:selectors, filename:params.filename || null, });
+  var table = new module$exports$eeapiclient$ee_api_client.Table({name:null, expression:expression, fileFormat:fileFormat, selectors:selectors, filename:params.filename || null,});
   return call.handle(call.tables().create(call.projectsPath(), table, {fields:["name"]}).then(function(res) {
     return {docid:res.name || "", token:""};
   }));
@@ -17808,8 +19001,8 @@ goog.exportSymbol("ee.data.newTaskId", ee.data.newTaskId);
 ee.data.getTaskStatus = function(taskId, opt_callback) {
   var opNames = ee.data.makeStringArray_(taskId).map(ee.rpc_convert.taskIdToOperationName);
   if (1 === opNames.length) {
-    var call$44 = new module$contents$ee$apiclient_Call(opt_callback);
-    return call$44.handle(call$44.operations().get(opNames[0]).then(function(op) {
+    var call$60 = new module$contents$ee$apiclient_Call(opt_callback);
+    return call$60.handle(call$60.operations().get(opNames[0]).then(function(op) {
       return [ee.rpc_convert.operationToTask(op)];
     }));
   }
@@ -17861,10 +19054,10 @@ ee.data.listOperations = function(opt_limit, opt_callback) {
 };
 goog.exportSymbol("ee.data.listOperations", ee.data.listOperations);
 ee.data.cancelOperation = function(operationName, opt_callback) {
-  var opNames = ee.data.makeStringArray_(operationName), request = new module$exports$eeapiclient$ee_api_client.CancelOperationRequest;
+  var opNames = ee.data.makeStringArray_(operationName), request = new module$exports$eeapiclient$ee_api_client.CancelOperationRequest();
   if (1 === opNames.length) {
-    var call$45 = new module$contents$ee$apiclient_Call(opt_callback);
-    call$45.handle(call$45.operations().cancel(opNames[0], request));
+    var call$61 = new module$contents$ee$apiclient_Call(opt_callback);
+    call$61.handle(call$61.operations().cancel(opNames[0], request));
   } else {
     var call = new module$contents$ee$apiclient_BatchCall(opt_callback), operations = call.operations();
     call.send(opNames.map(function(op) {
@@ -17876,8 +19069,8 @@ goog.exportSymbol("ee.data.cancelOperation", ee.data.cancelOperation);
 ee.data.getOperation = function(operationName, opt_callback) {
   var opNames = ee.data.makeStringArray_(operationName).map(ee.rpc_convert.taskIdToOperationName);
   if (!Array.isArray(operationName)) {
-    var call$46 = new module$contents$ee$apiclient_Call(opt_callback);
-    return call$46.handle(call$46.operations().get(opNames[0]));
+    var call$62 = new module$contents$ee$apiclient_Call(opt_callback);
+    return call$62.handle(call$62.operations().get(opNames[0]));
   }
   var call = new module$contents$ee$apiclient_BatchCall(opt_callback), operations = call.operations();
   return call.send(opNames.map(function(op) {
@@ -17901,7 +19094,14 @@ ee.data.updateTask = function(taskId, action, opt_callback) {
 goog.exportSymbol("ee.data.updateTask", ee.data.updateTask);
 ee.data.startProcessing = function(taskId, params, opt_callback) {
   params.id = taskId;
-  var taskType = params.type, metadata = null != params.sourceUrl ? {__source_url__:params.sourceUrl} : {}, call = new module$contents$ee$apiclient_Call(opt_callback), handle = function(response) {
+  var taskType = params.type, metadata = null != params.sourceUrl ? {__source_url__:params.sourceUrl} : {};
+  if ("workloadTag" in params) {
+    params.workloadTag || delete params.workloadTag;
+  } else {
+    var workloadTag = ee.data.getWorkloadTag();
+    workloadTag && (params.workloadTag = workloadTag);
+  }
+  var call = new module$contents$ee$apiclient_Call(opt_callback), handle = function(response) {
     return call.handle(response.then(ee.rpc_convert.operationToProcessingResponse));
   };
   switch(taskType) {
@@ -17932,11 +19132,13 @@ goog.exportSymbol("ee.data.startProcessing", ee.data.startProcessing);
 ee.data.prepareExportImageRequest_ = function(taskConfig, metadata) {
   var imageTask = ee.data.images.applyTransformsToImage(taskConfig), imageRequest = ee.rpc_convert_batch.taskToExportImageRequest(imageTask);
   imageRequest.expression = ee.data.expressionAugmenter_(imageRequest.expression, metadata);
+  taskConfig.workloadTag && (imageRequest.workloadTag = taskConfig.workloadTag);
   return imageRequest;
 };
 ee.data.prepareExportVideoRequest_ = function(taskConfig, metadata) {
   var videoTask = ee.data.images.applyTransformsToCollection(taskConfig), videoRequest = ee.rpc_convert_batch.taskToExportVideoRequest(videoTask);
   videoRequest.expression = ee.data.expressionAugmenter_(videoRequest.expression, metadata);
+  taskConfig.workloadTag && (videoRequest.workloadTag = taskConfig.workloadTag);
   return videoRequest;
 };
 ee.data.prepareExportMapRequest_ = function(taskConfig, metadata) {
@@ -17946,6 +19148,7 @@ ee.data.prepareExportMapRequest_ = function(taskConfig, metadata) {
   mapTask.scale = scale;
   var mapRequest = ee.rpc_convert_batch.taskToExportMapRequest(mapTask);
   mapRequest.expression = ee.data.expressionAugmenter_(mapRequest.expression, metadata);
+  taskConfig.workloadTag && (mapRequest.workloadTag = taskConfig.workloadTag);
   return mapRequest;
 };
 ee.data.prepareExportVideoMapRequest_ = function(taskConfig, metadata) {
@@ -17955,11 +19158,13 @@ ee.data.prepareExportVideoMapRequest_ = function(taskConfig, metadata) {
   videoMapTask.scale = scale;
   var videoMapRequest = ee.rpc_convert_batch.taskToExportVideoMapRequest(videoMapTask);
   videoMapRequest.expression = ee.data.expressionAugmenter_(videoMapRequest.expression);
+  taskConfig.workloadTag && (videoMapRequest.workloadTag = taskConfig.workloadTag);
   return videoMapRequest;
 };
 ee.data.prepareExportClassifierRequest_ = function(taskConfig, metadata) {
   var classifierRequest = ee.rpc_convert_batch.taskToExportClassifierRequest(taskConfig);
   classifierRequest.expression = ee.data.expressionAugmenter_(classifierRequest.expression);
+  taskConfig.workloadTag && (classifierRequest.workloadTag = taskConfig.workloadTag);
   return classifierRequest;
 };
 ee.data.startIngestion = function(taskId, request, opt_callback) {
@@ -17972,11 +19177,11 @@ ee.data.startIngestion = function(taskId, request, opt_callback) {
 };
 goog.exportSymbol("ee.data.startIngestion", ee.data.startIngestion);
 ee.data.ingestImage = function(taskId, imageManifest, callback) {
-  var request = new module$exports$eeapiclient$ee_api_client.ImportImageRequest({imageManifest:imageManifest, requestId:taskId, overwrite:null, description:null, }), call = new module$contents$ee$apiclient_Call(callback, taskId ? void 0 : 0);
+  var request = new module$exports$eeapiclient$ee_api_client.ImportImageRequest({imageManifest:imageManifest, requestId:taskId, overwrite:null, description:null,}), call = new module$contents$ee$apiclient_Call(callback, taskId ? void 0 : 0);
   return call.handle(call.image().import(call.projectsPath(), request));
 };
 ee.data.ingestTable = function(taskId, tableManifest, callback) {
-  var request = new module$exports$eeapiclient$ee_api_client.ImportTableRequest({tableManifest:tableManifest, requestId:taskId, overwrite:null, description:null, }), call = new module$contents$ee$apiclient_Call(callback, taskId ? void 0 : 0);
+  var request = new module$exports$eeapiclient$ee_api_client.ImportTableRequest({tableManifest:tableManifest, requestId:taskId, overwrite:null, description:null,}), call = new module$contents$ee$apiclient_Call(callback, taskId ? void 0 : 0);
   return call.handle(call.table().import(call.projectsPath(), request));
 };
 ee.data.startTableIngestion = function(taskId, request, opt_callback) {
@@ -18082,12 +19287,12 @@ ee.data.deleteAsset = function(assetId, opt_callback) {
 };
 goog.exportSymbol("ee.data.deleteAsset", ee.data.deleteAsset);
 ee.data.getAssetAcl = function(assetId, opt_callback) {
-  var resource = ee.rpc_convert.assetIdToAssetName(assetId), request = new module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest, call = new module$contents$ee$apiclient_Call(opt_callback);
+  var resource = ee.rpc_convert.assetIdToAssetName(assetId), request = new module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest(), call = new module$contents$ee$apiclient_Call(opt_callback);
   return call.handle(call.assets().getIamPolicy(resource, request, {prettyPrint:!1}).then(ee.rpc_convert.iamPolicyToAcl));
 };
 goog.exportSymbol("ee.data.getAssetAcl", ee.data.getAssetAcl);
 ee.data.getIamPolicy = function(assetId, opt_callback) {
-  var resource = ee.rpc_convert.assetIdToAssetName(assetId), request = new module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest, call = new module$contents$ee$apiclient_Call(opt_callback);
+  var resource = ee.rpc_convert.assetIdToAssetName(assetId), request = new module$exports$eeapiclient$ee_api_client.GetIamPolicyRequest(), call = new module$contents$ee$apiclient_Call(opt_callback);
   return call.handle(call.assets().getIamPolicy(resource, request, {prettyPrint:!1}));
 };
 ee.data.setIamPolicy = function(assetId, policy, opt_callback) {
@@ -18120,7 +19325,7 @@ goog.exportSymbol("ee.data.setAssetProperties", ee.data.setAssetProperties);
 ee.data.getAssetRootQuota = function(rootId, opt_callback) {
   var name = ee.rpc_convert.assetIdToAssetName(rootId), call = new module$contents$ee$apiclient_Call(opt_callback), assetsCall = call.assets(), validateParams = assetsCall.$apiClient.$validateParameter;
   assetsCall.$apiClient.$validateParameter = function(param, pattern) {
-    "^projects\\/[^/]+\\/assets\\/.+$" === pattern.source && (pattern = /^projects\/[^/]+\/assets\/.*$/);
+    "^projects\\/[^/]+\\/assets\\/.+$" === pattern.source && (pattern = RegExp("^projects/[^/]+/assets/.*$"));
     return validateParams(param, pattern);
   };
   var getAssetRequest = assetsCall.get(name, {prettyPrint:!1});
@@ -18132,10 +19337,57 @@ ee.data.getAssetRootQuota = function(rootId, opt_callback) {
   }));
 };
 goog.exportSymbol("ee.data.getAssetRootQuota", ee.data.getAssetRootQuota);
-ee.data.AssetType = {ALGORITHM:"Algorithm", CLASSIFIER:"Classifier", FOLDER:"Folder", FEATURE_COLLECTION:"FeatureCollection", IMAGE:"Image", IMAGE_COLLECTION:"ImageCollection", TABLE:"Table", UNKNOWN:"Unknown"};
+ee.data.WorkloadTag = function() {
+  this.default = this.tag = "";
+};
+ee.data.WorkloadTag.prototype.get = function() {
+  return this.tag;
+};
+ee.data.WorkloadTag.prototype.set = function(tag) {
+  this.tag = this.validate(tag);
+};
+ee.data.WorkloadTag.prototype.setDefault = function(newDefault) {
+  this.default = this.validate(newDefault);
+};
+ee.data.WorkloadTag.prototype.reset = function() {
+  this.tag = this.default;
+};
+ee.data.WorkloadTag.prototype.validate = function(tag) {
+  if (null == tag || "" === tag) {
+    return "";
+  }
+  tag = String(tag);
+  if (!/^([a-z0-9]|[a-z0-9][-_\.a-z0-9]{0,61}[a-z0-9])$/g.test(tag)) {
+    throw Error('Invalid tag, "' + tag + '". Tags must be 1-63 characters, beginning and ending with a lowercase alphanumeric character([a-z0-9]) with dashes (-), underscores (_), dots (.), andlowercase alphanumerics between.');
+  }
+  return tag;
+};
+ee.data.WorkloadTag.getInstance = function() {
+  return goog.singleton.getInstance(ee.data.WorkloadTag);
+};
+ee.data.getWorkloadTag = function() {
+  return ee.data.WorkloadTag.getInstance().get();
+};
+goog.exportSymbol("ee.data.getWorkloadTag", ee.data.getWorkloadTag);
+ee.data.setWorkloadTag = function(tag) {
+  ee.data.WorkloadTag.getInstance().set(tag);
+};
+goog.exportSymbol("ee.data.setWorkloadTag", ee.data.setWorkloadTag);
+ee.data.setDefaultWorkloadTag = function(tag) {
+  ee.data.WorkloadTag.getInstance().setDefault(tag);
+  ee.data.WorkloadTag.getInstance().set(tag);
+};
+goog.exportSymbol("ee.data.setDefaultWorkloadTag", ee.data.setDefaultWorkloadTag);
+ee.data.resetWorkloadTag = function(opt_resetDefault) {
+  opt_resetDefault && ee.data.WorkloadTag.getInstance().setDefault("");
+  ee.data.WorkloadTag.getInstance().reset();
+};
+goog.exportSymbol("ee.data.resetWorkloadTag", ee.data.resetWorkloadTag);
+ee.data.AssetType = {ALGORITHM:"Algorithm", CLASSIFIER:"Classifier", FEATURE_VIEW:"FeatureView", FOLDER:"Folder", FEATURE_COLLECTION:"FeatureCollection", IMAGE:"Image", IMAGE_COLLECTION:"ImageCollection", TABLE:"Table", UNKNOWN:"Unknown"};
 ee.data.ExportType = {IMAGE:"EXPORT_IMAGE", MAP:"EXPORT_TILES", TABLE:"EXPORT_FEATURES", VIDEO:"EXPORT_VIDEO", VIDEO_MAP:"EXPORT_VIDEO_MAP", CLASSIFIER:"EXPORT_CLASSIFIER"};
-ee.data.ExportState = {UNSUBMITTED:"UNSUBMITTED", READY:"READY", RUNNING:"RUNNING", COMPLETED:"COMPLETED", FAILED:"FAILED", CANCEL_REQUESTED:"CANCEL_REQUESTED", CANCELLED:"CANCELLED", };
-ee.data.ExportDestination = {DRIVE:"DRIVE", GCS:"GOOGLE_CLOUD_STORAGE", ASSET:"ASSET", };
+ee.data.ExportState = {UNSUBMITTED:"UNSUBMITTED", READY:"READY", RUNNING:"RUNNING", COMPLETED:"COMPLETED", FAILED:"FAILED", CANCEL_REQUESTED:"CANCEL_REQUESTED", CANCELLED:"CANCELLED",};
+ee.data.ExportDestination = {DRIVE:"DRIVE", GCS:"GOOGLE_CLOUD_STORAGE", ASSET:"ASSET", FEATURE_VIEW:"FEATURE_VIEW",};
+ee.data.ThinningStrategy = {GLOBALLY_CONSISTENT:"GLOBALLY_CONSISTENT", HIGHER_DENSITY:"HIGHER_DENSITY",};
 ee.data.SystemPropertyPrefix = "system:";
 ee.data.SystemTimeProperty = {START:"system:time_start", END:"system:time_end"};
 ee.data.SYSTEM_ASSET_SIZE_PROPERTY = "system:asset_size";
@@ -18151,6 +19403,8 @@ ee.data.AssetAclUpdate = function() {
 ee.data.AssetQuotaEntry = function() {
 };
 ee.data.AssetQuotaDetails = function() {
+};
+ee.data.FeatureViewDescription = function() {
 };
 ee.data.FolderDescription = function() {
 };
@@ -18175,6 +19429,8 @@ ee.data.TableDescription = function() {
 ee.data.TableDownloadParameters = function() {
 };
 ee.data.ImageVisualizationParameters = function() {
+};
+ee.data.FeatureViewVisualizationParameters = function() {
 };
 ee.data.ThumbnailOptions = function() {
 };
@@ -18202,6 +19458,8 @@ ee.data.RawMapId = function() {
 ee.data.MapId = function() {
 };
 $jscomp.inherits(ee.data.MapId, ee.data.RawMapId);
+ee.data.FeatureViewTilesKey = function() {
+};
 ee.data.MapZoomRange = {MIN:0, MAX:24};
 ee.data.TaskStatus = function() {
 };
@@ -18271,15 +19529,19 @@ ee.ComputedObject.prototype.encode = function(encoder) {
   result["string" === typeof func ? "functionName" : "function"] = func;
   return result;
 };
-ee.ComputedObject.prototype.encodeCloudValue = function(encoder) {
+ee.ComputedObject.prototype.encodeCloudValue = function(serializer) {
   if (this.isVariable()) {
-    return ee.rpc_node.argumentReference(this.varName || "");
+    var name = this.varName || serializer.unboundName;
+    if (!name) {
+      throw Error("A mapped function's arguments cannot be used in client-side operations");
+    }
+    return ee.rpc_node.argumentReference(name);
   }
-  var encodedArgs = {}, name;
-  for (name in this.args) {
-    void 0 !== this.args[name] && (encodedArgs[name] = ee.rpc_node.reference(encoder(this.args[name])));
+  var encodedArgs = {}, name$63;
+  for (name$63 in this.args) {
+    void 0 !== this.args[name$63] && (encodedArgs[name$63] = ee.rpc_node.reference(serializer.makeReference(this.args[name$63])));
   }
-  return "string" === typeof this.func ? ee.rpc_node.functionByName(String(this.func), encodedArgs) : this.func.encodeCloudInvocation(encoder, encodedArgs);
+  return "string" === typeof this.func ? ee.rpc_node.functionByName(String(this.func), encodedArgs) : this.func.encodeCloudInvocation(serializer, encodedArgs);
 };
 ee.ComputedObject.prototype.serialize = function(legacy) {
   return (void 0 === legacy ? 0 : legacy) ? ee.Serializer.toJSON(this) : ee.Serializer.toCloudApiJSON(this);
@@ -18309,7 +19571,7 @@ ee.ComputedObject.prototype.castInternal = function(obj) {
   var klass = function() {
   };
   klass.prototype = this.constructor.prototype;
-  var result = new klass;
+  var result = new klass();
   result.func = obj.func;
   result.args = obj.args;
   result.varName = obj.varName;
@@ -18320,7 +19582,7 @@ ee.ComputedObject.construct = function(constructor, argsArray) {
     return constructor.apply(this, argsArray);
   }
   F.prototype = constructor.prototype;
-  return new F;
+  return new F();
 };
 ee.Types = {};
 ee.Types.registeredClasses_ = {};
@@ -18366,9 +19628,10 @@ ee.Types.isRegularObject = function(obj) {
   return !1;
 };
 ee.Types.useKeywordArgs = function(args, signature, isInstance) {
+  isInstance = void 0 === isInstance ? !1 : isInstance;
   if (1 === args.length && ee.Types.isRegularObject(args[0])) {
     var formalArgs = signature.args;
-    (void 0 === isInstance ? 0 : isInstance) && (formalArgs = formalArgs.slice(1));
+    isInstance && (formalArgs = formalArgs.slice(1));
     if (formalArgs.length) {
       return !(1 === formalArgs.length || formalArgs[1].optional) || "Dictionary" !== formalArgs[0].type;
     }
@@ -18377,7 +19640,7 @@ ee.Types.useKeywordArgs = function(args, signature, isInstance) {
 };
 ee.Function = function() {
   if (!(this instanceof ee.Function)) {
-    return new ee.Function;
+    return new ee.Function();
   }
 };
 goog.inherits(ee.Function, ee.Encodable);
@@ -18416,10 +19679,8 @@ ee.Function.prototype.promoteArgs = function(args) {
     var name = specs[i].name;
     if (name in args && void 0 !== args[name]) {
       promotedArgs[name] = ee.Function.promoter_(args[name], specs[i].type);
-    } else {
-      if (!specs[i].optional) {
-        throw Error("Required argument (" + name + ") missing to function: " + this);
-      }
+    } else if (!specs[i].optional) {
+      throw Error("Required argument (" + name + ") missing to function: " + this);
     }
     known[name] = !0;
   }
@@ -18497,7 +19758,7 @@ goog.exportSymbol("ee.ApiFunction._apply", ee.ApiFunction._apply);
 ee.ApiFunction.prototype.encode = function(encoder) {
   return this.signature_.name;
 };
-ee.ApiFunction.prototype.encodeCloudInvocation = function(encoder, args) {
+ee.ApiFunction.prototype.encodeCloudInvocation = function(serializer, args) {
   return ee.rpc_node.functionByName(this.signature_.name, args);
 };
 ee.ApiFunction.prototype.getSignature = function() {
@@ -18606,8 +19867,8 @@ ee.arguments.extractImpl_ = function(fn, originalArgs, parameterMatcher) {
       args[paramNames[0]] = originalArgs[0];
     } else {
       var unexpected = seen.difference(expected);
-      if (!unexpected.isEmpty()) {
-        throw Error("Unexpected arguments" + fnNameSnippet + ": " + unexpected.getValues().join(", "));
+      if (0 !== unexpected.size) {
+        throw Error("Unexpected arguments" + fnNameSnippet + ": " + Array.from(unexpected.values()).join(", "));
       }
       args = module$contents$goog$object_clone(firstArg);
     }
@@ -18615,8 +19876,8 @@ ee.arguments.extractImpl_ = function(fn, originalArgs, parameterMatcher) {
   var provided = new goog.structs.Set(module$contents$goog$object_getKeys(args)), missing = (new goog.structs.Set(module$contents$goog$array_filter(paramNamesWithOptPrefix, function(param) {
     return !goog.string.startsWith(param, "opt_");
   }))).difference(provided);
-  if (!missing.isEmpty()) {
-    throw Error("Missing required arguments" + fnNameSnippet + ": " + missing.getValues().join(", "));
+  if (0 !== missing.size) {
+    throw Error("Missing required arguments" + fnNameSnippet + ": " + Array.from(missing.values()).join(", "));
   }
   return args;
 };
@@ -18674,12 +19935,10 @@ ee.Element.prototype.set = function(var_args) {
         var value = properties[key];
         result = ee.ApiFunction._call("Element.set", result, key, value);
       }
+    } else if (properties instanceof ee.ComputedObject && ee.ApiFunction.lookupInternal("Element.setMulti")) {
+      result = ee.ApiFunction._call("Element.setMulti", this, properties);
     } else {
-      if (properties instanceof ee.ComputedObject && ee.ApiFunction.lookupInternal("Element.setMulti")) {
-        result = ee.ApiFunction._call("Element.setMulti", this, properties);
-      } else {
-        throw Error("When Element.set() is passed one argument, it must be a dictionary.");
-      }
+      throw Error("When Element.set() is passed one argument, it must be a dictionary.");
     }
   } else {
     if (0 != arguments.length % 2) {
@@ -18722,13 +19981,11 @@ ee.Geometry = function(geoJson, opt_proj, opt_geodesic, opt_evenOdd) {
     this.geometries_ = geoJson.geometries || null;
     if (null != opt_proj) {
       this.proj_ = opt_proj;
-    } else {
-      if ("crs" in geoJson) {
-        if (goog.isObject(geoJson.crs) && "name" == geoJson.crs.type && goog.isObject(geoJson.crs.properties) && "string" === typeof geoJson.crs.properties.name) {
-          this.proj_ = geoJson.crs.properties.name;
-        } else {
-          throw Error("Invalid CRS declaration in GeoJSON: " + (new goog.json.Serializer).serialize(geoJson.crs));
-        }
+    } else if ("crs" in geoJson) {
+      if (goog.isObject(geoJson.crs) && "name" == geoJson.crs.type && goog.isObject(geoJson.crs.properties) && "string" === typeof geoJson.crs.properties.name) {
+        this.proj_ = geoJson.crs.properties.name;
+      } else {
+        throw Error("Invalid CRS declaration in GeoJSON: " + (new goog.json.Serializer()).serialize(geoJson.crs));
       }
     }
     this.geodesic_ = opt_geodesic;
@@ -18794,7 +20051,8 @@ ee.Geometry.BBox = function(west, south, east, north) {
   }
   var coordinates = [west, south, east, north];
   if (ee.Geometry.hasServerValue_(coordinates)) {
-    return (new ee.ApiFunction("GeometryConstructors.BBox")).apply(coordinates);
+    var $jscomp$spread$args1;
+    return ($jscomp$spread$args1 = new ee.ApiFunction("GeometryConstructors.BBox")).call.apply($jscomp$spread$args1, $jscomp.arrayFromIterable(coordinates));
   }
   if (!(Infinity > west)) {
     throw Error("Geometry.BBox: west must not be " + west);
@@ -18811,7 +20069,7 @@ ee.Geometry.BBox = function(west, south, east, north) {
   south = Math.max(south, -90);
   north = Math.min(north, 90);
   360 <= east - west ? (west = -180, east = 180) : (west = ee.Geometry.canonicalizeLongitude_(west), east = ee.Geometry.canonicalizeLongitude_(east), east < west && (east += 360));
-  ee.Geometry.call(this, {type:"Polygon", coordinates:[[[west, north], [west, south], [east, south], [east, north]]], }, void 0, !1, !0);
+  ee.Geometry.call(this, {type:"Polygon", coordinates:[[[west, north], [west, south], [east, south], [east, north]]],}, void 0, !1, !0);
 };
 goog.inherits(ee.Geometry.BBox, ee.Geometry.Rectangle);
 goog.exportProperty(ee.Geometry, "BBox", ee.Geometry.BBox);
@@ -18885,7 +20143,7 @@ ee.Geometry.prototype.toGeoJSONString = function() {
   if (this.func) {
     throw Error("Can't convert a computed Geometry to GeoJSON. Use evaluate() instead.");
   }
-  return (new goog.json.Serializer).serialize(this.toGeoJSON());
+  return (new goog.json.Serializer()).serialize(this.toGeoJSON());
 };
 goog.exportProperty(ee.Geometry.prototype, "toGeoJSONString", ee.Geometry.prototype.toGeoJSONString);
 ee.Geometry.prototype.serialize = function(legacy) {
@@ -18895,12 +20153,12 @@ goog.exportProperty(ee.Geometry.prototype, "serialize", ee.Geometry.prototype.se
 ee.Geometry.prototype.toString = function() {
   return "ee.Geometry(" + this.toGeoJSONString() + ")";
 };
-ee.Geometry.prototype.encodeCloudValue = function(opt_encoder) {
+ee.Geometry.prototype.encodeCloudValue = function(serializer) {
   if (!this.type_) {
-    if (!opt_encoder) {
-      throw Error("Must specify an encode function when encoding a computed geometry.");
+    if (!serializer) {
+      throw Error("Must specify a serializer when encoding a computed geometry.");
     }
-    return ee.ComputedObject.prototype.encodeCloudValue.call(this, opt_encoder);
+    return ee.ComputedObject.prototype.encodeCloudValue.call(this, serializer);
   }
   var args = {}, func = "";
   "GeometryCollection" === this.type_ ? (args.geometries = this.geometries_.map(function(geometry) {
@@ -18910,7 +20168,7 @@ ee.Geometry.prototype.encodeCloudValue = function(opt_encoder) {
   var acceptsGeodesicArg = "Point" !== this.type_ && "MultiPoint" !== this.type_;
   null != this.geodesic_ && acceptsGeodesicArg && (args.geodesic = this.geodesic_);
   null != this.evenOdd_ && (args.evenOdd = this.evenOdd_);
-  return (new ee.ApiFunction(func)).apply(args).encodeCloudValue(opt_encoder);
+  return (new ee.ApiFunction(func)).apply(args).encodeCloudValue(serializer);
 };
 ee.Geometry.isValidGeometry_ = function(geometry) {
   var type = geometry.type;
@@ -19015,7 +20273,7 @@ ee.Geometry.createInstance_ = function(klass, args) {
   var f = function() {
   };
   f.prototype = klass.prototype;
-  var instance = new f, result = klass.apply(instance, args);
+  var instance = new f(), result = klass.apply(instance, args);
   return void 0 !== result ? result : instance;
 };
 ee.Geometry.prototype.name = function() {
@@ -19038,16 +20296,12 @@ ee.Filter = function(opt_filter) {
     }
     ee.ComputedObject.call(this, new ee.ApiFunction("Filter.and"), {filters:opt_filter});
     this.filter_ = opt_filter;
+  } else if (opt_filter instanceof ee.ComputedObject) {
+    ee.ComputedObject.call(this, opt_filter.func, opt_filter.args, opt_filter.varName), this.filter_ = [opt_filter];
+  } else if (void 0 === opt_filter) {
+    ee.ComputedObject.call(this, null, null), this.filter_ = [];
   } else {
-    if (opt_filter instanceof ee.ComputedObject) {
-      ee.ComputedObject.call(this, opt_filter.func, opt_filter.args, opt_filter.varName), this.filter_ = [opt_filter];
-    } else {
-      if (void 0 === opt_filter) {
-        ee.ComputedObject.call(this, null, null), this.filter_ = [];
-      } else {
-        throw Error("Invalid argument specified for ee.Filter(): " + opt_filter);
-      }
-    }
+    throw Error("Invalid argument specified for ee.Filter(): " + opt_filter);
   }
 };
 goog.inherits(ee.Filter, ee.ComputedObject);
@@ -19220,24 +20474,20 @@ ee.Feature = function(geometry, opt_properties) {
   ee.Feature.initialize();
   if (geometry instanceof ee.Geometry || null === geometry) {
     ee.Element.call(this, new ee.ApiFunction("Feature"), {geometry:geometry, metadata:opt_properties || null});
-  } else {
-    if (geometry instanceof ee.ComputedObject) {
-      ee.Element.call(this, geometry.func, geometry.args, geometry.varName);
-    } else {
-      if ("Feature" == geometry.type) {
-        var properties = geometry.properties || {};
-        if ("id" in geometry) {
-          if ("system:index" in properties) {
-            throw Error('Can\'t specify both "id" and "system:index".');
-          }
-          properties = module$contents$goog$object_clone(properties);
-          properties["system:index"] = geometry.id;
-        }
-        ee.Element.call(this, new ee.ApiFunction("Feature"), {geometry:new ee.Geometry(geometry.geometry), metadata:properties});
-      } else {
-        ee.Element.call(this, new ee.ApiFunction("Feature"), {geometry:new ee.Geometry(geometry), metadata:opt_properties || null});
+  } else if (geometry instanceof ee.ComputedObject) {
+    ee.Element.call(this, geometry.func, geometry.args, geometry.varName);
+  } else if ("Feature" == geometry.type) {
+    var properties = geometry.properties || {};
+    if ("id" in geometry) {
+      if ("system:index" in properties) {
+        throw Error('Can\'t specify both "id" and "system:index".');
       }
+      properties = module$contents$goog$object_clone(properties);
+      properties["system:index"] = geometry.id;
     }
+    ee.Element.call(this, new ee.ApiFunction("Feature"), {geometry:new ee.Geometry(geometry.geometry), metadata:properties});
+  } else {
+    ee.Element.call(this, new ee.ApiFunction("Feature"), {geometry:new ee.Geometry(geometry), metadata:opt_properties || null});
   }
 };
 goog.inherits(ee.Feature, ee.Element);
@@ -19286,12 +20536,10 @@ ee.data.images.applySelectionAndScale = function(image, params, outParams) {
           var dims = "string" === typeof value ? value.split("x").map(Number) : Array.isArray(value) ? value : "number" === typeof value ? [value] : [];
           if (1 === dims.length) {
             clipParams.maxDimension = dims[0];
+          } else if (2 === dims.length) {
+            clipParams.width = dims[0], clipParams.height = dims[1];
           } else {
-            if (2 === dims.length) {
-              clipParams.width = dims[0], clipParams.height = dims[1];
-            } else {
-              throw Error("Invalid dimensions " + value);
-            }
+            throw Error("Invalid dimensions " + value);
           }
           break;
         case "dimensions_consumed":
@@ -19456,45 +20704,39 @@ ee.Image = function(opt_args) {
   var argCount = arguments.length;
   if (0 == argCount || 1 == argCount && void 0 === opt_args) {
     ee.Element.call(this, new ee.ApiFunction("Image.mask"), {image:new ee.Image(0), mask:new ee.Image(0)});
-  } else {
-    if (1 == argCount) {
-      if (ee.Types.isNumber(opt_args)) {
-        ee.Element.call(this, new ee.ApiFunction("Image.constant"), {value:opt_args});
-      } else {
-        if (ee.Types.isString(opt_args)) {
-          ee.Element.call(this, new ee.ApiFunction("Image.load"), {id:opt_args});
-        } else {
-          if (Array.isArray(opt_args)) {
-            return ee.Image.combine_(module$contents$goog$array_map(opt_args, function(elem) {
-              return new ee.Image(elem);
-            }));
-          }
-          if (opt_args instanceof ee.ComputedObject) {
-            "Array" == opt_args.name() ? ee.Element.call(this, new ee.ApiFunction("Image.constant"), {value:opt_args}) : ee.Element.call(this, opt_args.func, opt_args.args, opt_args.varName);
-          } else {
-            throw Error("Unrecognized argument type to convert to an Image: " + opt_args);
-          }
-        }
-      }
+  } else if (1 == argCount) {
+    if (ee.Types.isNumber(opt_args)) {
+      ee.Element.call(this, new ee.ApiFunction("Image.constant"), {value:opt_args});
+    } else if (ee.Types.isString(opt_args)) {
+      ee.Element.call(this, new ee.ApiFunction("Image.load"), {id:opt_args});
     } else {
-      if (2 == argCount) {
-        var id = arguments[0], version = arguments[1];
-        if (ee.Types.isString(id) && ee.Types.isNumber(version)) {
-          ee.Element.call(this, new ee.ApiFunction("Image.load"), {id:id, version:version});
-        } else {
-          throw Error("Unrecognized argument types to convert to an Image: " + arguments);
-        }
+      if (Array.isArray(opt_args)) {
+        return ee.Image.combine_(module$contents$goog$array_map(opt_args, function(elem) {
+          return new ee.Image(elem);
+        }));
+      }
+      if (opt_args instanceof ee.ComputedObject) {
+        "Array" == opt_args.name() ? ee.Element.call(this, new ee.ApiFunction("Image.constant"), {value:opt_args}) : ee.Element.call(this, opt_args.func, opt_args.args, opt_args.varName);
       } else {
-        throw Error("The Image constructor takes at most 2 arguments (" + argCount + " given)");
+        throw Error("Unrecognized argument type to convert to an Image: " + opt_args);
       }
     }
+  } else if (2 == argCount) {
+    var id = arguments[0], version = arguments[1];
+    if (ee.Types.isString(id) && ee.Types.isNumber(version)) {
+      ee.Element.call(this, new ee.ApiFunction("Image.load"), {id:id, version:version});
+    } else {
+      throw Error("Unrecognized argument types to convert to an Image: " + arguments);
+    }
+  } else {
+    throw Error("The Image constructor takes at most 2 arguments (" + argCount + " given)");
   }
 };
 goog.inherits(ee.Image, ee.Element);
 goog.exportSymbol("ee.Image", ee.Image);
 ee.Image.initialized_ = !1;
 ee.Image.initialize = function() {
-  ee.Image.initialized_ || (ee.ApiFunction.importApi(ee.Image, "Image", "Image"), ee.ApiFunction.importApi(ee.Image, "Window", "Image", "focal_"), ee.Image.initialized_ = !0);
+  ee.Image.initialized_ || (ee.ApiFunction.importApi(ee.Image, "Image", "Image"), ee.Image.initialized_ = !0);
 };
 ee.Image.reset = function() {
   ee.ApiFunction.clearApi(ee.Image);
@@ -19601,12 +20843,12 @@ ee.Image.prototype.expression = function(expression, opt_map) {
       vars.push(name$jscomp$0), eeArgs[name$jscomp$0] = new ee.Image(map[name$jscomp$0]);
     }
   }
-  var body = ee.ApiFunction._call("Image.parseExpression", originalArgs.expression, "DEFAULT_EXPRESSION_IMAGE", vars), func = new ee.Function;
+  var body = ee.ApiFunction._call("Image.parseExpression", originalArgs.expression, "DEFAULT_EXPRESSION_IMAGE", vars), func = new ee.Function();
   func.encode = function(encoder) {
     return body.encode(encoder);
   };
-  func.encodeCloudInvocation = function(encoder, args) {
-    return ee.rpc_node.functionByReference(encoder(body), args);
+  func.encodeCloudInvocation = function(serializer, args) {
+    return ee.rpc_node.functionByReference(serializer.makeReference(body), args);
   };
   func.getSignature = function() {
     return {name:"", args:module$contents$goog$array_map(vars, function(name) {
@@ -19646,12 +20888,10 @@ ee.List = function(list) {
   ee.List.initialize();
   if (Array.isArray(list)) {
     ee.ComputedObject.call(this, null, null), this.list_ = list;
+  } else if (list instanceof ee.ComputedObject) {
+    ee.ComputedObject.call(this, list.func, list.args, list.varName), this.list_ = null;
   } else {
-    if (list instanceof ee.ComputedObject) {
-      ee.ComputedObject.call(this, list.func, list.args, list.varName), this.list_ = null;
-    } else {
-      throw Error("Invalid argument specified for ee.List(): " + list);
-    }
+    throw Error("Invalid argument specified for ee.List(): " + list);
   }
 };
 goog.inherits(ee.List, ee.ComputedObject);
@@ -19669,8 +20909,8 @@ ee.List.prototype.encode = function(encoder) {
     return encoder(elem);
   }) : ee.List.superClass_.encode.call(this, encoder);
 };
-ee.List.prototype.encodeCloudValue = function(encoder) {
-  return Array.isArray(this.list_) ? ee.rpc_node.reference(encoder(this.list_)) : ee.List.superClass_.encodeCloudValue.call(this, encoder);
+ee.List.prototype.encodeCloudValue = function(serializer) {
+  return Array.isArray(this.list_) ? ee.rpc_node.reference(serializer.makeReference(this.list_)) : ee.List.superClass_.encodeCloudValue.call(this, serializer);
 };
 ee.List.prototype.name = function() {
   return "List";
@@ -19692,28 +20932,20 @@ ee.FeatureCollection = function(args, opt_column) {
     var actualArgs = {tableId:args};
     opt_column && (actualArgs.geometryColumn = opt_column);
     ee.Collection.call(this, new ee.ApiFunction("Collection.loadTable"), actualArgs);
+  } else if (Array.isArray(args)) {
+    ee.Collection.call(this, new ee.ApiFunction("Collection"), {features:module$contents$goog$array_map(args, function(elem) {
+      return new ee.Feature(elem);
+    })});
+  } else if (args instanceof ee.List) {
+    ee.Collection.call(this, new ee.ApiFunction("Collection"), {features:args});
+  } else if (args && "object" === typeof args && "FeatureCollection" === args.type) {
+    ee.Collection.call(this, new ee.ApiFunction("Collection"), {features:args.features.map(function(f) {
+      return new ee.Feature(f);
+    })});
+  } else if (args instanceof ee.ComputedObject) {
+    ee.Collection.call(this, args.func, args.args, args.varName);
   } else {
-    if (Array.isArray(args)) {
-      ee.Collection.call(this, new ee.ApiFunction("Collection"), {features:module$contents$goog$array_map(args, function(elem) {
-        return new ee.Feature(elem);
-      })});
-    } else {
-      if (args instanceof ee.List) {
-        ee.Collection.call(this, new ee.ApiFunction("Collection"), {features:args});
-      } else {
-        if (args && "object" === typeof args && "FeatureCollection" === args.type) {
-          ee.Collection.call(this, new ee.ApiFunction("Collection"), {features:args.features.map(function(f) {
-            return new ee.Feature(f);
-          })});
-        } else {
-          if (args instanceof ee.ComputedObject) {
-            ee.Collection.call(this, args.func, args.args, args.varName);
-          } else {
-            throw Error("Unrecognized argument type to convert to a FeatureCollection: " + args);
-          }
-        }
-      }
-    }
+    throw Error("Unrecognized argument type to convert to a FeatureCollection: " + args);
   }
 };
 goog.inherits(ee.FeatureCollection, ee.Collection);
@@ -19786,22 +21018,16 @@ ee.ImageCollection = function(args) {
   args instanceof ee.Image && (args = [args]);
   if (ee.Types.isString(args)) {
     ee.Collection.call(this, new ee.ApiFunction("ImageCollection.load"), {id:args});
+  } else if (Array.isArray(args)) {
+    ee.Collection.call(this, new ee.ApiFunction("ImageCollection.fromImages"), {images:module$contents$goog$array_map(args, function(elem) {
+      return new ee.Image(elem);
+    })});
+  } else if (args instanceof ee.List) {
+    ee.Collection.call(this, new ee.ApiFunction("ImageCollection.fromImages"), {images:args});
+  } else if (args instanceof ee.ComputedObject) {
+    ee.Collection.call(this, args.func, args.args, args.varName);
   } else {
-    if (Array.isArray(args)) {
-      ee.Collection.call(this, new ee.ApiFunction("ImageCollection.fromImages"), {images:module$contents$goog$array_map(args, function(elem) {
-        return new ee.Image(elem);
-      })});
-    } else {
-      if (args instanceof ee.List) {
-        ee.Collection.call(this, new ee.ApiFunction("ImageCollection.fromImages"), {images:args});
-      } else {
-        if (args instanceof ee.ComputedObject) {
-          ee.Collection.call(this, args.func, args.args, args.varName);
-        } else {
-          throw Error("Unrecognized argument type to convert to an ImageCollection: " + args);
-        }
-      }
-    }
+    throw Error("Unrecognized argument type to convert to an ImageCollection: " + args);
   }
 };
 goog.inherits(ee.ImageCollection, ee.Collection);
@@ -19824,7 +21050,7 @@ ee.ImageCollection.prototype.getVideoThumbURL = function(params, opt_callback) {
   return ee.ImageCollection.prototype.getThumbURL_(this, args, ["gif"], ee.ImageCollection.ThumbTypes.VIDEO, opt_callback);
 };
 goog.exportProperty(ee.ImageCollection.prototype, "getVideoThumbURL", ee.ImageCollection.prototype.getVideoThumbURL);
-ee.ImageCollection.ThumbTypes = {FILMSTRIP:"filmstrip", VIDEO:"video", IMAGE:"image", };
+ee.ImageCollection.ThumbTypes = {FILMSTRIP:"filmstrip", VIDEO:"video", IMAGE:"image",};
 ee.ImageCollection.prototype.getThumbURL_ = function(collection, args, validFormats, opt_thumbType, opt_callback) {
   var extraParams = {}, clippedCollection = collection.map(function(image) {
     var projected = ee.data.images.applyCrsAndTransform(image, args.params);
@@ -19967,6 +21193,11 @@ module$contents$ee$batch_Export.table.toAsset = function(collection, opt_descrip
   return module$contents$ee$batch_ExportTask.create(serverConfig);
 };
 goog.exportSymbol("module$contents$ee$batch_Export.table.toAsset", module$contents$ee$batch_Export.table.toAsset);
+module$contents$ee$batch_Export.table.toFeatureView = function(collection, opt_description, opt_assetId, opt_maxFeaturesPerTile, opt_thinningStrategy, opt_thinningRanking, opt_zOrderRanking) {
+  var clientConfig = ee.arguments.extractFromFunction(module$contents$ee$batch_Export.table.toFeatureView, arguments), serverConfig = module$contents$ee$batch_Export.convertToServerParams(clientConfig, ee.data.ExportDestination.FEATURE_VIEW, ee.data.ExportType.TABLE);
+  return module$contents$ee$batch_ExportTask.create(serverConfig);
+};
+goog.exportSymbol("module$contents$ee$batch_Export.table.toFeatureView", module$contents$ee$batch_Export.table.toFeatureView);
 module$contents$ee$batch_Export.video.toCloudStorage = function(collection, opt_description, opt_bucket, opt_fileNamePrefix, opt_framesPerSecond, opt_dimensions, opt_region, opt_scale, opt_crs, opt_crsTransform, opt_maxPixels, opt_maxFrames) {
   var clientConfig = ee.arguments.extractFromFunction(module$contents$ee$batch_Export.video.toCloudStorage, arguments), serverConfig = module$contents$ee$batch_Export.convertToServerParams(clientConfig, ee.data.ExportDestination.GCS, ee.data.ExportType.VIDEO);
   return module$contents$ee$batch_ExportTask.create(serverConfig);
@@ -19990,13 +21221,11 @@ goog.exportSymbol("module$contents$ee$batch_Export.classifier.toAsset", module$c
 module$contents$ee$batch_Export.serializeRegion = function(region) {
   if (region instanceof ee.Geometry) {
     region = region.toGeoJSON();
-  } else {
-    if ("string" === typeof region) {
-      try {
-        region = goog.asserts.assertObject(JSON.parse(region));
-      } catch (x) {
-        throw Error("Invalid format for region property. Region must be GeoJSON LinearRing or Polygon specified as actual coordinates or serialized as a string. See Export documentation.");
-      }
+  } else if ("string" === typeof region) {
+    try {
+      region = goog.asserts.assertObject(JSON.parse(region));
+    } catch (x) {
+      throw Error("Invalid format for region property. Region must be GeoJSON LinearRing or Polygon specified as actual coordinates or serialized as a string. See Export documentation.");
     }
   }
   if (!(goog.isObject(region) && "type" in region)) {
@@ -20036,24 +21265,16 @@ module$contents$ee$batch_Export.extractElement = function(exportArgs) {
   var element = exportArgs[eeElementKey];
   if (element instanceof ee.Image) {
     var result = element;
+  } else if (element instanceof ee.FeatureCollection) {
+    result = element;
+  } else if (element instanceof ee.ImageCollection) {
+    result = element;
+  } else if (element instanceof ee.Element) {
+    result = element;
+  } else if (element instanceof ee.ComputedObject) {
+    result = element;
   } else {
-    if (element instanceof ee.FeatureCollection) {
-      result = element;
-    } else {
-      if (element instanceof ee.ImageCollection) {
-        result = element;
-      } else {
-        if (element instanceof ee.Element) {
-          result = element;
-        } else {
-          if (element instanceof ee.ComputedObject) {
-            result = element;
-          } else {
-            throw Error("Unknown element type provided: " + typeof element + ". Expected:  ee.Image, ee.ImageCollection, ee.FeatureCollection,  ee.Element or ee.ComputedObject.");
-          }
-        }
-      }
-    }
+    throw Error("Unknown element type provided: " + typeof element + ". Expected:  ee.Image, ee.ImageCollection, ee.FeatureCollection,  ee.Element or ee.ComputedObject.");
   }
   delete exportArgs[eeElementKey];
   return result;
@@ -20099,6 +21320,9 @@ module$contents$ee$batch_Export.prepareDestination_ = function(taskConfig, desti
     case ee.data.ExportDestination.ASSET:
       taskConfig.assetId = taskConfig.assetId || "";
       break;
+    case ee.data.ExportDestination.FEATURE_VIEW:
+      taskConfig.mapName = taskConfig.mapName || "";
+      break;
     default:
       var folderType = goog.typeOf(taskConfig.folder);
       if (!module$contents$goog$array_contains(["string", "undefined"], folderType)) {
@@ -20143,12 +21367,12 @@ module$contents$ee$batch_Export.videoMap.prepareTaskConfig_ = function(taskConfi
 module$contents$ee$batch_Export.classifier.prepareTaskConfig_ = function(taskConfig, destination) {
   return taskConfig = module$contents$ee$batch_Export.prepareDestination_(taskConfig, destination);
 };
-var module$contents$ee$batch_VideoFormat = {MP4:"MP4", GIF:"GIF", VP9:"VP9", }, module$contents$ee$batch_MapFormat = {AUTO_JPEG_PNG:"AUTO_JPEG_PNG", JPEG:"JPEG", PNG:"PNG", }, module$contents$ee$batch_ImageFormat = {GEO_TIFF:"GEO_TIFF", TF_RECORD_IMAGE:"TF_RECORD_IMAGE", }, module$contents$ee$batch_TableFormat = {CSV:"CSV", GEO_JSON:"GEO_JSON", KML:"KML", KMZ:"KMZ", SHP:"SHP", TF_RECORD_TABLE:"TF_RECORD_TABLE", }, module$contents$ee$batch_VideoMapVersion = {V1:"V1", V2:"V2", }, module$contents$ee$batch_FORMAT_OPTIONS_MAP = 
-{GEO_TIFF:["cloudOptimized", "fileDimensions", "shardSize", ], TF_RECORD_IMAGE:"patchDimensions kernelSize compressed maxFileSize defaultValue tensorDepths sequenceData collapseBands maskedThreshold".split(" ")}, module$contents$ee$batch_FORMAT_PREFIX_MAP = {GEO_TIFF:"tiff", TF_RECORD_IMAGE:"tfrecord"};
+var module$contents$ee$batch_VideoFormat = {MP4:"MP4", GIF:"GIF", VP9:"VP9",}, module$contents$ee$batch_MapFormat = {AUTO_JPEG_PNG:"AUTO_JPEG_PNG", JPEG:"JPEG", PNG:"PNG",}, module$contents$ee$batch_ImageFormat = {GEO_TIFF:"GEO_TIFF", TF_RECORD_IMAGE:"TF_RECORD_IMAGE",}, module$contents$ee$batch_TableFormat = {CSV:"CSV", GEO_JSON:"GEO_JSON", KML:"KML", KMZ:"KMZ", SHP:"SHP", TF_RECORD_TABLE:"TF_RECORD_TABLE",}, module$contents$ee$batch_VideoMapVersion = {V1:"V1", V2:"V2",}, module$contents$ee$batch_FORMAT_OPTIONS_MAP = 
+{GEO_TIFF:["cloudOptimized", "fileDimensions", "shardSize",], TF_RECORD_IMAGE:"patchDimensions kernelSize compressed maxFileSize defaultValue tensorDepths sequenceData collapseBands maskedThreshold".split(" ")}, module$contents$ee$batch_FORMAT_PREFIX_MAP = {GEO_TIFF:"tiff", TF_RECORD_IMAGE:"tfrecord"};
 module$contents$ee$batch_Export.reconcileVideoFormat_ = function(taskConfig) {
-  taskConfig.videoOptions = taskConfig.framesPerSecond || 5.0;
-  taskConfig.maxFrames = taskConfig.maxFrames || 1000;
-  taskConfig.maxPixels = taskConfig.maxPixels || 1e8;
+  taskConfig.videoOptions = taskConfig.framesPerSecond || 5;
+  taskConfig.maxFrames = taskConfig.maxFrames || 1E3;
+  taskConfig.maxPixels = taskConfig.maxPixels || 1E8;
   var formatString = taskConfig.fileFormat;
   null == formatString && (formatString = module$contents$ee$batch_VideoFormat.MP4);
   formatString = formatString.toUpperCase();
@@ -20263,8 +21487,8 @@ module$contents$ee$batch_Export.prefixImageFormatOptions_ = function(taskConfig,
   })) {
     throw Error("Parameter specified at least twice: once in config, and once in config format options.");
   }
-  for (var prefix = module$contents$ee$batch_FORMAT_PREFIX_MAP[imageFormat], validOptionKeys = module$contents$ee$batch_FORMAT_OPTIONS_MAP[imageFormat], prefixedOptions = {}, $jscomp$iter$20 = $jscomp.makeIterator(Object.entries(formatOptions)), $jscomp$key$ = $jscomp$iter$20.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$20.next()) {
-    var $jscomp$destructuring$var21 = $jscomp.makeIterator($jscomp$key$.value), key$jscomp$0 = $jscomp$destructuring$var21.next().value, value = $jscomp$destructuring$var21.next().value;
+  for (var prefix = module$contents$ee$batch_FORMAT_PREFIX_MAP[imageFormat], validOptionKeys = module$contents$ee$batch_FORMAT_OPTIONS_MAP[imageFormat], prefixedOptions = {}, $jscomp$iter$28 = $jscomp.makeIterator(Object.entries(formatOptions)), $jscomp$key$ = $jscomp$iter$28.next(); !$jscomp$key$.done; $jscomp$key$ = $jscomp$iter$28.next()) {
+    var $jscomp$destructuring$var50 = $jscomp.makeIterator($jscomp$key$.value), key$jscomp$0 = $jscomp$destructuring$var50.next().value, value = $jscomp$destructuring$var50.next().value;
     if (!module$contents$goog$array_contains(validOptionKeys, key$jscomp$0)) {
       var validKeysMsg = validOptionKeys.join(", ");
       throw Error('"' + key$jscomp$0 + '" is not a valid option, the image format "' + imageFormat + '""may have the following options: ' + (validKeysMsg + '".'));
@@ -20293,12 +21517,10 @@ ee.Number = function(number) {
   ee.Number.initialize();
   if ("number" === typeof number) {
     ee.ComputedObject.call(this, null, null), this.number_ = number;
+  } else if (number instanceof ee.ComputedObject) {
+    ee.ComputedObject.call(this, number.func, number.args, number.varName), this.number_ = null;
   } else {
-    if (number instanceof ee.ComputedObject) {
-      ee.ComputedObject.call(this, number.func, number.args, number.varName), this.number_ = null;
-    } else {
-      throw Error("Invalid argument specified for ee.Number(): " + number);
-    }
+    throw Error("Invalid argument specified for ee.Number(): " + number);
   }
 };
 goog.inherits(ee.Number, ee.ComputedObject);
@@ -20314,8 +21536,8 @@ ee.Number.reset = function() {
 ee.Number.prototype.encode = function(encoder) {
   return "number" === typeof this.number_ ? this.number_ : ee.Number.superClass_.encode.call(this, encoder);
 };
-ee.Number.prototype.encodeCloudValue = function(encoder) {
-  return "number" === typeof this.number_ ? ee.rpc_node.reference(encoder(this.number_)) : ee.Number.superClass_.encodeCloudValue.call(this, encoder);
+ee.Number.prototype.encodeCloudValue = function(serializer) {
+  return "number" === typeof this.number_ ? ee.rpc_node.reference(serializer.makeReference(this.number_)) : ee.Number.superClass_.encodeCloudValue.call(this, serializer);
 };
 ee.Number.prototype.name = function() {
   return "Number";
@@ -20330,12 +21552,10 @@ ee.String = function(string) {
   ee.String.initialize();
   if ("string" === typeof string) {
     ee.ComputedObject.call(this, null, null), this.string_ = string;
+  } else if (string instanceof ee.ComputedObject) {
+    this.string_ = null, string.func && "String" == string.func.getSignature().returns ? ee.ComputedObject.call(this, string.func, string.args, string.varName) : ee.ComputedObject.call(this, new ee.ApiFunction("String"), {input:string}, null);
   } else {
-    if (string instanceof ee.ComputedObject) {
-      this.string_ = null, string.func && "String" == string.func.getSignature().returns ? ee.ComputedObject.call(this, string.func, string.args, string.varName) : ee.ComputedObject.call(this, new ee.ApiFunction("String"), {input:string}, null);
-    } else {
-      throw Error("Invalid argument specified for ee.String(): " + string);
-    }
+    throw Error("Invalid argument specified for ee.String(): " + string);
   }
 };
 goog.inherits(ee.String, ee.ComputedObject);
@@ -20351,8 +21571,8 @@ ee.String.reset = function() {
 ee.String.prototype.encode = function(encoder) {
   return "string" === typeof this.string_ ? this.string_ : ee.String.superClass_.encode.call(this, encoder);
 };
-ee.String.prototype.encodeCloudValue = function(encoder) {
-  return "string" === typeof this.string_ ? ee.rpc_node.reference(encoder(this.string_)) : ee.String.superClass_.encodeCloudValue.call(this, encoder);
+ee.String.prototype.encodeCloudValue = function(serializer) {
+  return "string" === typeof this.string_ ? ee.rpc_node.reference(serializer.makeReference(this.string_)) : ee.String.superClass_.encodeCloudValue.call(this, serializer);
 };
 ee.String.prototype.name = function() {
   return "String";
@@ -20378,13 +21598,13 @@ ee.CustomFunction.prototype.encode = function(encoder) {
     return arg.name;
   }), body:encoder(this.body_)};
 };
-ee.CustomFunction.prototype.encodeCloudValue = function(encoder) {
+ee.CustomFunction.prototype.encodeCloudValue = function(serializer) {
   return ee.rpc_node.functionDefinition(this.signature_.args.map(function(arg) {
     return arg.name;
-  }), encoder(this.body_));
+  }), serializer.makeReference(this.body_));
 };
-ee.CustomFunction.prototype.encodeCloudInvocation = function(encoder, args) {
-  return ee.rpc_node.functionByReference(encoder(this), args);
+ee.CustomFunction.prototype.encodeCloudInvocation = function(serializer, args) {
+  return ee.rpc_node.functionByReference(serializer.makeReference(this), args);
 };
 ee.CustomFunction.prototype.getSignature = function() {
   return this.signature_;
@@ -20395,16 +21615,12 @@ ee.CustomFunction.variable = function(type, name$jscomp$0) {
     if (type && type != Object) {
       if (type == String) {
         type = ee.String;
+      } else if (type == Number) {
+        type = ee.Number;
+      } else if (type == Array) {
+        type = goog.global.ee.List;
       } else {
-        if (type == Number) {
-          type = ee.Number;
-        } else {
-          if (type == Array) {
-            type = goog.global.ee.List;
-          } else {
-            throw Error("Variables must be of an EE type, e.g. ee.Image or ee.Number.");
-          }
-        }
+        throw Error("Variables must be of an EE type, e.g. ee.Image or ee.Number.");
       }
     } else {
       type = ee.ComputedObject;
@@ -20441,8 +21657,8 @@ ee.CustomFunction.resolveNamelessArgs_ = function(signature, vars, body) {
       return node.functionDefinitionValue ? 1 : node.arrayValue ? countNodes(node.arrayValue.values) : node.dictionaryValue ? countNodes(Object.values(node.dictionaryValue.values)) : node.functionInvocationValue ? countNodes(Object.values(node.functionInvocationValue.arguments)) : 0;
     };
     return countNodes(Object.values(expression.values));
-  }(ee.Serializer.encodeCloudApiExpression(body.apply(null, vars))) + "_", i$47 = 0; i$47 < namelessArgIndices.length; i$47++) {
-    var index = namelessArgIndices[i$47], name = baseName + i$47;
+  }(ee.Serializer.encodeCloudApiExpression(body.apply(null, vars), "<unbound>")) + "_", i$64 = 0; i$64 < namelessArgIndices.length; i$64++) {
+    var index = namelessArgIndices[i$64], name = baseName + i$64;
     vars[index].varName = name;
     signature.args[index].name = name;
   }
@@ -20467,20 +21683,14 @@ ee.Date = function(date, opt_tz) {
         throw Error("Invalid argument specified for ee.Date(..., opt_tz): " + tz);
       }
     }
+  } else if (ee.Types.isNumber(date)) {
+    args.value = date;
+  } else if (goog.isDateLike(date)) {
+    args.value = Math.floor(date.getTime());
+  } else if (date instanceof ee.ComputedObject) {
+    date.func && "Date" == date.func.getSignature().returns ? (func = date.func, args = date.args, varName = date.varName) : args.value = date;
   } else {
-    if (ee.Types.isNumber(date)) {
-      args.value = date;
-    } else {
-      if (goog.isDateLike(date)) {
-        args.value = Math.floor(date.getTime());
-      } else {
-        if (date instanceof ee.ComputedObject) {
-          date.func && "Date" == date.func.getSignature().returns ? (func = date.func, args = date.args, varName = date.varName) : args.value = date;
-        } else {
-          throw Error("Invalid argument specified for ee.Date(): " + date);
-        }
-      }
-    }
+    throw Error("Invalid argument specified for ee.Date(): " + date);
   }
   ee.ComputedObject.call(this, func, args, varName);
 };
@@ -20552,7 +21762,7 @@ ee.Deserializer.decodeValue_ = function(json, namedValues) {
       if ("number" !== typeof microseconds) {
         throw Error("Invalid date value: " + microseconds);
       }
-      return new ee.Date(microseconds / 1000);
+      return new ee.Date(microseconds / 1E3);
     case "Bytes":
       return ee.Deserializer.roundTrip_(new module$exports$eeapiclient$ee_api_client.ValueNode({bytesValue:json}), json);
     case "Invocation":
@@ -20597,7 +21807,7 @@ ee.Deserializer.roundTrip_ = function(node, value) {
   Reencoder.prototype.encodeCloudValue = function(encoder) {
     return node;
   };
-  return new Reencoder;
+  return new Reencoder();
 };
 ee.Deserializer.invocation_ = function(func, args$jscomp$0) {
   if (func instanceof ee.Function) {
@@ -20611,10 +21821,10 @@ ee.Deserializer.invocation_ = function(func, args$jscomp$0) {
     ComputedFunction.prototype.encode = function(encoder) {
       return func.encode(encoder);
     };
-    ComputedFunction.prototype.encodeCloudInvocation = function(encoder, args) {
-      return ee.rpc_node.functionByReference(encoder(func), args);
+    ComputedFunction.prototype.encodeCloudInvocation = function(serializer, args) {
+      return ee.rpc_node.functionByReference(serializer.makeReference(func), args);
     };
-    return new ee.ComputedObject(new ComputedFunction, args$jscomp$0);
+    return new ee.ComputedObject(new ComputedFunction(), args$jscomp$0);
   }
   throw Error("Invalid function value");
 };
@@ -20671,8 +21881,8 @@ ee.Dictionary.reset = function() {
 ee.Dictionary.prototype.encode = function(encoder) {
   return null !== this.dict_ ? encoder(this.dict_) : ee.Dictionary.superClass_.encode.call(this, encoder);
 };
-ee.Dictionary.prototype.encodeCloudValue = function(encoder) {
-  return null !== this.dict_ ? ee.rpc_node.reference(encoder(this.dict_)) : ee.Dictionary.superClass_.encodeCloudValue.call(this, encoder);
+ee.Dictionary.prototype.encodeCloudValue = function(serializer) {
+  return null !== this.dict_ ? ee.rpc_node.reference(serializer.makeReference(this.dict_)) : ee.Dictionary.superClass_.encodeCloudValue.call(this, serializer);
 };
 ee.Dictionary.prototype.name = function() {
   return "Dictionary";
@@ -20687,7 +21897,7 @@ ee.Terrain.reset = function() {
   ee.ApiFunction.clearApi(ee.Terrain);
   ee.Terrain.initialized_ = !1;
 };
-ee.initialize = function(opt_baseurl, opt_tileurl, opt_successCallback, opt_errorCallback, opt_xsrfToken) {
+ee.initialize = function(opt_baseurl, opt_tileurl, opt_successCallback, opt_errorCallback, opt_xsrfToken, opt_project) {
   if (ee.ready_ != ee.InitState.READY || opt_baseurl || opt_tileurl) {
     var isAsynchronous = null != opt_successCallback;
     if (opt_errorCallback) {
@@ -20700,7 +21910,7 @@ ee.initialize = function(opt_baseurl, opt_tileurl, opt_successCallback, opt_erro
     if (ee.ready_ == ee.InitState.LOADING && isAsynchronous) {
       ee.successCallbacks_.push(opt_successCallback);
     } else {
-      if (ee.ready_ = ee.InitState.LOADING, ee.data.initialize(opt_baseurl, opt_tileurl, opt_xsrfToken), isAsynchronous) {
+      if (ee.ready_ = ee.InitState.LOADING, ee.data.initialize(opt_baseurl, opt_tileurl, opt_xsrfToken, opt_project), isAsynchronous) {
         ee.successCallbacks_.push(opt_successCallback), ee.ApiFunction.initialize(ee.initializationSuccess_, ee.initializationFailure_);
       } else {
         try {
@@ -20941,8 +22151,8 @@ ee.Function.registerPromoter(ee.promote_);
 ee.FloatTileOverlay = function(url, mapId, token) {
   ee.AbstractOverlay.call(this, url, mapId, token);
   this.tileSize = new google.maps.Size(ee.FloatTileOverlay.TILE_EDGE_LENGTH, ee.FloatTileOverlay.TILE_EDGE_LENGTH);
-  this.floatTiles_ = new goog.structs.Map;
-  this.floatTileDivs_ = new goog.structs.Map;
+  this.floatTiles_ = new goog.structs.Map();
+  this.floatTileDivs_ = new goog.structs.Map();
 };
 $jscomp.inherits(ee.FloatTileOverlay, ee.AbstractOverlay);
 ee.FloatTileOverlay.prototype.getTile = function(coord, zoom, ownerDocument) {
@@ -20996,7 +22206,7 @@ goog.exportSymbol("ee.FloatTileOverlay", ee.FloatTileOverlay);
 ee.FloatTileOverlay.TILE_EDGE_LENGTH = 256;
 ee.layers = {};
 var module$contents$ee$layers$AbstractOverlayStats_AbstractOverlayStats = function(uniqueId) {
-  this.statsByZoom_ = new Map;
+  this.statsByZoom_ = new Map();
   this.uniqueId_ = uniqueId;
 };
 module$contents$ee$layers$AbstractOverlayStats_AbstractOverlayStats.prototype.addTileStats = function(start, end, zoom) {
@@ -21017,12 +22227,12 @@ module$contents$ee$layers$AbstractOverlayStats_AbstractOverlayStats.prototype.ha
 module$contents$ee$layers$AbstractOverlayStats_AbstractOverlayStats.prototype.getSummaryList = function() {
   var $jscomp$this = this, summaryList = [];
   this.statsByZoom_.forEach(function(stats, zoom) {
-    return summaryList.push({layerId:$jscomp$this.uniqueId_, zoomLevel:zoom, tileLatencies:stats.tileLatencies, throttleCount:stats.throttleCount, errorCount:stats.errorCount, });
+    return summaryList.push({layerId:$jscomp$this.uniqueId_, zoomLevel:zoom, tileLatencies:stats.tileLatencies, throttleCount:stats.throttleCount, errorCount:stats.errorCount,});
   });
   return summaryList;
 };
 module$contents$ee$layers$AbstractOverlayStats_AbstractOverlayStats.prototype.getStatsForZoom_ = function(zoom) {
-  this.statsByZoom_.has(zoom) || this.statsByZoom_.set(zoom, {throttleCount:0, errorCount:0, tileLatencies:[], });
+  this.statsByZoom_.has(zoom) || this.statsByZoom_.set(zoom, {throttleCount:0, errorCount:0, tileLatencies:[],});
   return this.statsByZoom_.get(zoom);
 };
 module$contents$ee$layers$AbstractOverlayStats_AbstractOverlayStats.LayerStatsForZoomLevel = function() {
@@ -21146,10 +22356,10 @@ goog.fs.Error.getNameFromCode_ = function(code) {
 goog.fs.Error.getCodeFromName_ = function(name) {
   return goog.fs.Error.NameToCodeMap_[name];
 };
-var $jscomp$compprop4 = {};
-goog.fs.Error.NameToCodeMap_ = ($jscomp$compprop4[goog.fs.Error.ErrorName.ABORT] = goog.fs.Error.ErrorCode.ABORT, $jscomp$compprop4[goog.fs.Error.ErrorName.ENCODING] = goog.fs.Error.ErrorCode.ENCODING, $jscomp$compprop4[goog.fs.Error.ErrorName.INVALID_MODIFICATION] = goog.fs.Error.ErrorCode.INVALID_MODIFICATION, $jscomp$compprop4[goog.fs.Error.ErrorName.INVALID_STATE] = goog.fs.Error.ErrorCode.INVALID_STATE, $jscomp$compprop4[goog.fs.Error.ErrorName.NOT_FOUND] = goog.fs.Error.ErrorCode.NOT_FOUND, 
-$jscomp$compprop4[goog.fs.Error.ErrorName.NOT_READABLE] = goog.fs.Error.ErrorCode.NOT_READABLE, $jscomp$compprop4[goog.fs.Error.ErrorName.NO_MODIFICATION_ALLOWED] = goog.fs.Error.ErrorCode.NO_MODIFICATION_ALLOWED, $jscomp$compprop4[goog.fs.Error.ErrorName.PATH_EXISTS] = goog.fs.Error.ErrorCode.PATH_EXISTS, $jscomp$compprop4[goog.fs.Error.ErrorName.QUOTA_EXCEEDED] = goog.fs.Error.ErrorCode.QUOTA_EXCEEDED, $jscomp$compprop4[goog.fs.Error.ErrorName.SECURITY] = goog.fs.Error.ErrorCode.SECURITY, $jscomp$compprop4[goog.fs.Error.ErrorName.SYNTAX] = 
-goog.fs.Error.ErrorCode.SYNTAX, $jscomp$compprop4[goog.fs.Error.ErrorName.TYPE_MISMATCH] = goog.fs.Error.ErrorCode.TYPE_MISMATCH, $jscomp$compprop4);
+var $jscomp$compprop6 = {};
+goog.fs.Error.NameToCodeMap_ = ($jscomp$compprop6[goog.fs.Error.ErrorName.ABORT] = goog.fs.Error.ErrorCode.ABORT, $jscomp$compprop6[goog.fs.Error.ErrorName.ENCODING] = goog.fs.Error.ErrorCode.ENCODING, $jscomp$compprop6[goog.fs.Error.ErrorName.INVALID_MODIFICATION] = goog.fs.Error.ErrorCode.INVALID_MODIFICATION, $jscomp$compprop6[goog.fs.Error.ErrorName.INVALID_STATE] = goog.fs.Error.ErrorCode.INVALID_STATE, $jscomp$compprop6[goog.fs.Error.ErrorName.NOT_FOUND] = goog.fs.Error.ErrorCode.NOT_FOUND, 
+$jscomp$compprop6[goog.fs.Error.ErrorName.NOT_READABLE] = goog.fs.Error.ErrorCode.NOT_READABLE, $jscomp$compprop6[goog.fs.Error.ErrorName.NO_MODIFICATION_ALLOWED] = goog.fs.Error.ErrorCode.NO_MODIFICATION_ALLOWED, $jscomp$compprop6[goog.fs.Error.ErrorName.PATH_EXISTS] = goog.fs.Error.ErrorCode.PATH_EXISTS, $jscomp$compprop6[goog.fs.Error.ErrorName.QUOTA_EXCEEDED] = goog.fs.Error.ErrorCode.QUOTA_EXCEEDED, $jscomp$compprop6[goog.fs.Error.ErrorName.SECURITY] = goog.fs.Error.ErrorCode.SECURITY, $jscomp$compprop6[goog.fs.Error.ErrorName.SYNTAX] = 
+goog.fs.Error.ErrorCode.SYNTAX, $jscomp$compprop6[goog.fs.Error.ErrorName.TYPE_MISMATCH] = goog.fs.Error.ErrorCode.TYPE_MISMATCH, $jscomp$compprop6);
 goog.fs.ProgressEvent = function(event, target) {
   goog.events.Event.call(this, event.type, target);
   this.event_ = event;
@@ -21166,7 +22376,7 @@ goog.fs.ProgressEvent.prototype.getTotal = function() {
 };
 goog.fs.FileReader = function() {
   goog.events.EventTarget.call(this);
-  this.reader_ = new FileReader;
+  this.reader_ = new FileReader();
   this.reader_.onloadstart = goog.bind(this.dispatchProgressEvent_, this);
   this.reader_.onprogress = goog.bind(this.dispatchProgressEvent_, this);
   this.reader_.onload = goog.bind(this.dispatchProgressEvent_, this);
@@ -21204,7 +22414,7 @@ goog.fs.FileReader.prototype.readAsBinaryString = function(blob) {
   this.reader_.readAsBinaryString(blob);
 };
 goog.fs.FileReader.readAsBinaryString = function(blob) {
-  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
+  var reader = new goog.fs.FileReader(), d = goog.fs.FileReader.createDeferred_(reader);
   reader.readAsBinaryString(blob);
   return d;
 };
@@ -21212,7 +22422,7 @@ goog.fs.FileReader.prototype.readAsArrayBuffer = function(blob) {
   this.reader_.readAsArrayBuffer(blob);
 };
 goog.fs.FileReader.readAsArrayBuffer = function(blob) {
-  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
+  var reader = new goog.fs.FileReader(), d = goog.fs.FileReader.createDeferred_(reader);
   reader.readAsArrayBuffer(blob);
   return d;
 };
@@ -21220,7 +22430,7 @@ goog.fs.FileReader.prototype.readAsText = function(blob, opt_encoding) {
   this.reader_.readAsText(blob, opt_encoding);
 };
 goog.fs.FileReader.readAsText = function(blob, opt_encoding) {
-  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
+  var reader = new goog.fs.FileReader(), d = goog.fs.FileReader.createDeferred_(reader);
   reader.readAsText(blob, opt_encoding);
   return d;
 };
@@ -21228,12 +22438,12 @@ goog.fs.FileReader.prototype.readAsDataUrl = function(blob) {
   this.reader_.readAsDataURL(blob);
 };
 goog.fs.FileReader.readAsDataUrl = function(blob) {
-  var reader = new goog.fs.FileReader, d = goog.fs.FileReader.createDeferred_(reader);
+  var reader = new goog.fs.FileReader(), d = goog.fs.FileReader.createDeferred_(reader);
   reader.readAsDataUrl(blob);
   return d;
 };
 goog.fs.FileReader.createDeferred_ = function(reader) {
-  var deferred = new goog.async.Deferred;
+  var deferred = new goog.async.Deferred();
   reader.listen(goog.fs.FileReader.EventType.LOAD_END, goog.partial(function(d, r, e) {
     var result = r.getResult(), error = r.getError();
     null == result || error ? d.errback(error) : d.callback(result);
@@ -21243,10 +22453,10 @@ goog.fs.FileReader.createDeferred_ = function(reader) {
 };
 goog.dom.vendor = {};
 goog.dom.vendor.getVendorJsPrefix = function() {
-  return goog.userAgent.WEBKIT ? "Webkit" : goog.userAgent.GECKO ? "Moz" : goog.userAgent.IE ? "ms" : goog.userAgent.OPERA ? "O" : null;
+  return goog.userAgent.WEBKIT ? "Webkit" : goog.userAgent.GECKO ? "Moz" : goog.userAgent.IE ? "ms" : null;
 };
 goog.dom.vendor.getVendorPrefix = function() {
-  return goog.userAgent.WEBKIT ? "-webkit" : goog.userAgent.GECKO ? "-moz" : goog.userAgent.IE ? "-ms" : goog.userAgent.OPERA ? "-o" : null;
+  return goog.userAgent.WEBKIT ? "-webkit" : goog.userAgent.GECKO ? "-moz" : goog.userAgent.IE ? "-ms" : null;
 };
 goog.dom.vendor.getPrefixedPropertyName = function(propertyName, opt_object) {
   if (opt_object && propertyName in opt_object) {
@@ -21795,15 +23005,11 @@ goog.style.getOpacity = function(el) {
   var style = el.style, result = "";
   if ("opacity" in style) {
     result = style.opacity;
-  } else {
-    if ("MozOpacity" in style) {
-      result = style.MozOpacity;
-    } else {
-      if ("filter" in style) {
-        var match = style.filter.match(/alpha\(opacity=([\d.]+)\)/);
-        match && (result = String(match[1] / 100));
-      }
-    }
+  } else if ("MozOpacity" in style) {
+    result = style.MozOpacity;
+  } else if ("filter" in style) {
+    var match = style.filter.match(/alpha\(opacity=([\d.]+)\)/);
+    match && (result = String(match[1] / 100));
   }
   return "" == result ? result : Number(result);
 };
@@ -21814,7 +23020,9 @@ goog.style.setOpacity = function(el, alpha) {
 };
 goog.style.setTransparentBackgroundImage = function(el, src) {
   var style = el.style;
-  goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("8") ? style.filter = 'progid:DXImageTransform.Microsoft.AlphaImageLoader(src="' + src + '", sizingMethod="crop")' : (style.backgroundImage = "url(" + src + ")", style.backgroundPosition = "top left", style.backgroundRepeat = "no-repeat");
+  style.backgroundImage = "url(" + src + ")";
+  style.backgroundPosition = "top left";
+  style.backgroundRepeat = "no-repeat";
 };
 goog.style.clearTransparentBackgroundImage = function(el) {
   var style = el.style;
@@ -21856,20 +23064,19 @@ goog.style.setSafeStyleSheet = function(element, safeStyleSheet) {
   goog.userAgent.IE && void 0 !== element.cssText ? element.cssText = stylesString : goog.global.trustedTypes ? goog.dom.setTextContent(element, stylesString) : element.innerHTML = stylesString;
 };
 goog.style.setPreWrap = function(el) {
-  var style = el.style;
-  goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("8") ? (style.whiteSpace = "pre", style.wordWrap = "break-word") : style.whiteSpace = goog.userAgent.GECKO ? "-moz-pre-wrap" : "pre-wrap";
+  el.style.whiteSpace = goog.userAgent.GECKO ? "-moz-pre-wrap" : "pre-wrap";
 };
 goog.style.setInlineBlock = function(el) {
   var style = el.style;
   style.position = "relative";
-  goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("8") ? (style.zoom = "1", style.display = "inline") : style.display = "inline-block";
+  style.display = "inline-block";
 };
 goog.style.isRightToLeft = function(el) {
   return "rtl" == goog.style.getStyle_(el, "direction");
 };
 goog.style.unselectableStyle_ = goog.userAgent.GECKO ? "MozUserSelect" : goog.userAgent.WEBKIT || goog.userAgent.EDGE ? "WebkitUserSelect" : null;
 goog.style.isUnselectable = function(el) {
-  return goog.style.unselectableStyle_ ? "none" == el.style[goog.style.unselectableStyle_].toLowerCase() : goog.userAgent.IE || goog.userAgent.OPERA ? "on" == el.getAttribute("unselectable") : !1;
+  return goog.style.unselectableStyle_ ? "none" == el.style[goog.style.unselectableStyle_].toLowerCase() : goog.userAgent.IE ? "on" == el.getAttribute("unselectable") : !1;
 };
 goog.style.setUnselectable = function(el, unselectable, opt_noRecurse) {
   var descendants = opt_noRecurse ? null : el.getElementsByTagName("*"), name = goog.style.unselectableStyle_;
@@ -21881,13 +23088,9 @@ goog.style.setUnselectable = function(el, unselectable, opt_noRecurse) {
         descendant.style && (descendant.style[name] = value);
       }
     }
-  } else {
-    if (goog.userAgent.IE || goog.userAgent.OPERA) {
-      if (value = unselectable ? "on" : "", el.setAttribute("unselectable", value), descendants) {
-        for (i = 0; descendant = descendants[i]; i++) {
-          descendant.setAttribute("unselectable", value);
-        }
-      }
+  } else if (goog.userAgent.IE && (value = unselectable ? "on" : "", el.setAttribute("unselectable", value), descendants)) {
+    for (i = 0; descendant = descendants[i]; i++) {
+      descendant.setAttribute("unselectable", value);
     }
   }
 };
@@ -21896,7 +23099,7 @@ goog.style.getBorderBoxSize = function(element) {
 };
 goog.style.setBorderBoxSize = function(element, size) {
   var doc = goog.dom.getOwnerDocument(element), isCss1CompatMode = goog.dom.getDomHelper(doc).isCss1CompatMode();
-  if (!goog.userAgent.IE || goog.userAgent.isVersionOrHigher("10") || isCss1CompatMode && goog.userAgent.isVersionOrHigher("8")) {
+  if (!goog.userAgent.IE || goog.userAgent.isVersionOrHigher("10") || isCss1CompatMode) {
     goog.style.setBoxSizingSize_(element, size, "border-box");
   } else {
     var style = element.style;
@@ -21920,7 +23123,7 @@ goog.style.getContentBoxSize = function(element) {
 };
 goog.style.setContentBoxSize = function(element, size) {
   var doc = goog.dom.getOwnerDocument(element), isCss1CompatMode = goog.dom.getDomHelper(doc).isCss1CompatMode();
-  if (!goog.userAgent.IE || goog.userAgent.isVersionOrHigher("10") || isCss1CompatMode && goog.userAgent.isVersionOrHigher("8")) {
+  if (!goog.userAgent.IE || goog.userAgent.isVersionOrHigher("10") || isCss1CompatMode) {
     goog.style.setBoxSizingSize_(element, size, "content-box");
   } else {
     var style = element.style;
@@ -22036,7 +23239,7 @@ goog.style.getFontSize = function(el) {
 };
 goog.style.parseStyleAttribute = function(value) {
   var result = {};
-  module$contents$goog$array_forEach(value.split(/\s*;\s*/), function(pair) {
+  value.split(/\s*;\s*/).forEach(function(pair) {
     var keyValue = pair.match(/\s*([\w-]+)\s*:(.+)/);
     if (keyValue) {
       var styleValue = goog.string.trim(keyValue[2]);
@@ -22070,7 +23273,7 @@ goog.style.getScrollbarWidth = function(opt_className) {
   goog.dom.removeNode(outerDiv);
   return width;
 };
-goog.style.MATRIX_TRANSLATION_REGEX_ = /matrix\([0-9\.\-]+, [0-9\.\-]+, [0-9\.\-]+, [0-9\.\-]+, ([0-9\.\-]+)p?x?, ([0-9\.\-]+)p?x?\)/;
+goog.style.MATRIX_TRANSLATION_REGEX_ = RegExp("matrix\\([0-9\\.\\-]+, [0-9\\.\\-]+, [0-9\\.\\-]+, [0-9\\.\\-]+, ([0-9\\.\\-]+)p?x?, ([0-9\\.\\-]+)p?x?\\)");
 goog.style.getCssTranslation = function(element) {
   var transform = goog.style.getComputedTransform(element);
   if (!transform) {
@@ -22092,13 +23295,11 @@ ee.layers.AbstractOverlay = function(tileSource, opt_options) {
   this.name = options.name;
   this.opacity = "opacity" in options ? options.opacity : 1;
   this.stats = new module$contents$ee$layers$AbstractOverlayStats_AbstractOverlayStats(tileSource.getUniqueId());
-  this.tilesById = new goog.structs.Map;
+  this.tilesById = new goog.structs.Map();
   this.tileCounter = 0;
   this.tileSource = tileSource;
   this.handler = new goog.events.EventHandler(this);
-  this.projection = null;
   this.radius = 0;
-  this.alt = null;
 };
 $jscomp.inherits(ee.layers.AbstractOverlay, goog.events.EventTarget);
 ee.layers.AbstractOverlay.prototype.addTileCallback = function(callback) {
@@ -22138,7 +23339,7 @@ ee.layers.AbstractOverlay.prototype.getTile = function(coord, zoom, ownerDocumen
   this.tilesById.set(uniqueId, tile);
   this.registerStatusChangeListener_(tile);
   this.dispatchEvent(new ee.layers.TileStartEvent(this.getLoadingTilesCount()));
-  this.tileSource.loadTile(tile, (new Date).getTime() / 1000);
+  this.tileSource.loadTile(tile, (new Date()).getTime() / 1E3);
   return tile.div;
 };
 ee.layers.AbstractOverlay.prototype.releaseTile = function(tileDiv) {
@@ -22151,7 +23352,7 @@ ee.layers.AbstractOverlay.prototype.registerStatusChangeListener_ = function(til
     var Status = ee.layers.AbstractTile.Status;
     switch(tile.getStatus()) {
       case Status.LOADED:
-        this.stats.addTileStats(tile.loadingStartTs_, (new Date).getTime(), tile.zoom);
+        this.stats.addTileStats(tile.loadingStartTs_, (new Date()).getTime(), tile.zoom);
         this.dispatchEvent(new ee.layers.TileLoadEvent(this.getLoadingTilesCount()));
         break;
       case Status.THROTTLED:
@@ -22187,7 +23388,7 @@ ee.layers.AbstractOverlay.prototype.getTileCountForStatus_ = function(status) {
 goog.exportSymbol("ee.layers.AbstractOverlay", ee.layers.AbstractOverlay);
 goog.exportProperty(ee.layers.AbstractOverlay.prototype, "removeTileCallback", ee.layers.AbstractOverlay.prototype.removeTileCallback);
 goog.exportProperty(ee.layers.AbstractOverlay.prototype, "addTileCallback", ee.layers.AbstractOverlay.prototype.addTileCallback);
-ee.layers.AbstractOverlay.EventType = {TILE_FAIL:"tile-fail", TILE_ABORT:"tile-abort", TILE_THROTTLE:"tile-throttle", TILE_LOAD:"tile-load", TILE_START:"tile-start", };
+ee.layers.AbstractOverlay.EventType = {TILE_FAIL:"tile-fail", TILE_ABORT:"tile-abort", TILE_THROTTLE:"tile-throttle", TILE_LOAD:"tile-load", TILE_START:"tile-start",};
 ee.layers.AbstractOverlay.DEFAULT_TILE_EDGE_LENGTH = 256;
 ee.layers.TileLoadEvent = function(loadingTileCount) {
   goog.events.Event.call(this, ee.layers.AbstractOverlay.EventType.TILE_LOAD);
@@ -22235,8 +23436,8 @@ ee.layers.AbstractTile.prototype.startLoad = function() {
     throw Error("startLoad() can only be invoked once. Use retryLoad() after the first attempt.");
   }
   this.setStatus(ee.layers.AbstractTile.Status.LOADING);
-  this.loadingStartTs_ = (new Date).getTime();
-  this.xhrIo_ = new goog.net.XhrIo;
+  this.loadingStartTs_ = (new Date()).getTime();
+  this.xhrIo_ = new goog.net.XhrIo();
   this.xhrIo_.setResponseType(goog.net.XhrIo.ResponseType.BLOB);
   this.xhrIo_.listen(goog.net.EventType.COMPLETE, function(event) {
     var blob = $jscomp$this.xhrIo_.getResponse(), status = $jscomp$this.xhrIo_.getStatus(), HttpStatus = goog.net.HttpStatus;
@@ -22249,16 +23450,14 @@ ee.layers.AbstractTile.prototype.startLoad = function() {
       $jscomp$this.sourceResponseHeaders = sourceResponseHeaders;
       $jscomp$this.sourceData = blob;
       $jscomp$this.finishLoad();
+    } else if (blob) {
+      var reader = new goog.fs.FileReader();
+      reader.listen(goog.fs.FileReader.EventType.LOAD_END, function() {
+        $jscomp$this.retryLoad(reader.getResult());
+      }, void 0);
+      reader.readAsText(blob);
     } else {
-      if (blob) {
-        var reader = new goog.fs.FileReader;
-        reader.listen(goog.fs.FileReader.EventType.LOAD_END, function() {
-          $jscomp$this.retryLoad(reader.getResult());
-        }, void 0);
-        reader.readAsText(blob);
-      } else {
-        $jscomp$this.retryLoad("Failed to load tile.");
-      }
+      $jscomp$this.retryLoad("Failed to load tile.");
     }
   }, !1);
   this.xhrIo_.listenOnce(goog.net.EventType.READY, goog.partial(module$contents$goog$dispose_dispose, this.xhrIo_));
@@ -22284,7 +23483,7 @@ ee.layers.AbstractTile.prototype.retryLoad = function(opt_errorMessage) {
   };
   this.retryAttemptCount_ >= this.maxRetries ? (this.errorMessage_ = parseError(opt_errorMessage), this.setStatus(ee.layers.AbstractTile.Status.FAILED)) : (this.cancelLoad(), setTimeout(goog.bind(function() {
     this.isDisposed() || (this.isRetrying_ = !0, this.startLoad(), this.isRetrying_ = !1);
-  }, this), 1000 * Math.pow(2, this.retryAttemptCount_++)));
+  }, this), 1E3 * Math.pow(2, this.retryAttemptCount_++)));
 };
 ee.layers.AbstractTile.prototype.abort = function() {
   this.cancelLoad();
@@ -22307,7 +23506,7 @@ ee.layers.AbstractTile.prototype.disposeInternal = function() {
   this.renderer = null;
 };
 ee.layers.AbstractTile.EventType = {STATUS_CHANGED:"status-changed"};
-ee.layers.AbstractTile.Status = {NEW:"new", LOADING:"loading", THROTTLED:"throttled", LOADED:"loaded", FAILED:"failed", ABORTED:"aborted", REMOVED:"removed", };
+ee.layers.AbstractTile.Status = {NEW:"new", LOADING:"loading", THROTTLED:"throttled", LOADED:"loaded", FAILED:"failed", ABORTED:"aborted", REMOVED:"removed",};
 ee.layers.AbstractTile.DONE_STATUS_SET_ = module$contents$goog$object_createSet(ee.layers.AbstractTile.Status.ABORTED, ee.layers.AbstractTile.Status.FAILED, ee.layers.AbstractTile.Status.LOADED, ee.layers.AbstractTile.Status.REMOVED);
 ee.layers.AbstractTile.DEFAULT_MAX_LOAD_RETRIES_ = 5;
 var module$exports$ee$layers$AbstractTileSource = function() {
@@ -22316,8 +23515,8 @@ var module$exports$ee$layers$AbstractTileSource = function() {
 $jscomp.inherits(module$exports$ee$layers$AbstractTileSource, goog.Disposable);
 ee.layers.BinaryOverlay = function(tileSource, opt_options) {
   ee.layers.AbstractOverlay.call(this, tileSource, opt_options);
-  this.buffersByCoord_ = new goog.structs.Map;
-  this.divsByCoord_ = new goog.structs.Map;
+  this.buffersByCoord_ = new goog.structs.Map();
+  this.divsByCoord_ = new goog.structs.Map();
 };
 $jscomp.inherits(ee.layers.BinaryOverlay, ee.layers.AbstractOverlay);
 ee.layers.BinaryOverlay.prototype.createTile = function(coord, zoom, ownerDocument, uniqueId) {
@@ -22343,7 +23542,7 @@ ee.layers.BinaryTile = function(coord, zoom, ownerDocument, uniqueId) {
 };
 $jscomp.inherits(ee.layers.BinaryTile, ee.layers.AbstractTile);
 ee.layers.BinaryTile.prototype.finishLoad = function() {
-  var reader = new goog.fs.FileReader;
+  var reader = new goog.fs.FileReader();
   reader.listen(goog.fs.FileReader.EventType.LOAD_END, function() {
     this.buffer_ = reader.getResult();
     ee.layers.AbstractTile.prototype.finishLoad.call(this);
@@ -22359,11 +23558,11 @@ goog.net.ImageLoader = function(opt_parent) {
   this.completionFired_ = !1;
 };
 goog.inherits(goog.net.ImageLoader, goog.events.EventTarget);
-goog.net.ImageLoader.CorsRequestType = {ANONYMOUS:"anonymous", USE_CREDENTIALS:"use-credentials", };
-goog.net.ImageLoader.IMAGE_LOAD_EVENTS_ = [goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("11") ? goog.net.EventType.READY_STATE_CHANGE : goog.events.EventType.LOAD, goog.net.EventType.ABORT, goog.net.EventType.ERROR, ];
+goog.net.ImageLoader.CorsRequestType = {ANONYMOUS:"anonymous", USE_CREDENTIALS:"use-credentials",};
+goog.net.ImageLoader.IMAGE_LOAD_EVENTS_ = [goog.userAgent.IE && !goog.userAgent.isVersionOrHigher("11") ? goog.net.EventType.READY_STATE_CHANGE : goog.events.EventType.LOAD, goog.net.EventType.ABORT, goog.net.EventType.ERROR,];
 goog.net.ImageLoader.prototype.addImage = function(id, image, opt_corsRequestType) {
   var src = "string" === typeof image ? image : image.src;
-  src && (this.completionFired_ = !1, this.imageIdToRequestMap_[id] = {src:src, corsRequestType:void 0 !== opt_corsRequestType ? opt_corsRequestType : null, });
+  src && (this.completionFired_ = !1, this.imageIdToRequestMap_[id] = {src:src, corsRequestType:void 0 !== opt_corsRequestType ? opt_corsRequestType : null,});
 };
 goog.net.ImageLoader.prototype.removeImage = function(id) {
   delete this.imageIdToRequestMap_[id];
@@ -22372,14 +23571,14 @@ goog.net.ImageLoader.prototype.removeImage = function(id) {
 };
 goog.net.ImageLoader.prototype.start = function() {
   var imageIdToRequestMap = this.imageIdToRequestMap_;
-  module$contents$goog$array_forEach(module$contents$goog$object_getKeys(imageIdToRequestMap), function(id) {
+  module$contents$goog$object_getKeys(imageIdToRequestMap).forEach(function(id) {
     var imageRequest = imageIdToRequestMap[id];
     imageRequest && (delete imageIdToRequestMap[id], this.loadImage_(imageRequest, id));
   }, this);
 };
 goog.net.ImageLoader.prototype.loadImage_ = function(imageRequest, id) {
   if (!this.isDisposed()) {
-    var image = this.parent_ ? goog.dom.getDomHelper(this.parent_).createDom(goog.dom.TagName.IMG) : new Image;
+    var image = this.parent_ ? goog.dom.getDomHelper(this.parent_).createDom(goog.dom.TagName.IMG) : new Image();
     imageRequest.corsRequestType && (image.crossOrigin = imageRequest.corsRequestType);
     this.handler_.listen(image, goog.net.ImageLoader.IMAGE_LOAD_EVENTS_, this.onNetworkEvent_);
     this.imageIdToImageMap_[id] = image;
@@ -22435,7 +23634,7 @@ ee.layers.ImageTile.prototype.finishLoad = function() {
   } catch (e) {
     imageUrl = this.sourceUrl;
   }
-  this.imageLoader_ = new goog.net.ImageLoader;
+  this.imageLoader_ = new goog.net.ImageLoader();
   this.imageLoader_.addImage(this.div.id + "-image", imageUrl);
   this.imageLoaderListenerKey_ = goog.events.listenOnce(this.imageLoader_, ee.layers.ImageTile.IMAGE_LOADER_EVENTS_, function(event) {
     event.type == goog.events.EventType.LOAD ? (this.imageEl = event.target, ee.layers.AbstractTile.prototype.finishLoad.call(this)) : this.retryLoad();
@@ -22467,7 +23666,7 @@ goog.string.path.dirname = function(path) {
 };
 goog.string.path.extension = function(path) {
   var baseName = goog.string.path.baseName(path).replace(/\.+/g, "."), separatorIndex = baseName.lastIndexOf(".");
-  return 0 >= separatorIndex ? "" : baseName.substr(separatorIndex + 1);
+  return 0 >= separatorIndex ? "" : baseName.slice(separatorIndex + 1);
 };
 goog.string.path.join = function(var_args) {
   for (var path = arguments[0], i = 1; i < arguments.length; i++) {
@@ -22546,7 +23745,7 @@ goog.structs.Queue = function() {
   this.back_ = [];
 };
 goog.structs.Queue.prototype.maybeFlip_ = function() {
-  module$contents$goog$array_isEmpty(this.front_) && (this.front_ = this.back_, this.front_.reverse(), this.back_ = []);
+  0 === this.front_.length && (this.front_ = this.back_, this.front_.reverse(), this.back_ = []);
 };
 goog.structs.Queue.prototype.enqueue = function(element) {
   this.back_.push(element);
@@ -22563,7 +23762,7 @@ goog.structs.Queue.prototype.getCount = function() {
   return this.front_.length + this.back_.length;
 };
 goog.structs.Queue.prototype.isEmpty = function() {
-  return module$contents$goog$array_isEmpty(this.front_) && module$contents$goog$array_isEmpty(this.back_);
+  return 0 === this.front_.length && 0 === this.back_.length;
 };
 goog.structs.Queue.prototype.clear = function() {
   this.front_ = [];
@@ -22592,8 +23791,8 @@ goog.structs.Pool = function(opt_minCount, opt_maxCount) {
   if (this.minCount_ > this.maxCount_) {
     throw Error(goog.structs.Pool.ERROR_MIN_MAX_);
   }
-  this.freeQueue_ = new goog.structs.Queue;
-  this.inUseSet_ = new goog.structs.Set;
+  this.freeQueue_ = new goog.structs.Queue();
+  this.inUseSet_ = new goog.structs.Set();
   this.delay = 0;
   this.lastAccess = null;
   this.adjustForMinMax();
@@ -22702,17 +23901,17 @@ goog.structs.Node.prototype.getValue = function() {
 goog.structs.Node.prototype.clone = function() {
   return new goog.structs.Node(this.key_, this.value_);
 };
-goog.structs.Heap = function(opt_heap) {
+var module$contents$goog$structs$Heap_Heap = function(opt_heap) {
   this.nodes_ = [];
   opt_heap && this.insertAll(opt_heap);
 };
-goog.structs.Heap.prototype.insert = function(key, value) {
+module$contents$goog$structs$Heap_Heap.prototype.insert = function(key, value) {
   var node = new goog.structs.Node(key, value), nodes = this.nodes_;
   nodes.push(node);
   this.moveUp_(nodes.length - 1);
 };
-goog.structs.Heap.prototype.insertAll = function(heap) {
-  if (heap instanceof goog.structs.Heap) {
+module$contents$goog$structs$Heap_Heap.prototype.insertAll = function(heap) {
+  if (heap instanceof module$contents$goog$structs$Heap_Heap) {
     var keys = heap.getKeys();
     var values = heap.getValues();
     if (0 >= this.getCount()) {
@@ -22724,26 +23923,26 @@ goog.structs.Heap.prototype.insertAll = function(heap) {
   } else {
     keys = module$contents$goog$object_getKeys(heap), values = module$contents$goog$object_getValues(heap);
   }
-  for (i = 0; i < keys.length; i++) {
-    this.insert(keys[i], values[i]);
+  for (var i$65 = 0; i$65 < keys.length; i$65++) {
+    this.insert(keys[i$65], values[i$65]);
   }
 };
-goog.structs.Heap.prototype.remove = function() {
+module$contents$goog$structs$Heap_Heap.prototype.remove = function() {
   var nodes = this.nodes_, count = nodes.length, rootNode = nodes[0];
   if (!(0 >= count)) {
-    return 1 == count ? module$contents$goog$array_clear(nodes) : (nodes[0] = nodes.pop(), this.moveDown_(0)), rootNode.getValue();
+    return 1 == count ? nodes.length = 0 : (nodes[0] = nodes.pop(), this.moveDown_(0)), rootNode.getValue();
   }
 };
-goog.structs.Heap.prototype.peek = function() {
+module$contents$goog$structs$Heap_Heap.prototype.peek = function() {
   var nodes = this.nodes_;
   if (0 != nodes.length) {
     return nodes[0].getValue();
   }
 };
-goog.structs.Heap.prototype.peekKey = function() {
+module$contents$goog$structs$Heap_Heap.prototype.peekKey = function() {
   return this.nodes_[0] && this.nodes_[0].getKey();
 };
-goog.structs.Heap.prototype.moveDown_ = function(index) {
+module$contents$goog$structs$Heap_Heap.prototype.moveDown_ = function(index) {
   for (var nodes = this.nodes_, count = nodes.length, node = nodes[index]; index < count >> 1;) {
     var leftChildIndex = this.getLeftChildIndex_(index), rightChildIndex = this.getRightChildIndex_(index), smallerChildIndex = rightChildIndex < count && nodes[rightChildIndex].getKey() < nodes[leftChildIndex].getKey() ? rightChildIndex : leftChildIndex;
     if (nodes[smallerChildIndex].getKey() > node.getKey()) {
@@ -22754,7 +23953,7 @@ goog.structs.Heap.prototype.moveDown_ = function(index) {
   }
   nodes[index] = node;
 };
-goog.structs.Heap.prototype.moveUp_ = function(index) {
+module$contents$goog$structs$Heap_Heap.prototype.moveUp_ = function(index) {
   for (var nodes = this.nodes_, node = nodes[index]; 0 < index;) {
     var parentIndex = this.getParentIndex_(index);
     if (nodes[parentIndex].getKey() > node.getKey()) {
@@ -22765,62 +23964,64 @@ goog.structs.Heap.prototype.moveUp_ = function(index) {
   }
   nodes[index] = node;
 };
-goog.structs.Heap.prototype.getLeftChildIndex_ = function(index) {
+module$contents$goog$structs$Heap_Heap.prototype.getLeftChildIndex_ = function(index) {
   return 2 * index + 1;
 };
-goog.structs.Heap.prototype.getRightChildIndex_ = function(index) {
+module$contents$goog$structs$Heap_Heap.prototype.getRightChildIndex_ = function(index) {
   return 2 * index + 2;
 };
-goog.structs.Heap.prototype.getParentIndex_ = function(index) {
+module$contents$goog$structs$Heap_Heap.prototype.getParentIndex_ = function(index) {
   return index - 1 >> 1;
 };
-goog.structs.Heap.prototype.getValues = function() {
+module$contents$goog$structs$Heap_Heap.prototype.getValues = function() {
   for (var nodes = this.nodes_, rv = [], l = nodes.length, i = 0; i < l; i++) {
     rv.push(nodes[i].getValue());
   }
   return rv;
 };
-goog.structs.Heap.prototype.getKeys = function() {
+module$contents$goog$structs$Heap_Heap.prototype.getKeys = function() {
   for (var nodes = this.nodes_, rv = [], l = nodes.length, i = 0; i < l; i++) {
     rv.push(nodes[i].getKey());
   }
   return rv;
 };
-goog.structs.Heap.prototype.containsValue = function(val) {
-  return module$contents$goog$array_some(this.nodes_, function(node) {
+module$contents$goog$structs$Heap_Heap.prototype.containsValue = function(val) {
+  return this.nodes_.some(function(node) {
     return node.getValue() == val;
   });
 };
-goog.structs.Heap.prototype.containsKey = function(key) {
-  return module$contents$goog$array_some(this.nodes_, function(node) {
+module$contents$goog$structs$Heap_Heap.prototype.containsKey = function(key) {
+  return this.nodes_.some(function(node) {
     return node.getKey() == key;
   });
 };
-goog.structs.Heap.prototype.clone = function() {
-  return new goog.structs.Heap(this);
+module$contents$goog$structs$Heap_Heap.prototype.clone = function() {
+  return new module$contents$goog$structs$Heap_Heap(this);
 };
-goog.structs.Heap.prototype.getCount = function() {
+module$contents$goog$structs$Heap_Heap.prototype.getCount = function() {
   return this.nodes_.length;
 };
-goog.structs.Heap.prototype.isEmpty = function() {
-  return module$contents$goog$array_isEmpty(this.nodes_);
+module$contents$goog$structs$Heap_Heap.prototype.isEmpty = function() {
+  return 0 === this.nodes_.length;
 };
-goog.structs.Heap.prototype.clear = function() {
-  module$contents$goog$array_clear(this.nodes_);
+module$contents$goog$structs$Heap_Heap.prototype.clear = function() {
+  this.nodes_.length = 0;
 };
-goog.structs.PriorityQueue = function() {
-  goog.structs.Heap.call(this);
+goog.structs.Heap = module$contents$goog$structs$Heap_Heap;
+var module$contents$goog$structs$PriorityQueue_PriorityQueue = function() {
+  module$contents$goog$structs$Heap_Heap.apply(this, arguments);
 };
-goog.inherits(goog.structs.PriorityQueue, goog.structs.Heap);
-goog.structs.PriorityQueue.prototype.enqueue = function(priority, value) {
+$jscomp.inherits(module$contents$goog$structs$PriorityQueue_PriorityQueue, module$contents$goog$structs$Heap_Heap);
+module$contents$goog$structs$PriorityQueue_PriorityQueue.prototype.enqueue = function(priority, value) {
   this.insert(priority, value);
 };
-goog.structs.PriorityQueue.prototype.dequeue = function() {
+module$contents$goog$structs$PriorityQueue_PriorityQueue.prototype.dequeue = function() {
   return this.remove();
 };
+goog.structs.PriorityQueue = module$contents$goog$structs$PriorityQueue_PriorityQueue;
 goog.structs.PriorityPool = function(opt_minCount, opt_maxCount) {
   this.delayTimeout_ = void 0;
-  this.requestQueue_ = new goog.structs.PriorityQueue;
+  this.requestQueue_ = new module$contents$goog$structs$PriorityQueue_PriorityQueue();
   goog.structs.Pool.call(this, opt_minCount, opt_maxCount);
 };
 goog.inherits(goog.structs.PriorityPool, goog.structs.Pool);
@@ -22910,10 +24111,25 @@ goog.exportSymbol("ee.layers.EarthEngineTileSource", module$contents$ee$layers$E
 module$contents$ee$layers$EarthEngineTileSource_EarthEngineTileSource.TOKEN_POOL_ = null;
 module$contents$ee$layers$EarthEngineTileSource_EarthEngineTileSource.TOKEN_COUNT_ = 4;
 ee.layers.EarthEngineTileSource = module$contents$ee$layers$EarthEngineTileSource_EarthEngineTileSource;
+ee.layers.FeatureViewTileSource = {};
+var module$contents$ee$layers$FeatureViewTileSource_FeatureViewTileSource = function(tilesKey) {
+  module$exports$ee$layers$AbstractTileSource.call(this);
+  this.tilesKey_ = tilesKey;
+};
+$jscomp.inherits(module$contents$ee$layers$FeatureViewTileSource_FeatureViewTileSource, module$exports$ee$layers$AbstractTileSource);
+module$contents$ee$layers$FeatureViewTileSource_FeatureViewTileSource.prototype.loadTile = function(tile, opt_priority) {
+  tile.sourceUrl = this.tilesKey_.formatTileUrl(tile.coord.x, tile.coord.y, tile.zoom);
+  tile.startLoad();
+};
+module$contents$ee$layers$FeatureViewTileSource_FeatureViewTileSource.prototype.getUniqueId = function() {
+  return this.tilesKey_.token;
+};
+goog.exportSymbol("ee.layers.FeatureViewTileSource", module$contents$ee$layers$FeatureViewTileSource_FeatureViewTileSource);
+ee.layers.FeatureViewTileSource.FeatureViewTileSource = module$contents$ee$layers$FeatureViewTileSource_FeatureViewTileSource;
 ee.MapTileManager = function() {
   goog.events.EventTarget.call(this);
   this.tokenPool_ = new ee.MapTileManager.TokenPool_(0, 60);
-  this.requests_ = new goog.structs.Map;
+  this.requests_ = new goog.structs.Map();
 };
 $jscomp.inherits(ee.MapTileManager, goog.events.EventTarget);
 ee.MapTileManager.prototype.getOutstandingCount = function() {
@@ -22937,7 +24153,7 @@ ee.MapTileManager.prototype.handleAvailableToken_ = function(request, token) {
   if (request.getImageLoader() || request.getAborted()) {
     this.releaseObject_(token);
   } else {
-    if (request.setToken(token), token.setActive(!0), request.setImageLoader(new goog.net.ImageLoader), !request.retry()) {
+    if (request.setToken(token), token.setActive(!0), request.setImageLoader(new goog.net.ImageLoader()), !request.retry()) {
       throw Error("Cannot dispatch first request!");
     }
   }
@@ -22964,8 +24180,10 @@ ee.MapTileManager.prototype.disposeInternal = function() {
   requests.clear();
   this.requests_ = null;
 };
+ee.MapTileManager.getInstance = function() {
+  return goog.singleton.getInstance(ee.MapTileManager);
+};
 goog.exportSymbol("ee.MapTileManager", ee.MapTileManager);
-goog.addSingletonGetter(ee.MapTileManager);
 ee.MapTileManager.MAX_RETRIES = 1;
 ee.MapTileManager.ERROR_ID_IN_USE_ = "[ee.MapTileManager] ID in use";
 ee.MapTileManager.Request_ = function(id, url, opt_imageEventCallback, opt_requestCompleteCallback, opt_maxRetries) {
@@ -23063,7 +24281,7 @@ ee.MapTileManager.Request_.prototype.start_ = function() {
       this.getAborted() || (this.imageLoader_.addImage(this.id_, imageUrl), this.addImageEventListener(), this.imageLoader_.start());
     }, this), sourceUrl = this.getUrl();
     if (goog.Uri.parse(sourceUrl).getQueryData().containsKey("profiling")) {
-      var xhrIo = new goog.net.XhrIo;
+      var xhrIo = new goog.net.XhrIo();
       xhrIo.setResponseType(goog.net.XhrIo.ResponseType.BLOB);
       xhrIo.listen(goog.net.EventType.COMPLETE, goog.bind(function(event) {
         this.profileId_ = xhrIo.getResponseHeader(module$contents$ee$apiclient_apiclient.PROFILE_HEADER) || null;
@@ -23106,7 +24324,7 @@ ee.MapTileManager.TokenPool_ = function(opt_minCount, opt_maxCount) {
 };
 $jscomp.inherits(ee.MapTileManager.TokenPool_, goog.structs.PriorityPool);
 ee.MapTileManager.TokenPool_.prototype.createObject = function() {
-  return new ee.MapTileManager.Token_;
+  return new ee.MapTileManager.Token_();
 };
 ee.MapTileManager.TokenPool_.prototype.disposeObject = function(obj) {
   obj.dispose();
@@ -23124,8 +24342,8 @@ ee.MapLayerOverlay = function(url, mapId, token, init, opt_profiler) {
   this.tileSize = init.tileSize || new google.maps.Size(256, 256);
   this.isPng = void 0 !== init.isPng ? init.isPng : !0;
   this.name = init.name;
-  this.tiles_ = new goog.structs.Set;
-  this.opacity_ = 1.0;
+  this.tiles_ = new goog.structs.Set();
+  this.opacity_ = 1;
   this.visible_ = !0;
   this.profiler_ = opt_profiler || null;
 };
@@ -23151,7 +24369,7 @@ ee.MapLayerOverlay.prototype.getTile = function(coord, zoom, ownerDocument) {
   profiling && (src += "&profiling=1");
   var uniqueTileId = [tileId, this.tileCounter, this.token].join("/");
   this.tileCounter += 1;
-  var div = goog.dom.createDom(goog.dom.TagName.DIV, {id:uniqueTileId}), priority = (new Date).getTime() / 1000;
+  var div = goog.dom.createDom(goog.dom.TagName.DIV, {id:uniqueTileId}), priority = (new Date()).getTime() / 1E3;
   this.tilesLoading.push(uniqueTileId);
   ee.MapTileManager.getInstance().send(uniqueTileId, src, priority, goog.bind(this.handleImageCompleted_, this, div, uniqueTileId));
   this.dispatchTileEvent_();
@@ -23183,7 +24401,7 @@ ee.MapLayerOverlay.prototype.handleImageCompleted_ = function(div, tileId, e, pr
     if (e.target && e.type == goog.events.EventType.LOAD) {
       var tile = e.target;
       this.tiles_.add(tile);
-      1.0 != this.opacity_ && goog.style.setOpacity(tile, this.opacity_);
+      1 != this.opacity_ && goog.style.setOpacity(tile, this.opacity_);
       div.appendChild(tile);
     }
     this.dispatchTileEvent_();
@@ -23305,7 +24523,7 @@ ee.data.Profiler.prototype.refresh_ = function(retryAttempt) {
     marker == $jscomp$this.lastRefreshToken_ && (error && "number" === typeof retryAttempt && retryAttempt < $jscomp$this.MAX_RETRY_COUNT_ ? goog.Timer.callOnce(goog.bind($jscomp$this.refresh_, $jscomp$this, retryAttempt + 1), 2 * ee.data.Profiler.DELAY_BEFORE_REFRESH_) : ($jscomp$this.profileError_ = error || null, $jscomp$this.profileData_ = error ? ee.data.Profiler.getEmptyProfile_($jscomp$this.format_) : result, $jscomp$this.lastRefreshToken_ = null, $jscomp$this.dispatchEvent(ee.data.Profiler.EventType.STATE_CHANGED), 
     $jscomp$this.dispatchEvent(ee.data.Profiler.EventType.DATA_CHANGED)));
   }, ids = module$contents$goog$object_getKeys(this.profileIds_);
-  0 === ids.length ? handleResponse(ee.data.Profiler.getEmptyProfile_(this.format_), void 0) : (ee.ApiFunction._apply(this.showInternal_ ? "Profile.getProfilesInternal" : "Profile.getProfiles", {ids:ids, format:this.format_.toString(), }).getInfo(handleResponse), this.dispatchEvent(ee.data.Profiler.EventType.STATE_CHANGED));
+  0 === ids.length ? handleResponse(ee.data.Profiler.getEmptyProfile_(this.format_), void 0) : (ee.ApiFunction._apply(this.showInternal_ ? "Profile.getProfilesInternal" : "Profile.getProfiles", {ids:ids, format:this.format_.toString(),}).getInfo(handleResponse), this.dispatchEvent(ee.data.Profiler.EventType.STATE_CHANGED));
 };
 ee.data.Profiler.prototype.addTile = function(tileId, profileId) {
   this.tileProfileIds_[tileId] || (this.tileProfileIds_[tileId] = profileId, this.profileIds_[profileId] = (this.profileIds_[profileId] || 0) + 1, this.throttledRefresh_.start());
@@ -23346,27 +24564,28 @@ ee.data.Profiler.Format.prototype.toString = function() {
 ee.data.Profiler.Format.TEXT = new ee.data.Profiler.Format("text");
 ee.data.Profiler.Format.JSON = new ee.data.Profiler.Format("json");
 (function() {
-  var exportedFnInfo = {}, orderedFnNames = "ee.ApiFunction._apply ee.ApiFunction.lookup ee.ApiFunction._call ee.batch.Export.image.toDrive ee.batch.Export.map.toCloudStorage ee.batch.Export.table.toAsset ee.batch.Export.videoMap.toCloudStorage ee.batch.Export.image.toCloudStorage ee.batch.Export.image.toAsset ee.batch.Export.video.toDrive ee.batch.Export.classifier.toAsset ee.batch.Export.table.toDrive ee.batch.Export.video.toCloudStorage ee.batch.Export.table.toCloudStorage ee.Collection.prototype.filter ee.Collection.prototype.sort ee.Collection.prototype.filterBounds ee.Collection.prototype.map ee.Collection.prototype.filterMetadata ee.Collection.prototype.iterate ee.Collection.prototype.filterDate ee.Collection.prototype.limit ee.ComputedObject.prototype.evaluate ee.ComputedObject.prototype.serialize ee.ComputedObject.prototype.getInfo ee.ComputedObject.prototype.aside ee.data.getMapId ee.data.createFolder ee.data.renameAsset ee.data.makeThumbUrl ee.data.updateTask ee.data.startProcessing ee.data.getDownloadId ee.data.getTileUrl ee.data.copyAsset ee.data.makeDownloadUrl ee.data.deleteAsset ee.data.getTableDownloadId ee.data.getAssetAcl ee.data.computeValue ee.data.makeTableDownloadUrl ee.data.getVideoThumbId ee.data.getThumbId ee.data.authenticateViaOauth ee.data.newTaskId ee.data.getFilmstripThumbId ee.data.getTaskStatus ee.data.getList ee.data.updateAsset ee.data.startIngestion ee.data.setAssetAcl ee.data.listAssets ee.data.getTaskList ee.data.listImages ee.data.setAssetProperties ee.data.listBuckets ee.data.authenticate ee.data.getAssetRootQuota ee.data.getTaskListWithLimit ee.data.authenticateViaPopup ee.data.listOperations ee.data.startTableIngestion ee.data.getAssetRoots ee.data.getAsset ee.data.cancelOperation ee.data.createAssetHome ee.data.authenticateViaPrivateKey ee.data.cancelTask ee.data.getOperation ee.data.getInfo ee.data.createAsset ee.Date ee.Deserializer.decodeCloudApi ee.Deserializer.fromJSON ee.Deserializer.fromCloudApiJSON ee.Deserializer.decode ee.Dictionary ee.reset ee.InitState ee.initialize ee.TILE_SIZE ee.call ee.apply ee.Algorithms ee.Element.prototype.set ee.Feature.prototype.getInfo ee.Feature.prototype.getMap ee.Feature ee.FeatureCollection.prototype.select ee.FeatureCollection.prototype.getDownloadURL ee.FeatureCollection.prototype.getInfo ee.FeatureCollection.prototype.getMap ee.FeatureCollection ee.Filter.eq ee.Filter.prototype.not ee.Filter.lt ee.Filter.gt ee.Filter.and ee.Filter.neq ee.Filter ee.Filter.inList ee.Filter.date ee.Filter.metadata ee.Filter.bounds ee.Filter.lte ee.Filter.gte ee.Filter.or ee.Function.prototype.call ee.Function.prototype.apply ee.Geometry.BBox ee.Geometry.Polygon ee.Geometry.MultiPolygon ee.Geometry.prototype.serialize ee.Geometry.Point ee.Geometry ee.Geometry.MultiPoint ee.Geometry.Rectangle ee.Geometry.LineString ee.Geometry.MultiLineString ee.Geometry.prototype.toGeoJSONString ee.Geometry.prototype.toGeoJSON ee.Geometry.LinearRing ee.Image.prototype.getInfo ee.Image ee.Image.prototype.getThumbURL ee.Image.prototype.expression ee.Image.cat ee.Image.prototype.rename ee.Image.prototype.getThumbId ee.Image.prototype.getMap ee.Image.prototype.clip ee.Image.rgb ee.Image.prototype.getDownloadURL ee.Image.prototype.select ee.ImageCollection ee.ImageCollection.prototype.getInfo ee.ImageCollection.prototype.first ee.ImageCollection.prototype.select ee.ImageCollection.prototype.getVideoThumbURL ee.ImageCollection.prototype.getFilmstripThumbURL ee.ImageCollection.prototype.getMap ee.List ee.Number ee.Serializer.toCloudApiJSON ee.Serializer.toReadableCloudApiJSON ee.Serializer.encodeCloudApiPretty ee.Serializer.encodeCloudApi ee.Serializer.toJSON ee.Serializer.toReadableJSON ee.Serializer.encode ee.String ee.Terrain".split(" "), 
-  orderedParamLists = [["name", "namedArgs"], ["name"], ["name", "var_args"], "image opt_description opt_folder opt_fileNamePrefix opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize opt_fileDimensions opt_skipEmptyTiles opt_fileFormat opt_formatOptions".split(" "), "image opt_description opt_bucket opt_fileFormat opt_path opt_writePublicTiles opt_scale opt_maxZoom opt_minZoom opt_region opt_skipEmptyTiles opt_mapsApiKey opt_bucketCorsUris".split(" "), ["collection", 
-  "opt_description", "opt_assetId", "opt_maxVertices"], "collection opt_description opt_bucket opt_fileNamePrefix opt_framesPerSecond opt_writePublicTiles opt_minZoom opt_maxZoom opt_scale opt_region opt_skipEmptyTiles opt_minTimeMachineZoomSubset opt_maxTimeMachineZoomSubset opt_tileWidth opt_tileHeight opt_tileStride opt_videoFormat opt_version opt_mapsApiKey opt_bucketCorsUris".split(" "), "image opt_description opt_bucket opt_fileNamePrefix opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize opt_fileDimensions opt_skipEmptyTiles opt_fileFormat opt_formatOptions".split(" "), 
-  "image opt_description opt_assetId opt_pyramidingPolicy opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize".split(" "), "collection opt_description opt_folder opt_fileNamePrefix opt_framesPerSecond opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_maxFrames".split(" "), ["classifier", "opt_description", "opt_assetId"], "collection opt_description opt_folder opt_fileNamePrefix opt_fileFormat opt_selectors opt_maxVertices".split(" "), 
-  "collection opt_description opt_bucket opt_fileNamePrefix opt_framesPerSecond opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_maxFrames".split(" "), "collection opt_description opt_bucket opt_fileNamePrefix opt_fileFormat opt_selectors opt_maxVertices".split(" "), ["filter"], ["property", "opt_ascending"], ["geometry"], ["algorithm", "opt_dropNulls"], ["name", "operator", "value"], ["algorithm", "opt_first"], ["start", "opt_end"], ["max", "opt_property", "opt_ascending"], 
-  ["callback"], ["legacy"], ["opt_callback"], ["func", "var_args"], ["params", "opt_callback"], ["path", "opt_force", "opt_callback"], ["sourceId", "destinationId", "opt_callback"], ["id"], ["taskId", "action", "opt_callback"], ["taskId", "params", "opt_callback"], ["params", "opt_callback"], ["id", "x", "y", "z"], ["sourceId", "destinationId", "opt_overwrite", "opt_callback"], ["id"], ["assetId", "opt_callback"], ["params", "opt_callback"], ["assetId", "opt_callback"], ["obj", "opt_callback"], ["id"], 
-  ["params", "opt_callback"], ["params", "opt_callback"], "clientId success opt_error opt_extraScopes opt_onImmediateFailed opt_suppressDefaultScopes".split(" "), ["opt_count", "opt_callback"], ["params", "opt_callback"], ["taskId", "opt_callback"], ["params", "opt_callback"], ["assetId", "asset", "updateFields", "opt_callback"], ["taskId", "request", "opt_callback"], ["assetId", "aclUpdate", "opt_callback"], ["parent", "params", "opt_callback"], ["opt_callback"], ["parent", "params", "opt_callback"], 
-  ["assetId", "properties", "opt_callback"], ["project", "opt_callback"], ["clientId", "success", "opt_error", "opt_extraScopes", "opt_onImmediateFailed"], ["rootId", "opt_callback"], ["opt_limit", "opt_callback"], ["opt_success", "opt_error"], ["opt_limit", "opt_callback"], ["taskId", "request", "opt_callback"], ["opt_callback"], ["id", "opt_callback"], ["operationName", "opt_callback"], ["requestedId", "opt_callback"], ["privateKey", "opt_success", "opt_error", "opt_extraScopes", "opt_suppressDefaultScopes"], 
-  ["taskId", "opt_callback"], ["operationName", "opt_callback"], ["id", "opt_callback"], ["value", "opt_path", "opt_force", "opt_properties", "opt_callback"], ["date", "opt_tz"], ["json"], ["json"], ["json"], ["json"], ["opt_dict"], [], [], ["opt_baseurl", "opt_tileurl", "opt_successCallback", "opt_errorCallback", "opt_xsrfToken"], [], ["func", "var_args"], ["func", "namedArgs"], [], ["var_args"], ["opt_callback"], ["opt_visParams", "opt_callback"], ["geometry", "opt_properties"], ["propertySelectors", 
-  "opt_newProperties", "opt_retainGeometry"], ["opt_format", "opt_selectors", "opt_filename", "opt_callback"], ["opt_callback"], ["opt_visParams", "opt_callback"], ["args", "opt_column"], ["name", "value"], [], ["name", "value"], ["name", "value"], ["var_args"], ["name", "value"], ["opt_filter"], ["opt_leftField", "opt_rightValue", "opt_rightField", "opt_leftValue"], ["start", "opt_end"], ["name", "operator", "value"], ["geometry", "opt_errorMargin"], ["name", "value"], ["name", "value"], ["var_args"], 
-  ["var_args"], ["namedArgs"], ["west", "south", "east", "north"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError", "opt_evenOdd"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError", "opt_evenOdd"], ["legacy"], ["coords", "opt_proj"], ["geoJson", "opt_proj", "opt_geodesic", "opt_evenOdd"], ["coords", "opt_proj"], ["coords", "opt_proj", "opt_geodesic", "opt_evenOdd"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], [], [], ["coords", 
-  "opt_proj", "opt_geodesic", "opt_maxError"], ["opt_callback"], ["opt_args"], ["params", "opt_callback"], ["expression", "opt_map"], ["var_args"], ["var_args"], ["params", "opt_callback"], ["opt_visParams", "opt_callback"], ["geometry"], ["r", "g", "b"], ["params", "opt_callback"], ["var_args"], ["args"], ["opt_callback"], [], ["selectors", "opt_names"], ["params", "opt_callback"], ["params", "opt_callback"], ["opt_visParams", "opt_callback"], ["list"], ["number"], ["obj"], ["obj"], ["obj"], ["obj"], 
-  ["obj"], ["obj"], ["obj", "opt_isCompound"], ["string"], []];
-  [ee.ApiFunction._apply, ee.ApiFunction.lookup, ee.ApiFunction._call, module$contents$ee$batch_Export.image.toDrive, module$contents$ee$batch_Export.map.toCloudStorage, module$contents$ee$batch_Export.table.toAsset, module$contents$ee$batch_Export.videoMap.toCloudStorage, module$contents$ee$batch_Export.image.toCloudStorage, module$contents$ee$batch_Export.image.toAsset, module$contents$ee$batch_Export.video.toDrive, module$contents$ee$batch_Export.classifier.toAsset, module$contents$ee$batch_Export.table.toDrive, 
-  module$contents$ee$batch_Export.video.toCloudStorage, module$contents$ee$batch_Export.table.toCloudStorage, ee.Collection.prototype.filter, ee.Collection.prototype.sort, ee.Collection.prototype.filterBounds, ee.Collection.prototype.map, ee.Collection.prototype.filterMetadata, ee.Collection.prototype.iterate, ee.Collection.prototype.filterDate, ee.Collection.prototype.limit, ee.ComputedObject.prototype.evaluate, ee.ComputedObject.prototype.serialize, ee.ComputedObject.prototype.getInfo, ee.ComputedObject.prototype.aside, 
-  ee.data.getMapId, ee.data.createFolder, ee.data.renameAsset, ee.data.makeThumbUrl, ee.data.updateTask, ee.data.startProcessing, ee.data.getDownloadId, ee.data.getTileUrl, ee.data.copyAsset, ee.data.makeDownloadUrl, ee.data.deleteAsset, ee.data.getTableDownloadId, ee.data.getAssetAcl, ee.data.computeValue, ee.data.makeTableDownloadUrl, ee.data.getVideoThumbId, ee.data.getThumbId, ee.data.authenticateViaOauth, ee.data.newTaskId, ee.data.getFilmstripThumbId, ee.data.getTaskStatus, ee.data.getList, 
-  ee.data.updateAsset, ee.data.startIngestion, ee.data.setAssetAcl, ee.data.listAssets, ee.data.getTaskList, ee.data.listImages, ee.data.setAssetProperties, ee.data.listBuckets, ee.data.authenticate, ee.data.getAssetRootQuota, ee.data.getTaskListWithLimit, ee.data.authenticateViaPopup, ee.data.listOperations, ee.data.startTableIngestion, ee.data.getAssetRoots, ee.data.getAsset, ee.data.cancelOperation, ee.data.createAssetHome, ee.data.authenticateViaPrivateKey, ee.data.cancelTask, ee.data.getOperation, 
-  ee.data.getInfo, ee.data.createAsset, ee.Date, ee.Deserializer.decodeCloudApi, ee.Deserializer.fromJSON, ee.Deserializer.fromCloudApiJSON, ee.Deserializer.decode, ee.Dictionary, ee.reset, ee.InitState, ee.initialize, ee.TILE_SIZE, ee.call, ee.apply, ee.Algorithms, ee.Element.prototype.set, ee.Feature.prototype.getInfo, ee.Feature.prototype.getMap, ee.Feature, ee.FeatureCollection.prototype.select, ee.FeatureCollection.prototype.getDownloadURL, ee.FeatureCollection.prototype.getInfo, ee.FeatureCollection.prototype.getMap, 
-  ee.FeatureCollection, ee.Filter.eq, ee.Filter.prototype.not, ee.Filter.lt, ee.Filter.gt, ee.Filter.and, ee.Filter.neq, ee.Filter, ee.Filter.inList, ee.Filter.date, ee.Filter.metadata, ee.Filter.bounds, ee.Filter.lte, ee.Filter.gte, ee.Filter.or, ee.Function.prototype.call, ee.Function.prototype.apply, ee.Geometry.BBox, ee.Geometry.Polygon, ee.Geometry.MultiPolygon, ee.Geometry.prototype.serialize, ee.Geometry.Point, ee.Geometry, ee.Geometry.MultiPoint, ee.Geometry.Rectangle, ee.Geometry.LineString, 
-  ee.Geometry.MultiLineString, ee.Geometry.prototype.toGeoJSONString, ee.Geometry.prototype.toGeoJSON, ee.Geometry.LinearRing, ee.Image.prototype.getInfo, ee.Image, ee.Image.prototype.getThumbURL, ee.Image.prototype.expression, ee.Image.cat, ee.Image.prototype.rename, ee.Image.prototype.getThumbId, ee.Image.prototype.getMap, ee.Image.prototype.clip, ee.Image.rgb, ee.Image.prototype.getDownloadURL, ee.Image.prototype.select, ee.ImageCollection, ee.ImageCollection.prototype.getInfo, ee.ImageCollection.prototype.first, 
-  ee.ImageCollection.prototype.select, ee.ImageCollection.prototype.getVideoThumbURL, ee.ImageCollection.prototype.getFilmstripThumbURL, ee.ImageCollection.prototype.getMap, ee.List, ee.Number, ee.Serializer.toCloudApiJSON, ee.Serializer.toReadableCloudApiJSON, ee.Serializer.encodeCloudApiPretty, ee.Serializer.encodeCloudApi, ee.Serializer.toJSON, ee.Serializer.toReadableJSON, ee.Serializer.encode, ee.String, ee.Terrain].forEach(function(fn, i) {
+  var exportedFnInfo = {}, orderedFnNames = "ee.ApiFunction.lookup ee.ApiFunction._call ee.ApiFunction._apply ee.batch.Export.video.toDrive ee.batch.Export.map.toCloudStorage ee.batch.Export.table.toFeatureView ee.batch.Export.videoMap.toCloudStorage ee.batch.Export.table.toAsset ee.batch.Export.image.toDrive ee.batch.Export.image.toCloudStorage ee.batch.Export.image.toAsset ee.batch.Export.table.toCloudStorage ee.batch.Export.video.toCloudStorage ee.batch.Export.classifier.toAsset ee.batch.Export.table.toDrive ee.Collection.prototype.sort ee.Collection.prototype.filterMetadata ee.Collection.prototype.map ee.Collection.prototype.filter ee.Collection.prototype.limit ee.Collection.prototype.iterate ee.Collection.prototype.filterDate ee.Collection.prototype.filterBounds ee.ComputedObject.prototype.evaluate ee.ComputedObject.prototype.aside ee.ComputedObject.prototype.getInfo ee.ComputedObject.prototype.serialize ee.data.getTileUrl ee.data.getMapId ee.data.setAssetAcl ee.data.startIngestion ee.data.computeValue ee.data.setAssetProperties ee.data.authenticateViaOauth ee.data.listFeatures ee.data.getAssetRootQuota ee.data.getFeatureViewTilesKey ee.data.startTableIngestion ee.data.getWorkloadTag ee.data.authenticateViaPrivateKey ee.data.setWorkloadTag ee.data.getAsset ee.data.setDefaultWorkloadTag ee.data.authenticateViaPopup ee.data.resetWorkloadTag ee.data.getInfo ee.data.authenticate ee.data.getList ee.data.createFolder ee.data.getVideoThumbId ee.data.getTaskStatus ee.data.cancelTask ee.data.getFilmstripThumbId ee.data.makeThumbUrl ee.data.listAssets ee.data.renameAsset ee.data.updateTask ee.data.copyAsset ee.data.startProcessing ee.data.listImages ee.data.getTaskList ee.data.getDownloadId ee.data.deleteAsset ee.data.getThumbId ee.data.listBuckets ee.data.getTaskListWithLimit ee.data.makeDownloadUrl ee.data.getAssetAcl ee.data.getAssetRoots ee.data.getTableDownloadId ee.data.listOperations ee.data.cancelOperation ee.data.createAssetHome ee.data.makeTableDownloadUrl ee.data.createAsset ee.data.newTaskId ee.data.getOperation ee.data.updateAsset ee.Date ee.Deserializer.fromJSON ee.Deserializer.decodeCloudApi ee.Deserializer.fromCloudApiJSON ee.Deserializer.decode ee.Dictionary ee.initialize ee.call ee.apply ee.TILE_SIZE ee.reset ee.InitState ee.Algorithms ee.Element.prototype.set ee.Feature ee.Feature.prototype.getMap ee.Feature.prototype.getInfo ee.FeatureCollection.prototype.getInfo ee.FeatureCollection.prototype.getDownloadURL ee.FeatureCollection.prototype.getMap ee.FeatureCollection.prototype.select ee.FeatureCollection ee.Filter.lt ee.Filter.and ee.Filter.or ee.Filter.gte ee.Filter.date ee.Filter.prototype.not ee.Filter.inList ee.Filter ee.Filter.eq ee.Filter.metadata ee.Filter.neq ee.Filter.bounds ee.Filter.gt ee.Filter.lte ee.Function.prototype.apply ee.Function.prototype.call ee.Geometry.Polygon ee.Geometry.prototype.toGeoJSON ee.Geometry.prototype.toGeoJSONString ee.Geometry.Point ee.Geometry.BBox ee.Geometry.LinearRing ee.Geometry ee.Geometry.MultiPolygon ee.Geometry.MultiPoint ee.Geometry.prototype.serialize ee.Geometry.MultiLineString ee.Geometry.Rectangle ee.Geometry.LineString ee.Image.prototype.select ee.Image.prototype.clip ee.Image.prototype.expression ee.Image.cat ee.Image ee.Image.prototype.getMap ee.Image.prototype.rename ee.Image.prototype.getDownloadURL ee.Image.prototype.getInfo ee.Image.rgb ee.Image.prototype.getThumbId ee.Image.prototype.getThumbURL ee.ImageCollection ee.ImageCollection.prototype.first ee.ImageCollection.prototype.getFilmstripThumbURL ee.ImageCollection.prototype.getVideoThumbURL ee.ImageCollection.prototype.getMap ee.ImageCollection.prototype.select ee.ImageCollection.prototype.getInfo ee.List ee.Number ee.Serializer.encodeCloudApiPretty ee.Serializer.toReadableCloudApiJSON ee.Serializer.toCloudApiJSON ee.Serializer.encode ee.Serializer.encodeCloudApi ee.Serializer.toJSON ee.Serializer.toReadableJSON ee.String ee.Terrain".split(" "), 
+  orderedParamLists = [["name"], ["name", "var_args"], ["name", "namedArgs"], "collection opt_description opt_folder opt_fileNamePrefix opt_framesPerSecond opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_maxFrames".split(" "), "image opt_description opt_bucket opt_fileFormat opt_path opt_writePublicTiles opt_scale opt_maxZoom opt_minZoom opt_region opt_skipEmptyTiles opt_mapsApiKey opt_bucketCorsUris".split(" "), "collection opt_description opt_assetId opt_maxFeaturesPerTile opt_thinningStrategy opt_thinningRanking opt_zOrderRanking".split(" "), 
+  "collection opt_description opt_bucket opt_fileNamePrefix opt_framesPerSecond opt_writePublicTiles opt_minZoom opt_maxZoom opt_scale opt_region opt_skipEmptyTiles opt_minTimeMachineZoomSubset opt_maxTimeMachineZoomSubset opt_tileWidth opt_tileHeight opt_tileStride opt_videoFormat opt_version opt_mapsApiKey opt_bucketCorsUris".split(" "), ["collection", "opt_description", "opt_assetId", "opt_maxVertices"], "image opt_description opt_folder opt_fileNamePrefix opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize opt_fileDimensions opt_skipEmptyTiles opt_fileFormat opt_formatOptions".split(" "), 
+  "image opt_description opt_bucket opt_fileNamePrefix opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize opt_fileDimensions opt_skipEmptyTiles opt_fileFormat opt_formatOptions".split(" "), "image opt_description opt_assetId opt_pyramidingPolicy opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_shardSize".split(" "), "collection opt_description opt_bucket opt_fileNamePrefix opt_fileFormat opt_selectors opt_maxVertices".split(" "), 
+  "collection opt_description opt_bucket opt_fileNamePrefix opt_framesPerSecond opt_dimensions opt_region opt_scale opt_crs opt_crsTransform opt_maxPixels opt_maxFrames".split(" "), ["classifier", "opt_description", "opt_assetId"], "collection opt_description opt_folder opt_fileNamePrefix opt_fileFormat opt_selectors opt_maxVertices".split(" "), ["property", "opt_ascending"], ["name", "operator", "value"], ["algorithm", "opt_dropNulls"], ["filter"], ["max", "opt_property", "opt_ascending"], ["algorithm", 
+  "opt_first"], ["start", "opt_end"], ["geometry"], ["callback"], ["func", "var_args"], ["opt_callback"], ["legacy"], ["id", "x", "y", "z"], ["params", "opt_callback"], ["assetId", "aclUpdate", "opt_callback"], ["taskId", "request", "opt_callback"], ["obj", "opt_callback"], ["assetId", "properties", "opt_callback"], "clientId success opt_error opt_extraScopes opt_onImmediateFailed opt_suppressDefaultScopes".split(" "), ["asset", "params", "opt_callback"], ["rootId", "opt_callback"], ["params", "opt_callback"], 
+  ["taskId", "request", "opt_callback"], [], ["privateKey", "opt_success", "opt_error", "opt_extraScopes", "opt_suppressDefaultScopes"], ["tag"], ["id", "opt_callback"], ["tag"], ["opt_success", "opt_error"], ["opt_resetDefault"], ["id", "opt_callback"], ["clientId", "success", "opt_error", "opt_extraScopes", "opt_onImmediateFailed"], ["params", "opt_callback"], ["path", "opt_force", "opt_callback"], ["params", "opt_callback"], ["taskId", "opt_callback"], ["taskId", "opt_callback"], ["params", "opt_callback"], 
+  ["id"], ["parent", "params", "opt_callback"], ["sourceId", "destinationId", "opt_callback"], ["taskId", "action", "opt_callback"], ["sourceId", "destinationId", "opt_overwrite", "opt_callback"], ["taskId", "params", "opt_callback"], ["parent", "params", "opt_callback"], ["opt_callback"], ["params", "opt_callback"], ["assetId", "opt_callback"], ["params", "opt_callback"], ["project", "opt_callback"], ["opt_limit", "opt_callback"], ["id"], ["assetId", "opt_callback"], ["opt_callback"], ["params", 
+  "opt_callback"], ["opt_limit", "opt_callback"], ["operationName", "opt_callback"], ["requestedId", "opt_callback"], ["id"], ["value", "opt_path", "opt_force", "opt_properties", "opt_callback"], ["opt_count", "opt_callback"], ["operationName", "opt_callback"], ["assetId", "asset", "updateFields", "opt_callback"], ["date", "opt_tz"], ["json"], ["json"], ["json"], ["json"], ["opt_dict"], "opt_baseurl opt_tileurl opt_successCallback opt_errorCallback opt_xsrfToken opt_project".split(" "), ["func", 
+  "var_args"], ["func", "namedArgs"], [], [], [], [], ["var_args"], ["geometry", "opt_properties"], ["opt_visParams", "opt_callback"], ["opt_callback"], ["opt_callback"], ["opt_format", "opt_selectors", "opt_filename", "opt_callback"], ["opt_visParams", "opt_callback"], ["propertySelectors", "opt_newProperties", "opt_retainGeometry"], ["args", "opt_column"], ["name", "value"], ["var_args"], ["var_args"], ["name", "value"], ["start", "opt_end"], [], ["opt_leftField", "opt_rightValue", "opt_rightField", 
+  "opt_leftValue"], ["opt_filter"], ["name", "value"], ["name", "operator", "value"], ["name", "value"], ["geometry", "opt_errorMargin"], ["name", "value"], ["name", "value"], ["namedArgs"], ["var_args"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError", "opt_evenOdd"], [], [], ["coords", "opt_proj"], ["west", "south", "east", "north"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], ["geoJson", "opt_proj", "opt_geodesic", "opt_evenOdd"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError", 
+  "opt_evenOdd"], ["coords", "opt_proj"], ["legacy"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], ["coords", "opt_proj", "opt_geodesic", "opt_evenOdd"], ["coords", "opt_proj", "opt_geodesic", "opt_maxError"], ["var_args"], ["geometry"], ["expression", "opt_map"], ["var_args"], ["opt_args"], ["opt_visParams", "opt_callback"], ["var_args"], ["params", "opt_callback"], ["opt_callback"], ["r", "g", "b"], ["params", "opt_callback"], ["params", "opt_callback"], ["args"], [], ["params", "opt_callback"], 
+  ["params", "opt_callback"], ["opt_visParams", "opt_callback"], ["selectors", "opt_names"], ["opt_callback"], ["list"], ["number"], ["obj"], ["obj"], ["obj"], ["obj", "opt_isCompound"], ["obj"], ["obj"], ["obj"], ["string"], []];
+  [ee.ApiFunction.lookup, ee.ApiFunction._call, ee.ApiFunction._apply, module$contents$ee$batch_Export.video.toDrive, module$contents$ee$batch_Export.map.toCloudStorage, module$contents$ee$batch_Export.table.toFeatureView, module$contents$ee$batch_Export.videoMap.toCloudStorage, module$contents$ee$batch_Export.table.toAsset, module$contents$ee$batch_Export.image.toDrive, module$contents$ee$batch_Export.image.toCloudStorage, module$contents$ee$batch_Export.image.toAsset, module$contents$ee$batch_Export.table.toCloudStorage, 
+  module$contents$ee$batch_Export.video.toCloudStorage, module$contents$ee$batch_Export.classifier.toAsset, module$contents$ee$batch_Export.table.toDrive, ee.Collection.prototype.sort, ee.Collection.prototype.filterMetadata, ee.Collection.prototype.map, ee.Collection.prototype.filter, ee.Collection.prototype.limit, ee.Collection.prototype.iterate, ee.Collection.prototype.filterDate, ee.Collection.prototype.filterBounds, ee.ComputedObject.prototype.evaluate, ee.ComputedObject.prototype.aside, ee.ComputedObject.prototype.getInfo, 
+  ee.ComputedObject.prototype.serialize, ee.data.getTileUrl, ee.data.getMapId, ee.data.setAssetAcl, ee.data.startIngestion, ee.data.computeValue, ee.data.setAssetProperties, ee.data.authenticateViaOauth, ee.data.listFeatures, ee.data.getAssetRootQuota, ee.data.getFeatureViewTilesKey, ee.data.startTableIngestion, ee.data.getWorkloadTag, ee.data.authenticateViaPrivateKey, ee.data.setWorkloadTag, ee.data.getAsset, ee.data.setDefaultWorkloadTag, ee.data.authenticateViaPopup, ee.data.resetWorkloadTag, 
+  ee.data.getInfo, ee.data.authenticate, ee.data.getList, ee.data.createFolder, ee.data.getVideoThumbId, ee.data.getTaskStatus, ee.data.cancelTask, ee.data.getFilmstripThumbId, ee.data.makeThumbUrl, ee.data.listAssets, ee.data.renameAsset, ee.data.updateTask, ee.data.copyAsset, ee.data.startProcessing, ee.data.listImages, ee.data.getTaskList, ee.data.getDownloadId, ee.data.deleteAsset, ee.data.getThumbId, ee.data.listBuckets, ee.data.getTaskListWithLimit, ee.data.makeDownloadUrl, ee.data.getAssetAcl, 
+  ee.data.getAssetRoots, ee.data.getTableDownloadId, ee.data.listOperations, ee.data.cancelOperation, ee.data.createAssetHome, ee.data.makeTableDownloadUrl, ee.data.createAsset, ee.data.newTaskId, ee.data.getOperation, ee.data.updateAsset, ee.Date, ee.Deserializer.fromJSON, ee.Deserializer.decodeCloudApi, ee.Deserializer.fromCloudApiJSON, ee.Deserializer.decode, ee.Dictionary, ee.initialize, ee.call, ee.apply, ee.TILE_SIZE, ee.reset, ee.InitState, ee.Algorithms, ee.Element.prototype.set, ee.Feature, 
+  ee.Feature.prototype.getMap, ee.Feature.prototype.getInfo, ee.FeatureCollection.prototype.getInfo, ee.FeatureCollection.prototype.getDownloadURL, ee.FeatureCollection.prototype.getMap, ee.FeatureCollection.prototype.select, ee.FeatureCollection, ee.Filter.lt, ee.Filter.and, ee.Filter.or, ee.Filter.gte, ee.Filter.date, ee.Filter.prototype.not, ee.Filter.inList, ee.Filter, ee.Filter.eq, ee.Filter.metadata, ee.Filter.neq, ee.Filter.bounds, ee.Filter.gt, ee.Filter.lte, ee.Function.prototype.apply, 
+  ee.Function.prototype.call, ee.Geometry.Polygon, ee.Geometry.prototype.toGeoJSON, ee.Geometry.prototype.toGeoJSONString, ee.Geometry.Point, ee.Geometry.BBox, ee.Geometry.LinearRing, ee.Geometry, ee.Geometry.MultiPolygon, ee.Geometry.MultiPoint, ee.Geometry.prototype.serialize, ee.Geometry.MultiLineString, ee.Geometry.Rectangle, ee.Geometry.LineString, ee.Image.prototype.select, ee.Image.prototype.clip, ee.Image.prototype.expression, ee.Image.cat, ee.Image, ee.Image.prototype.getMap, ee.Image.prototype.rename, 
+  ee.Image.prototype.getDownloadURL, ee.Image.prototype.getInfo, ee.Image.rgb, ee.Image.prototype.getThumbId, ee.Image.prototype.getThumbURL, ee.ImageCollection, ee.ImageCollection.prototype.first, ee.ImageCollection.prototype.getFilmstripThumbURL, ee.ImageCollection.prototype.getVideoThumbURL, ee.ImageCollection.prototype.getMap, ee.ImageCollection.prototype.select, ee.ImageCollection.prototype.getInfo, ee.List, ee.Number, ee.Serializer.encodeCloudApiPretty, ee.Serializer.toReadableCloudApiJSON, 
+  ee.Serializer.toCloudApiJSON, ee.Serializer.encode, ee.Serializer.encodeCloudApi, ee.Serializer.toJSON, ee.Serializer.toReadableJSON, ee.String, ee.Terrain].forEach(function(fn, i) {
     fn && (exportedFnInfo[fn.toString()] = {name:orderedFnNames[i], paramNames:orderedParamLists[i]});
   });
   goog.global.EXPORTED_FN_INFO = exportedFnInfo;

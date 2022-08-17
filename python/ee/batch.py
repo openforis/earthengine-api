@@ -10,6 +10,7 @@ The public function styling uses camelCase to match the JavaScript names.
 
 # pylint: disable=g-bad-import-order
 import json
+import re
 import six
 
 from . import _cloud_api_utils
@@ -46,6 +47,7 @@ class Task(object):
     """
     self.id = self._request_id = task_id
     self.config = config and config.copy()
+    self.workload_tag = data.getWorkloadTag()
     self.task_type = task_type
     self.state = state
     self.name = name
@@ -70,6 +72,7 @@ class Task(object):
     DRIVE = 'DRIVE'
     GCS = 'GOOGLE_CLOUD_STORAGE'
     ASSET = 'ASSET'
+    FEATURE_VIEW = 'FEATURE_VIEW'
 
   def start(self):
     """Starts the task. No-op for started tasks."""
@@ -78,6 +81,11 @@ class Task(object):
           'Task config must be specified for tasks to be started.')
     if not self._request_id:
       self._request_id = data.newTaskId()[0]
+
+    # Supply the workload tag, even if empty, to prevent it from being reset
+    # later.
+    if 'workloadTag' not in self.config:
+      self.config['workloadTag'] = self.workload_tag
 
     if self.task_type == Task.Type.EXPORT_IMAGE:
       result = data.exportImage(self._request_id, self.config)
@@ -203,8 +211,14 @@ class Export(object):
             - skipEmptyTiles: If true, skip writing empty (i.e. fully-masked)
               image tiles. Defaults to false.
             If exporting to Google Drive (default):
-            - driveFolder: The name of a unique folder in your Drive account to
-              export into. Defaults to the root of the drive.
+            - driveFolder: The Google Drive Folder that the export will reside
+              in. Note: (a) if the folder name exists at any level, the output
+              is written to it, (b) if duplicate folder names exist, output is
+              written to the most recently modified folder, (c) if the folder
+              name does not exist, a new folder will be created at the root,
+              and (d) folder names with separators (e.g. 'path/to/file') are
+              interpreted as literal strings, not system paths. Defaults to
+              Drive root.
             - driveFileNamePrefix: The Google Drive filename for the export.
               Defaults to the name of the task.
             If exporting to Google Cloud Storage:
@@ -487,7 +501,8 @@ class Export(object):
     def __new__(cls, collection, description='myExportTableTask', config=None):
       """Export an EE FeatureCollection as a table.
 
-      The exported table will reside in Google Drive or Cloud Storage.
+      The exported table will reside in Google Drive, Cloud Storage, or as a
+      FeatureView.
 
       Args:
         collection: The feature collection to be exported.
@@ -497,13 +512,24 @@ class Export(object):
             - fileFormat: The output format: "CSV" (default), "GeoJSON", "KML",
               "KMZ", or "SHP".
             If exporting to Google Drive (default):
-            - driveFolder: The name of a unique folder in your Drive
-              account to export into. Defaults to the root of the drive.
+            - driveFolder: The Google Drive Folder that the export will reside
+              in. Note: (a) if the folder name exists at any level, the output
+              is written to it, (b) if duplicate folder names exist, output is
+              written to the most recently modified folder, (c) if the folder
+              name does not exist, a new folder will be created at the root,
+              and (d) folder names with separators (e.g. 'path/to/file') are
+              interpreted as literal strings, not system paths. Defaults to
+              Drive root.
             - driveFileNamePrefix: The Google Drive filename for the export.
               Defaults to the name of the task.
             If exporting to Google Cloud Storage:
             - outputBucket: The name of a Cloud Storage bucket for the export.
             - outputPrefix: Cloud Storage object name prefix for the export.
+            If exporting to FeatureView:
+            - thinning_options: Options that control the density at which
+              features are displayed per tile.
+            - ranking_options: Options for assigning z-order ranks and thinning
+              ranks to features.
 
       Returns:
         An unstarted Task that exports the table.
@@ -593,11 +619,12 @@ class Export(object):
       return _create_export_task(config, Task.Type.EXPORT_TABLE)
 
     @staticmethod
-    def toAsset(collection,
-                description='myExportTableTask',
-                assetId=None,
-                maxVertices=None,
-                **kwargs):
+    def toAsset(
+        collection,
+        description='myExportTableTask',
+        assetId=None,
+        maxVertices=None,
+        **kwargs):
       """Creates a task to export a FeatureCollection to an EE table asset.
 
       Args:
@@ -612,9 +639,43 @@ class Export(object):
       Returns:
         An unstarted Task that exports the table.
       """
-      config = _capture_parameters(locals(), ['collection'])
+      config = {
+          'description': description,
+          'assetId': assetId,
+          'maxVertices': maxVertices,
+      }
+      config = {k: v for k, v, in config.items() if v is not None}
       config = _prepare_table_export_config(collection, config,
                                             Task.ExportDestination.ASSET)
+      return _create_export_task(config, Task.Type.EXPORT_TABLE)
+
+    @staticmethod
+    def toFeatureView(
+        collection,
+        description='myExportTableTask',
+        assetId=None,
+        ingestionTimeParameters=None,
+        **kwargs):
+      """Creates a task to export a FeatureCollection to a FeatureView.
+
+      Args:
+        collection: The feature collection to be exported.
+        description: Human-readable name of the task.
+        assetId: The destination asset ID.
+        ingestionTimeParameters: The FeatureView ingestion time parameters.
+        **kwargs: Holds other keyword arguments that may have been deprecated.
+
+      Returns:
+        An unstarted Task that exports the table.
+      """
+      config = {
+          'description': description,
+          'assetId': assetId,
+          'ingestionTimeParameters': ingestionTimeParameters,
+      }
+      config = {k: v for k, v, in config.items() if v is not None}
+      config = _prepare_table_export_config(collection, config,
+                                            Task.ExportDestination.FEATURE_VIEW)
       return _create_export_task(config, Task.Type.EXPORT_TABLE)
 
   class video(object):
@@ -658,8 +719,14 @@ class Export(object):
               Defaults to 1000 frames. By setting this explicitly, you may
               raise or lower the limit.
             If exporting to Google Drive (default):
-            - driveFolder: The name of a unique folder in your Drive account to
-              export into. Defaults to the root of the drive.
+            - driveFolder: The Google Drive Folder that the export will reside
+              in. Note: (a) if the folder name exists at any level, the output
+              is written to it, (b) if duplicate folder names exist, output is
+              written to the most recently modified folder, (c) if the folder
+              name does not exist, a new folder will be created at the root,
+              and (d) folder names with separators (e.g. 'path/to/file') are
+              interpreted as literal strings, not system paths. Defaults to
+              Drive root.
             - driveFileNamePrefix: The Google Drive filename for the export.
               Defaults to the name of the task.
             If exporting to Google Cloud Storage:
@@ -778,7 +845,6 @@ class Export(object):
       config = _prepare_video_export_config(collection, config,
                                             Task.ExportDestination.DRIVE)
       return _create_export_task(config, Task.Type.EXPORT_VIDEO)
-
 
 
 def _CheckConfigDisallowedPrefixes(config, prefix):
@@ -1009,7 +1075,8 @@ def _prepare_table_export_config(collection, config, export_destination):
   Returns:
     A config dict containing all information required for the export.
   """
-  if export_destination != Task.ExportDestination.ASSET:
+  if (export_destination != Task.ExportDestination.ASSET and
+      export_destination != Task.ExportDestination.FEATURE_VIEW):
     if 'fileFormat' not in config:
       config['fileFormat'] = 'CSV'
 
@@ -1026,6 +1093,14 @@ def _prepare_table_export_config(collection, config, export_destination):
   if export_destination == Task.ExportDestination.ASSET:
     request['assetExportOptions'] = {
         'earthEngineDestination': _build_earth_engine_destination(config)
+    }
+  elif export_destination == Task.ExportDestination.FEATURE_VIEW:
+    request['featureViewExportOptions'] = {
+        'featureViewDestination':
+            _build_feature_view_destination(config),
+        'ingestionTimeParameters':
+            build_ingestion_time_parameters(
+                config.pop('ingestionTimeParameters', None))
     }
   else:
     request['fileExportOptions'] = _build_table_file_export_options(
@@ -1083,8 +1158,6 @@ def _prepare_video_export_config(collection, config, export_destination):
     raise ee_exception.EEException(
         'Unknown configuration options: {}.'.format(config))
   return request
-
-
 
 
 def _build_image_file_export_options(config, export_destination):
@@ -1379,6 +1452,161 @@ def _build_earth_engine_destination(config):
   }
 
 
+def _build_feature_view_destination(config):
+  """Builds a FeatureViewDestination from values in a config dict.
+
+  Args:
+    config: All the user-specified export parameters. Will be modified in-place
+      by removing parameters used in the FeatureViewDestination.
+
+  Returns:
+    A FeatureViewDestination containing information extracted from
+    config.
+  """
+  feature_view_destination = {
+      'name':
+          _cloud_api_utils.convert_asset_id_to_asset_name(
+              config.pop('assetId')),
+  }
+  return feature_view_destination
+
+
+def _get_rank_by_one_thing_rule(rule_str):
+  """Returns a RankByOneThingRule dict created from the rank-by-one-thing rule.
+
+  Args:
+    rule_str: The rule string. The string is expected in the format:
+      `rule_type rule_direction`. Valid rule types include `.minZoomLevel`,
+      `.geometryType`, or an arbitrary string to represent attribute rules.
+      Valid rule directions include `ASC` or `DESC`.
+
+  Returns:
+    A RankByOneThingRule object containing information extracted from rule_str.
+  """
+  matches = re.findall(r'^([\S]+.*)\s+(ASC|DESC)$', rule_str.strip())
+  if not matches:
+    raise ee_exception.EEException(
+        ('Ranking rule format is invalid. Each rule should be defined by a '
+         'rule type and a direction (ASC or DESC), separated by a space. '
+         'Valid rule types are: .geometryType, .minZoomLevel, or a feature '
+         'property name.'))
+
+  output = {}
+  rule_type, rule_dir = matches[0]
+
+  if rule_type == '.geometryType':
+    output['rankByGeometryTypeRule'] = {}
+  elif rule_type == '.minZoomLevel':
+    output['rankByMinZoomLevelRule'] = {}
+  else:
+    output['rankByAttributeRule'] = {'attributeName': rule_type}
+
+  if rule_dir.upper() == 'ASC':
+    output['direction'] = 'ASCENDING'
+  elif rule_dir.upper() == 'DESC':
+    output['direction'] = 'DESCENDING'
+  return output
+
+
+def _get_ranking_rule(rules):
+  """Returns a RankingRule dict created from the rank-by-one-thing rules.
+
+  Args:
+    rules: A string representing comma separated rank-by-one-thing rules, or a
+      list of rank-by-one-thing rule strings.
+
+  Returns:
+    A RankingRule object containing information extracted from rules.
+  """
+  if not rules:
+    return None
+
+  rules_arr = rules
+  if isinstance(rules, str):
+    rules_arr = rules.split(',')
+  if isinstance(rules_arr, list):
+    rank_by_one_thing_rules = list(
+        map(_get_rank_by_one_thing_rule, rules_arr))
+    return {'rankByOneThingRule': rank_by_one_thing_rules}
+
+  raise ee_exception.EEException(
+      ('Unable to build ranking rule from rules. Rules should '
+       'either be a comma-separated string or list of strings.'))
+
+
+def _build_thinning_options(config):
+  """Returns a ThinningOptions dict created from the config.
+
+  Args:
+    config: The user-specified ingestion parameters. Will be modified in-place
+      by removing parameters used in the ThinningOptions.
+
+  Returns:
+    A ThinningOptions object containing information extracted from config.
+  """
+  if not config:
+    return None
+
+  output = {}
+  for key in ['maxFeaturesPerTile', 'thinningStrategy']:
+    if key in config:
+      output[key] = config.pop(key)
+  return output
+
+
+def _build_ranking_options(config):
+  """Returns a RankingOptions dict created from the config.
+
+  Args:
+    config: The user-specified export parameters. Will be modified in-place
+      by removing parameters used in the RankingOptions.
+
+  Returns:
+    A RankingOptions object containing information extracted from config.
+  """
+  if not config:
+    return None
+
+  output = {}
+  thinning_ranking = config.pop('thinningRanking', None)
+  thinning_ranking_rule = _get_ranking_rule(thinning_ranking)
+  if thinning_ranking_rule:
+    output['thinningRankingRule'] = thinning_ranking_rule
+  z_order_ranking = config.pop('zOrderRanking', None)
+  z_order_ranking_rule = _get_ranking_rule(z_order_ranking)
+  if z_order_ranking_rule:
+    output['zOrderRankingRule'] = z_order_ranking_rule
+  return output
+
+
+def build_ingestion_time_parameters(input_params):
+  """Builds a FeatureViewIngestionTimeParameters from values in a params dict.
+
+  Args:
+    input_params: All the user-specified ingestions time parameters. Will be
+      modified in-place to remove fields in FeatureViewIngestionTimeParameters.
+
+  Returns:
+    A FeatureViewIngestionTimeParameters containing information extracted from
+    config.
+  """
+  output_params = {}
+
+  thinning_options = _build_thinning_options(input_params)
+  if thinning_options:
+    output_params['thinningOptions'] = thinning_options
+
+  ranking_options = _build_ranking_options(input_params)
+  if ranking_options:
+    output_params['rankingOptions'] = ranking_options
+
+  if input_params:
+    raise ee_exception.EEException(
+        'The following keys are unrecognized in the ingestion parameters: %s' %
+        list(input_params.keys()))
+  return output_params
+
+
 def _create_export_task(config, task_type):
   """Creates an export task.
 
@@ -1482,7 +1710,8 @@ def _canonicalize_parameters(config, destination):
 
     if 'driveFileNamePrefix' not in config and 'description' in config:
       config['driveFileNamePrefix'] = config['description']
-  elif destination != Task.ExportDestination.ASSET:
+  elif (destination != Task.ExportDestination.ASSET and
+        destination != Task.ExportDestination.FEATURE_VIEW):
     raise ee_exception.EEException('Unknown export destination.')
 
   if (IMAGE_FORMAT_FIELD in config and

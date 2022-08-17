@@ -6,15 +6,12 @@ their new Cloud API equivalents. This generally requires remapping call
 parameters and result values.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import calendar
 import copy
 import datetime
 
 import re
+import sys
 import warnings
 
 from . import ee_exception
@@ -24,14 +21,16 @@ from googleapiclient import discovery
 from googleapiclient import http
 from googleapiclient import model
 
-# We use the urllib3-aware shim if it's available.
-# It is not available by default if the package is installed via the conda-forge
-# channel.
+# We use the urllib3-aware shim if it's available and supported.
+# It is not compatible with Python 3.10 or newer.
 # pylint: disable=g-bad-import-order,g-import-not-at-top
-try:
-  import httplib2shim as httplib2
-except ImportError:
+if sys.version_info >= (3, 10):
   import httplib2
+else:
+  try:
+    import httplib2shim as httplib2
+  except ImportError:
+    import httplib2
 import six
 # pylint: enable=g-bad-import-order,g-import-not-at-top
 
@@ -153,12 +152,15 @@ def build_cloud_resource(api_base_url,
         cache_discovery=False,
         **kwargs)  # pytype: disable=wrong-keyword-args
 
+  resource = None
   try:
     # google-api-python-client made static_discovery the default in version 2,
     # but it's not backward-compatible. There's no reliable way to check the
     # package version, either.
     resource = build(static_discovery=False)
   except TypeError:
+    pass  # Handle fallback case outside except block, for cleaner stack traces.
+  if resource is None:
     resource = build()
   resource._baseUrl = api_base_url
   return resource
@@ -532,8 +534,8 @@ def convert_algorithms(algorithms):
     A version of that algorithms list that can be interpreted by
     apifunction.initialize().
   """
-  return dict(
-      _convert_algorithm(algorithm) for algorithm in algorithms['algorithms'])
+  algs = algorithms.get('algorithms', [])
+  return dict(_convert_algorithm(algorithm) for algorithm in algs)
 
 
 def _convert_algorithm(algorithm):
@@ -541,7 +543,8 @@ def _convert_algorithm(algorithm):
   # Strip leading 'algorithms/' from the name.
   algorithm_name = algorithm['name'][11:]
   converted_algorithm = _convert_dict(
-      algorithm, {
+      algorithm,
+      {
           'description': 'description',
           'returnType': 'returns',
           'arguments': ('args', _convert_algorithm_arguments),
@@ -614,6 +617,8 @@ def convert_to_table_file_format(format_str):
   Returns:
     A best guess at the corresponding TableFileFormat enum name.
   """
+  if format_str is None:
+    return 'CSV'
   format_str = format_str.upper()
   if format_str == 'GEOJSON':
     return 'GEO_JSON'
@@ -727,6 +732,7 @@ def convert_operation_to_task(operation):
           'description': 'description',
           'type': 'task_type',
           'destinationUris': 'destination_uris',
+          'batchEecuUsageSeconds': 'batch_eecu_usage_seconds',
           })
   if operation.get('done'):
     if 'error' in operation:

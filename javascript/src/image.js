@@ -117,7 +117,6 @@ ee.Image.initialized_ = false;
 ee.Image.initialize = function() {
   if (!ee.Image.initialized_) {
     ee.ApiFunction.importApi(ee.Image, 'Image', 'Image');
-    ee.ApiFunction.importApi(ee.Image, 'Window', 'Image', 'focal_');
     ee.Image.initialized_ = true;
   }
 };
@@ -144,6 +143,7 @@ ee.Image.reset = function() {
  *     - bands - a list containing metadata about the bands in the collection.
  *     - properties - a dictionary containing the image's metadata properties.
  * @export
+ * @override
  */
 ee.Image.prototype.getInfo = function(opt_callback) {
   return /** @type {ee.data.ImageDescription} */(
@@ -193,13 +193,22 @@ ee.Image.prototype.getMap = function(opt_visParams, opt_callback) {
 
 
 /**
- * Get a Download URL for the image, which always downloads a zipped GeoTIFF.
- * Use getThumbURL for other file formats like PNG, JPG, or raw GeoTIFF.
+ * Get a download URL for small chunks of image data in GeoTIFF or NumPy
+ * format. Maximum request size is 32 MB, maximum grid dimension is
+ * 10000.
+ *
+ * Use getThumbURL for RGB visualization formats PNG and JPG.
  * @param {Object} params An object containing download options with the
  *     following possible values:
- *   - name: a base name to use when constructing filenames.
- *   - bands: a description of the bands to download. Must be an array of
- *         dictionaries, each with the following keys:
+ *   - name: a base name to use when constructing filenames. Only applicable
+ *         when format is "ZIPPED_GEO_TIFF" (default) or filePerBand is true.
+ *         Defaults to the image id (or "download" for computed images) when
+ *         format is "ZIPPED_GEO_TIFF" or filePerBand is true, otherwise a
+ *         random character string is generated. Band names are appended when
+ *         filePerBand is true.
+ *   - bands: a description of the bands to download. Must be an array of band
+ *         names or an array of dictionaries, each with the following keys
+ *         (optional parameters apply only when filePerBand is true):
  *     + id: the name of the band, a string, required.
  *     + crs: an optional CRS string defining the band projection.
  *     + crs_transform: an optional array of 6 numbers specifying an affine
@@ -208,7 +217,7 @@ ee.Image.prototype.getMap = function(opt_visParams, opt_callback) {
  *     + dimensions: an optional array of two integers defining the width and
  *           height to which the band is cropped.
  *     + scale: an optional number, specifying the scale in meters of the band;
- *              ignored if crs and crs_transform is specified.
+ *              ignored if crs and crs_transform are specified.
  *   - crs: a default CRS string to use for any bands that do not explicitly
  *         specify one.
  *   - crs_transform: a default affine transform to use for any bands that do
@@ -216,12 +225,17 @@ ee.Image.prototype.getMap = function(opt_visParams, opt_callback) {
  *   - dimensions: default image cropping dimensions to use for any bands that
  *         do not specify them.
  *   - scale: a default scale to use for any bands that do not specify one;
- *         ignored if crs and crs_transform is specified.
+ *         ignored if crs and crs_transform are specified.
  *   - region: a polygon specifying a region to download; ignored if crs
  *         and crs_transform is specified.
- *   - filePerBand: Whether to produce a different GeoTIFF per band (boolean).
+ *   - filePerBand: whether to produce a separate GeoTIFF per band (boolean).
  *         Defaults to true. If false, a single GeoTIFF is produced and all
  *         band-level transformations will be ignored.
+ *   - format: the download format. One of: "ZIPPED_GEO_TIFF" (GeoTIFF file(s)
+ *         wrapped in a zip file, default), "GEO_TIFF" (GeoTIFF file),
+ *         "NPY" (NumPy binary format). If "GEO_TIFF" or "NPY", filePerBand
+ *         and all band-level transformations will be ignored. Loading a NumPy
+ *         output results in a structured array.
  * @param {function(string?, string=)=} opt_callback An optional
  *     callback. If not supplied, the call is made synchronously.
  * @return {string|undefined} Returns a download URL, or undefined if a callback
@@ -348,7 +362,15 @@ ee.Image.rgb = function(r, g, b) {
 
 
 /**
- * Concatenate the given images together into a single image.
+ * Combines the given images into a single image which contains all bands from
+ * all of the images.
+ *
+ * If two or more bands share a name, they are suffixed with an incrementing
+ * index.
+ *
+ * The resulting image will have the metadata from the first input image, only.
+ *
+ * This function will promote constant values into constant images.
  *
  * @param {...ee.Image} var_args The images to be combined.
  * @return {ee.Image} The combined image.
@@ -487,8 +509,9 @@ ee.Image.prototype.expression = function(expression, opt_map) {
     return body.encode(encoder);
   };
 
-  func.encodeCloudInvocation = function(encoder, args) {
-    return ee.rpc_node.functionByReference(encoder(body), args);
+  func.encodeCloudInvocation = function(serializer, args) {
+    return ee.rpc_node.functionByReference(
+        serializer.makeReference(body), args);
   };
 
   /**
@@ -517,7 +540,7 @@ ee.Image.prototype.expression = function(expression, opt_map) {
 /**
  * Clips an image to a Geometry or Feature.
  *
- * The output bands correspond exactly the input bands, except data not
+ * The output bands correspond exactly to the input bands, except data not
  * covered by the geometry is masked. The output image retains the
  * metadata of the input image.
  *

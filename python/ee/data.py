@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 """Singleton for the library's communication with the Earth Engine API."""
 
-from __future__ import print_function
-
 
 
 # Using lowercase function naming to match the JavaScript names.
@@ -16,6 +14,7 @@ import re
 import threading
 import time
 import uuid
+import sys
 
 import httplib2
 import six
@@ -97,13 +96,16 @@ _thread_locals = _ThreadLocals()
 _PROFILE_RESPONSE_HEADER_LOWERCASE = 'x-earth-engine-computation-profile'
 
 # The HTTP header through which profiling is requested when using the Cloud API.
-_PROFILE_REQUEST_HEADER = 'X-Earth-Engine-Computation-Profile'
+_PROFILE_REQUEST_HEADER = 'X-Earth-Engine-Computation-Profiling'
 
 # The HTTP header through which a user project override is provided.
 _USER_PROJECT_OVERRIDE_HEADER = 'X-Goog-User-Project'
 
 # The HTTP header used to indicate the version of the client library used.
 _API_CLIENT_VERSION_HEADER = 'X-Goog-Api-Client'
+
+# Optional HTTP header returned to display initialization-time messages.
+_INIT_MESSAGE_HEADER = 'x-earth-engine-init-message'  # lowercase for httplib2
 
 # Maximum number of times to retry a rate-limited request.
 MAX_RETRIES = 5
@@ -162,7 +164,7 @@ def initialize(credentials=None,
     tile_base_url: The EarthEngine REST tile endpoint.
     cloud_api_base_url: The EarthEngine Cloud API endpoint.
     cloud_api_key: The API key to use with the Cloud API.
-    project: The default cloud project associated with the user.
+    project: The client project ID or number to use when making API calls.
     http_transport: The http transport to use
   """
   global _api_base_url, _tile_base_url, _credentials, _initialized
@@ -404,8 +406,6 @@ def profiling(hook):
     _thread_locals.profile_hook = saved_hook
 
 
-
-
 @deprecation.Deprecated('Use getAsset')
 def getInfo(asset_id):
   """Load info for an asset, given an asset id.
@@ -593,6 +593,73 @@ def getMapId(params):
           'tile_fetcher': TileFetcher(url_format, map_name=map_name)}
 
 
+def getFeatureViewTilesKey(params):
+  """Get a tiles key for a given map or asset.
+
+  Args:
+    params: An object containing parameters with the following possible values:
+      assetId - The asset ID for which to obtain a tiles key.
+      visParams - The visualization parameters for this layer.
+
+  Returns:
+    A dictionary containing:
+    - "token" string: this identifies the FeatureView.
+  """
+  request = {
+      'asset':
+          _cloud_api_utils.convert_asset_id_to_asset_name(
+              params.get('assetId'))
+  }
+  # Only include visParams if it's non-empty.
+  if params.get('visParams'):
+    request['visualizationExpression'] = serializer.encode(
+        params.get('visParams'), for_cloud_api=True)
+  # Make it return only the name field, as otherwise it echoes the entire
+  # request, which might be large.
+  result = _execute_cloud_call(
+      _get_cloud_api_resource().projects().featureView().create(
+          parent=_get_projects_path(), fields='name', body=request))
+  name = result['name']
+  version = _cloud_api_utils.VERSION
+  format_tile_url = (
+      lambda x, y, z: f'{_tile_base_url}/{version}/{name}/tiles/{z}/{x}/{y}')
+  token = name.rsplit('/', 1).pop()
+  return {
+      'token': token,
+      'formatTileUrl': format_tile_url,
+  }
+
+
+def listFeatures(params):
+  """List features for a given table or FeatureView asset.
+
+  Args:
+    params: An object containing parameters with the following possible values:
+      assetId - The asset ID for which to list features.
+      pageSize - An optional max number of results per page, default is 1000.
+      pageToken - An optional token identifying a new page of results the server
+                  should return, usually taken from the response object.
+      region - If present, a geometry defining a query region, specified as a
+               GeoJSON geometry string (see RFC 7946).
+      filter - If present, specifies additional simple property filters
+               (see https://google.aip.dev/160).
+
+  Returns:
+    A dictionary containing:
+    - "type": always "FeatureCollection" marking this object as a GeoJSON
+              feature collection.
+    - "features": a list of GeoJSON features.
+    - "next_page_token": A token to retrieve the next page of results in a
+                         subsequent call to this function.
+  """
+  params = params.copy()
+  params['asset'] = _cloud_api_utils.convert_asset_id_to_asset_name(
+      params.get('assetId'))
+  del params['assetId']
+  return _execute_cloud_call(
+      _get_cloud_api_resource().projects().assets().listFeatures(**params))
+
+
 def getTileUrl(mapid, x, y, z):
   """Generate a URL for map tiles from a Map ID and coordinates.
 
@@ -679,9 +746,14 @@ def computeValue(obj):
   Returns:
     The result of evaluating that object on the server.
   """
+  body = {'expression': serializer.encode(obj, for_cloud_api=True)}
+  workload_tag = getWorkloadTag()
+  if workload_tag:
+    body['workloadTag'] = workload_tag
+
   return _execute_cloud_call(
       _get_cloud_api_resource().projects().value().compute(
-          body={'expression': serializer.encode(obj, for_cloud_api=True)},
+          body=body,
           project=_get_projects_path(),
           prettyPrint=False))['result']
 
@@ -820,31 +892,44 @@ def getDownloadId(params):
     params: An object containing visualization options with the following
       possible values:
         image - The image to download.
-        name - a base name to use when constructing filenames.
-        bands - a description of the bands to download. Must be an array of
-            dictionaries, each with the following keys:
-          id - the name of the band, a string, required.
-          crs - an optional CRS string defining the band projection.
-          crs_transform - an optional array of 6 numbers specifying an affine
-              transform from the specified CRS, in the order: xScale,
-              yShearing, xShearing, yScale, xTranslation and yTranslation.
-          dimensions - an optional array of two integers defining the width and
+        - name: a base name to use when constructing filenames. Only applicable
+            when format is "ZIPPED_GEO_TIFF" (default) or filePerBand is true.
+            Defaults to the image id (or "download" for computed images) when
+            format is "ZIPPED_GEO_TIFF" or filePerBand is true, otherwise a
+            random character string is generated. Band names are appended when
+            filePerBand is true.
+        - bands: a description of the bands to download. Must be an array of
+            band names or an array of dictionaries, each with the
+            following keys:
+          + id: the name of the band, a string, required.
+          + crs: an optional CRS string defining the band projection.
+          + crs_transform: an optional array of 6 numbers specifying an affine
+              transform from the specified CRS, in the order:
+              [xScale, yShearing, xShearing, yScale, xTranslation, yTranslation]
+          + dimensions: an optional array of two integers defining the width and
               height to which the band is cropped.
-          scale - an optional number, specifying the scale in meters of the
-                 band; ignored if crs and crs_transform is specified.
-        crs - a default CRS string to use for any bands that do not explicitly
+          + scale: an optional number, specifying the scale in meters of the
+                 band; ignored if crs and crs_transform are specified.
+        - crs: a default CRS string to use for any bands that do not explicitly
             specify one.
-        crs_transform - a default affine transform to use for any bands that do
+        - crs_transform: a default affine transform to use for any bands that do
             not specify one, of the same format as the crs_transform of bands.
-        dimensions - default image cropping dimensions to use for any bands
+        - dimensions: default image cropping dimensions to use for any bands
             that do not specify them.
-        scale - a default scale to use for any bands that do not specify one;
+        - scale: a default scale to use for any bands that do not specify one;
             ignored if crs and crs_transform is specified.
-        region - a polygon specifying a region to download; ignored if crs
-            and crs_transform is specified.
-        filePerBand - whether to produce a different GeoTIFF per band (boolean).
+        - region: a polygon specifying a region to download; ignored if crs
+            and crs_transform are specified.
+        - filePerBand: whether to produce a separate GeoTIFF per band (boolean).
             Defaults to true. If false, a single GeoTIFF is produced and all
             band-level transformations will be ignored.
+        - format: the download format. One of:
+            "ZIPPED_GEO_TIFF" (GeoTIFF file(s) wrapped in a zip file, default),
+            "GEO_TIFF" (GeoTIFF file), "NPY" (NumPy binary format).
+            If "GEO_TIFF" or "NPY", filePerBand and all band-level
+            transformations will be ignored. Loading a NumPy output results in
+            a structured array.
+        - id: deprecated, use image parameter.
 
   Returns:
     A dict containing a docid and token.
@@ -991,6 +1076,14 @@ def getAlgorithms():
   except TypeError:
     call = _get_cloud_api_resource().projects().algorithms().list(
         project=_get_projects_path(), prettyPrint=False)
+
+  def inspect(response):
+    if _INIT_MESSAGE_HEADER in response:
+      print(
+          '*** Earth Engine ***',
+          response[_INIT_MESSAGE_HEADER],
+          file=sys.stderr)
+  call.add_response_callback(inspect)
   return _cloud_api_utils.convert_algorithms(_execute_cloud_call(call))
 
 
@@ -1306,22 +1399,26 @@ def exportMap(request_id, params):
       _get_cloud_api_resource().projects().map().export)
 
 
-
-
 def _prepare_and_run_export(request_id, params, export_endpoint):
   """Starts an export task running.
 
   Args:
     request_id (string): An optional unique ID for the task.
-    params: The object that describes the export task.
-      The "expression" parameter can be the actual object
-      to be exported, not its serialized form. This may be modified.
-    export_endpoint: A callable representing the export endpoint
-      to invoke (e.g., _cloud_api_resource.image().export).
+    params: The object that describes the export task. The "expression"
+      parameter can be the actual object to be exported, not its serialized
+      form. This may be modified.
+    export_endpoint: A callable representing the export endpoint to invoke
+      (e.g., _cloud_api_resource.image().export).
 
   Returns:
     An Operation with information about the created task.
   """
+  if 'workloadTag' not in params:
+    workload_tag = getWorkloadTag()
+    if workload_tag:
+      params['workloadTag'] = workload_tag
+  elif not params['workloadTag']:
+    del params['workloadTag']
   if request_id:
     if isinstance(request_id, six.string_types):
       params['requestId'] = request_id
@@ -1353,19 +1450,19 @@ def startIngestion(request_id, params, allow_overwrite=False):
       fail as it cannot be safely retried.
     params: The object that describes the import task, which can
         have these fields:
-          id (string) The destination asset id (e.g. users/foo/bar).
+          name (string) The destination asset id (e.g.,
+             "projects/earthengine-legacy/assets/users/foo/bar").
           tilesets (array) A list of Google Cloud Storage source file paths
             formatted like:
               [{'sources': [
-                  {'primaryPath': 'foo.tif', 'additionalPaths': ['foo.prj']},
-                  {'primaryPath': 'bar.tif', 'additionalPaths': ['bar.prj'},
+                  {'uris': ['foo.tif', 'foo.prj']},
+                  {'uris': ['bar.tif', 'bar.prj']},
               ]}]
             Where path values correspond to source files' Google Cloud Storage
             object names, e.g. 'gs://bucketname/filename.tif'
           bands (array) An optional list of band names formatted like:
             [{'id': 'R'}, {'id': 'G'}, {'id': 'B'}]
-        If you are using the Cloud API, this object must instead be a dict
-        representation of an ImageManifest.
+        In general, this is a dict representation of an ImageManifest.
     allow_overwrite: Whether the ingested image can overwrite an
         existing version.
 
@@ -1408,13 +1505,13 @@ def startTableIngestion(request_id, params, allow_overwrite=False):
       fail as it cannot be safely retried.
     params: The object that describes the import task, which can
         have these fields:
-          id (string) The destination asset id (e.g. users/foo/bar).
+          name (string) The destination asset id (e.g.,
+             "projects/earthengine-legacy/assets/users/foo/bar").
           sources (array) A list of GCS (Google Cloud Storage) file paths
             with optional character encoding formatted like this:
-            "sources":[{"primaryPath":"gs://bucket/file.shp","charset":"UTF-8"}]
+            "sources":[{"uris":["gs://bucket/file.shp"],"charset":"UTF-8"}]
             Here 'charset' refers to the character encoding of the source file.
-        If you are using the Cloud API, this object must instead be a dict
-        representation of a TableManifest.
+        In general, this is a dict representation of a TableManifest.
     allow_overwrite: Whether the ingested image can overwrite an
         existing version.
   Returns:
@@ -1574,7 +1671,6 @@ def setIamPolicy(asset_id, policy):
           prettyPrint=False))
 
 
-@deprecation.Deprecated('Use updateAsset')
 def setAssetProperties(assetId, properties):
   """Sets metadata properties of the asset with the given ID.
 
@@ -1805,3 +1901,123 @@ def convert_asset_id_to_asset_name(asset_id):
     An asset name string in the format 'projects/*/assets/**'.
   """
   return _cloud_api_utils.convert_asset_id_to_asset_name(asset_id)
+
+
+def getWorkloadTag():
+  """Returns the currently set workload tag."""
+  return _workloadTag.get()
+
+
+def setWorkloadTag(tag):
+  """Sets the workload tag, used to label computation and exports.
+
+  Workload tag must be 1 - 63 characters, beginning and ending with an
+  alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_), dots
+  (.), and alphanumerics between, or an empty string to clear the workload tag.
+
+  Args:
+    tag: The tag to set.
+  """
+  _workloadTag.set(tag)
+
+
+@contextlib.contextmanager
+def workloadTagContext(tag):
+  """Produces a context manager which sets the workload tag, then resets it.
+
+  Workload tag must be 1 - 63 characters, beginning and ending with an
+  alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_), dots
+  (.), and alphanumerics between, or an empty string to clear the workload tag.
+
+  Args:
+    tag: The tag to set.
+
+  Yields:
+    None.
+  """
+  setWorkloadTag(tag)
+  try:
+    yield
+  finally:
+    resetWorkloadTag()
+
+
+def setDefaultWorkloadTag(tag):
+  """Sets the workload tag, and as the default for which to reset back to.
+
+  For example, calling `ee.data.resetWorkloadTag()` will reset the workload tag
+  back to the default chosen here. To reset the default back to none, pass in
+  an empty string or pass in true to `ee.data.resetWorkloadTag(true)`, like so.
+
+  Workload tag must be 1 - 63 characters, beginning and ending with an
+  alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_), dots
+  (.), and alphanumerics between, or an empty string to reset the default back
+  to none.
+
+  Args:
+    tag: The tag to set.
+  """
+  _workloadTag.setDefault(tag)
+  _workloadTag.set(tag)
+
+
+def resetWorkloadTag(opt_resetDefault=False):
+  """Sets the default tag for which to reset back to.
+
+  If opt_resetDefault parameter is set to true, the default will be set to empty
+  before resetting. Defaults to False.
+
+  Args:
+    opt_resetDefault: Whether to reset the default back to empty.
+  """
+  if opt_resetDefault:
+    _workloadTag.setDefault('')
+  _workloadTag.reset()
+
+
+class _WorkloadTag(object):
+  """A helper class to manage the workload tag."""
+
+  def __init__(self):
+    self._tag = ''
+    self._default = ''
+
+  def get(self):
+    return self._tag
+
+  def set(self, tag):
+    self._tag = self.validate(tag)
+
+  def setDefault(self, newDefault):
+    self._default = self.validate(newDefault)
+
+  def reset(self):
+    self._tag = self._default
+
+  def validate(self, tag):
+    """Throws an error if setting an invalid tag.
+
+    Args:
+      tag: the tag to validate.
+
+    Returns:
+      The validated tag.
+
+    Raises:
+      ValueError if the tag does not match the expected format.
+    """
+    if not tag and tag != 0:
+      return ''
+    tag = str(tag)
+    if not re.fullmatch(r'([a-z0-9]|[a-z0-9][-_\.a-z0-9]{0,61}[a-z0-9])', tag):
+      validationMessage = (
+          'Tags must be 1-63 characters, '
+          'beginning and ending with an lowercase alphanumeric character'
+          '([a-z0-9]) with dashes (-), underscores (_), '
+          'dots (.), and lowercase alphanumerics between.')
+      raise ValueError(f'Invalid tag, "{tag}". {validationMessage}')
+    return tag
+
+
+# Tracks the currently set workload tag.
+_workloadTag = _WorkloadTag()

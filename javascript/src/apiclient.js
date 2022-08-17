@@ -25,8 +25,7 @@ const {PromiseRequestService} = goog.require('eeapiclient.promise_request_servic
 /** @namespace */
 const apiclient = {};
 
-
-const API_CLIENT_VERSION = '0.1.270';
+const API_CLIENT_VERSION = '0.1.319';
 
 exports.VERSION = apiVersion.VERSION;
 exports.API_CLIENT_VERSION = API_CLIENT_VERSION;
@@ -51,8 +50,7 @@ class Call {
    * Prepares a call which will call the given callback from the handle()
    * method.
    *
-   * @template T
-   * @param {function(?T, string=)=} callback Callback to call.  If empty, the
+   * @param {function(?, string=)=} callback Callback to call.  If empty, the
    *     request will run in synchronous mode.
    * @param {number=} retries Overrides the default number of retries.
    */
@@ -160,6 +158,11 @@ class Call {
     return new api.ProjectsVideoApiClientImpl(
         apiVersion.VERSION, this.requestService);
   }
+  featureView() {
+    return new api.ProjectsFeatureViewApiClientImpl(
+        apiVersion.VERSION, this.requestService);
+  }
+
   thumbnails() {
     return new api.ProjectsThumbnailsApiClientImpl(
         apiVersion.VERSION, this.requestService);
@@ -650,8 +653,10 @@ apiclient.setAppIdToken = function(token) {
  *     endpoint.
  * @param {?string=} xsrfToken A string to pass in the X-XSRF-Token header
  *     of XHRs.
+ * @param {?string=} project Optional Google Cloud project ID or number
+ *     to use when making API calls.
  */
-apiclient.initialize = function(apiBaseUrl, tileBaseUrl, xsrfToken) {
+apiclient.initialize = function(apiBaseUrl, tileBaseUrl, xsrfToken, project) {
   // If already initialized, only replace the explicitly specified parts.
 
   if (apiBaseUrl != null) {
@@ -667,7 +672,11 @@ apiclient.initialize = function(apiBaseUrl, tileBaseUrl, xsrfToken) {
   if (xsrfToken !== undefined) {  // Passing an explicit null clears it.
     apiclient.xsrfToken_ = xsrfToken;
   }
-  apiclient.setProject(apiclient.getProject() || apiclient.DEFAULT_PROJECT_);
+  if (project != null) {
+    apiclient.setProject(project);
+  } else {
+    apiclient.setProject(apiclient.getProject() || apiclient.DEFAULT_PROJECT_);
+  }
   apiclient.initialized_ = true;
 };
 
@@ -1588,7 +1597,6 @@ apiclient.APP_ID_TOKEN_HEADER_ = 'X-Earth-Engine-App-ID-Token';
  */
 apiclient.PROFILE_HEADER = 'X-Earth-Engine-Computation-Profile';
 
-
 /**
  * The HTTP header indicating what the client library version is.
  * @const {string}
@@ -1729,3 +1737,5 @@ goog.exportSymbol('ee.api.EarthEngineAsset', api.EarthEngineAsset);
 goog.exportSymbol('ee.api.ListImagesResponse', api.ListImagesResponse);
 goog.exportSymbol('ee.api.Image', api.Image);
 goog.exportSymbol('ee.api.Operation', api.Operation);
+goog.exportSymbol('ee.api.ListFeaturesResponse', api.ListFeaturesResponse);
+goog.exportSymbol('ee.api.FeatureViewLocation', api.FeatureViewLocation);

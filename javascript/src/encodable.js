@@ -28,11 +28,17 @@ ee.Encodable = function() {};
  */
 ee.Encodable.prototype.encode = goog.abstractMethod;
 
+/**
+ * Defines the serializer behavior needed by encodeCloudValue.
+ * @typedef {{
+ *     makeReference: function(*):string, unboundName:(string|undefined)}}
+ */
+ee.Encodable.Serializer;
 
 /**
  * Encodes an object in a format compatible with ee.Serializer.encodeCloudApi().
- * @param {function(*): string} encoder A
- *    function that can be called to encode the components of an object.
+ * @param {!ee.Encodable.Serializer}
+ *    serializer An object that can be used to encode a serializable object.
  * @return {!ee.api.ValueNode} The encoded object.
  */
 ee.Encodable.prototype.encodeCloudValue = goog.abstractMethod;
@@ -486,7 +492,8 @@ ee.rpc_convert.listImagesToGetList = function(result) {
 };
 
 /**
- * @param {?string} type The cloud asset type.
+ * @param {?string} type The cloud asset type. These types must match the values
+ *     in google.earthengine.v1main.EarthEngineAsset.Type.
  * @return {string} The equivalent legacy asset type.
  */
 ee.rpc_convert.assetTypeToLegacyAssetType = function(type) {
@@ -503,6 +510,8 @@ ee.rpc_convert.assetTypeToLegacyAssetType = function(type) {
       return 'Table';
     case 'CLASSIFIER':
       return 'Classifier';
+    case 'FEATURE_VIEW':
+      return 'FeatureView';
     default:
       return 'Unknown';
   }
@@ -600,6 +609,12 @@ ee.rpc_convert.assetToLegacyResult = function(result) {
       }
       return legacyBand;
     });
+  }
+  if (result.featureViewAssetLocation) {
+    asset['mapLocation'] = result.featureViewAssetLocation;
+  }
+  if (result.featureCount) {
+    asset['featureCount'] = result.featureCount;
   }
   return asset;
 };
@@ -742,7 +757,8 @@ ee.rpc_convert.iamPolicyToAcl = function(result) {
   });
   const groups = new Set();
   const toAcl = (member) => {
-    const email = member.replace(/^group:|^user:|^serviceAccount:/, '');
+    const email =
+        member.replace(/^domain:|^group:|^serviceAccount:|^user:/, '');
     if (member.startsWith('group:')) {
       groups.add(email);
     }
@@ -770,13 +786,20 @@ ee.rpc_convert.iamPolicyToAcl = function(result) {
  * @return {!ee.api.Policy}
  */
 ee.rpc_convert.aclToIamPolicy = function(acls) {
+  const hasPrefix = (email) => email.includes(':');
+  const isDomain = (email) => !email.includes('@');
   const isGroup = (email) => acls['groups'] && acls['groups'].has(email);
   const isServiceAccount = (email) =>
       email.match(/[@|\.]gserviceaccount\.com$/);
   // Converts the list of emails to <prefix>:<email> format for IamPolicy.
   const asMembers = (aclName) => (acls[aclName] || []).map((email) => {
+    if (hasPrefix(email)) {
+      return email;
+    }
     let prefix = 'user:';
-    if (isGroup(email)) {
+    if (isDomain(email)) {
+      prefix = 'domain:';
+    } else if (isGroup(email)) {
       prefix = 'group:';
     } else if (isServiceAccount(email)) {
       prefix = 'serviceAccount:';
@@ -930,7 +953,7 @@ ee.rpc_convert.toImageManifest = function(params) {
   };
   // Retain existing keys
   const manifest = ee.apiclient.deserialize(ee.api.ImageManifest, params);
-  // TODO(b/131773013): Transform keys as done in ee/cli/commands.py
+  // TODO(user): Transform keys as done in ee/cli/commands.py
   manifest.name = ee.rpc_convert.assetIdToAssetName(params['id']);
   manifest.tilesets = (params['tilesets'] || []).map(convertTileset);
   manifest.bands = (params['bands'] || []).map(convertBands);
@@ -1021,7 +1044,7 @@ ee.rpc_convert.toTableManifest = function(params) {
   };
   // Retain existing keys
   const manifest = ee.apiclient.deserialize(ee.api.TableManifest, params);
-  // TODO(b/131773013): Transform keys as done in ee/cli/commands.py
+  // TODO(user): Transform keys as done in ee/cli/commands.py
   manifest.name = ee.rpc_convert.assetIdToAssetName(params['id']);
   manifest.sources = (params['sources'] || []).map(convertTableSource);
 

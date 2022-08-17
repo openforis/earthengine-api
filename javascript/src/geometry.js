@@ -20,10 +20,9 @@ goog.require('ee.arguments');
 goog.require('goog.array');
 goog.require('goog.json.Serializer');
 goog.require('goog.object');
-
+goog.requireType('ee.Encodable');
+goog.requireType('ee.api');
 goog.requireType('ee.data');
-
-
 
 /**
  * Creates a geometry.
@@ -352,7 +351,7 @@ ee.Geometry.BBox = function(west, south, east, north) {
   const coordinates = [west, south, east, north];
   if (ee.Geometry.hasServerValue_(coordinates)) {
     // Some arguments cannot be handled in the client, so make a server call.
-    return new ee.ApiFunction('GeometryConstructors.BBox').apply(coordinates);
+    return new ee.ApiFunction('GeometryConstructors.BBox').call(...coordinates);
   }
   // Else proceed with client-side implementation.
 
@@ -661,6 +660,7 @@ goog.inherits(ee.Geometry.MultiPolygon, ee.Geometry);
  * @param {function(*): *=} opt_encoder A function that can be called to encode
  *    the components of an object.
  * @return {*} An encoded representation of the geometry.
+ * @override
  */
 ee.Geometry.prototype.encode = function(opt_encoder) {
   if (!this.type_) {
@@ -744,15 +744,16 @@ ee.Geometry.prototype.toString = function() {
 };
 
 
-/** @override */
-ee.Geometry.prototype.encodeCloudValue = function(opt_encoder) {
+/** @override @return {!ee.api.ValueNode} */
+ee.Geometry.prototype.encodeCloudValue = function(
+    /** !ee.Encodable.Serializer */ serializer) {
   if (!this.type_) {
     // This is not a concrete Geometry.
-    if (!opt_encoder) {
-      throw Error('Must specify an encode function when encoding a ' +
-                  'computed geometry.');
+    if (!serializer) {
+      throw Error(
+          'Must specify a serializer when encoding a computed geometry.');
     }
-    return ee.ComputedObject.prototype.encodeCloudValue.call(this, opt_encoder);
+    return ee.ComputedObject.prototype.encodeCloudValue.call(this, serializer);
   }
 
   const args = {};
@@ -785,7 +786,7 @@ ee.Geometry.prototype.encodeCloudValue = function(opt_encoder) {
   if (this.evenOdd_ != null) {
     args['evenOdd'] = this.evenOdd_;
   }
-  return new ee.ApiFunction(func).apply(args).encodeCloudValue(opt_encoder);
+  return new ee.ApiFunction(func).apply(args).encodeCloudValue(serializer);
 };
 
 

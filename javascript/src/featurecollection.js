@@ -179,6 +179,7 @@ ee.FeatureCollection.prototype.getMap = function(opt_visParams, opt_callback) {
  *     - properties: an optional dictionary containing the collection's
  *           metadata properties.
  * @export
+ * @override
  */
 ee.FeatureCollection.prototype.getInfo = function(opt_callback) {
   return /** @type {ee.data.FeatureCollectionDescription} */(
@@ -187,12 +188,16 @@ ee.FeatureCollection.prototype.getInfo = function(opt_callback) {
 
 
 /**
- * Get a download URL.
+ * Gets a download URL. When the URL is accessed, the FeatureCollection is
+ * downloaded in one of several formats.
  * @param {string=} opt_format The format of download, one of:
- *     "csv", "json", "kml", "kmz".
- * @param {string|!Array<string>=} opt_selectors Selectors that should be used
- *     to determine which attributes will be downloaded.
- * @param {string=} opt_filename Name of the file to be downloaded.
+ *     "csv", "json", "geojson", "kml", "kmz" ("json" outputs GeoJSON). If
+ *     unspecified, defaults to "csv".
+ * @param {string|!Array<string>=} opt_selectors Feature property names used to
+ *     select the attributes to be downloaded. If unspecified, all properties
+ *     are included.
+ * @param {string=} opt_filename Name of the file to be downloaded; extension is
+ *     appended by default. If unspecified, defaults to "table".
  * @param {function(string?, string=)=} opt_callback An optional
  *     callback. If not supplied, the call is made synchronously.
  * @return {string|undefined} A download URL or undefined if a callback was

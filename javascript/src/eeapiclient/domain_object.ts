@@ -24,12 +24,12 @@ type Primitive = string|number|boolean|null|undefined;
  * i.e., {a: {b: {c: boolean}}} gets transformed into {a?: {b?: {c?: boolean}}}
  */
 export type DeepPartialISerializable<T> =
-    T extends Primitive ? Partial<T>: T extends object ?
+    T extends Primitive ? Partial<T>: T extends ISerializable ?
     Omit<
         {[K in keyof T]?: DeepPartialISerializable<T[K]>},
-        'Serializable$get'|'Serializable$has'|'Serializable$set'|
-        'getClassMetadata'|'getConstructor'|'getPartialClassMetadata'>:
-    unknown;
+        keyof ISerializable|'getPartialClassMetadata'>:
+    T extends object ? {[K in keyof T]?: DeepPartialISerializable<T[K]>} :
+                       unknown;
 
 /**
  * Description of the properties in a Serializable class.
@@ -150,7 +150,10 @@ export abstract class Serializable implements ISerializable {
   }
 }
 
-export interface SerializableCtor<T extends ISerializable> { new(): T; }
+/** Constructs an ISerializable instance. */
+export interface SerializableCtor<T extends ISerializable> {
+  new(): T;
+}
 
 /**
  * Makes a deep copy of the ISerializable instance.
@@ -366,7 +369,7 @@ function deepCopyValue<T>(
     deserialized = null as unknown as {};
 
   } else if (typeof value === 'object') {
-    // TODO(b/131926196): Assert as a type, declared interface, or `unknown`.
+    // TODO(user): Assert as a type, declared interface, or `unknown`.
     // tslint:disable-next-line:ban-types no-unnecessary-type-assertion
     deserialized = JSON.parse(JSON.stringify(value)) as AnyDuringMigration;
 
@@ -543,6 +546,9 @@ function deepEqualsValue(
     if (arr1.some((v, i) => v !== arr2[i])) {
       return false;
     }
+
+  } else if (isSerializable) {
+    return deepEquals(value1 as ISerializable, value2 as ISerializable);
 
   } else if (typeof value1 === 'object') {
     if (JSON.stringify(value1) !== JSON.stringify(value2)) {

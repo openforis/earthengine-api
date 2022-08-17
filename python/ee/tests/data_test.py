@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Test for the ee.data module."""
 
-import httplib2
-import mock
+from unittest import mock
 
+import httplib2
 
 import unittest
 import ee
@@ -17,15 +17,12 @@ class DataTest(unittest.TestCase):
     mock_http = mock.MagicMock(httplib2.Http)
     # Return in three groups.
     mock_http.request.side_effect = [
-        (httplib2.Response({
-            'status': 200
-        }), b'{"operations": [{"name": "name1"}], "nextPageToken": "t1"}'),
-        (httplib2.Response({
-            'status': 200
-        }), b'{"operations": [{"name": "name2"}], "nextPageToken": "t2"}'),
-        (httplib2.Response({
-            'status': 200
-        }), b'{"operations": [{"name": "name3"}]}'),
+        (httplib2.Response({'status': 200}),
+         b'{"operations": [{"name": "name1"}], "nextPageToken": "t1"}'),
+        (httplib2.Response({'status': 200}),
+         b'{"operations": [{"name": "name2"}], "nextPageToken": "t2"}'),
+        (httplib2.Response({'status': 200}),
+         b'{"operations": [{"name": "name3"}]}'),
     ]
     with apitestcase.UsingCloudApi(mock_http=mock_http):
       self.assertEqual([{
@@ -47,20 +44,22 @@ class DataTest(unittest.TestCase):
     mock_http = mock.MagicMock(httplib2.Http)
     with apitestcase.UsingCloudApi(mock_http=mock_http), mock.patch.object(
         ee.data, 'updateAsset', autospec=True) as mock_update_asset:
-      ee.data.setAssetProperties(
-          'foo', {'mYPropErTy': 'Value', 'system:time_start': 1})
+      ee.data.setAssetProperties('foo', {
+          'mYPropErTy': 'Value',
+          'system:time_start': 1
+      })
       asset_id = mock_update_asset.call_args[0][0]
       self.assertEqual(asset_id, 'foo')
       asset = mock_update_asset.call_args[0][1]
-      self.assertEqual(
-          asset['properties'],
-          {'mYPropErTy': 'Value', 'system:time_start': 1})
+      self.assertEqual(asset['properties'], {
+          'mYPropErTy': 'Value',
+          'system:time_start': 1
+      })
       update_mask = mock_update_asset.call_args[0][2]
       self.assertSetEqual(
-          set(update_mask), set([
-              'properties.\"mYPropErTy\"',
-              'properties.\"system:time_start\"'
-          ]))
+          set(update_mask),
+          set(['properties.\"mYPropErTy\"',
+               'properties.\"system:time_start\"']))
 
   def testListAssets(self):
     cloud_api_resource = mock.MagicMock()
@@ -91,10 +90,9 @@ class DataTest(unittest.TestCase):
     with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
       mock_result = {'assets': [{'name': 'id1', 'type': 'FOLDER'}]}
       cloud_api_resource.projects().listAssets(
-          ).execute.return_value = mock_result
+      ).execute.return_value = mock_result
       actual_result = ee.data.listBuckets()
-    cloud_api_resource.projects().listAssets(
-        ).execute.assert_called_once()
+    cloud_api_resource.projects().listAssets().execute.assert_called_once()
     self.assertEqual(mock_result, actual_result)
 
   def testSimpleGetListViaCloudApi(self):
@@ -119,13 +117,11 @@ class DataTest(unittest.TestCase):
       mock_result = {'assets': [{'name': 'id1', 'type': 'IMAGE_COLLECTION'}]}
       cloud_api_resource.projects().listAssets(
       ).execute.return_value = mock_result
-      actual_result = ee.data.getList(
-          {'id': 'projects/my-project/assets/', 'num': 3})
-      expected_params = {
-
-          'parent': 'projects/my-project',
-          'pageSize': 3
-      }
+      actual_result = ee.data.getList({
+          'id': 'projects/my-project/assets/',
+          'num': 3
+      })
+      expected_params = {'parent': 'projects/my-project', 'pageSize': 3}
       expected_result = [{'id': 'id1', 'type': 'ImageCollection'}]
       cloud_api_resource.projects().listAssets.assert_called_with(
           **expected_params)
@@ -137,12 +133,11 @@ class DataTest(unittest.TestCase):
       mock_result = {'assets': [{'name': 'id1', 'type': 'IMAGE_COLLECTION'}]}
       cloud_api_resource.projects().listAssets(
       ).execute.return_value = mock_result
-      actual_result = ee.data.getList(
-          {'id': 'projects/my-project/assets', 'num': 3})
-      expected_params = {
-          'parent': 'projects/my-project',
-          'pageSize': 3
-      }
+      actual_result = ee.data.getList({
+          'id': 'projects/my-project/assets',
+          'num': 3
+      })
+      expected_params = {'parent': 'projects/my-project', 'pageSize': 3}
       expected_result = [{'id': 'id1', 'type': 'ImageCollection'}]
       cloud_api_resource.projects().listAssets.assert_called_with(
           **expected_params)
@@ -151,12 +146,7 @@ class DataTest(unittest.TestCase):
   def testComplexGetListViaCloudApi(self):
     cloud_api_resource = mock.MagicMock()
     with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
-      mock_result = {
-          'images': [{
-              'name': 'id1',
-              'size_bytes': 1234
-          }]
-      }
+      mock_result = {'images': [{'name': 'id1', 'size_bytes': 1234}]}
       cloud_api_resource.projects().assets().listImages(
       ).execute.return_value = mock_result
       actual_result = ee.data.getList({
@@ -261,22 +251,124 @@ class DataTest(unittest.TestCase):
       with self.assertRaisesRegex(ee.ee_exception.EEException, '^errorly$'):
         ee.data.listImages({'parent': 'projects/earthengine-public/assets/q'})
 
+  def testListFeatures(self):
+    cloud_api_resource = mock.MagicMock()
+    with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+      mock_result = {
+          'type':
+              'FeatureCollection',
+          'features': [{
+              'type': 'Feature',
+              'properties': {
+                  'baz': 'qux',
+                  'foo': 'bar',
+                  'system:index': '0'
+              }
+          }]
+      }
+      cloud_api_resource.projects().assets().listFeatures(
+      ).execute.return_value = mock_result
+      actual_result = ee.data.listFeatures({
+          'assetId':
+              'users/userfoo/foobar',
+          'region':
+              '{\"type\":\"Polygon\",\"coordinates\":[[[-96,42],[-95,42],[-95,43],[-96,43],[-96,42]]]}'
+      })
+      cloud_api_resource.projects().assets().listFeatures(
+      ).execute.assert_called_once()
+      self.assertEqual(mock_result, actual_result)
+
+  @mock.patch.object(ee.data, '_tile_base_url', new='base_url')
+  def testGetFeatureViewTilesKey(self):
+    cloud_api_resource = mock.MagicMock()
+    with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+      mock_name = 'projects/projectfoo/featureView/tiles-key-foo'
+      mock_result = {'name': mock_name}
+      cloud_api_resource.projects().featureView().create(
+      ).execute.return_value = mock_result
+      actual_result = ee.data.getFeatureViewTilesKey({
+          'assetId': 'projects/projectfoo/assets/assetbar',
+      })
+      cloud_api_resource.projects().featureView().create(
+      ).execute.assert_called_once()
+      expected_keys = [
+          'token',
+          'formatTileUrl',
+      ]
+      self.assertEqual(expected_keys, list(actual_result.keys()))
+      self.assertEqual('tiles-key-foo', actual_result['token'])
+      self.assertEqual(f'base_url/v1alpha/{mock_name}/tiles/7/5/6',
+                       actual_result['formatTileUrl'](5, 6, 7))
+
+  def testWorkloadTag(self):
+    self.assertEqual('', ee.data.getWorkloadTag())
+    ee.data.setDefaultWorkloadTag(None)
+    self.assertEqual('', ee.data.getWorkloadTag())
+    ee.data.setDefaultWorkloadTag('')
+    self.assertEqual('', ee.data.getWorkloadTag())
+    ee.data.setDefaultWorkloadTag(0)
+    self.assertEqual('0', ee.data.getWorkloadTag())
+    ee.data.setDefaultWorkloadTag(123)
+    self.assertEqual('123', ee.data.getWorkloadTag())
+
+    with self.assertRaisesRegex(ValueError, 'Invalid tag'):
+      ee.data.setDefaultWorkloadTag('inv@lid')
+
+    with self.assertRaisesRegex(ValueError, 'Invalid tag'):
+      ee.data.setDefaultWorkloadTag('Invalid')
+
+    with self.assertRaisesRegex(ValueError, 'Invalid tag'):
+      ee.data.setDefaultWorkloadTag('-invalid')
+
+    with self.assertRaisesRegex(ValueError, 'Invalid tag'):
+      ee.data.setDefaultWorkloadTag('invalid_')
+
+    with self.assertRaisesRegex(ValueError, 'Invalid tag'):
+      ee.data.setDefaultWorkloadTag('i' * 64)
+
+    ee.data.setDefaultWorkloadTag('default-tag')
+    self.assertEqual('default-tag', ee.data.getWorkloadTag())
+
+    ee.data.setWorkloadTag('exports-1')
+    self.assertEqual('exports-1', ee.data.getWorkloadTag())
+
+    ee.data.setWorkloadTag('exports-2')
+    self.assertEqual('exports-2', ee.data.getWorkloadTag())
+
+    ee.data.resetWorkloadTag()
+    self.assertEqual('default-tag', ee.data.getWorkloadTag())
+
+    with ee.data.workloadTagContext('in-context'):
+      self.assertEqual('in-context', ee.data.getWorkloadTag())
+
+    self.assertEqual('default-tag', ee.data.getWorkloadTag())
+
+    ee.data.setWorkloadTag('reset-me')
+    self.assertEqual('reset-me', ee.data.getWorkloadTag())
+
+    ee.data.setWorkloadTag('')
+    self.assertEqual('', ee.data.getWorkloadTag())
+
+    ee.data.setDefaultWorkloadTag('reset-me')
+    self.assertEqual('reset-me', ee.data.getWorkloadTag())
+
+    ee.data.resetWorkloadTag(True)
+    self.assertEqual('', ee.data.getWorkloadTag())
+
 
 def DoCloudProfileStubHttp(test, expect_profiling):
 
   def Request(unused_self, unused_url, method, body, headers):
     _ = method, body  # Unused kwargs.
-    test.assertEqual(expect_profiling,
-                     ee.data._PROFILE_REQUEST_HEADER in headers)
-    response_dict = {
-        'status': 200,
-        'content-type': 'application/json'
-    }
+    test.assertEqual(expect_profiling, ee.data._PROFILE_REQUEST_HEADER
+                     in headers)
+    response_dict = {'status': 200, 'content-type': 'application/json'}
     if expect_profiling:
       response_dict[
           ee.data._PROFILE_RESPONSE_HEADER_LOWERCASE] = 'someProfileId'
     response = httplib2.Response(response_dict)
     return response, '{"data": "dummy_data"}'
+
   return mock.patch('httplib2.Http.request', new=Request)
 
 

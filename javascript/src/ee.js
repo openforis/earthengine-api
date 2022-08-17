@@ -50,22 +50,32 @@ goog.require('goog.object');
  *
  * In most cases, an authorization token should be set before the library
  * is initialized, either with ee.data.authorize() or ee.data.setAuthToken().
- * When a proxy is used, an auth token may not be required.
  *
- * @param {string?=} opt_baseurl The (proxied) EarthEngine REST API endpoint.
- * @param {string?=} opt_tileurl The (unproxied) EarthEngine REST tile endpoint.
+ * In Python, this method is named ee.Initialize, with a capital I.  Note that
+ * some parameters differ between JavaScript and Python.  In addition to opt_url
+ * and project below, Python also supports:
+ *  credentials - a google.oauth2.Credentials object or 'persistent' to use
+ *    stored credentials (the default);
+ *  http_transport - a httplib2.Http client.
+ *
+ * @param {string?=} opt_baseurl The Earth Engine REST API endpoint.
+ *     (Python argument name: opt_url)
+ * @param {string?=} opt_tileurl The Earth Engine REST tile endpoint,
+ *     this is optional and defaults to baseurl. (JavaScript only)
  * @param {function()?=} opt_successCallback An optional callback to be invoked
  *     when the initialization is successful. If not provided, the
- *     initialization is done synchronously.
+ *     initialization is done synchronously. (JavaScript only)
  * @param {function(Error)?=} opt_errorCallback An optional callback to be
- *     invoked with an error if the initialization fails.
+ *     invoked with an error if the initialization fails. (JavaScript only)
  * @param {string?=} opt_xsrfToken A string to pass in the "xsrfToken"
- *     parameter of EE API XHRs.
+ *     parameter of EE API XHRs. (JavaScript only)
+ * @param {string?=} opt_project Optional client project ID or number to use
+ *     when making API calls. (Python argument name: project)
  * @export
  */
 ee.initialize = function(
     opt_baseurl, opt_tileurl, opt_successCallback, opt_errorCallback,
-    opt_xsrfToken) {
+    opt_xsrfToken, opt_project) {
   // If we're already initialized and not getting new parameters, just return.
   if (ee.ready_ == ee.InitState.READY && !opt_baseurl && !opt_tileurl) {
     if (opt_successCallback) {
@@ -94,7 +104,7 @@ ee.initialize = function(
   }
 
   ee.ready_ = ee.InitState.LOADING;
-  ee.data.initialize(opt_baseurl, opt_tileurl, opt_xsrfToken);
+  ee.data.initialize(opt_baseurl, opt_tileurl, opt_xsrfToken, opt_project);
 
   if (isAsynchronous) {
     ee.successCallbacks_.push(opt_successCallback);
@@ -661,6 +671,10 @@ ee.makeClass_ = function(name) {
     }
   };
   goog.inherits(target, ee.ComputedObject);
+  /**
+   * @return {string}
+   * @override
+   */
   target.prototype.name = function() { return name; };
   ee.ApiFunction.importApi(target, name, name);
   return target;

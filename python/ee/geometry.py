@@ -8,10 +8,10 @@
 # pylint: disable=g-bad-name
 
 # pylint: disable=g-bad-import-order
-import collections
 import json
 import numbers
 import six
+from six.moves import collections_abc
 
 from . import apifunction
 from . import computedobject
@@ -302,7 +302,7 @@ class Geometry(computedobject.ComputedObject):
 
     # Reject NaN and positive (west) or negative (east) infinities before they
     # become bad JSON. The other two infinities are acceptable because we
-    # support the general idea of a around-the-globe latitude band. By writing
+    # support the general idea of an around-the-globe latitude band. By writing
     # them negated, we also reject NaN.
     if not west < float('inf'):
       raise ee_exception.EEException(
@@ -659,11 +659,11 @@ class Geometry(computedobject.ComputedObject):
     Returns:
       The number of nested arrays or -1 on error.
     """
-    if not isinstance(shape, collections.Iterable):
+    if not isinstance(shape, collections_abc.Iterable):
       return -1
 
-    if shape and isinstance(shape[0], collections.Iterable) and not isinstance(
-        shape[0], six.string_types):
+    if (shape and isinstance(shape[0], collections_abc.Iterable) and
+        not isinstance(shape[0], six.string_types)):
       count = Geometry._isValidCoordinates(shape[0])
       # If more than 1 ring or polygon, they should have the same nesting.
       for i in range(1, len(shape)):

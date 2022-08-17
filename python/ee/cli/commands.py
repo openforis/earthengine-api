@@ -6,10 +6,6 @@ defines the supported positional and optional arguments, as well as
 the actions to be taken when the command is executed.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 # pylint: disable=g-bad-import-order
 from six.moves import range
 import argparse
@@ -17,6 +13,7 @@ import calendar
 from collections import Counter
 import datetime
 import json
+import logging
 import os
 import re
 import six
@@ -31,16 +28,23 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 TENSORFLOW_INSTALLED = False
 # pylint: disable=g-import-not-at-top
 try:
+  # Suppress non-error logs while TF initializes
+  old_level = logging.getLogger().level
+  logging.getLogger().setLevel(logging.ERROR)
   import tensorflow.compat.v1 as tf
   from tensorflow.compat.v1.saved_model import utils as saved_model_utils
   from tensorflow.compat.v1.saved_model import signature_constants
   from tensorflow.compat.v1.saved_model import signature_def_utils
+  # This triggers a warning about disable_resource_variables
   tf.disable_v2_behavior()
   # Prevent TensorFlow from logging anything at the python level.
   tf.logging.set_verbosity(tf.logging.ERROR)
+
   TENSORFLOW_INSTALLED = True
 except ImportError:
   pass
+finally:
+  logging.getLogger().setLevel(old_level)
 
 TENSORFLOW_ADDONS_INSTALLED = False
 # pylint: disable=g-import-not-at-top
@@ -169,7 +173,7 @@ def _comma_separated_pyramiding_policies(string):
   redvalues = []
   for value in values:
     value = value.upper()
-    if value not in {'MEAN', 'SAMPLE', 'MIN', 'MAX', 'MODE'}:
+    if value not in {'MEAN', 'SAMPLE', 'MIN', 'MAX', 'MODE', 'MEDIAN'}:
       raise argparse.ArgumentTypeError(error_msg.format(string))
     redvalues.append(value)
   return redvalues
@@ -371,17 +375,26 @@ class AuthenticateCommand(object):
     parser.add_argument(
         '--quiet',
         action='store_true',
-        help='Do not issue any interactive prompts.')
+        help='Do not prompt for input, and run gcloud in no-browser mode.')
     parser.add_argument(
         '--code-verifier',
         help='PKCE verifier to prevent auth code stealing.')
+    parser.add_argument(
+        '--auth_mode',
+        help='One of: notebook - use notebook authenticator; gcloud - use'
+        ' gcloud; appdefault - read GOOGLE_APPLICATION_CREDENTIALS;'
+        ' localhost[:PORT] - use local browser')
+    parser.add_argument(
+        '--scopes', help='Optional comma-separated list of scopes.')
 
   def run(self, args, unused_config):
     """Prompts for an auth code, requests a token and saves it."""
 
     # Filter for arguments relevant for ee.Authenticate()
     args_auth = {x: vars(args)[x] for x in (
-        'authorization_code', 'quiet', 'code_verifier')}
+        'authorization_code', 'quiet', 'code_verifier', 'auth_mode')}
+    if args.scopes:
+      args_auth['scopes'] = args.scopes.split(',')
     ee.Authenticate(**args_auth)
 
 
@@ -690,8 +703,6 @@ class AssetCommand(Dispatcher):
   ]
 
 
-
-
 class CopyCommand(object):
   """Creates a new Earth Engine asset as a copy of another asset."""
 
@@ -760,8 +771,6 @@ class CreateCommand(Dispatcher):
       CreateCollectionCommand,
       CreateFolderCommand,
   ]
-
-
 
 
 class ListCommand(object):
@@ -1084,7 +1093,9 @@ class TaskListCommand(object):
         '--long_format',
         '-l',
         action='store_true',
-        help='Print output in long format.')
+        help=('Print output in long format. Extra columns are: creation time, '
+              'start time, update time, EECU-seconds, output URLs.')
+    )
 
   def run(self, args, config):
     """Lists tasks present for a user, maybe filtering by state."""
@@ -1092,7 +1103,7 @@ class TaskListCommand(object):
     status = args.status
     tasks = ee.data.getTaskList()
     descs = [utils.truncate(task.get('description', ''), 40) for task in tasks]
-    desc_length = max(len(word) for word in descs)
+    desc_length = max((len(word) for word in descs), default=0)
     format_str = '{:25s} {:13s} {:%ds} {:10s} {:s}' % (desc_length + 1)
     for task in tasks:
       if status and task['state'] not in status:
@@ -1102,10 +1113,14 @@ class TaskListCommand(object):
       extra = ''
       if args.long_format:
         show_date = lambda ms: _parse_millis(ms).strftime('%Y-%m-%d %H:%M:%S')
-        extra = ' {:20s} {:20s} {:20s} {}'.format(
+        eecu = '{:.4f}'.format(
+            task['batch_eecu_usage_seconds']
+        ) if 'batch_eecu_usage_seconds' in task else '-'
+        extra = ' {:20s} {:20s} {:20s} {:11s} {}'.format(
             show_date(task['creation_timestamp_ms']),
             show_date(task['start_timestamp_ms']),
             show_date(task['update_timestamp_ms']),
+            eecu,
             ' '.join(task.get('destination_uris', [])))
       print(format_str.format(
           task['id'], task_type, truncated_desc,
@@ -1833,8 +1848,6 @@ class ModelCommand(Dispatcher):
           print(
               'Warning: TensorFlow Addons not found. Models that use '
               'non-standard ops may not work.')
-
-
 
 EXTERNAL_COMMANDS = [
     AuthenticateCommand,

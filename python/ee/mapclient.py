@@ -24,11 +24,9 @@ and therefore violate style guidelines.
 #    a good idea to use a semaphore to keep new tiles from being added
 #    and subsequently moved.
 
-from __future__ import print_function
 
 
-
-import collections
+from collections import abc
 import functools
 import math
 import sys
@@ -492,7 +490,7 @@ def addToMap(eeobject, vis_params=None, *unused_args):
     vis_params = dict(vis_params)
     for key in vis_params:
       item = vis_params.get(key)
-      if (isinstance(item, collections.Iterable) and
+      if (isinstance(item, abc.Iterable) and
           not isinstance(item, six.string_types)):
         vis_params[key] = ','.join([str(x) for x in item])
 

@@ -56,7 +56,7 @@
     }, {
       "argumentName": "gridSize",
       "type": "Integer",
-      "description": "Grid size.",
+      "description": "The size of the grid over which to perform the computation.",
       "optional": true,
       "defaultValue": 256.0
     }, {
@@ -271,7 +271,7 @@
     }]
   }, {
     "name": "algorithms/Landsat.calibratedRadiance",
-    "description": "Calibrates each band of an image by applying linear transformation with slope RADIANCE_MULT_BAND_N and y-intercept RADIANCE_ADD_BAND_N; these values are extracted from the image metadata.",
+    "description": "Calibrates each band of an image by applying linear transformation with slope `RADIANCE_MULT_BAND_N` and y-intercept `RADIANCE_ADD_BAND_N`; these values are extracted from the image metadata.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "image",
@@ -394,9 +394,9 @@
     }, {
       "argumentName": "bestModelProportion",
       "type": "Float",
-      "description": "Takes the model with most vertices that has a p-value that is at most this proportion away from the model with lowest p-value.",
+      "description": "Allows models with more vertices to be chosen if their p-value is no more than (2 - bestModelProportion) times the p-value of the best model.",
       "optional": true,
-      "defaultValue": 1.25
+      "defaultValue": 0.75
     }, {
       "argumentName": "minObservationsNeeded",
       "type": "Integer",
@@ -614,6 +614,45 @@
       "defaultValue": 25000.0
     }]
   }, {
+    "name": "algorithms/TemporalSegmentation.StructuralChangeBreakpoints",
+    "description": "Runs breakpoint detection, similar to R\u0027s strucchange::breakpoints function.\nEach pixel is fit by a piecewise linear/harmonic model, of the form\nY \u003d A + B * t + C * cos(2 * pi * season(t)) + D * sin(2 * pi * season(t)) + E * cos(4 * pi * season(t)) + F * sin(4 * pi * season(t)) + ...\nIn this equation, \u0027t\u0027 is the start time of the image in the format specified by \u0027dateFormat\u0027, and \u0027season(t)\u0027 is the fractional year of that start time (see the description of dateFormat for details). The maximum order of the harmonic terms is determined by \u0027seasonalModelOrder\u0027.\nThe result is an image containing two bands, plus two bands per band in the input:\n`tStart`, `tEnd`: each of these holds a 1D array, with one entry per segment in the piecewise linear fit; each entry contains the start time of the first or last images in that segment. By default the values here are in fractional years, for easy use with the coefficients.\n`coefs_BANDNAME`: there will be one such output band per input band. Each of these holds a 2D array, with one row per segment. The values in that row are the coefficients of the linear fit for that segment - that is, the values of A, B, C, ... for that segment. As described above, the values here are affected by \u0027dateFormat\u0027\n.`rmse_BANDNAME`: there will be one such output band per input band. This holds a 1D array, with one entry per segment. The value for each segment is the RMSE for the linear fit residuals for that segment.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "collection",
+      "type": "ImageCollection",
+      "description": "Collection of images on which to detect breakpoints."
+    }, {
+      "argumentName": "breakpointBand",
+      "type": "String",
+      "description": "The name of the band to use for breakpoint detection. Optional only if the images have only a single band.",
+      "optional": true,
+      "defaultValue": null
+    }, {
+      "argumentName": "seasonalModelOrder",
+      "type": "Integer",
+      "description": "The order of the harmonic seasonal model.",
+      "optional": true,
+      "defaultValue": 3.0
+    }, {
+      "argumentName": "minSpacing",
+      "type": "Float",
+      "description": "The minimum spacing between breakpoints. If this is between 0 and 1 (exclusive), it will be interpreted as a fraction of the number of images in the collection. Otherwise, it will be interpreted as a number of samples.",
+      "optional": true,
+      "defaultValue": 0.15
+    }, {
+      "argumentName": "maxBreaks",
+      "type": "Integer",
+      "description": "The maximum number of breakpoints.",
+      "optional": true,
+      "defaultValue": 0.0
+    }, {
+      "argumentName": "dateFormat",
+      "type": "Integer",
+      "description": "The time representation to use in the results: 1 \u003d fractional years,  2 \u003d unix time in milliseconds. This affects the values in the tStart and tEnd bands and the \u0027t\u0027 values used in the harmonic model. The fractional years used here and in that model are defined as the fractional number of 365.25-day years since 1 Jan 1970.",
+      "optional": true,
+      "defaultValue": 1.0
+    }]
+  }, {
     "name": "algorithms/ExtractRegion.AggregationContainer",
     "description": "INTERNAL",
     "returnType": "Image\u003cunknown bands\u003e",
@@ -814,6 +853,9 @@
     "arguments": [{
       "argumentName": "classifier",
       "type": "Classifier"
+    }, {
+      "argumentName": "isCached",
+      "type": "Boolean"
     }],
     "hidden": true
   }, {
@@ -1451,7 +1493,7 @@
     }]
   }, {
     "name": "algorithms/DateRangeCollection",
-    "description": "Returns a collection of objects with \u0027system:index\u0027, \u0027date_range\u0027 properties in a defined sequence at regular intervals, suitable for mapping over.",
+    "description": "Returns a collection of objects with `system:index`, `date_range` properties in a defined sequence at regular intervals, suitable for mapping over.",
     "returnType": "FeatureCollection",
     "arguments": [{
       "argumentName": "startTime",
@@ -2645,7 +2687,7 @@
     }, {
       "argumentName": "svmType",
       "type": "String",
-      "description": "The SVM type. One of C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR or NU_SVR.",
+      "description": "The SVM type. One of `C_SVC`, `NU_SVC`, `ONE_CLASS`, `EPSILON_SVR` or `NU_SVR`.",
       "optional": true,
       "defaultValue": "C_SVC"
     }, {
@@ -2884,7 +2926,7 @@
     }, {
       "argumentName": "svmType",
       "type": "String",
-      "description": "The SVM type. One of C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR or NU_SVR.",
+      "description": "The SVM type. One of `C_SVC`, `NU_SVC`, `ONE_CLASS`, `EPSILON_SVR` or `NU_SVR`.",
       "optional": true,
       "defaultValue": "C_SVC"
     }, {
@@ -3088,7 +3130,7 @@
     }]
   }, {
     "name": "algorithms/Classifier.mode",
-    "description": "Returns the classifier mode: CLASSIFICATION, REGRESSION, PROBABILITY, MULTIPROBABILITY, RAW or RAW_REGRESSION.",
+    "description": "Returns the classifier mode: `CLASSIFICATION`, `REGRESSION`, `PROBABILITY`, `MULTIPROBABILITY`, `RAW` or `RAW_REGRESSION`.",
     "returnType": "String",
     "arguments": [{
       "argumentName": "classifier",
@@ -3104,7 +3146,7 @@
     }]
   }, {
     "name": "algorithms/Classifier.confusionMatrix",
-    "description": "Computes a 2D confusion matrix for a classifier based on its training data (ie: resubstitution error).  Axis 0 of the matrix correspond to the input classes, and axis 1 to the output classes.  The rows and columns  start at class 0 and increase sequentially up to the maximum class value, so some rows or columns might be empty if the input classes aren\u0027t 0-based or sequential.",
+    "description": "Computes a 2D confusion matrix for a classifier based on its training data (ie: resubstitution error).  Axis 0 of the matrix corresponds to the input classes, and axis 1 corresponds to the output classes.  The rows and columns  start at class 0 and increase sequentially up to the maximum class value, so some rows or columns might be empty if the input classes aren\u0027t 0-based or sequential.",
     "returnType": "ConfusionMatrix",
     "arguments": [{
       "argumentName": "classifier",
@@ -3170,7 +3212,7 @@
     }]
   }, {
     "name": "algorithms/ConfusionMatrix",
-    "description": "Creates a confusion matrix. Axis 1 (the rows) of the matrix correspond to the actual values, and Axis 0 (the columns) to the predicted values.",
+    "description": "Creates a confusion matrix. Axis 0 (the rows) of the matrix correspond to the actual values, and Axis 1 (the columns) to the predicted values.",
     "returnType": "ConfusionMatrix",
     "arguments": [{
       "argumentName": "array",
@@ -3510,6 +3552,25 @@
       "type": "Clusterer"
     }]
   }, {
+    "name": "algorithms/Geometry.coveringGrid",
+    "description": "Returns a collection of features that cover this geometry, where each feature is a rectangle in the grid defined by the given projection.",
+    "returnType": "FeatureCollection",
+    "arguments": [{
+      "argumentName": "geometry",
+      "type": "Geometry",
+      "description": "The result is the grid cells that intersect with this region."
+    }, {
+      "argumentName": "proj",
+      "type": "Projection",
+      "description": "The projection in which to construct the grid.  A feature is generated for each grid cell that intersects \u0027geometry\u0027, where cell corners are at integer-valued positions in the projection.  If the projection is scaled in meters, the points will be on a grid of that size at the point of true scale."
+    }, {
+      "argumentName": "scale",
+      "type": "Float",
+      "description": "Overrides the scale of the projection, if provided.  May be required if the projection isn\u0027t already scaled.",
+      "optional": true,
+      "defaultValue": null
+    }]
+  }, {
     "name": "algorithms/Geometry.intersects",
     "description": "Returns true iff the geometries intersect.",
     "returnType": "Boolean",
@@ -3536,7 +3597,7 @@
     }]
   }, {
     "name": "algorithms/Geometry.cutLines",
-    "description": "Converts LineStrings into a MultiLineString by cutting it in two at each distance along the length of the LineString.",
+    "description": "Converts LineString, MultiLineString, and LinearRing geometries into a MultiLineString by cutting them into parts no longer than the given distance along their length. All other geometry types will be converted to an empty MultiLineString.",
     "returnType": "Geometry",
     "arguments": [{
       "argumentName": "geometry",
@@ -4479,7 +4540,7 @@
     }]
   }, {
     "name": "algorithms/Feature.cutLines",
-    "description": "Converts LineStrings into a MultiLineString by cutting it in two at each distance along the length of the LineString.",
+    "description": "Converts LineString, MultiLineString, and LinearRing geometries into a MultiLineString by cutting them into parts no longer than the given distance along their length. All other geometry types will be converted to an empty MultiLineString.",
     "returnType": "Feature",
     "arguments": [{
       "argumentName": "feature",
@@ -4935,10 +4996,23 @@
   }, {
     "name": "algorithms/Element.propertyNames",
     "description": "Returns the names of properties on this element.",
-    "returnType": "List\u003cString\u003e",
+    "returnType": "List\u003cObject\u003e",
     "arguments": [{
       "argumentName": "element",
       "type": "Element"
+    }]
+  }, {
+    "name": "algorithms/Element.get",
+    "description": "Extract a property from a feature.",
+    "returnType": "\u003cany\u003e",
+    "arguments": [{
+      "argumentName": "object",
+      "type": "Element",
+      "description": "The feature to extract the property from."
+    }, {
+      "argumentName": "property",
+      "type": "String",
+      "description": "The property to extract."
     }]
   }, {
     "name": "algorithms/Element.set",
@@ -4971,20 +5045,8 @@
       "argumentName": "properties",
       "type": "Dictionary\u003cObject\u003e",
       "description": "The property values to override."
-    }]
-  }, {
-    "name": "algorithms/Element.get",
-    "description": "Extract a property from a feature.",
-    "returnType": "\u003cany\u003e",
-    "arguments": [{
-      "argumentName": "object",
-      "type": "Element",
-      "description": "The feature to extract the property from."
-    }, {
-      "argumentName": "property",
-      "type": "String",
-      "description": "The property to extract."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Element.getNumber",
     "description": "Extract a property from a feature.",
@@ -5426,7 +5488,7 @@
     "hidden": true
   }, {
     "name": "algorithms/Collection.geometry",
-    "description": "Extracts and merges the geometries of a collection. Requires that all the geometries in the collection share the projection and edge interpretation.",
+    "description": "Extracts and merges the geometries of a collection. Requires that all the geometries in the collection share the projection and edge interpretation.\nCaution: providing a large or complex collection as input can result in poor performance. Collating the geometry of collections does not scale well; use the smallest collection that is required to achieve the desired outcome.",
     "returnType": "Geometry",
     "arguments": [{
       "argumentName": "collection",
@@ -5785,7 +5847,7 @@
     }, {
       "argumentName": "pointShape",
       "type": "String",
-      "description": "The default shape of the marker to draw at each point location.  One of: circle, square, diamond, cross, plus, pentagram, hexagram, triangle, triangle_up triangle_down, triangle_left, triangle_right, pentagon, hexagon, star5, star6. This argument also supports the following Matlab marker abbreviations: o, s, d, x, +, p, h, ^, v, \u003c, \u003e.",
+      "description": "The default shape of the marker to draw at each point location.  One of: `circle`, `square`, `diamond`, `cross`, `plus`, `pentagram`, `hexagram`, `triangle`, `triangle_up`, `triangle_down`, `triangle_left`, `triangle_right`, `pentagon`, `hexagon`, `star5`, `star6`. This argument also supports the following Matlab marker abbreviations: `o`, `s`, `d`, `x`, `+`, `p`, `h`, `^`, `v`, `\u003c`, `\u003e`.",
       "optional": true,
       "defaultValue": "circle"
     }, {
@@ -5947,7 +6009,7 @@
     }, {
       "argumentName": "range",
       "type": "Float",
-      "description": "Semivariogram range."
+      "description": "Semivariogram range, in meters."
     }, {
       "argumentName": "sill",
       "type": "Float",
@@ -5959,7 +6021,7 @@
     }, {
       "argumentName": "maxDistance",
       "type": "Float",
-      "description": "Radius which determines which features are included in each pixel\u0027s computation. Defaults to the semivariogram\u0027s range.",
+      "description": "Radius which determines which features are included in each pixel\u0027s computation, in meters. Defaults to the semivariogram\u0027s range.",
       "optional": true,
       "defaultValue": null
     }, {
@@ -6587,7 +6649,7 @@
     }]
   }, {
     "name": "algorithms/Filter.calendarRange",
-    "description": "Returns a filter that passes if the object\u0027s timestamp falls within the given range of a calendar field. The month, day_of_year, day_of_month, and day_of_week are 1-based.  Times are assumed to be in UTC. Weeks are assumed to begin on Monday as day 1. If end \u003c start then this tests for value \u003e\u003d start OR value \u003c\u003d end, to allow for wrapping.",
+    "description": "Returns a filter that passes if the object\u0027s timestamp falls within the given range of a calendar field. The `month`, `day_of_year`, `day_of_month`, and `day_of_week` are 1-based. Times are assumed to be in UTC. Weeks are assumed to begin on Monday as day 1. If `end` \u003c `start` then this tests for `value` \u003e\u003d `start` OR `value` \u003c\u003d `end`, to allow for wrapping.",
     "returnType": "Filter",
     "arguments": [{
       "argumentName": "start",
@@ -6602,7 +6664,7 @@
     }, {
       "argumentName": "field",
       "type": "String",
-      "description": "The calendar field to filter over. Options are: \u0027year\u0027, \u0027month\u0027, \u0027hour\u0027, \u0027minute\u0027, \u0027day_of_year\u0027, \u0027day_of_month\u0027, and \u0027day_of_week\u0027.",
+      "description": "The calendar field to filter over. Options are: `year`, `month`, `hour`, `minute`, `day_of_year`, `day_of_month`, and `day_of_week`.",
       "optional": true,
       "defaultValue": "day_of_year"
     }]
@@ -7031,7 +7093,7 @@
       "description": "The join condition used to select the matches from the two collections."
     }]
   }, {
-    "name": "algorithms/Window.min",
+    "name": "algorithms/Image.focalMin",
     "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
@@ -7069,6 +7131,165 @@
       "optional": true,
       "defaultValue": null
     }]
+  }, {
+    "name": "algorithms/Image.focal_min",
+    "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
+    }],
+    "hidden": true
+  }, {
+    "name": "algorithms/Window.min",
+    "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
+    }],
+    "hidden": true
+  }, {
+    "name": "algorithms/Image.focalMax",
+    "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
+    }]
+  }, {
+    "name": "algorithms/Image.focal_max",
+    "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Window.max",
     "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
@@ -7107,7 +7328,87 @@
       "description": "A custom kernel. If used, kernelType and radius are ignored.",
       "optional": true,
       "defaultValue": null
+    }],
+    "hidden": true
+  }, {
+    "name": "algorithms/Image.focalMedian",
+    "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
     }]
+  }, {
+    "name": "algorithms/Image.focal_median",
+    "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Window.median",
     "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
@@ -7146,9 +7447,10 @@
       "description": "A custom kernel. If used, kernelType and radius are ignored.",
       "optional": true,
       "defaultValue": null
-    }]
+    }],
+    "hidden": true
   }, {
-    "name": "algorithms/Window.mode",
+    "name": "algorithms/Image.focalMode",
     "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
@@ -7187,7 +7489,87 @@
       "defaultValue": null
     }]
   }, {
-    "name": "algorithms/Window.mean",
+    "name": "algorithms/Image.focal_mode",
+    "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
+    }],
+    "hidden": true
+  }, {
+    "name": "algorithms/Window.mode",
+    "description": "Applies a morphological reducer() filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
+    }],
+    "hidden": true
+  }, {
+    "name": "algorithms/Image.focalMean",
     "description": "Applies a morphological mean filter to each band of an image using a named or custom kernel.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
@@ -7225,6 +7607,86 @@
       "optional": true,
       "defaultValue": null
     }]
+  }, {
+    "name": "algorithms/Image.focal_mean",
+    "description": "Applies a morphological mean filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
+    }],
+    "hidden": true
+  }, {
+    "name": "algorithms/Window.mean",
+    "description": "Applies a morphological mean filter to each band of an image using a named or custom kernel.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "image",
+      "type": "Image\u003cunknown bands\u003e",
+      "description": "The image to which to apply the operations."
+    }, {
+      "argumentName": "radius",
+      "type": "Float",
+      "description": "The radius of the kernel to use.",
+      "optional": true,
+      "defaultValue": 1.5
+    }, {
+      "argumentName": "kernelType",
+      "type": "String",
+      "description": "The type of kernel to use. Options include: \u0027circle\u0027, \u0027square\u0027, \u0027cross\u0027, \u0027plus\u0027, octagon\u0027 and \u0027diamond\u0027.",
+      "optional": true,
+      "defaultValue": "circle"
+    }, {
+      "argumentName": "units",
+      "type": "String",
+      "description": "If a kernel is not specified, this determines whether the kernel is in meters or pixels.",
+      "optional": true,
+      "defaultValue": "pixels"
+    }, {
+      "argumentName": "iterations",
+      "type": "Integer",
+      "description": "The number of times to apply the given kernel.",
+      "optional": true,
+      "defaultValue": 1.0
+    }, {
+      "argumentName": "kernel",
+      "type": "Kernel",
+      "description": "A custom kernel. If used, kernelType and radius are ignored.",
+      "optional": true,
+      "defaultValue": null
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Image.add",
     "description": "Adds the first value to the second for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
@@ -7341,7 +7803,8 @@
       "argumentName": "image2",
       "type": "Image\u003cunknown bands\u003e",
       "description": "The image from which the right operand bands are taken."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Image.mod",
     "description": "Calculates the remainder of the first value divided by the second for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
@@ -7523,7 +7986,8 @@
       "argumentName": "image2",
       "type": "Image\u003cunknown bands\u003e",
       "description": "The image from which the right operand bands are taken."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Image.bitwiseOr",
     "description": "Calculates the bitwise OR of the input values for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
@@ -7549,7 +8013,8 @@
       "argumentName": "image2",
       "type": "Image\u003cunknown bands\u003e",
       "description": "The image from which the right operand bands are taken."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Image.bitwiseXor",
     "description": "Calculates the bitwise XOR of the input values for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
@@ -7575,7 +8040,8 @@
       "argumentName": "image2",
       "type": "Image\u003cunknown bands\u003e",
       "description": "The image from which the right operand bands are taken."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Image.leftShift",
     "description": "Calculates the left shift of v1 by v2 bits for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
@@ -7601,7 +8067,8 @@
       "argumentName": "image2",
       "type": "Image\u003cunknown bands\u003e",
       "description": "The image from which the right operand bands are taken."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Image.rightShift",
     "description": "Calculates the signed right shift of v1 by v2 bits for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
@@ -7627,7 +8094,8 @@
       "argumentName": "image2",
       "type": "Image\u003cunknown bands\u003e",
       "description": "The image from which the right operand bands are taken."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Image.gammainc",
     "description": "Calculates the regularized lower incomplete Gamma function γ(x,a) for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is float.",
@@ -7658,7 +8126,8 @@
       "argumentName": "value",
       "type": "Image\u003cunknown bands\u003e",
       "description": "The image to which the operation is applied."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Image.bitCount",
     "description": "Calculates the number of one-bits in the 64-bit two\u0027s complement binary representation of the input.",
@@ -8175,7 +8644,7 @@
     }, {
       "argumentName": "overwrite",
       "type": "Boolean",
-      "description": "If true, bands from srcImg will override bands with the same names in dstImg. Otherwise the new band will be renamed with a numerical suffix (\u0027foo\u0027 to \u0027foo_1\u0027 unless \u0027foo_1\u0027 exists, then \u0027foo_2\u0027 unless it exists, etc).",
+      "description": "If true, bands from `srcImg` will override bands with the same names in `dstImg`. Otherwise the new band will be renamed with a numerical suffix (`foo` to `foo_1` unless `foo_1` exists, then `foo_2` unless it exists, etc).",
       "optional": true,
       "defaultValue": false
     }]
@@ -8240,7 +8709,7 @@
     }]
   }, {
     "name": "algorithms/Image.cat",
-    "description": "Concatenate a list of images together into a single image. If two or more bands share a name, they are suffixed with an incrementing index. This function will promote constant values into constant images.",
+    "description": "Combines a list of images into a single image which contains all bands from all of the images.\nIf two or more bands share a name, they are suffixed with an incrementing index.\nThe resulting image will have the metadata from the first input image, only.\nThis function will promote constant values into constant images.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "images",
@@ -8403,7 +8872,7 @@
     }]
   }, {
     "name": "algorithms/Image.date",
-    "description": "Returns the acquisition time of an image as a Date object.  This helper function is equivalent to ee.Date(image.get(\u0027system:time_start\u0027)).",
+    "description": "Returns the acquisition time of an image as a Date object. This helper function is equivalent to `ee.Date(image.get(\u0027system:time_start\u0027))`.",
     "returnType": "Date",
     "arguments": [{
       "argumentName": "image",
@@ -8412,7 +8881,7 @@
     }]
   }, {
     "name": "algorithms/Image.derivative",
-    "description": "Computes the X and Y discrete derivatives for each band in the input image, in pixel coordinates.\nFor each band of the input image, the output image will have two bands named with the suffixes \u0027_x\u0027 and \u0027_y\u0027, containing the respective derivatives.",
+    "description": "Computes the X and Y discrete derivatives for each band in the input image, in pixel coordinates.\nFor each band of the input image, the output image will have two bands named with the suffixes `_x` and `_y`, containing the respective derivatives.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "image",
@@ -8434,9 +8903,15 @@
     }, {
       "argumentName": "mode",
       "type": "String",
-      "description": "The interpolation mode to use.  One of \u0027nearest_neighbor\u0027, \u0027bilinear\u0027 or \u0027bicubic\u0027.)",
+      "description": "The interpolation mode to use.  One of \u0027nearest_neighbor\u0027, \u0027bilinear\u0027 or \u0027bicubic\u0027.",
       "optional": true,
       "defaultValue": "bicubic"
+    }, {
+      "argumentName": "maxOffset",
+      "type": "Float",
+      "description": "The maximum absolute offset in the displacement image. Providing this may improve processing performance.",
+      "optional": true,
+      "defaultValue": null
     }]
   }, {
     "name": "algorithms/Image.displacement",
@@ -8496,7 +8971,7 @@
     }]
   }, {
     "name": "algorithms/Image.entropy",
-    "description": "Computes the windowed entropy for each band using the specified kernel centered on each input pixel.",
+    "description": "Computes the windowed entropy for each band using the specified kernel centered on each input pixel. Entropy is computed as -sum(p * log2(p)), where p is the normalized probability of occurrence of the values encountered in each window.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "image",
@@ -8530,7 +9005,7 @@
     }, {
       "argumentName": "metric",
       "type": "String",
-      "description": "Distance metric to use: options are \u0027squared_euclidean\u0027, \u0027manhattan\u0027 or \u0027chebyshev\u0027.",
+      "description": "Distance metric to use: options are `squared_euclidean`, `manhattan` or `chebyshev`.",
       "optional": true,
       "defaultValue": "squared_euclidean"
     }]
@@ -8738,7 +9213,7 @@
     }]
   }, {
     "name": "algorithms/Image.normalizedDifference",
-    "description": "Computes the normalized difference between two bands. If the bands to use are not specified, uses the first two bands. The normalized difference is computed as (first − second) / (first + second). Note that negative input values are forced to 0 so that the result is confined to the range (-1, 1).",
+    "description": "Computes the normalized difference between two bands. If the bands to use are not specified, uses the first two bands. The normalized difference is computed as (first − second) / (first + second). Note that the returned image band name is \u0027nd\u0027, the input image properties are not retained in the output image, and a negative pixel value in either input band will cause the output pixel to be masked. To avoid masking negative input values, use `ee.Image.expression()` to compute normalized difference.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "input",
@@ -9238,11 +9713,11 @@
     }, {
       "argumentName": "from",
       "type": "List\u003cObject\u003e",
-      "description": "The source values (numbers or EEArrays). All values in this list will be mapped to the corresponding value in \u0027to\u0027."
+      "description": "The source values (numbers or ee.Array). All values in this list will be mapped to the corresponding value in \u0027to\u0027."
     }, {
       "argumentName": "to",
       "type": "List\u003cObject\u003e",
-      "description": "The destination values (numbers or EEArrays). These are used to replace the corresponding values in \u0027from\u0027. Must have the same number of values as \u0027from\u0027."
+      "description": "The destination values (numbers or ee.Array). These are used to replace the corresponding values in \u0027from\u0027. Must have the same number of values as \u0027from\u0027."
     }, {
       "argumentName": "defaultValue",
       "type": "Object",
@@ -9520,7 +9995,7 @@
     }]
   }, {
     "name": "algorithms/Image.sldStyle",
-    "description": "Styles a raster input with the provided OGC SLD styling.\nPoints of note:\n * OGC SLD 1.0 and OGC SE 1.1 are supported.\n * The XML document passed in can be complete, or just the   SldRasterSymbolizer element and down.\n * Exactly one SldRasterSymbolizer is required.\n * Bands may be selected by their proper EarthEngine names or   using numeric identifiers (\"1\", \"2\", ...). Proper   EarthEngine names are tried first.\n * The Histogram and Normalize contrast stretch mechanisms are   supported.\n * The type\u003d\"values\", type\u003d\"intervals\" and type\u003d\"ramp\"   attributes for ColorMap element in SLD 1.0 (GeoServer   extensions) are\n   supported.\n * Opacity is only taken into account when it is 0.0   (transparent). Non-zero opacity values are treated as   completely opaque.\n * The OverlapBehavior definition is currently ignored.\n * The ShadedRelief mechanism is not currently supported.\n * The ImageOutline mechanism is not currently supported.\n * The Geometry element is ignored.\nThe output image will have histogram_bandname metadata if histogram equalization or normalization is requested.",
+    "description": "Styles a raster input with the provided OGC SLD styling.\nPoints of note:\n * OGC SLD 1.0 and OGC SE 1.1 are supported.\n * The XML document passed in can be complete, or just the   SldRasterSymbolizer element and down.\n * Exactly one SldRasterSymbolizer is required.\n * Bands may be selected by their proper EarthEngine names or   using numeric identifiers (\"1\", \"2\", ...). Proper   EarthEngine names are tried first.\n * The Histogram and Normalize contrast stretch mechanisms are   supported.\n * The type\u003d\"values\", type\u003d\"intervals\" and type\u003d\"ramp\"   attributes for ColorMap element in SLD 1.0 (GeoServer   extensions) are supported.\n * Opacity is only taken into account when it is 0.0   (transparent). Non-zero opacity values are treated as   completely opaque.\n * The OverlapBehavior definition is currently ignored.\n * The ShadedRelief mechanism is not currently supported.\n * The ImageOutline mechanism is not currently supported.\n * The Geometry element is ignored.\nThe output image will have histogram_bandname metadata if histogram equalization or normalization is requested.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "input",
@@ -9595,7 +10070,7 @@
     }, {
       "argumentName": "classValues",
       "type": "List\u003cInteger\u003e",
-      "description": "A list of class values for which to override the numPixels parameter. Must be the same size as classPoints or null.",
+      "description": "A list of class values for which to override the numPoints parameter. Must be the same size as classPoints or null.",
       "optional": true,
       "defaultValue": null
     }, {
@@ -9922,7 +10397,7 @@
     }]
   }, {
     "name": "algorithms/Image.clipToBoundsAndScale",
-    "description": "Clips an image to the bounds of a Geometry, and scales the clipped image to a particular size or scale.",
+    "description": "Clips an image to the bounds of a Geometry, and scales the clipped image to a particular size or scale.\nCaution: providing a large or complex collection as the `geometry` argument can result in poor performance. Collating the geometry of collections does not scale well; use the smallest collection (or geometry) that is required to achieve the desired outcome.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "input",
@@ -10320,7 +10795,7 @@
     }]
   }, {
     "name": "algorithms/ImageCollection.getRegion",
-    "description": "Output an array of values for each [pixel, band, image] tuple in an ImageCollection.  The output contains rows of id, lon, lat, time, and all bands for each image that intersects each pixel in the given region.",
+    "description": "Output an array of values for each [pixel, band, image] tuple in an ImageCollection.  The output contains rows of id, lon, lat, time, and all bands for each image that intersects each pixel in the given region. Attempting to extract more than 1048576 values will result in an error.",
     "returnType": "List\u003cObject\u003e",
     "arguments": [{
       "argumentName": "collection",
@@ -11292,6 +11767,19 @@
       "description": "The object to encode."
     }]
   }, {
+    "name": "algorithms/String.equals",
+    "description": "Checks for string equality with a given object. Returns true if the target is a string and is lexicographically equal to the reference, or false otherwise.",
+    "returnType": "Boolean",
+    "arguments": [{
+      "argumentName": "reference",
+      "type": "String",
+      "description": "The string to compare for equality."
+    }, {
+      "argumentName": "target",
+      "type": "Object",
+      "description": "The second object to check for equality."
+    }]
+  }, {
     "name": "algorithms/String.index",
     "description": "Searches a string for the first occurrence of a substring.  Returns the index of the first match, or -1.",
     "returnType": "Integer",
@@ -11558,7 +12046,8 @@
       "argumentName": "right",
       "type": "Number",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Number.mod",
     "description": "Calculates the remainder of the first value divided by the second.",
@@ -11740,7 +12229,8 @@
       "argumentName": "right",
       "type": "Number",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Number.bitwiseOr",
     "description": "Calculates the bitwise OR of the input values.",
@@ -11766,7 +12256,8 @@
       "argumentName": "right",
       "type": "Number",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Number.bitwiseXor",
     "description": "Calculates the bitwise XOR of the input values.",
@@ -11792,7 +12283,8 @@
       "argumentName": "right",
       "type": "Number",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Number.leftShift",
     "description": "Calculates the left shift of v1 by v2 bits.",
@@ -11818,7 +12310,8 @@
       "argumentName": "right",
       "type": "Number",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Number.rightShift",
     "description": "Calculates the signed right shift of v1 by v2 bits.",
@@ -11844,7 +12337,8 @@
       "argumentName": "right",
       "type": "Number",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Number.gammainc",
     "description": "Calculates the regularized lower incomplete Gamma function γ(x,a).",
@@ -11875,7 +12369,8 @@
       "argumentName": "input",
       "type": "Number",
       "description": "The input value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Number.bitCount",
     "description": "Calculates the number of one-bits in the 64-bit two\u0027s complement binary representation of the input.",
@@ -13097,7 +13592,7 @@
     }]
   }, {
     "name": "algorithms/Array.length",
-    "description": "Returns a 1-D EEArray containing the length of each dimension of the given EEArray.",
+    "description": "Returns a 1-D ee.Array containing the length of each dimension of the given ee.Array.",
     "returnType": "Array",
     "arguments": [{
       "argumentName": "array",
@@ -13331,7 +13826,8 @@
       "argumentName": "input",
       "type": "Array",
       "description": "The input array."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Array.bitCount",
     "description": "On an element-wise basis, calculates the number of one-bits in the 64-bit two\u0027s complement binary representation of the input.",
@@ -14006,7 +14502,8 @@
       "argumentName": "right",
       "type": "Array",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Array.mod",
     "description": "On an element-wise basis, calculates the remainder of the first value divided by the second.",
@@ -14188,7 +14685,8 @@
       "argumentName": "right",
       "type": "Array",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Array.bitwiseOr",
     "description": "On an element-wise basis, calculates the bitwise OR of the input values.",
@@ -14214,7 +14712,8 @@
       "argumentName": "right",
       "type": "Array",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Array.bitwiseXor",
     "description": "On an element-wise basis, calculates the bitwise XOR of the input values.",
@@ -14240,7 +14739,8 @@
       "argumentName": "right",
       "type": "Array",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Array.leftShift",
     "description": "On an element-wise basis, calculates the left shift of v1 by v2 bits.",
@@ -14266,7 +14766,8 @@
       "argumentName": "right",
       "type": "Array",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Array.rightShift",
     "description": "On an element-wise basis, calculates the signed right shift of v1 by v2 bits.",
@@ -14292,7 +14793,8 @@
       "argumentName": "right",
       "type": "Array",
       "description": "The right-hand value."
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Array.gammainc",
     "description": "On an element-wise basis, calculates the regularized lower incomplete Gamma function γ(x,a).",
@@ -14308,7 +14810,7 @@
     }]
   }, {
     "name": "algorithms/Array.matrixMultiply",
-    "description": "Returns the matrix multiplication A*B.",
+    "description": "Returns the matrix multiplication A * B.",
     "returnType": "Array",
     "arguments": [{
       "argumentName": "left",
@@ -14321,7 +14823,7 @@
     }]
   }, {
     "name": "algorithms/Array.matrixSolve",
-    "description": "Solves for x in the matrix equation A*x\u003dB, finding a least-squares solution if A is overdetermined.",
+    "description": "Solves for x in the matrix equation A * x \u003d B, finding a least-squares solution if A is overdetermined.",
     "returnType": "Array",
     "arguments": [{
       "argumentName": "left",
@@ -14397,7 +14899,7 @@
     }]
   }, {
     "name": "algorithms/Image.matrixMultiply",
-    "description": "Returns the matrix multiplication A*B for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
+    "description": "Returns the matrix multiplication A * B for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "image1",
@@ -14410,7 +14912,7 @@
     }]
   }, {
     "name": "algorithms/Image.matrixSolve",
-    "description": "Solves for x in the matrix equation A*x\u003dB, finding a least-squares solution if A is overdetermined for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
+    "description": "Solves for x in the matrix equation A * x \u003d B, finding a least-squares solution if A is overdetermined for each matched pair of bands in image1 and image2. If either image1 or image2 has only 1 band, then it is used against all the bands in the other image. If the images have the same number of bands, but not the same names, they\u0027re used pairwise in the natural order. The output bands are named for the longer of the two inputs, or if they\u0027re equal in length, in image1\u0027s order. The type of the output pixels is the union of the input types.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "image1",
@@ -14423,7 +14925,7 @@
     }]
   }, {
     "name": "algorithms/Array.matrixCholeskyDecomposition",
-    "description": "Calculates the Cholesky decomposition of a matrix. The Cholesky decomposition is a decomposition into the form L*L\u0027 where L is a lower triangular matrix. The input must be a symmetric positive-definite matrix. Returns a dictionary with 1 entry named \u0027L\u0027.",
+    "description": "Calculates the Cholesky decomposition of a matrix. The Cholesky decomposition is a decomposition into the form L * L\u0027 where L is a lower triangular matrix. The input must be a symmetric positive-definite matrix. Returns a dictionary with 1 entry named \u0027L\u0027.",
     "returnType": "Dictionary\u003cObject\u003e",
     "arguments": [{
       "argumentName": "array",
@@ -14459,7 +14961,7 @@
     }]
   }, {
     "name": "algorithms/Image.matrixCholeskyDecomposition",
-    "description": "Calculates the Cholesky decomposition of a matrix. The Cholesky decomposition is a decomposition into the form L*L\u0027 where L is a lower triangular matrix. The input must be a symmetric positive-definite matrix. Returns an image with 1 band named \u0027L\u0027.",
+    "description": "Calculates the Cholesky decomposition of a matrix. The Cholesky decomposition is a decomposition into the form L * L\u0027 where L is a lower triangular matrix. The input must be a symmetric positive-definite matrix. Returns an image with 1 band named \u0027L\u0027.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "image",
@@ -14601,6 +15103,12 @@
       "description": "A map from output property names to a dictionary of output property info. Valid property info fields are \u0027type\u0027 and \u0027dimensions\u0027. \u0027type\u0027 should be a ee.PixelType describing the output property, and \u0027dimensions\u0027 is an optional integer with the number of dimensions for that property if it is an array e.g.: \"outputBands: {\u0027p\u0027: {\u0027type\u0027: ee.PixelType.int8(), \u0027dimensions\u0027: 1}}\". Required for predictions from FeatureCollections.",
       "optional": true,
       "defaultValue": null
+    }, {
+      "argumentName": "outputMultiplier",
+      "type": "Float",
+      "description": "An approximation to the increase in data volume for the model outputs over the model inputs. If specified this must be \u003e\u003d 1. This is only needed if the model produces more data than it consumes, e.g. a model that takes 5 bands and produces 10 outputs per pixel.",
+      "optional": true,
+      "defaultValue": null
     }]
   }, {
     "name": "algorithms/Model.predictImage",
@@ -14709,6 +15217,18 @@
   }, {
     "name": "algorithms/Reducer.lastNonNull",
     "description": "Returns a Reducer that returns the last of its non-null inputs.",
+    "returnType": "Reducer"
+  }, {
+    "name": "algorithms/Reducer.circularMean",
+    "description": "Returns a Reducer that computes the (weighted) circular mean of its inputs, which are expected to be in radians.  Output will be in the range (-π to π).",
+    "returnType": "Reducer"
+  }, {
+    "name": "algorithms/Reducer.circularVariance",
+    "description": "Returns a Reducer that computes the (weighted) circular variance of its inputs, which are expected to be in radians.",
+    "returnType": "Reducer"
+  }, {
+    "name": "algorithms/Reducer.circularStddev",
+    "description": "Returns a Reducer that computes the (weighted) circular standard deviation of its inputs, which are expected to be in radians, using the sqrt(-2 * ln(R)) formula.",
     "returnType": "Reducer"
   }, {
     "name": "algorithms/Reducer.frequencyHistogram",
@@ -15492,6 +16012,12 @@
       "description": "Format to return data in, either \u0027text\u0027 or \u0027json\u0027.",
       "optional": true,
       "defaultValue": "text"
+    }, {
+      "argumentName": "maxEntries",
+      "type": "Integer",
+      "description": "Maximum number of profile entries to return.\nIf the profiles requested collectively exceed this limit, some entries may be merged (values aggregated and description details replaced with \"(...)\") until the profile fits within this limit.\nIn addition to this limit, there are also inherent limits on the number of profile entries recorded, which cannot be raised.\nIf not specified, the default limit is 200.",
+      "optional": true,
+      "defaultValue": null
     }],
     "hidden": true
   }]

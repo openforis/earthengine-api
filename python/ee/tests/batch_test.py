@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """Test for the ee.batch module."""
 import copy
-
-import mock
+from unittest import mock
 
 import unittest
 
@@ -725,6 +724,140 @@ class BatchTestCase(apitestcase.ApiTestCase):
               }
           }, task.config)
 
+  def testExportTableToFeatureViewCloudApi(self):
+    """Verifies the export task created by Export.table.toFeatureView()."""
+    with apitestcase.UsingCloudApi():
+      task = ee.batch.Export.table.toFeatureView(
+          collection=ee.FeatureCollection('foo'),
+          description='foo',
+          assetId='users/foo/bar',
+          ingestionTimeParameters={
+              'maxFeaturesPerTile': 10,
+              'zOrderRanking': []
+          })
+      self.assertIsNone(task.id)
+      self.assertIsNone(task.name)
+      self.assertEqual('EXPORT_FEATURES', task.task_type)
+      self.assertEqual('UNSUBMITTED', task.state)
+      self.assertEqual(
+          {
+              'expression': ee.FeatureCollection('foo'),
+              'description': 'foo',
+              'featureViewExportOptions': {
+                  'featureViewDestination': {
+                      'name':
+                          'projects/earthengine-legacy/assets/users/foo/bar',
+                  },
+                  'ingestionTimeParameters': {
+                      'thinningOptions': {
+                          'maxFeaturesPerTile': 10
+                      },
+                  }
+              }
+          }, task.config)
+
+  def testExportTableToFeatureViewEmptyParamsCloudApi(self):
+    """Verifies the export task created by Export.table.toFeatureView()."""
+    with apitestcase.UsingCloudApi():
+      task = ee.batch.Export.table.toFeatureView(
+          collection=ee.FeatureCollection('foo'),
+          description='foo',
+          assetId='users/foo/bar')
+      with self.subTest(name='TaskIdAndName'):
+        self.assertIsNone(task.id)
+        self.assertIsNone(task.name)
+      with self.subTest(name='TypeIsExportFeatures'):
+        self.assertEqual('EXPORT_FEATURES', task.task_type)
+      with self.subTest(name='StateIsUnsubmitted'):
+        self.assertEqual('UNSUBMITTED', task.state)
+      with self.subTest(name='ConfigContents'):
+        self.assertEqual(
+            {
+                'expression': ee.FeatureCollection('foo'),
+                'description': 'foo',
+                'featureViewExportOptions': {
+                    'featureViewDestination': {
+                        'name':
+                            'projects/earthengine-legacy/assets/users/foo/bar',
+                    },
+                    'ingestionTimeParameters': {}
+                }
+            }, task.config)
+
+  def testExportTableToFeatureViewAllIngestionParams(self):
+    """Verifies the task ingestion params created by toFeatureView()."""
+    task = ee.batch.Export.table.toFeatureView(
+        collection=ee.FeatureCollection('foo'),
+        description='foo',
+        assetId='users/foo/bar',
+        ingestionTimeParameters={
+            'maxFeaturesPerTile': 10,
+            'thinningStrategy': 'GLOBALLY_CONSISTENT',
+            'thinningRanking': 'my-attribute ASC, other-attr DESC',
+            'zOrderRanking': ['.minZoomLevel DESC', '.geometryType ASC']
+        })
+    expected_ingestion_params = {
+        'rankingOptions': {
+            'thinningRankingRule': {
+                'rankByOneThingRule': [{
+                    'direction': 'ASCENDING',
+                    'rankByAttributeRule': {
+                        'attributeName': 'my-attribute'
+                    }
+                }, {
+                    'direction': 'DESCENDING',
+                    'rankByAttributeRule': {
+                        'attributeName': 'other-attr'
+                    }
+                }]
+            },
+            'zOrderRankingRule': {
+                'rankByOneThingRule': [{
+                    'direction': 'DESCENDING',
+                    'rankByMinZoomLevelRule': {}
+                }, {
+                    'direction': 'ASCENDING',
+                    'rankByGeometryTypeRule': {}
+                }]
+            }
+        },
+        'thinningOptions': {
+            'maxFeaturesPerTile': 10,
+            'thinningStrategy': 'GLOBALLY_CONSISTENT'
+        }
+    }
+    self.assertEqual(
+        expected_ingestion_params,
+        task.config['featureViewExportOptions']['ingestionTimeParameters'])
+
+  def testExportTableToFeatureViewBadRankByOneThingRule(self):
+    """Verifies a bad RankByOneThingRule throws an exception."""
+    with self.assertRaisesRegex(ee.EEException,
+                                'Ranking rule format is invalid.*'):
+      ee.batch.Export.table.toFeatureView(
+          collection=ee.FeatureCollection('foo'),
+          assetId='users/foo/bar',
+          ingestionTimeParameters={'thinningRanking': 'my-attribute BAD_DIR'})
+
+  def testExportTableToFeatureViewBadRankingRule(self):
+    """Verifies a bad RankingRule throws an exception."""
+    with self.assertRaisesRegex(ee.EEException,
+                                'Unable to build ranking rule from rules.*'):
+      ee.batch.Export.table.toFeatureView(
+          collection=ee.FeatureCollection('foo'),
+          assetId='users/foo/bar',
+          ingestionTimeParameters={'thinningRanking': {'key': 'val'}})
+
+  def testExportTableToFeatureViewBadIngestionTimeParams(self):
+    """Verifies a bad set of ingestion time params throws an exception."""
+    with self.assertRaisesWithLiteralMatch(
+        ee.EEException, ('The following keys are unrecognized in the '
+                         'ingestion parameters: [\'badThinningKey\']')):
+      ee.batch.Export.table.toFeatureView(
+          collection=ee.FeatureCollection('foo'),
+          assetId='users/foo/bar',
+          ingestionTimeParameters={'badThinningKey': {'key': 'val'}})
+
   def testExportVideoCloudApi(self):
     """Verifies the task created by Export.video()."""
     with apitestcase.UsingCloudApi():
@@ -910,6 +1043,50 @@ class BatchTestCase(apitestcase.ApiTestCase):
           task_ordered.config.pop('expression').serialize(for_cloud_api=True))
       self.assertEqual(expected_config, task_ordered.config)
 
+  def testExportWorkloadTag(self):
+    """Verifies that the workload tag state is captured before start."""
+    mock_cloud_api_resource = mock.MagicMock()
+    mock_cloud_api_resource.projects().table().export().execute.return_value = {
+        'name': 'projects/earthengine-legacy/operations/foo',
+        'metadata': {},
+    }
+
+    with apitestcase.UsingCloudApi(cloud_api_resource=mock_cloud_api_resource):
+      ee.data.setWorkloadTag('test-export')
+      task = ee.batch.Export.table(ee.FeatureCollection('foo'), 'bar')
+      ee.data.setWorkloadTag('not-test-export')
+      self.assertEqual('test-export', task.workload_tag)
+      task.start()
+      self.assertEqual('test-export', task.config['workloadTag'])
+      export_args = mock_cloud_api_resource.projects().table().export.call_args
+      self.assertEqual(export_args[1]['body']['workloadTag'], 'test-export')
+
+    ee.data.resetWorkloadTag(True)
+
+    with apitestcase.UsingCloudApi(cloud_api_resource=mock_cloud_api_resource):
+      ee.data.setWorkloadTag('test-export')
+      task = ee.batch.Export.table(ee.FeatureCollection('foo'), 'bar')
+      self.assertEqual('test-export', task.workload_tag)
+      task.config['workloadTag'] = 'not-test-export'
+      task.start()
+      # Overridden in config.
+      self.assertEqual('not-test-export', task.config['workloadTag'])
+      export_args = mock_cloud_api_resource.projects().table().export.call_args
+      self.assertEqual(export_args[1]['body']['workloadTag'], 'not-test-export')
+
+    ee.data.resetWorkloadTag(True)
+
+    with apitestcase.UsingCloudApi(cloud_api_resource=mock_cloud_api_resource):
+      task = ee.batch.Export.table(ee.FeatureCollection('foo'), 'bar')
+      ee.data.setWorkloadTag('not-test-export')
+      self.assertEqual('', task.workload_tag)
+      task.start()
+      # Not captured on start().
+      self.assertEqual('', task.config['workloadTag'])
+      export_args = mock_cloud_api_resource.projects().table().export.call_args
+      self.assertNotIn('workloadTag', export_args[1]['body'])
+
+    ee.data.resetWorkloadTag(True)
 
 
 if __name__ == '__main__':

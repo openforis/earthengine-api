@@ -33,8 +33,6 @@ Export.table = {};
 /** @const */
 Export.video = {};
 
-
-
 /**
  * ExportTask
  */
@@ -126,7 +124,6 @@ class ExportTask {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Public API for exports in the JS client library.
-//
 
 
 /**
@@ -148,8 +145,8 @@ Export.image.toAsset = function(
     image, opt_description, opt_assetId, opt_pyramidingPolicy, opt_dimensions,
     opt_region, opt_scale, opt_crs, opt_crsTransform, opt_maxPixels,
     opt_shardSize) {
-  const clientConfig = eeArguments.extractFromFunction(
-      Export.image.toAsset, arguments);
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.image.toAsset, arguments);
   const serverConfig = Export.convertToServerParams(
       clientConfig, ExportDestination.ASSET, ExportType.IMAGE);
   return ExportTask.create(serverConfig);
@@ -180,8 +177,8 @@ Export.image.toCloudStorage = function(
     opt_region, opt_scale, opt_crs, opt_crsTransform, opt_maxPixels,
     opt_shardSize, opt_fileDimensions, opt_skipEmptyTiles, opt_fileFormat,
     opt_formatOptions) {
-  const clientConfig = eeArguments.extractFromFunction(
-      Export.image.toCloudStorage, arguments);
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.image.toCloudStorage, arguments);
   const serverConfig = Export.convertToServerParams(
       clientConfig, ExportDestination.GCS, ExportType.IMAGE);
   return ExportTask.create(serverConfig);
@@ -212,8 +209,8 @@ Export.image.toDrive = function(
     opt_region, opt_scale, opt_crs, opt_crsTransform, opt_maxPixels,
     opt_shardSize, opt_fileDimensions, opt_skipEmptyTiles, opt_fileFormat,
     opt_formatOptions) {
-  const clientConfig = eeArguments.extractFromFunction(
-      Export.image.toDrive, arguments);
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.image.toDrive, arguments);
   const serverConfig = Export.convertToServerParams(
       clientConfig, ExportDestination.DRIVE, ExportType.IMAGE);
   return ExportTask.create(serverConfig);
@@ -241,8 +238,8 @@ Export.map.toCloudStorage = function(
     image, opt_description, opt_bucket, opt_fileFormat, opt_path,
     opt_writePublicTiles, opt_scale, opt_maxZoom, opt_minZoom, opt_region,
     opt_skipEmptyTiles, opt_mapsApiKey, opt_bucketCorsUris) {
-  const clientConfig = eeArguments.extractFromFunction(
-      Export.map.toCloudStorage, arguments);
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.map.toCloudStorage, arguments);
   const serverConfig = Export.convertToServerParams(
       clientConfig, ExportDestination.GCS, ExportType.MAP);
   return ExportTask.create(serverConfig);
@@ -263,8 +260,8 @@ Export.map.toCloudStorage = function(
 Export.table.toCloudStorage = function(
     collection, opt_description, opt_bucket, opt_fileNamePrefix, opt_fileFormat,
     opt_selectors, opt_maxVertices) {
-  const clientConfig = eeArguments.extractFromFunction(
-      Export.table.toCloudStorage, arguments);
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.table.toCloudStorage, arguments);
   const serverConfig = Export.convertToServerParams(
       clientConfig, ExportDestination.GCS, ExportType.TABLE);
   return ExportTask.create(serverConfig);
@@ -285,8 +282,8 @@ Export.table.toCloudStorage = function(
 Export.table.toDrive = function(
     collection, opt_description, opt_folder, opt_fileNamePrefix, opt_fileFormat,
     opt_selectors, opt_maxVertices) {
-  const clientConfig = eeArguments.extractFromFunction(
-      Export.table.toDrive, arguments);
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.table.toDrive, arguments);
   clientConfig['type'] = ExportType.TABLE;
   const serverConfig = Export.convertToServerParams(
       clientConfig, ExportDestination.DRIVE, ExportType.TABLE);
@@ -304,10 +301,32 @@ Export.table.toDrive = function(
  */
 Export.table.toAsset = function(
     collection, opt_description, opt_assetId, opt_maxVertices) {
-  const clientConfig = eeArguments.extractFromFunction(
-      Export.table.toAsset, arguments);
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.table.toAsset, arguments);
   const serverConfig = Export.convertToServerParams(
       clientConfig, ExportDestination.ASSET, ExportType.TABLE);
+  return ExportTask.create(serverConfig);
+};
+
+
+/**
+ * @param {!FeatureCollection} collection
+ * @param {string=} opt_description
+ * @param {string=} opt_assetId
+ * @param {number=} opt_maxFeaturesPerTile
+ * @param {string=} opt_thinningStrategy
+ * @param {string|!Array<string>=} opt_thinningRanking
+ * @param {string|!Array<string>=} opt_zOrderRanking
+ * @return {!ExportTask}
+ * @export
+ */
+Export.table.toFeatureView = function(
+    collection, opt_description, opt_assetId, opt_maxFeaturesPerTile,
+    opt_thinningStrategy, opt_thinningRanking, opt_zOrderRanking) {
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.table.toFeatureView, arguments);
+  const serverConfig = Export.convertToServerParams(
+      clientConfig, ExportDestination.FEATURE_VIEW, ExportType.TABLE);
   return ExportTask.create(serverConfig);
 };
 
@@ -332,8 +351,8 @@ Export.video.toCloudStorage = function(
     collection, opt_description, opt_bucket, opt_fileNamePrefix,
     opt_framesPerSecond, opt_dimensions, opt_region, opt_scale, opt_crs,
     opt_crsTransform, opt_maxPixels, opt_maxFrames) {
-  const clientConfig = eeArguments.extractFromFunction(
-      Export.video.toCloudStorage, arguments);
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.video.toCloudStorage, arguments);
   const serverConfig = Export.convertToServerParams(
       clientConfig, ExportDestination.GCS, ExportType.VIDEO);
   return ExportTask.create(serverConfig);
@@ -360,18 +379,16 @@ Export.video.toDrive = function(
     collection, opt_description, opt_folder, opt_fileNamePrefix,
     opt_framesPerSecond, opt_dimensions, opt_region, opt_scale, opt_crs,
     opt_crsTransform, opt_maxPixels, opt_maxFrames) {
-  const clientConfig = eeArguments.extractFromFunction(
-      Export.video.toDrive, arguments);
+  const clientConfig =
+      eeArguments.extractFromFunction(Export.video.toDrive, arguments);
   const serverConfig = Export.convertToServerParams(
       clientConfig, ExportDestination.DRIVE, ExportType.VIDEO);
   return ExportTask.create(serverConfig);
 };
 
-
 ////////////////////////////////////////////////////////////////////////////////
 //                          Internal validation.                              //
 ////////////////////////////////////////////////////////////////////////////////
-
 
 /**
  * A task descriptor whose parameters have been converted from the user-facing
@@ -379,7 +396,7 @@ Export.video.toDrive = function(
  * equivalent parameters, see the Public API section above.
  *
  * @typedef {!data.ImageTaskConfig|!data.MapTaskConfig|
- *     !data.TableTaskConfig|!data.VideoTaskConfig|
+ *     !data.TableTaskConfig|!data.FeatureViewTaskConfig|!data.VideoTaskConfig|
  *     !data.VideoMapTaskConfig|!data.ClassifierTaskConfig}
  */
 const ServerTaskConfig = {};
@@ -524,24 +541,19 @@ Export.convertToServerParams = function(
 
   switch (exportType) {
     case ExportType.IMAGE:
-      taskConfig =
-          Export.image.prepareTaskConfig_(taskConfig, destination);
+      taskConfig = Export.image.prepareTaskConfig_(taskConfig, destination);
       break;
     case ExportType.MAP:
-      taskConfig =
-          Export.map.prepareTaskConfig_(taskConfig, destination);
+      taskConfig = Export.map.prepareTaskConfig_(taskConfig, destination);
       break;
     case ExportType.TABLE:
-      taskConfig =
-          Export.table.prepareTaskConfig_(taskConfig, destination);
+      taskConfig = Export.table.prepareTaskConfig_(taskConfig, destination);
       break;
     case ExportType.VIDEO:
-      taskConfig =
-          Export.video.prepareTaskConfig_(taskConfig, destination);
+      taskConfig = Export.video.prepareTaskConfig_(taskConfig, destination);
       break;
     case ExportType.VIDEO_MAP:
-      taskConfig =
-          Export.videoMap.prepareTaskConfig_(taskConfig, destination);
+      taskConfig = Export.videoMap.prepareTaskConfig_(taskConfig, destination);
       break;
     case ExportType.CLASSIFIER:
       taskConfig =
@@ -551,8 +563,7 @@ Export.convertToServerParams = function(
       throw Error('Unknown export type: ' + taskConfig['type']);
   }
   if (serializeRegion && taskConfig['region'] != null) {
-    taskConfig['region'] =
-        Export.serializeRegion(taskConfig['region']);
+    taskConfig['region'] = Export.serializeRegion(taskConfig['region']);
   }
   return /** {!ServerTaskConfig} */ (taskConfig);
 };
@@ -579,6 +590,9 @@ Export.prepareDestination_ = function(taskConfig, destination) {
       break;
     case ExportDestination.ASSET:
       taskConfig['assetId'] = taskConfig['assetId'] || '';
+      break;
+    case ExportDestination.FEATURE_VIEW:
+      taskConfig['mapName'] = taskConfig['mapName'] || '';
       break;
     // The default is to drive.
     case ExportDestination.DRIVE:
@@ -633,7 +647,7 @@ Export.image.prepareTaskConfig_ = function(taskConfig, destination) {
  * @param {!ServerTaskConfig} taskConfig Table export config to
  *     prepare.
  * @param {!data.ExportDestination} destination Export destination.
- * @return {!data.TableTaskConfig}
+ * @return {!data.TableTaskConfig|!data.FeatureViewTaskConfig}
  * @private
  */
 Export.table.prepareTaskConfig_ = function(taskConfig, destination) {
@@ -645,7 +659,8 @@ Export.table.prepareTaskConfig_ = function(taskConfig, destination) {
   taskConfig = Export.reconcileTableFormat(taskConfig);
   // Add top-level destination fields.
   taskConfig = Export.prepareDestination_(taskConfig, destination);
-  return /** @type {!data.TableTaskConfig} */ (taskConfig);
+  return /** @type {!data.TableTaskConfig|!data.FeatureViewTaskConfig} */ (
+      taskConfig);
 };
 
 
@@ -695,8 +710,7 @@ Export.video.prepareTaskConfig_ = function(taskConfig, destination) {
  * @return {!data.VideoMapTaskConfig}
  * @private
  */
-Export.videoMap.prepareTaskConfig_ = function(
-    taskConfig, destination) {
+Export.videoMap.prepareTaskConfig_ = function(taskConfig, destination) {
   taskConfig = Export.reconcileVideoFormat_(taskConfig);
   taskConfig['version'] = taskConfig['version'] || VideoMapVersion.V1;
   taskConfig['stride'] = taskConfig['stride'] || 1;
@@ -760,7 +774,6 @@ const TableFormat = {
   SHP: 'SHP',
   TF_RECORD_TABLE: 'TF_RECORD_TABLE',
 };
-
 
 /** @type {!Object<string, !Array<string>>} */
 const FORMAT_OPTIONS_MAP = {
