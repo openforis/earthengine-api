@@ -573,7 +573,7 @@
     }, {
       "argumentName": "tmaskBands",
       "type": "List\u003cObject\u003e",
-      "description": "The name or index of the bands to use for iterative TMask cloud detection. These are typically the green band and the SWIR2 band.  If unspecified, TMask is not used.  If specified, \u0027tmaskBands\u0027 must be included in \u0027breakpointBands\u0027.",
+      "description": "The name or index of the bands to use for iterative TMask cloud detection. These are typically the green band and the SWIR1 band.  If unspecified, TMask is not used.  If specified, \u0027tmaskBands\u0027 must be included in \u0027breakpointBands\u0027.",
       "optional": true,
       "defaultValue": null
     }, {
@@ -3248,6 +3248,20 @@
     "arguments": [{
       "argumentName": "confusionMatrix",
       "type": "ConfusionMatrix"
+    }]
+  }, {
+    "name": "algorithms/ConfusionMatrix.fscore",
+    "description": "Computes the Fβ-score for the confusion matrix.",
+    "returnType": "Array",
+    "arguments": [{
+      "argumentName": "confusionMatrix",
+      "type": "ConfusionMatrix"
+    }, {
+      "argumentName": "beta",
+      "type": "Float",
+      "description": "A factor indicating how much more important recall is than precision. The standard F-score is equivalent to setting β to one.",
+      "optional": true,
+      "defaultValue": 1.0
     }]
   }, {
     "name": "algorithms/ConfusionMatrix.kappa",
@@ -8854,7 +8868,7 @@
     "arguments": [{
       "argumentName": "cost",
       "type": "Image\u003cunknown bands\u003e",
-      "description": "A single-band image representing the cost to traverse each pixel. Masked pixels can\u0027t be traversed."
+      "description": "An image representing the cost to traverse each pixel. Masked pixels can\u0027t be traversed."
     }, {
       "argumentName": "source",
       "type": "Image\u003cunknown bands\u003e",
@@ -8959,7 +8973,7 @@
     }, {
       "argumentName": "kernel",
       "type": "Kernel",
-      "description": "The distance kernel.",
+      "description": "The distance kernel. One of chebyshev, euclidean, or manhattan.",
       "optional": true,
       "defaultValue": null
     }, {
@@ -9228,7 +9242,7 @@
     }]
   }, {
     "name": "algorithms/Image.paint",
-    "description": "Paints the geometries of a collection onto an image.",
+    "description": "Paints the geometries of a collection onto an image, using the given \u0027color\u0027 value to replace each band\u0027s values where any geometry covers the image (or, if a line width isspecified, where the perimeters do).\nThis algorithm is most suitable for converting categorical data from feature properties to pixels in an image; if you wish to visualize a collection, consider using FeatureCollection.style instead, which supports RGB colors whereas this algorithm is strictly \u0027monochrome\u0027 (using single numeric values).",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "image",
@@ -9241,13 +9255,13 @@
     }, {
       "argumentName": "color",
       "type": "Object",
-      "description": "Either the name of a color property or a number.",
+      "description": "The pixel value to paint into every band of the input image, either as a number which will be used for all features, or the name of a numeric property to take from each  feature in the collection.",
       "optional": true,
       "defaultValue": 0.0
     }, {
       "argumentName": "width",
       "type": "Object",
-      "description": "Either the name of a line-width property or a number.",
+      "description": "Line width, either as a number which will be the line width for all geometries, or the name of a numeric property to take from each feature in the collection. If unspecified, the geometries will be filled instead of outlined.",
       "optional": true,
       "defaultValue": null
     }]
@@ -10746,7 +10760,7 @@
     }]
   }, {
     "name": "algorithms/ImageCollection.combine",
-    "description": "Makes a new collection that is a copy of the images in primary, adding all the bands from the image in secondary with a matching ID. If there\u0027s no matching image, the primary image is just copied. This is equivalent to a join on ID with merging of the bands of the result.\nNote that this algorithm assumes that for a matching pair of inputs, both have the same footprint and metadata.",
+    "description": "Makes a new collection that is a copy of the images in primary, adding all the bands from the image in secondary with a matching ID. If there are no matching IDs, the resulting collection will be empty. This is equivalent to an inner join on ID with merging of the bands of the result.\nNote that this algorithm assumes that for a matching pair of inputs, both have the same footprint and metadata.",
     "returnType": "ImageCollection",
     "arguments": [{
       "argumentName": "primary",

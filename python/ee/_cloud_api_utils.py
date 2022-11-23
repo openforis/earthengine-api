@@ -9,9 +9,10 @@ parameters and result values.
 import calendar
 import copy
 import datetime
+import json
 
+import os
 import re
-import sys
 import warnings
 
 from . import ee_exception
@@ -21,21 +22,12 @@ from googleapiclient import discovery
 from googleapiclient import http
 from googleapiclient import model
 
-# We use the urllib3-aware shim if it's available and supported.
-# It is not compatible with Python 3.10 or newer.
-# pylint: disable=g-bad-import-order,g-import-not-at-top
-if sys.version_info >= (3, 10):
-  import httplib2
-else:
-  try:
-    import httplib2shim as httplib2
-  except ImportError:
-    import httplib2
+import httplib2
+import requests
 import six
-# pylint: enable=g-bad-import-order,g-import-not-at-top
 
 # The Cloud API version.
-VERSION = 'v1alpha'
+VERSION = os.environ.get('EE_CLOUD_API_VERSION', 'v1alpha')
 
 PROJECT_ID_PATTERN = (r'^(?:\w+(?:[\w\-]+\.[\w\-]+)*?\.\w+\:)?'
                       r'[a-z][-a-z0-9]{4,28}[a-z0-9]$')
@@ -47,6 +39,33 @@ ASSET_ROOT_PATTERN = (r'^projects/((?:\w+(?:[\w\-]+\.[\w\-]+)*?\.\w+\:)?'
 
 # The default user project to use when making Cloud API calls.
 _cloud_api_user_project = None
+
+
+class _Http:
+  """A httplib2.Http-like object based on requests."""
+
+  def __init__(self, timeout=None):
+    self._timeout = timeout
+
+  def request(  # pylint: disable=invalid-name
+      self,
+      uri,
+      method='GET',
+      body=None,
+      headers=None,
+      redirections=None,
+      connection_type=None):
+    """Makes an HTTP request using httplib2 semantics."""
+    del connection_type  # Unused
+
+    with requests.Session() as session:
+      session.max_redirects = redirections
+      response = session.request(
+          method, uri, data=body, headers=headers, timeout=self._timeout)
+      headers = dict(response.headers)
+      headers['status'] = response.status_code
+      content = response.content
+    return httplib2.Response(headers), content
 
 
 def _wrap_request(headers_supplier, response_inspector):
@@ -130,7 +149,7 @@ def build_cloud_resource(api_base_url,
       '{}/$discovery/rest?version={}&prettyPrint=false'
       .format(api_base_url, VERSION))
   if http_transport is None:
-    http_transport = httplib2.Http(timeout=timeout)
+    http_transport = _Http(timeout)
   if credentials is not None:
     http_transport = AuthorizedHttp(credentials, http=http_transport)
   request_builder = _wrap_request(headers_supplier, response_inspector)
@@ -186,6 +205,8 @@ def build_cloud_resource_from_document(discovery_document,
     A resource object to use to call the Cloud API.
   """
   request_builder = _wrap_request(headers_supplier, response_inspector)
+  if http_transport is None:
+    http_transport = _Http()
   return discovery.build_from_document(
       discovery_document,
       http=http_transport,
@@ -318,22 +339,6 @@ def _convert_bounding_box_to_geo_json(bbox):
 
 def convert_get_list_params_to_list_assets_params(params):
   """Converts a getList params dict to something usable with listAssets."""
-  return _convert_dict(
-      params, {
-          'id': ('parent', convert_asset_id_to_asset_name),
-          'num': 'pageSize'
-      }, key_warnings=True)
-
-
-def convert_list_assets_result_to_get_list_result(result):
-  """Converts a listAssets result to something getList can return."""
-  if 'assets' not in result:
-    return []
-  return [_convert_asset_for_get_list_result(i) for i in result['assets']]
-
-
-def convert_get_list_params_to_list_images_params(params):
-  """Converts a getList params dict to something usable with listImages."""
   params = _convert_dict(
       params, {
           'id': ('parent', convert_asset_id_to_asset_name),
@@ -348,6 +353,69 @@ def convert_get_list_params_to_list_images_params(params):
   # getList returns minimal information; we can filter unneeded stuff out
   # server-side.
   params['view'] = 'BASIC'
+  return convert_list_images_params_to_list_assets_params(params)
+
+
+def convert_list_assets_result_to_get_list_result(result):
+  """Converts a listAssets result to something getList can return."""
+  if 'assets' not in result:
+    return []
+  return [_convert_asset_for_get_list_result(i) for i in result['assets']]
+
+
+def _convert_list_images_filter_params_to_list_assets_params(params):
+  """Converts a listImages params dict to something usable with listAssets."""
+  query_strings = []
+  if 'startTime' in params:
+    query_strings.append('startTime >= "{}"'.format(params['startTime']))
+    del params['startTime']
+
+  if 'endTime' in params:
+    query_strings.append('endTime < "{}"'.format(params['endTime']))
+    del params['endTime']
+
+  region_error = 'Filter parameter "region" must be a GeoJSON or WKT string.'
+  if 'region' in params:
+    region = params['region']
+    if isinstance(region, dict):
+      try:
+        region = json.dumps(region)
+      except TypeError as e:
+        raise Exception(region_error) from e
+    elif not isinstance(region, six.string_types):
+      raise Exception(region_error)
+
+    # Double quotes are not valid in the GeoJSON strings, since we wrap the
+    # query in a set of double quotes. We trivially avoid doubly-escaping the
+    # quotes by replacing double quotes with single quotes.
+    region = region.replace('"', "'")
+    query_strings.append('intersects("{}")'.format(region))
+    del params['region']
+  if 'properties' in params:
+    if isinstance(params['properties'], list) and any(
+        not isinstance(p, six.string_types) for p in params['properties']):
+      raise Exception(
+          'Filter parameter "properties" must be an array of strings')
+
+    for property_query in params['properties']:
+      # Property filtering requires that properties be prefixed by "properties."
+      prop = re.sub(r'^(properties\.)?', 'properties.', property_query.strip())
+      query_strings.append(prop)
+
+    del params['properties']
+  return ' AND '.join(query_strings)
+
+
+def convert_list_images_params_to_list_assets_params(params):
+  """Converts a listImages params dict to something usable with listAssets."""
+  params = params.copy()
+  extra_filters = _convert_list_images_filter_params_to_list_assets_params(
+      params)
+  if extra_filters:
+    if 'filter' in params:
+      params['filter'] = '{} AND {}'.format(params['filter'], extra_filters)
+    else:
+      params['filter'] = extra_filters
   return params
 
 
@@ -378,8 +446,7 @@ def _convert_image_for_get_list_result(asset):
   result = _convert_dict(
       asset, {
           'name': 'id',
-      },
-      defaults={'type': 'Image'})
+      }, defaults={'type': 'Image'})
   return result
 
 
