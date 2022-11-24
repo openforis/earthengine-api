@@ -20,6 +20,8 @@ import sys
 import webbrowser
 
 from google.auth import _cloud_sdk
+from google.oauth2.credentials import Credentials
+
 import six
 from six.moves import input
 from six.moves.urllib import parse
@@ -463,3 +465,29 @@ class Flow(object):
     else:
       _display_auth_instructions_with_print(self.auth_url, coda)
     return True
+
+class AccessTokenCredentials(Credentials):
+  def __init__(self, credentials_path=get_credentials_path()):
+    self.credentials_path = credentials_path
+    super(AccessTokenCredentials, self).__init__(self._read_access_token(credentials_path))
+
+  @staticmethod
+  def create(credentials_path=get_credentials_path()):
+    if os.path.exists(credentials_path) and AccessTokenCredentials._read_access_token(credentials_path):
+      return AccessTokenCredentials(credentials_path)
+    else:
+      return None
+  @staticmethod
+  def _read_access_token(credentials_path):
+    for i in range(5):
+      try:
+        return json.load(open(credentials_path)).get('access_token')
+      except:
+        sleep(5)
+
+  def refresh(self, request):
+    self.token = self._read_access_token(self.credentials_path)
+
+  def __str__(self):
+    return 'AccessTokenCredentials({})'.format(get_credentials_path())
+    
