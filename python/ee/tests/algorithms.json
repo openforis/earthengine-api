@@ -4154,7 +4154,7 @@
     }, {
       "argumentName": "north",
       "type": "Float",
-      "description": "The northernmost enclosed longitude. If greater than +90 (north pole), will be treated as +90."
+      "description": "The northernmost enclosed latitude. If greater than +90 (north pole), will be treated as +90."
     }]
   }, {
     "name": "algorithms/GeometryConstructors.LineString",
@@ -5188,9 +5188,7 @@
       "description": "The list of properties to exclude when copying all properties. Must not be specified if properties is.",
       "optional": true,
       "defaultValue": null
-    }],
-    "deprecated": true,
-    "deprecationReason": "Use Element.copyProperties()"
+    }]
   }, {
     "name": "algorithms/Element.geometry",
     "description": "Returns the geometry of a given feature in a given projection.",
@@ -5217,7 +5215,8 @@
       "description": "If true, the geometry will have geodesic edges. If false, it will have edges as straight lines in the specified projection. If null, the edge interpretation will be the same as the original geometry. This argument is ignored if proj is not specified.",
       "optional": true,
       "defaultValue": null
-    }]
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/Feature.geometry",
     "description": "Returns the geometry of a given feature in a given projection.",
@@ -5244,9 +5243,7 @@
       "description": "If true, the geometry will have geodesic edges. If false, it will have edges as straight lines in the specified projection. If null, the edge interpretation will be the same as the original geometry. This argument is ignored if proj is not specified.",
       "optional": true,
       "defaultValue": null
-    }],
-    "deprecated": true,
-    "deprecationReason": "Use Element.geometry()"
+    }]
   }, {
     "name": "algorithms/Image.geometry",
     "description": "Returns the geometry of a given feature in a given projection.",
@@ -5273,9 +5270,7 @@
       "description": "If true, the geometry will have geodesic edges. If false, it will have edges as straight lines in the specified projection. If null, the edge interpretation will be the same as the original geometry. This argument is ignored if proj is not specified.",
       "optional": true,
       "defaultValue": null
-    }],
-    "deprecated": true,
-    "deprecationReason": "Use Element.geometry()"
+    }]
   }, {
     "name": "algorithms/AggregateFeatureCollection.array",
     "description": "Aggregates over a given property of the objects in a collection, calculating a list of all the values of the selected property.",
@@ -8863,12 +8858,12 @@
     }]
   }, {
     "name": "algorithms/Image.cumulativeCost",
-    "description": "Computes a cumulative cost map based on an image containing costs to traverse each pixel and an image containing source locations.",
+    "description": "Computes a cumulative cost map based on an image containing costs to traverse each pixel and an image containing source locations.\nEach output band represents the cumulative cost over the corresponding input cost band.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "cost",
       "type": "Image\u003cunknown bands\u003e",
-      "description": "An image representing the cost to traverse each pixel. Masked pixels can\u0027t be traversed."
+      "description": "An image representing the cost to traverse each pixel. Masked pixels can\u0027t be traversed. When comparing pixel traversal costs, we use band-wise dictionary ordering. Ancillary cost bands are only considered when paths over primary bands are equal cost."
     }, {
       "argumentName": "source",
       "type": "Image\u003cunknown bands\u003e",
@@ -9242,7 +9237,7 @@
     }]
   }, {
     "name": "algorithms/Image.paint",
-    "description": "Paints the geometries of a collection onto an image, using the given \u0027color\u0027 value to replace each band\u0027s values where any geometry covers the image (or, if a line width isspecified, where the perimeters do).\nThis algorithm is most suitable for converting categorical data from feature properties to pixels in an image; if you wish to visualize a collection, consider using FeatureCollection.style instead, which supports RGB colors whereas this algorithm is strictly \u0027monochrome\u0027 (using single numeric values).",
+    "description": "Paints the geometries of a collection onto an image, using the given \u0027color\u0027 value to replace each band\u0027s values where any geometry covers the image (or, if a line width is specified, where the perimeters do).\nThis algorithm is most suitable for converting categorical data from feature properties to pixels in an image; if you wish to visualize a collection, consider using FeatureCollection.style instead, which supports RGB colors whereas this algorithm is strictly \u0027monochrome\u0027 (using single numeric values).",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "image",
@@ -9255,7 +9250,7 @@
     }, {
       "argumentName": "color",
       "type": "Object",
-      "description": "The pixel value to paint into every band of the input image, either as a number which will be used for all features, or the name of a numeric property to take from each  feature in the collection.",
+      "description": "The pixel value to paint into every band of the input image, either as a number which will be used for all features, or the name of a numeric property to take from each feature in the collection.",
       "optional": true,
       "defaultValue": 0.0
     }, {
@@ -10143,7 +10138,7 @@
     }]
   }, {
     "name": "algorithms/Image.retile",
-    "description": "Change the size of tiles in which the input image is calculated.\n\nWhen pixels of this image are needed, they are computed in tiles of the specified size. This allows a memory-intensive image computation, such as one involving large array bands, to be broken up into smaller pieces that will fit into memory where larger ones will not.\n\nCurrently, if the image is used in a reduce operation, the tileScale parameter should be used instead of retile(). retile() will also have no or detrimental effect in an Export.video task.",
+    "description": "Change the size of tiles in which the input image is calculated.\n\nWhen pixels of this image are needed, they are computed in tiles of at most the specified size. This allows a memory-intensive image computation, such as one involving large array bands, to be broken up into smaller pieces that will fit into memory where larger ones would not.\n\nCurrently, if the image is used in a reduce operation, the tileScale parameter should be used instead of retile(). retile() is supported by Export.image but its behavior in other export tasks is not guaranteed.",
     "returnType": "Image\u003cunknown bands\u003e",
     "arguments": [{
       "argumentName": "image",
@@ -10152,7 +10147,7 @@
     }, {
       "argumentName": "size",
       "type": "Integer",
-      "description": "Edge length in pixels of the tile grid to use; must be between 1 and 256."
+      "description": "Edge length in pixels of the tile grid to use; must be between 1 and 32768."
     }],
     "hidden": true
   }, {

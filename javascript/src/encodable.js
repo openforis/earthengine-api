@@ -205,7 +205,7 @@ ee.rpc_convert.orientation = function(orientation) {
     return 'VERTICAL';
   }
   const upper = orientation.toUpperCase();
-  if (upper !== 'HORIZONTAL' || upper !== 'VERTICAL') {
+  if (upper !== 'HORIZONTAL' && upper !== 'VERTICAL') {
     throw new Error('Orientation must be "horizontal" or "vertical"');
   }
   return upper;
@@ -1081,7 +1081,7 @@ ee.rpc_convert.folderQuotaToAssetQuotaDetails = function(quota) {
   return {
     asset_count: {
       usage: toNumber(quota.assetCount),
-      limit: toNumber(quota.maxAssets ?? quota.maxAssetCount),
+      limit: toNumber(quota.maxAssets),
     },
     asset_size: {
       usage: toNumber(quota.sizeBytes),

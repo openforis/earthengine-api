@@ -11,7 +11,6 @@ The public function styling uses camelCase to match the JavaScript names.
 # pylint: disable=g-bad-import-order
 import json
 import re
-import six
 
 from . import _cloud_api_utils
 from . import data
@@ -240,10 +239,18 @@ class Export(object):
     # Disable argument usage check; arguments are accessed using locals().
     # pylint: disable=unused-argument
     @staticmethod
-    def toAsset(image, description='myExportImageTask', assetId=None,
-                pyramidingPolicy=None, dimensions=None, region=None,
-                scale=None, crs=None, crsTransform=None, maxPixels=None,
-                **kwargs):
+    def toAsset(
+        image,
+        description='myExportImageTask',
+        assetId=None,
+        pyramidingPolicy=None,
+        dimensions=None,
+        region=None,
+        scale=None,
+        crs=None,
+        crsTransform=None,
+        maxPixels=None,
+        **kwargs):
       """Creates a task to export an EE Image to an EE Asset.
 
       Args:
@@ -440,10 +447,19 @@ class Export(object):
     # Disable argument usage check; arguments are accessed using locals().
     # pylint: disable=unused-argument
     @staticmethod
-    def toCloudStorage(image, description='myExportMapTask', bucket=None,
-                       fileFormat=None, path=None, writePublicTiles=None,
-                       maxZoom=None, scale=None, minZoom=None,
-                       region=None, skipEmptyTiles=None, mapsApiKey=None,
+    def toCloudStorage(image,
+                       description='myExportMapTask',
+                       bucket=None,
+                       fileFormat=None,
+                       path=None,
+                       writePublicTiles=None,
+                       maxZoom=None,
+                       scale=None,
+                       minZoom=None,
+                       region=None,
+                       skipEmptyTiles=None,
+                       mapsApiKey=None,
+                       bucketCorsUris=None,
                        **kwargs):
       """Creates a task to export an Image as a pyramid of map tiles.
 
@@ -479,6 +495,13 @@ class Export(object):
             map tiles. Defaults to false.
         mapsApiKey: Used in index.html to initialize the Google Maps API. This
             removes the "development purposes only" message from the map.
+        bucketCorsUris: A list of domains that are allowed to retrieve the
+            exported tiles from JavaScript. Setting the tiles to public is not
+            enough to allow them to be accessible by a web page, so you must
+            explicitly give domains access to the bucket. This is known as
+            Cross-Origin-Resource-Sharing, or CORS. You can allow all domains to
+            have access using "*", but this is generally discouraged. See
+            https://cloud.google.com/storage/docs/cross-origin for more details.
         **kwargs: Holds other keyword arguments that may have been deprecated
             such as 'crs_transform'.
 
@@ -993,8 +1016,7 @@ def _prepare_image_export_config(image, config, export_destination):
             'pyramidingPolicy'] = pyramiding_policy.pop('.default').upper()
       if pyramiding_policy:
         asset_export_options['pyramidingPolicyOverrides'] = {
-            band: policy.upper()
-            for band, policy in six.iteritems(pyramiding_policy)
+            band: policy.upper() for band, policy in pyramiding_policy.items()
         }
     request['assetExportOptions'] = asset_export_options
   else:
@@ -1200,7 +1222,7 @@ def _build_image_file_export_options(config, export_destination):
         raise ee_exception.EEException('File dimensions specified twice.')
       file_dimensions = config.pop('fileDimensions')
     if file_dimensions is not None:
-      if isinstance(file_dimensions, six.integer_types):
+      if isinstance(file_dimensions, int):
         file_dimensions = (file_dimensions, file_dimensions)
       geo_tiff_options['tileDimensions'] = {
           'width': file_dimensions[0],
@@ -1394,13 +1416,14 @@ def _build_cloud_storage_destination(config):
     A CloudStorageDestination containing information extracted from
     config.
   """
-  cloud_storage_export_destination = {'bucket': config.pop('outputBucket')}
+  destination = {'bucket': config.pop('outputBucket')}
   if 'outputPrefix' in config:
-    cloud_storage_export_destination['filenamePrefix'] = config.pop(
-        'outputPrefix')
+    destination['filenamePrefix'] = config.pop('outputPrefix')
+  if 'bucketCorsUris' in config:
+    destination['bucketCorsUris'] = config.pop('bucketCorsUris')
   if config.pop('writePublicTiles', False):
-    cloud_storage_export_destination['permissions'] = 'PUBLIC'
-  return cloud_storage_export_destination
+    destination['permissions'] = 'PUBLIC'
+  return destination
 
 
 def _build_tile_options(config):
@@ -1458,8 +1481,9 @@ def _build_earth_engine_destination(config):
     config.
   """
   return {
-      'name': _cloud_api_utils.convert_asset_id_to_asset_name(
-          config.pop('assetId'))
+      'name':
+          _cloud_api_utils.convert_asset_id_to_asset_name(
+              config.pop('assetId')),
   }
 
 
@@ -1471,8 +1495,7 @@ def _build_feature_view_destination(config):
       by removing parameters used in the FeatureViewDestination.
 
   Returns:
-    A FeatureViewDestination containing information extracted from
-    config.
+    A FeatureViewDestination containing information extracted from config.
   """
   feature_view_destination = {
       'name':
@@ -1648,7 +1671,7 @@ def _capture_parameters(all_locals, parameters_to_exclude):
     A dict containing all the non-None values in all_locals, except for
     those listed in parameters_to_exclude.
   """
-  result = {k: v for k, v in six.iteritems(all_locals) if v is not None}
+  result = {k: v for k, v in all_locals.items() if v is not None}
   for parameter_to_exclude in parameters_to_exclude:
     if parameter_to_exclude in result:
       del result[parameter_to_exclude]
@@ -1702,8 +1725,7 @@ def _canonicalize_parameters(config, destination):
   if 'region' in config:
     config['region'] = _canonicalize_region(config['region'])
 
-  if 'selectors' in config and isinstance(config['selectors'],
-                                          six.string_types):
+  if 'selectors' in config and isinstance(config['selectors'], str):
     config['selectors'] = config['selectors'].split(',')
 
   if destination == Task.ExportDestination.GCS:
@@ -1730,7 +1752,7 @@ def _canonicalize_parameters(config, destination):
     prefix = FORMAT_PREFIX_MAP[config[IMAGE_FORMAT_FIELD].upper()]
     format_options = config.get(IMAGE_FORMAT_OPTIONS_FIELD, {})
     keys_to_delete = []
-    for key, value in six.iteritems(config):
+    for key, value in config.items():
       if key.startswith(prefix):
         # Transform like "tiffSomeKey" -> "someKey"
         remapped_key = key[len(prefix):]
@@ -1757,7 +1779,7 @@ def _canonicalize_region(region):
   if isinstance(region, geometry.Geometry):
     return region
 
-  if isinstance(region, six.string_types):
+  if isinstance(region, str):
     try:
       region = json.loads(region)
     except:

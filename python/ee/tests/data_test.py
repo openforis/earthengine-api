@@ -6,10 +6,12 @@ from unittest import mock
 import httplib2
 import requests
 
-import unittest
 import ee
+from ee import _cloud_api_utils
 from ee import apitestcase
-import ee.image as image
+from ee import featurecollection
+from ee import image
+import unittest
 
 
 class DataTest(unittest.TestCase):
@@ -185,6 +187,40 @@ class DataTest(unittest.TestCase):
           **expected_params)
       self.assertEqual(expected_result, actual_result)
 
+  def testGetMapId(self):
+    cloud_api_resource = mock.MagicMock()
+    with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+      mock_result = {
+          'name': 'projects/earthengine-legacy/maps/DOCID',
+      }
+      cloud_api_resource.projects().maps().create(
+      ).execute.return_value = mock_result
+      actual_result = ee.data.getMapId({
+          'image': image.Image('my-image'),
+      })
+      cloud_api_resource.projects().maps().create().execute.assert_called_once()
+      self.assertEqual('projects/earthengine-legacy/maps/DOCID',
+                       actual_result['mapid'])
+      self.assertEqual('', actual_result['token'])
+      self.assertIsInstance(actual_result['tile_fetcher'], ee.data.TileFetcher)
+
+  def testGetMapId_withWorkloadTag(self):
+    with ee.data.workloadTagContext('mapid-tag'):
+      cloud_api_resource = mock.MagicMock()
+      with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+        mock_result = {
+            'name': 'projects/earthengine-legacy/maps/DOCID',
+        }
+        cloud_api_resource.projects().maps().create(
+        ).execute.return_value = mock_result
+        ee.data.getMapId({
+            'image': image.Image('my-image'),
+        })
+        self.assertEqual(
+            'mapid-tag',
+            cloud_api_resource.projects().maps().create.call_args_list[1]
+            .kwargs['workloadTag'])
+
   # The Cloud API context manager does not mock getAlgorithms, so it's done
   # separately here.
   @mock.patch.object(
@@ -209,6 +245,22 @@ class DataTest(unittest.TestCase):
               'docid': 'projects/earthengine-legacy/thumbnails/DOCID',
               'token': ''
           }, actual_result)
+
+  def testGetDownloadId_withWorkloadTag(self):
+    with ee.data.workloadTagContext('downloadid-tag'):
+      cloud_api_resource = mock.MagicMock()
+      with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+        mock_result = {'name': 'projects/earthengine-legacy/thumbnails/DOCID'}
+        cloud_api_resource.projects().thumbnails().create(
+        ).execute.return_value = mock_result
+        ee.data.getDownloadId({
+            'image': image.Image('my-image'),
+            'name': 'dummy'
+        })
+        self.assertEqual(
+            'downloadid-tag',
+            cloud_api_resource.projects().thumbnails().create.call_args
+            .kwargs['workloadTag'])
 
   def testGetDownloadId_withBandList(self):
     cloud_api_resource = mock.MagicMock()
@@ -245,6 +297,71 @@ class DataTest(unittest.TestCase):
             'image': image.Image('my-image').serialize(),
             'name': 'dummy'
         })
+
+  def testGetThumbId(self):
+    cloud_api_resource = mock.MagicMock()
+    with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+      mock_result = {'name': 'projects/earthengine-legacy/thumbnails/DOCID'}
+      cloud_api_resource.projects().thumbnails().create(
+      ).execute.return_value = mock_result
+      actual_result = ee.data.getThumbId({
+          'image': image.Image('my-image'),
+          'name': 'dummy'
+      })
+      cloud_api_resource.projects().thumbnails().create(
+      ).execute.assert_called_once()
+      self.assertEqual(
+          {
+              'thumbid': 'projects/earthengine-legacy/thumbnails/DOCID',
+              'token': ''
+          }, actual_result)
+
+  def testGetThumbId_withWorkloadTag(self):
+    with ee.data.workloadTagContext('thumbid-tag'):
+      cloud_api_resource = mock.MagicMock()
+      with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+        mock_result = {'name': 'projects/earthengine-legacy/thumbnails/DOCID'}
+        cloud_api_resource.projects().thumbnails().create(
+        ).execute.return_value = mock_result
+        ee.data.getThumbId({'image': image.Image('my-image'), 'name': 'dummy'})
+        self.assertEqual(
+            'thumbid-tag',
+            cloud_api_resource.projects().thumbnails().create.call_args
+            .kwargs['workloadTag'])
+
+  def testGetTableDownloadId(self):
+    cloud_api_resource = mock.MagicMock()
+    with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+      mock_result = {'name': 'projects/earthengine-legacy/table/DOCID'}
+      cloud_api_resource.projects().tables().create(
+      ).execute.return_value = mock_result
+      actual_result = ee.data.getTableDownloadId({
+          'table': featurecollection.FeatureCollection('my-fc'),
+          'filename': 'dummy'
+      })
+      cloud_api_resource.projects().tables().create(
+      ).execute.assert_called_once()
+      self.assertEqual(
+          {
+              'docid': 'projects/earthengine-legacy/table/DOCID',
+              'token': ''
+          }, actual_result)
+
+  def testGetTableDownloadId_withWorkloadTag(self):
+    with ee.data.workloadTagContext('tableid-tag'):
+      cloud_api_resource = mock.MagicMock()
+      with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+        mock_result = {'name': 'projects/earthengine-legacy/thumbnails/DOCID'}
+        cloud_api_resource.projects().tables().create(
+        ).execute.return_value = mock_result
+        ee.data.getTableDownloadId({
+            'table': featurecollection.FeatureCollection('my-fc'),
+            'filename': 'dummy'
+        })
+        self.assertEqual(
+            'tableid-tag',
+            cloud_api_resource.projects().tables().create.call_args
+            .kwargs['workloadTag'])
 
   def testCloudProfilingEnabled(self):
     seen = []
@@ -315,8 +432,9 @@ class DataTest(unittest.TestCase):
       ]
       self.assertEqual(expected_keys, list(actual_result.keys()))
       self.assertEqual('tiles-key-foo', actual_result['token'])
-      self.assertEqual(f'base_url/v1alpha/{mock_name}/tiles/7/5/6',
-                       actual_result['formatTileUrl'](5, 6, 7))
+      self.assertEqual(
+          f'base_url/{_cloud_api_utils.VERSION}/{mock_name}/tiles/7/5/6',
+          actual_result['formatTileUrl'](5, 6, 7))
 
   def testWorkloadTag(self):
     self.assertEqual('', ee.data.getWorkloadTag())

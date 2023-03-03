@@ -87,15 +87,18 @@ class BatchTestCase(apitestcase.ApiTestCase):
       self.assertIsNone(task.name)
       self.assertEqual('EXPORT_IMAGE', task.task_type)
       self.assertEqual('UNSUBMITTED', task.state)
-      self.assertEqual({
-          'expression': expected_expression,
-          'assetExportOptions': {
-              'earthEngineDestination': {
-                  'name': 'projects/earthengine-legacy/assets/users/foo/bar'
-              }
+      self.assertEqual(
+          {
+              'expression': expected_expression,
+              'assetExportOptions': {
+                  'earthEngineDestination': {
+                      'name':
+                          'projects/earthengine-legacy/assets/users/foo/bar',
+                  }
+              },
+              'description': 'myExportImageTask',
           },
-          'description': 'myExportImageTask',
-      }, task.config)
+          task.config)
 
   def testExportImageCloudApi(self):
     """Verifies the task created by Export.image()."""
@@ -224,18 +227,21 @@ class BatchTestCase(apitestcase.ApiTestCase):
       self.assertIsNone(task_keyed.name)
       self.assertEqual('EXPORT_IMAGE', task_keyed.task_type)
       self.assertEqual('UNSUBMITTED', task_keyed.state)
-      self.assertEqual({
-          'expression': expected_expression,
-          'description': 'myExportImageTask',
-          'assetExportOptions': {
-              'earthEngineDestination': {
-                  'name': 'projects/earthengine-legacy/assets/users/foo/bar'
+      self.assertEqual(
+          {
+              'expression': expected_expression,
+              'description': 'myExportImageTask',
+              'assetExportOptions': {
+                  'earthEngineDestination': {
+                      'name':
+                          'projects/earthengine-legacy/assets/users/foo/bar',
+                  },
+                  'pyramidingPolicyOverrides': {
+                      'B1': 'MIN'
+                  }
               },
-              'pyramidingPolicyOverrides': {
-                  'B1': 'MIN'
-              }
           },
-      }, task_keyed.config)
+          task_keyed.config)
 
       task_ordered = ee.batch.Export.image.toAsset(
           config['image'],
@@ -246,24 +252,27 @@ class BatchTestCase(apitestcase.ApiTestCase):
           shardSize=4)
       self.assertEqual('EXPORT_IMAGE', task_ordered.task_type)
       self.assertEqual('UNSUBMITTED', task_ordered.state)
-      self.assertEqual({
-          'expression': expected_expression,
-          'description': 'TestDescription',
-          'assetExportOptions': {
-              'earthEngineDestination': {
-                  'name': 'projects/earthengine-legacy/assets/users/foo/bar'
+      self.assertEqual(
+          {
+              'expression': expected_expression,
+              'description': 'TestDescription',
+              'assetExportOptions': {
+                  'earthEngineDestination': {
+                      'name':
+                          'projects/earthengine-legacy/assets/users/foo/bar',
+                  },
+                  'tileSize': {
+                      'value': 4
+                  }
               },
-              'tileSize': {
-                  'value': 4
+              'maxPixels': {
+                  'value': '1000'
+              },
+              'maxWorkers': {
+                  'value': 100
               }
           },
-          'maxPixels': {
-              'value': '1000'
-          },
-          'maxWorkers': {
-              'value': 100
-          }
-      }, task_ordered.config)
+          task_ordered.config)
 
   def testExportImageToAssetCloudApi_withTileSize(self):
     """Verifies the Asset export task created by Export.image.toAsset()."""
@@ -283,24 +292,27 @@ class BatchTestCase(apitestcase.ApiTestCase):
           tileSize=4)
       self.assertEqual('EXPORT_IMAGE', task_ordered.task_type)
       self.assertEqual('UNSUBMITTED', task_ordered.state)
-      self.assertEqual({
-          'expression': expected_expression,
-          'description': 'TestDescription',
-          'assetExportOptions': {
-              'earthEngineDestination': {
-                  'name': 'projects/earthengine-legacy/assets/users/foo/bar'
+      self.assertEqual(
+          {
+              'expression': expected_expression,
+              'description': 'TestDescription',
+              'assetExportOptions': {
+                  'earthEngineDestination': {
+                      'name':
+                          'projects/earthengine-legacy/assets/users/foo/bar',
+                  },
+                  'tileSize': {
+                      'value': 4
+                  }
               },
-              'tileSize': {
-                  'value': 4
+              'maxPixels': {
+                  'value': '1000'
+              },
+              'maxWorkers': {
+                  'value': 100
               }
           },
-          'maxPixels': {
-              'value': '1000'
-          },
-          'maxWorkers': {
-              'value': 100
-          }
-      }, task_ordered.config)
+          task_ordered.config)
 
   def testExportImageToCloudStorageCloudApi(self):
     """Verifies the Cloud Storage export task created by Export.image()."""
@@ -485,9 +497,12 @@ class BatchTestCase(apitestcase.ApiTestCase):
 
       # Test keyed parameters.
       task_keyed = ee.batch.Export.map.toCloudStorage(
-          image=config['image'], bucket=config['bucket'],
-          maxZoom=config['maxZoom'], path=config['path'],
-          maxWorkers=config['maxWorkers'])
+          image=config['image'],
+          bucket=config['bucket'],
+          maxZoom=config['maxZoom'],
+          path=config['path'],
+          maxWorkers=config['maxWorkers'],
+          bucketCorsUris=['*'])
       expected_expression = ee.Image(1)
       self.assertIsNone(task_keyed.id)
       self.assertIsNone(task_keyed.name)
@@ -505,6 +520,7 @@ class BatchTestCase(apitestcase.ApiTestCase):
                   'bucket': config['bucket'],
                   'filenamePrefix': config['path'],
                   'permissions': 'PUBLIC',
+                  'bucketCorsUris': ['*'],
               },
           },
           'maxWorkers': {'value': 100}
@@ -744,15 +760,18 @@ class BatchTestCase(apitestcase.ApiTestCase):
       self.assertIsNone(task.name)
       self.assertEqual('EXPORT_FEATURES', task.task_type)
       self.assertEqual('UNSUBMITTED', task.state)
-      self.assertEqual({
-          'expression': ee.FeatureCollection('foo'),
-          'description': 'foo',
-          'assetExportOptions': {
-              'earthEngineDestination': {
-                  'name': 'projects/earthengine-legacy/assets/users/foo/bar'
+      self.assertEqual(
+          {
+              'expression': ee.FeatureCollection('foo'),
+              'description': 'foo',
+              'assetExportOptions': {
+                  'earthEngineDestination': {
+                      'name':
+                          'projects/earthengine-legacy/assets/users/foo/bar',
+                  }
               }
-          }
-      }, task.config)
+          },
+          task.config)
 
   def testExportTableWithFileFormatCloudApi(self):
     """Verifies the task created by Export.table() given a file format."""
