@@ -1,11 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Test for the ee.computedobject module."""
 
-
-
-import unittest
 import ee
 from ee import apitestcase
+import unittest
 
 
 class ComputedObjectTest(apitestcase.ApiTestCase):

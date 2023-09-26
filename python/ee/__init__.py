@@ -1,29 +1,29 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """The EE Python library."""
 
-__version__ = '0.1.343'
+__version__ = '0.1.370'
 
 # Using lowercase function naming to match the JavaScript names.
 # pylint: disable=g-bad-name
 
-# pylint: disable=g-bad-import-order
 import collections
 import datetime
 import inspect
 import numbers
 import os
+from typing import Any, Hashable, Optional, Type
 
-from . import batch
-from . import data
-from . import deserializer
-from . import ee_types as types
-from . import oauth
+from ee import batch
+from ee import data
+from ee import deserializer
+from ee import ee_types as types
+from ee import oauth
 
 # Public re-exports.
-from ._helpers import ServiceAccountCredentials
 from ._helpers import apply  # pylint: disable=redefined-builtin
 from ._helpers import call
 from ._helpers import profilePrinting
+from ._helpers import ServiceAccountCredentials
 from .apifunction import ApiFunction
 from .collection import Collection
 from .computedobject import ComputedObject
@@ -54,14 +54,14 @@ _generatedClasses = []
 
 
 class _AlgorithmsContainer(dict):
-  """A lightweight class that is used as a dictionary with dot notation.
-  """
+  """A lightweight class that is used as a dictionary with dot notation."""
 
-  def __getattr__(self, name):
+  def __getattr__(self, name: Hashable) -> Any:
     try:
       return self[name]
     except KeyError:
-      raise AttributeError
+      # Match dict's behavior when a key is missing.
+      raise AttributeError  # pylint: disable=raise-missing-from
 
   def __setattr__(self, name, value):
     self[name] = value
@@ -128,6 +128,7 @@ def Initialize(
   """
   if credentials == 'persistent':
     credentials = data.get_persistent_credentials()
+
   data.initialize(
       credentials=credentials,
       api_base_url=(opt_url + '/api' if opt_url else None),
@@ -136,22 +137,25 @@ def Initialize(
       cloud_api_key=cloud_api_key,
       project=project,
       http_transport=http_transport)
+
   # Initialize the dynamically loaded functions on the objects that want them.
   ApiFunction.initialize()
-  Element.initialize()
-  Image.initialize()
-  Feature.initialize()
   Collection.initialize()
-  ImageCollection.initialize()
+  Date.initialize()
+  Dictionary.initialize()
+  Element.initialize()
+  Feature.initialize()
   FeatureCollection.initialize()
   Filter.initialize()
   Geometry.initialize()
+  Image.initialize()
+  ImageCollection.initialize()
   List.initialize()
   Number.initialize()
   String.initialize()
-  Date.initialize()
-  Dictionary.initialize()
   Terrain.initialize()
+
+  # These must happen last.
   _InitializeGeneratedClasses()
   _InitializeUnboundMethods()
 
@@ -159,21 +163,24 @@ def Initialize(
 def Reset():
   """Reset the library. Useful for re-initializing to a different server."""
   data.reset()
+
+  # Must call reset on the base class before any of its derived classes.
   ApiFunction.reset()
-  Element.reset()
-  Image.reset()
+  Element.reset()  # Must be before Collection.
+  Collection.reset()  # Must be before FeatureCollection and ImageCollection.
+  Date.reset()
+  Dictionary.reset()
   Feature.reset()
-  Collection.reset()
-  ImageCollection.reset()
   FeatureCollection.reset()
   Filter.reset()
   Geometry.reset()
+  Image.reset()
+  ImageCollection.reset()
   List.reset()
   Number.reset()
   String.reset()
-  Date.reset()
-  Dictionary.reset()
   Terrain.reset()
+
   _ResetGeneratedClasses()
   global Algorithms
   Algorithms = _AlgorithmsContainer()
@@ -192,7 +199,7 @@ def _ResetGeneratedClasses():
   types._registerClasses(globals())     # pylint: disable=protected-access
 
 
-def _Promote(arg, klass):
+def _Promote(arg: Optional[Any], a_class: str) -> Optional[Any]:
   """Wrap an argument in an object of the specified class.
 
   This is used to e.g.: promote numbers or strings to Images and arrays
@@ -200,7 +207,7 @@ def _Promote(arg, klass):
 
   Args:
     arg: The object to promote.
-    klass: The expected type.
+    a_class: The expected type.
 
   Returns:
     The argument promoted if the class is recognized, otherwise the
@@ -209,9 +216,9 @@ def _Promote(arg, klass):
   if arg is None:
     return arg
 
-  if klass == 'Image':
+  if a_class == 'Image':
     return Image(arg)
-  elif klass == 'Feature':
+  elif a_class == 'Feature':
     if isinstance(arg, Collection):
       # TODO(user): Decide whether we want to leave this in. It can be
       #              quite dangerous on large collections.
@@ -219,7 +226,7 @@ def _Promote(arg, klass):
           'Feature', ApiFunction.call_('Collection.geometry', arg))
     else:
       return Feature(arg)
-  elif klass == 'Element':
+  elif a_class == 'Element':
     if isinstance(arg, Element):
       # Already an Element.
       return arg
@@ -232,22 +239,22 @@ def _Promote(arg, klass):
     else:
       # No way to convert.
       raise EEException('Cannot convert {0} to Element.'.format(arg))
-  elif klass == 'Geometry':
+  elif a_class == 'Geometry':
     if isinstance(arg, Collection):
       return ApiFunction.call_('Collection.geometry', arg)
     else:
       return Geometry(arg)
-  elif klass in ('FeatureCollection', 'Collection'):
+  elif a_class in ('FeatureCollection', 'Collection'):
     # For now Collection is synonymous with FeatureCollection.
     if isinstance(arg, Collection):
       return arg
     else:
       return FeatureCollection(arg)
-  elif klass == 'ImageCollection':
+  elif a_class == 'ImageCollection':
     return ImageCollection(arg)
-  elif klass == 'Filter':
+  elif a_class == 'Filter':
     return Filter(arg)
-  elif klass == 'Algorithm':
+  elif a_class == 'Algorithm':
     if isinstance(arg, str):
       # An API function name.
       return ApiFunction.lookup(arg)
@@ -261,25 +268,25 @@ def _Promote(arg, klass):
       return arg
     else:
       raise EEException('Argument is not a function: {0}'.format(arg))
-  elif klass == 'Dictionary':
+  elif a_class == 'Dictionary':
     if isinstance(arg, dict):
       return arg
     else:
       return Dictionary(arg)
-  elif klass == 'String':
+  elif a_class == 'String':
     if (types.isString(arg) or
         isinstance(arg, ComputedObject) or
         isinstance(arg, String)):
       return String(arg)
     else:
       return arg
-  elif klass == 'List':
+  elif a_class == 'List':
     return List(arg)
-  elif klass in ('Number', 'Float', 'Long', 'Integer', 'Short', 'Byte'):
+  elif a_class in ('Number', 'Float', 'Long', 'Integer', 'Short', 'Byte'):
     return Number(arg)
-  elif klass in globals():
-    cls = globals()[klass]
-    ctor = ApiFunction.lookupInternal(klass)
+  elif a_class in globals():
+    cls = globals()[a_class]
+    ctor = ApiFunction.lookupInternal(a_class)
     # Handle dynamically created classes.
     if isinstance(arg, cls):
       # Return unchanged.
@@ -289,10 +296,10 @@ def _Promote(arg, klass):
       return cls(arg)
     elif isinstance(arg, str):
       if hasattr(cls, arg):
-        # arg is the name of a method in klass.
+        # arg is the name of a method in a_class.
         return getattr(cls, arg)()
       else:
-        raise EEException('Unknown algorithm: {0}.{1}'.format(klass, arg))
+        raise EEException('Unknown algorithm: {0}.{1}'.format(a_class, arg))
     else:
       # Client-side cast.
       return cls(arg)
@@ -300,7 +307,8 @@ def _Promote(arg, klass):
     return arg
 
 
-def _InitializeUnboundMethods():
+def _InitializeUnboundMethods() -> None:
+  """Initializes the unbounded functions."""
   # Sort the items by length, so parents get created before children.
   items = sorted(
       ApiFunction.unboundFunctions().items(), key=lambda x: len(x[0]))
@@ -315,8 +323,7 @@ def _InitializeUnboundMethods():
     target = Algorithms
     while len(name_parts) > 1:
       first = name_parts[0]
-      # Set the attribute if it doesn't already exist. The try/except block
-      # works in both Python 2 & 3.
+      # Set the attribute if it doesn't already exist.
       try:
         getattr(target, first)
       except AttributeError:
@@ -331,16 +338,11 @@ def _InitializeUnboundMethods():
       return lambda *args, **kwargs: f.call(*args, **kwargs)  # pylint: disable=unnecessary-lambda
     bound = GenerateFunction(func)
     bound.signature = signature
-    # Add docs. If there are non-ASCII characters in the docs, and we're in
-    # Python 2, use a hammer to force them into a str.
-    try:
-      bound.__doc__ = str(func)
-    except UnicodeEncodeError:
-      bound.__doc__ = func.__str__().encode('utf8')
+    bound.__doc__ = str(func)
     setattr(target, name_parts[0], bound)
 
 
-def _InitializeGeneratedClasses():
+def _InitializeGeneratedClasses() -> None:
   """Generate classes for extra types that appear in the web API."""
   signatures = ApiFunction.allSignatures()
   # Collect the first part of all function names.
@@ -374,10 +376,10 @@ def _MakeClass(name):
     Returns:
       The new class.
     """
-    klass = globals()[name]
+    a_class = globals()[name]
     onlyOneArg = (len(args) == 1)
     # Are we trying to cast something that's already of the right class?
-    if onlyOneArg and isinstance(args[0], klass):
+    if onlyOneArg and isinstance(args[0], a_class):
       result = args[0]
     else:
       # Decide whether to call a server-side constructor or just do a

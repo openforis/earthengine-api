@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Convenience functions and code used by ee/__init__.py.
 
 These functions are in general re-exported from the "ee" module and should be
@@ -11,13 +11,11 @@ referenced from there (e.g. "ee.profilePrinting").
 import contextlib
 import json
 import sys
-# pylint: disable=g-importing-member
-from . import data
-from . import oauth
-from .apifunction import ApiFunction
-# pylint: enable=g-importing-member
 from google.auth import crypt
 from google.oauth2 import service_account
+from ee import apifunction
+from ee import data
+from ee import oauth
 
 
 def ServiceAccountCredentials(email, key_file=None, key_data=None):
@@ -75,7 +73,7 @@ def call(func, *args, **kwargs):
     to that type.
   """
   if isinstance(func, str):
-    func = ApiFunction.lookup(func)
+    func = apifunction.ApiFunction.lookup(func)
   return func.call(*args, **kwargs)
 
 
@@ -93,7 +91,7 @@ def apply(func, named_args):  # pylint: disable=redefined-builtin
     to that type.
   """
   if isinstance(func, str):
-    func = ApiFunction.lookup(func)
+    func = apifunction.ApiFunction.lookup(func)
   return func.apply(named_args)
 
 
@@ -116,7 +114,7 @@ def profilePrinting(destination=sys.stderr):
   """
   # TODO(user): Figure out why ee.Profile.getProfiles isn't generated and fix
   # that.
-  getProfiles = ApiFunction.lookup('Profile.getProfiles')
+  getProfiles = apifunction.ApiFunction.lookup('Profile.getProfiles')
 
   profile_ids = []
   try:

@@ -1,28 +1,22 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """A representation of an Earth Engine image.
 
-See: https://sites.google.com/site/earthengineapidocs for more details.
+See: https://developers.google.com/earth-engine/apidocs/ee-image for more
+details.
 """
 
-
-
-# Using lowercase function naming to match the JavaScript names.
-# pylint: disable=g-bad-name
-
-# Disable lint messages caused by Python 3 compatibility changes.
-# pylint: disable=superfluous-parens
-
 import json
+from typing import Any, Dict, Optional, Sequence, Tuple
 
-from . import apifunction
-from . import computedobject
-from . import data
-from . import deprecation
-from . import ee_exception
-from . import ee_types
-from . import element
-from . import function
-from . import geometry
+from ee import apifunction
+from ee import computedobject
+from ee import data
+from ee import deprecation
+from ee import ee_exception
+from ee import ee_types
+from ee import element
+from ee import function
+from ee import geometry
 
 
 class Image(element.Element):
@@ -33,7 +27,9 @@ class Image(element.Element):
   # Tell pytype to not complain about dynamic attributes.
   _HAS_DYNAMIC_ATTRIBUTES = True
 
-  def __init__(self, args=None, version=None):
+  def __init__(
+      self, args: Optional[Any] = None, version: Optional[float] = None
+  ):
     """Constructs an Earth Engine image.
 
     Args:
@@ -56,7 +52,7 @@ class Image(element.Element):
     if version is not None:
       if ee_types.isString(args) and ee_types.isNumber(version):
         # An ID and version.
-        super(Image, self).__init__(
+        super().__init__(
             apifunction.ApiFunction.lookup('Image.load'),
             {'id': args, 'version': version})
       else:
@@ -67,26 +63,26 @@ class Image(element.Element):
 
     if ee_types.isNumber(args):
       # A constant image.
-      super(Image, self).__init__(
+      super().__init__(
           apifunction.ApiFunction.lookup('Image.constant'), {'value': args})
     elif ee_types.isString(args):
       # An ID.
-      super(Image, self).__init__(
+      super().__init__(
           apifunction.ApiFunction.lookup('Image.load'), {'id': args})
     elif isinstance(args, (list, tuple)):
       # Make an image out of each element.
       image = Image.combine_([Image(i) for i in args])
-      super(Image, self).__init__(image.func, image.args)
+      super().__init__(image.func, image.args)
     elif isinstance(args, computedobject.ComputedObject):
       if args.name() == 'Array':
         # A constant array image.
-        super(Image, self).__init__(
+        super().__init__(
             apifunction.ApiFunction.lookup('Image.constant'), {'value': args})
       else:
         # A custom object to reinterpret as an Image.
-        super(Image, self).__init__(args.func, args.args, args.varName)
+        super().__init__(args.func, args.args, args.varName)
     elif args is None:
-      super(Image, self).__init__(
+      super().__init__(
           apifunction.ApiFunction.lookup('Image.mask'),
           {'image': Image(0), 'mask': Image(0)})
     else:
@@ -94,19 +90,20 @@ class Image(element.Element):
           'Unrecognized argument type to convert to an Image: %s' % args)
 
   @classmethod
-  def initialize(cls):
+  def initialize(cls) -> None:
     """Imports API functions to this class."""
     if not cls._initialized:
       apifunction.ApiFunction.importApi(cls, 'Image', 'Image')
       cls._initialized = True
 
   @classmethod
-  def reset(cls):
+  def reset(cls) -> None:
     """Removes imported API functions from this class."""
     apifunction.ApiFunction.clearApi(cls)
     cls._initialized = False
 
-  def getInfo(self):
+  # pylint: disable-next=useless-parent-delegation
+  def getInfo(self) -> Optional[Any]:
     """Fetch and return information about this image.
 
     Returns:
@@ -114,9 +111,9 @@ class Image(element.Element):
           bands - Array containing metadata about the bands in the image,
           properties - Dictionary containing the image's metadata properties.
     """
-    return super(Image, self).getInfo()
+    return super().getInfo()
 
-  def getMapId(self, vis_params=None):
+  def getMapId(self, vis_params: Optional[Any] = None) -> Dict[str, Any]:
     """Fetch and return a map ID dictionary, suitable for use in a Map overlay.
 
     Args:
@@ -131,7 +128,9 @@ class Image(element.Element):
     response['image'] = self
     return response
 
-  def _apply_crs_and_affine(self, params):
+  def _apply_crs_and_affine(
+      self, params: Dict[str, Any]
+  ) -> Tuple[Any, Any, Any]:
     """Applies any CRS and affine parameters to an image.
 
     Wraps the image in a call to Reproject() if the request includes
@@ -217,7 +216,9 @@ class Image(element.Element):
 
     return image, request, dimensions_consumed
 
-  def _apply_selection_and_scale(self, params, dimensions_consumed):
+  def _apply_selection_and_scale(
+      self, params: Dict[str, Any], dimensions_consumed: bool
+  ) -> Tuple[Any, Dict[str, Any]]:
     """Applies region selection and scaling parameters to an image.
 
     Wraps the image in a call to clipToBoundsAndScale() if there are any
@@ -236,8 +237,8 @@ class Image(element.Element):
     """
     keys_to_extract = set(['region', 'dimensions', 'scale'])
     scale_keys = ['maxDimension', 'height', 'width', 'scale']
-    request = {}
-    selection_params = {}
+    request: Dict[str, Any] = {}
+    selection_params: Dict[str, Any] = {}
     if params:
       for key in params:
         if key not in keys_to_extract:
@@ -290,7 +291,9 @@ class Image(element.Element):
         image = apifunction.ApiFunction.apply_('Image.clip', clip_params)
     return image, request
 
-  def _apply_spatial_transformations(self, params):
+  def _apply_spatial_transformations(
+      self, params: Dict[str, Any]
+  ) -> Tuple[Any, Dict[str, Any]]:
     """Applies spatial transformation and clipping.
 
     Args:
@@ -305,7 +308,9 @@ class Image(element.Element):
     image, params, dimensions_consumed = self._apply_crs_and_affine(params)
     return image._apply_selection_and_scale(params, dimensions_consumed)  # pylint: disable=protected-access
 
-  def _apply_visualization(self, params):
+  def _apply_visualization(
+      self, params: Dict[str, Any]
+  ) -> Tuple[Any, Dict[str, Any]]:
     """Applies visualization parameters to an image.
 
     Wraps the image in a call to visualize() if there are any recognized
@@ -337,7 +342,7 @@ class Image(element.Element):
       image = apifunction.ApiFunction.apply_('Image.visualize', vis_params)
     return image, request
 
-  def _build_download_id_image(self, params):
+  def _build_download_id_image(self, params: Dict[str, Any]) -> Any:
     """Processes the getDownloadId parameters and returns the built image.
 
     Given transformation parameters (crs, crs_transform, dimensions, scale, and
@@ -359,7 +364,7 @@ class Image(element.Element):
     """
     params = params.copy()
 
-    def _extract_and_validate_transforms(obj):
+    def _extract_and_validate_transforms(obj: Dict[str, Any]) -> Dict[str, Any]:
       """Takes a parameter dictionary and extracts the transformation keys."""
       extracted = {}
       for key in ['crs', 'crs_transform', 'dimensions', 'region']:
@@ -371,7 +376,7 @@ class Image(element.Element):
         extracted['scale'] = obj['scale']
       return extracted
 
-    def _build_image_per_band(band_params):
+    def _build_image_per_band(band_params: Dict[str, Any]) -> Any:
       """Takes a band dictionary and builds an image for it."""
       if 'id' not in band_params:
         raise ee_exception.EEException('Each band dictionary must have an id.')
@@ -396,9 +401,10 @@ class Image(element.Element):
       # Apply transformations directly onto the image, ignoring any band params.
       copy_params = _extract_and_validate_transforms(params)
       image, copy_params = self._apply_spatial_transformations(copy_params)
+      del copy_params  # Unused.
     return image
 
-  def prepare_for_export(self, params):
+  def prepare_for_export(self, params: Dict[str, Any]) -> Any:
     """Applies all relevant export parameters to an image.
 
     Args:
@@ -412,7 +418,7 @@ class Image(element.Element):
     """
     return self._apply_spatial_transformations(params)
 
-  def getDownloadURL(self, params=None):
+  def getDownloadURL(self, params: Optional[Dict[str, Any]] = None) -> str:
     """Get a download URL for an image chunk.
 
     Generates a download URL for small chunks of image data in GeoTIFF or NumPy
@@ -468,7 +474,7 @@ class Image(element.Element):
     request['image'] = self
     return data.makeDownloadUrl(data.getDownloadId(request))
 
-  def getThumbId(self, params):
+  def getThumbId(self, params: Dict[str, Any]) -> Dict[str, str]:
     """Applies transformations and returns the thumbId.
 
     Args:
@@ -492,7 +498,7 @@ class Image(element.Element):
     params['image'] = image
     return data.getThumbId(params)
 
-  def getThumbURL(self, params=None):
+  def getThumbURL(self, params: Optional[Dict[str, Any]] = None) -> str:
     """Get a thumbnail URL for this image.
 
     Args:
@@ -519,17 +525,19 @@ class Image(element.Element):
     # behaviour.
     return data.makeThumbUrl(self.getThumbId(params))
 
+  # pylint: disable=g-bad-name
   # Deprecated spellings to match the JS library.
   getDownloadUrl = deprecation.Deprecated('Use getDownloadURL().')(
       getDownloadURL)
   getThumbUrl = deprecation.Deprecated('Use getThumbURL().')(getThumbURL)
+  # pylint: enable=g-bad-name
 
   ###################################################
   # Static methods.
   ###################################################
 
   @staticmethod
-  def rgb(r, g, b):
+  def rgb(r: float, g: float, b: float) -> 'Image':
     """Create a 3-band image.
 
     This creates a 3-band image specifically for visualization using
@@ -546,7 +554,7 @@ class Image(element.Element):
     return Image.combine_([r, g, b], ['vis-red', 'vis-green', 'vis-blue'])
 
   @staticmethod
-  def cat(*args):
+  def cat(*args) -> 'Image':
     """Combine the given images' bands into a single image with all the bands.
 
     If two or more bands share a name, they are suffixed with an incrementing
@@ -565,7 +573,7 @@ class Image(element.Element):
     return Image.combine_(args)
 
   @staticmethod
-  def combine_(images, names=None):
+  def combine_(images: Any, names: Optional[Any] = None) -> 'Image':
     """Combine all the bands from the given images into a single image.
 
     Args:
@@ -576,7 +584,7 @@ class Image(element.Element):
       The combined image.
     """
     if not images:
-      raise ee_exception.EEException('Can\'t combine 0 images.')
+      raise ee_exception.EEException('Cannot combine 0 images.')
 
     # Append all the bands.
     result = Image(images[0])
@@ -589,7 +597,13 @@ class Image(element.Element):
 
     return result
 
-  def select(self, opt_selectors=None, opt_names=None, *args):
+  # pylint: disable-next=keyword-arg-before-vararg
+  def select(
+      self,
+      opt_selectors: Optional[Any] = None,
+      opt_names: Optional[Any] = None,
+      *args,
+  ) -> 'Image':
     """Selects bands from an image.
 
     Can be called in one of two ways:
@@ -641,7 +655,9 @@ class Image(element.Element):
         algorithm_args['newNames'] = args[1]
     return apifunction.ApiFunction.apply_('Image.select', algorithm_args)
 
-  def expression(self, expression, opt_map=None):
+  def expression(
+      self, expression: Any, opt_map: Optional[Any] = None
+  ) -> 'Image':
     """Evaluates an arithmetic expression on an image or images.
 
     The bands of the primary input image are available using the built-in
@@ -689,7 +705,7 @@ class Image(element.Element):
     # Perform the call to the result of Image.parseExpression
     return function.SecondOrderFunction(body, signature).apply(args)
 
-  def clip(self, clip_geometry):
+  def clip(self, clip_geometry: Any) -> 'Image':
     """Clips an image to a Geometry or Feature.
 
     The output bands correspond exactly to the input bands, except data not
@@ -712,7 +728,7 @@ class Image(element.Element):
       pass  # Not an ee.Geometry or GeoJSON. Just pass it along.
     return apifunction.ApiFunction.call_('Image.clip', self, clip_geometry)
 
-  def rename(self, names, *args):
+  def rename(self, names: Any, *args) -> 'Image':
     """Rename the bands of an image.
 
     Can be called with either a list of strings or any number of strings.
@@ -738,11 +754,11 @@ class Image(element.Element):
     return apifunction.ApiFunction.apply_('Image.rename', algorithm_args)
 
   @staticmethod
-  def name():
+  def name() -> str:
     return 'Image'
 
 
-def _parse_dimensions(dimensions):
+def _parse_dimensions(dimensions: Any) -> Sequence[Any]:
   """Parses a dimensions specification into a one or two element list."""
   if ee_types.isNumber(dimensions):
     return [dimensions]
