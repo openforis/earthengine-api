@@ -17,7 +17,7 @@ import re
 import shutil
 import sys
 import tempfile
-from typing import Any, Dict, Hashable, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Dict, List, Sequence, Tuple, Type, Union
 import urllib.parse
 
 # Prevent TensorFlow from logging anything at the native level.
@@ -1907,6 +1907,7 @@ class ModelCommand(Dispatcher):
   name = 'model'
 
   COMMANDS = [PrepareModelCommand]
+
 
 EXTERNAL_COMMANDS = [
     AuthenticateCommand,
