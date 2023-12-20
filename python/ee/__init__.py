@@ -9,6 +9,7 @@ __version__ = '0.1.384'
 import collections
 import datetime
 import inspect
+import json
 import os
 from typing import Any, Hashable, List as ListType, Optional, Sequence, Tuple, Type, Union
 
@@ -136,6 +137,9 @@ def Initialize(
   """
   if credentials == 'persistent':
     credentials = data.get_persistent_credentials()
+
+  if not project:
+    project = json.load(open(oauth.get_credentials_path())).get('project_id')
 
   data.initialize(
       credentials=credentials,
