@@ -13,6 +13,7 @@ import threading
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Union
 import uuid
 
+import google.auth
 # Rename to avoid redefined-outer-name warning.
 from google.oauth2 import credentials as credentials_lib
 from google.oauth2.credentials import Credentials
@@ -20,8 +21,10 @@ from .oauth import AccessTokenCredentials
 import google_auth_httplib2
 import googleapiclient
 import httplib2
+import requests
 
 from ee import _cloud_api_utils
+from ee import _utils
 from ee import computedobject
 from ee import deprecation
 from ee import ee_exception
@@ -47,6 +50,9 @@ _cloud_api_base_url: Optional[str] = None
 
 # Google Cloud API key.  This may be set by ee.Initialize().
 _cloud_api_key: Optional[str] = None
+
+# A Requests session.  This is set by ee.Initialize()
+_requests_session: Optional[requests.Session] = None
 
 # A resource object for making Cloud API calls.
 _cloud_api_resource = None
@@ -125,6 +131,7 @@ BASE_RETRY_WAIT = 1000
 
 # The default base URL for API calls.
 DEFAULT_API_BASE_URL = 'https://earthengine.googleapis.com/api'
+HIGH_VOLUME_API_BASE_URL = 'https://earthengine-highvolume.googleapis.com'
 
 # The default base URL for media/tile calls.
 DEFAULT_TILE_BASE_URL = 'https://earthengine.googleapis.com'
@@ -179,6 +186,7 @@ def initialize(
     http_transport: The http transport to use
   """
   global _api_base_url, _tile_base_url, _credentials, _initialized
+  global _requests_session
   global _cloud_api_base_url
   global _cloud_api_key
   global _cloud_api_user_project, _http_transport
@@ -213,6 +221,9 @@ def initialize(
 
   _http_transport = http_transport
 
+  if _requests_session is None:
+    _requests_session = requests.Session()
+
   _install_cloud_api_resource()
 
   if project is not None:
@@ -222,6 +233,10 @@ def initialize(
     _cloud_api_utils.set_cloud_api_user_project(DEFAULT_CLOUD_API_USER_PROJECT)
 
   _initialized = True
+
+
+def is_initialized() -> bool:
+  return _initialized
 
 
 def get_persistent_credentials() -> credentials_lib.Credentials:
@@ -242,22 +257,31 @@ def get_persistent_credentials() -> credentials_lib.Credentials:
           None, **oauth.get_credentials_arguments()
       )
   except IOError:
+    # Before raising, try default credentials as a fallback.
+    try:
+      credentials, unused_project_id = google.auth.default()
+      return credentials
+    except google.auth.exceptions.DefaultCredentialsError:
+      pass
     raise ee_exception.EEException(  # pylint: disable=raise-missing-from
         'Please authorize access to your Earth Engine account by '
         'running\n\nearthengine authenticate\n\n'
-        'in your command line, and then retry.'
+        'in your command line, or ee.Authenticate() in Python, and then retry.'
     )
 
 
 def reset() -> None:
   """Resets the data module, clearing credentials and custom base URLs."""
   global _api_base_url, _tile_base_url, _credentials, _initialized
+  global _requests_session, _cloud_api_resource, _cloud_api_resource_raw
   global _cloud_api_base_url
-  global _cloud_api_resource, _cloud_api_resource_raw
   global _cloud_api_key, _http_transport
   _credentials = None
   _api_base_url = None
   _tile_base_url = None
+  if _requests_session is not None:
+    _requests_session.close()
+    _requests_session = None
   _cloud_api_base_url = None
   _cloud_api_key = None
   _cloud_api_resource = None
@@ -279,24 +303,29 @@ def _install_cloud_api_resource() -> None:
   global _cloud_api_resource, _cloud_api_resource_raw
 
   timeout = (_deadline_ms / 1000.0) or None
+  assert _requests_session is not None
   _cloud_api_resource = _cloud_api_utils.build_cloud_resource(
       _cloud_api_base_url,
-      credentials=_credentials,
-      api_key=_cloud_api_key,
-      timeout=timeout,
-      headers_supplier=_make_request_headers,
-      response_inspector=_handle_profiling_response,
-      http_transport=_http_transport)
-
-  _cloud_api_resource_raw = _cloud_api_utils.build_cloud_resource(
-      _cloud_api_base_url,
+      _requests_session,
       credentials=_credentials,
       api_key=_cloud_api_key,
       timeout=timeout,
       headers_supplier=_make_request_headers,
       response_inspector=_handle_profiling_response,
       http_transport=_http_transport,
-      raw=True)
+  )
+
+  _cloud_api_resource_raw = _cloud_api_utils.build_cloud_resource(
+      _cloud_api_base_url,
+      _requests_session,
+      credentials=_credentials,
+      api_key=_cloud_api_key,
+      timeout=timeout,
+      headers_supplier=_make_request_headers,
+      response_inspector=_handle_profiling_response,
+      http_transport=_http_transport,
+      raw=True,
+  )
 
 
 def _get_cloud_projects() -> Any:
@@ -413,7 +442,6 @@ def setCloudApiUserProject(cloud_api_user_project: str) -> None:
 def setUserAgent(user_agent: str) -> None:
   global _user_agent
   _user_agent = user_agent
-  _install_cloud_api_resource()
 
 
 def getUserAgent() -> Optional[str]:
@@ -603,6 +631,19 @@ def listAssets(params: Dict[str, Any]) -> Dict[str, List[Any]]:
 
 
 def listBuckets(project: Optional[str] = None) -> Any:
+  """Returns top-level assets and folders for the Cloud Project or user.
+
+  Args:
+    project: Project to query, e.g. "projects/my-project". Defaults to current
+      project. Use "projects/earthengine-legacy" for user home folders.
+
+  Returns:
+    A dictionary with a list of top-level assets and folders like:
+      {"assets": [
+          {"type": "FOLDER", "id": "projects/my-project/assets/my-folder", ...},
+          {"type": "IMAGE", "id": "projects/my-project/assets/my-image", ...},
+      ]}
+  """
   if project is None:
     project = _get_projects_path()
   return _execute_cloud_call(_get_cloud_projects().listAssets(parent=project))
@@ -767,10 +808,15 @@ def listFeatures(params: Dict[str, Any]) -> Any:
                GeoJSON geometry string (see RFC 7946).
       filter - If present, specifies additional simple property filters
                (see https://google.aip.dev/160).
-      fileFormat - The resulting output format.
+      fileFormat - If present, specifies an output format for the tabular data.
+          The function makes a network request for each page until the entire
+          table has been fetched. The number of fetches depends on the number of
+          rows in the table and pageSize. pageToken is ignored. Supported
+          formats are: PANDAS_DATAFRAME for a Pandas DataFrame and
+          GEOPANDAS_GEODATAFRAME for a GeoPandas GeoDataFrame.
 
   Returns:
-    A dictionary containing:
+    A Pandas DataFrame, GeoPandas GeoDataFrame, or a dictionary containing:
     - "type": always "FeatureCollection" marking this object as a GeoJSON
               feature collection.
     - "features": a list of GeoJSON features.
@@ -802,7 +848,9 @@ def getPixels(params: Dict[str, Any]) -> Any:
       assetId - The asset ID for which to get pixels. Must be an image asset.
       fileFormat - The resulting file format. Defaults to png. See
           https://developers.google.com/earth-engine/reference/rest/v1/ImageFileFormat
-          for the available formats.
+          for the available formats. There are additional formats that convert
+          the downloaded object to a Python data object. These include:
+          NUMPY_NDARRAY, which converts to a structured NumPy array.
       grid - Parameters describing the pixel grid in which to fetch data.
           Defaults to the native pixel grid of the data.
       region - If present, the region of data to return, specified as a GeoJSON
@@ -824,6 +872,7 @@ def getPixels(params: Dict[str, Any]) -> Any:
   params['fileFormat'] = _cloud_api_utils.convert_to_image_file_format(
       converter.expected_data_format()
   )
+  _maybe_populate_workload_tag(params)
   data = _execute_cloud_call(
       _get_cloud_projects_raw()
       .assets()
@@ -842,7 +891,9 @@ def computePixels(params: Dict[str, Any]) -> Any:
       expression - The expression to compute.
       fileFormat - The resulting file format. Defaults to png. See
           https://developers.google.com/earth-engine/reference/rest/v1/ImageFileFormat
-          for the available formats.
+          for the available formats. There are additional formats that convert
+          the downloaded object to a Python data object. These include:
+          NUMPY_NDARRAY, which converts to a structured NumPy array.
       grid - Parameters describing the pixel grid in which to fetch data.
           Defaults to the native pixel grid of the data.
       bandIds - If present, specifies a specific set of bands from which to get
@@ -909,11 +960,21 @@ def computeFeatures(params: Dict[str, Any]) -> Any:
           1000 results per page.
       pageToken - A token identifying a page of results the server should
                   return.
-      fileFormat - The resulting output format.
+      fileFormat - If present, specifies an output format for the tabular data.
+          The function makes a network request for each page until the entire
+          table has been fetched. The number of fetches depends on the number of
+          rows in the table and pageSize. pageToken is ignored. Supported
+          formats are: PANDAS_DATAFRAME for a Pandas DataFrame and
+          GEOPANDAS_GEODATAFRAME for a GeoPandas GeoDataFrame.
       workloadTag - User supplied tag to track this computation.
 
   Returns:
-    A list with the results of the computation.
+    A Pandas DataFrame, GeoPandas GeoDataFrame, or a dictionary containing:
+    - "type": always "FeatureCollection" marking this object as a GeoJSON
+          feature collection.
+    - "features": a list of GeoJSON features.
+    - "next_page_token": A token to retrieve the next page of results in a
+          subsequent call to this function.
   """
   params = params.copy()
   params['expression'] = serializer.encode(params['expression'])
@@ -1395,10 +1456,11 @@ def getAlgorithms() -> Any:
   return _cloud_api_utils.convert_algorithms(_execute_cloud_call(call))
 
 
+@_utils.accept_opt_prefix('opt_path', 'opt_force', 'opt_properties')
 def createAsset(
     value: Dict[str, Any],
-    opt_path: Optional[str] = None,
-    opt_properties: Optional[Dict[str, Any]] = None,
+    path: Optional[str] = None,
+    properties: Optional[Dict[str, Any]] = None,
 ) -> Any:
   """Creates an asset from a JSON value.
 
@@ -1408,8 +1470,8 @@ def createAsset(
 
   Args:
     value: An object describing the asset to create.
-    opt_path: An optional desired ID, including full path.
-    opt_properties: The keys and values of the properties to set on the created
+    path: An optional desired ID, including full path.
+    properties: The keys and values of the properties to set on the created
       asset.
 
   Returns:
@@ -1419,12 +1481,13 @@ def createAsset(
     raise ee_exception.EEException('Asset cannot be specified as string.')
   asset = value.copy()
   if 'name' not in asset:
-    if not opt_path:
+    if not path:
       raise ee_exception.EEException(
-          'Either asset name or opt_path must be specified.')
-    asset['name'] = _cloud_api_utils.convert_asset_id_to_asset_name(opt_path)
-  if 'properties' not in asset and opt_properties:
-    asset['properties'] = opt_properties
+          'Either asset name or path must be specified.'
+      )
+    asset['name'] = _cloud_api_utils.convert_asset_id_to_asset_name(path)
+  if 'properties' not in asset and properties:
+    asset['properties'] = properties
   # Make sure title and description are loaded in as properties.
   move_to_properties = ['title', 'description']
   for prop in move_to_properties:
@@ -1728,6 +1791,33 @@ def exportMap(request_id: str, params: Dict[str, Any]) -> Any:
   )
 
 
+def exportClassifier(request_id: str, params: Dict[str, Any]) -> Any:
+  """Starts a classifier export task.
+
+  This is a low-level method. The higher-level ee.batch.Export.classifier
+  object is generally preferred for initiating classifier exports.
+
+  Args:
+    request_id (string): A unique ID for the task, from newTaskId. If you are
+      using the cloud API, this does not need to be from newTaskId, (though
+      that's a good idea, as it's a good source of unique strings). It can also
+      be empty, but in that case the request is more likely to fail as it cannot
+      be safely retried.
+    params: The object that describes the export task. If you are using the
+      cloud API, this should be an ExportClassifierRequest. However, the
+      "expression" parameter can be the actual Classifier to be exported, not
+      its serialized form.
+
+  Returns:
+    A dict with information about the created task.
+    If you are using the cloud API, this will be an Operation.
+  """
+  params = params.copy()
+  return _prepare_and_run_export(
+      request_id, params, _get_cloud_projects().classifier().export
+  )
+
+
 def _prepare_and_run_export(
     request_id: str, params: Dict[str, Any], export_endpoint: Any
 ) -> Any:
@@ -1876,16 +1966,18 @@ def startTableIngestion(
 
 
 def getAssetRoots() -> Any:
-  """Returns the list of the root folders the user owns.
+  """Returns a list of top-level assets and folders for the current project.
 
-  Note: The "id" values for roots are two levels deep, e.g. "users/johndoe"
-        not "users/johndoe/notaroot".
+  Note: The "id" values for Cloud Projects are
+        "projects/my-project/assets/my-asset", where legacy assets (if the
+        current project is set to "earthengine-legacy") are "users/my-username",
+        not "users/my-username/my-asset".
 
   Returns:
-    A list of folder descriptions formatted like:
+    The list of top-level assets and folders like:
       [
-          {"type": "Folder", "id": "users/foo"},
-          {"type": "Folder", "id": "projects/bar"},
+          {"id": "users/foo", "type": "Folder", ...},
+          {"id": "projects/bar", "type": "Folder", ...},
       ]
   """
   return _cloud_api_utils.convert_list_assets_result_to_get_list_result(
@@ -2066,6 +2158,50 @@ def createAssetHome(requestedId: str) -> None:
   })
 
 
+def _get_config_path() -> str:
+  return f'{_get_projects_path()}/config'
+
+
+def getProjectConfig() -> Dict[str, Any]:
+  """Gets the project config for the current project.
+
+  Returns:
+    The project config as a dictionary.
+  """
+  return _execute_cloud_call(
+      _get_cloud_projects().getConfig(name=_get_config_path())
+  )
+
+
+def updateProjectConfig(
+    project_config: Dict[str, Any], update_mask: Optional[Sequence[str]] = None
+) -> Dict[str, Any]:
+  """Updates the project config for the current project.
+
+  Args:
+    project_config: The new project config as a dictionary.
+    update_mask: A list of the values to update. The only supported values right
+      now are: "max_concurrent_exports". If the list is empty or None, all
+      values will be updated.
+
+  Returns:
+    The updated project config as a dictionary.
+  """
+  if not update_mask:
+    update_mask = ['max_concurrent_exports']
+
+  update_mask = ','.join(update_mask)
+  if update_mask != 'max_concurrent_exports':
+    raise ValueError('Only "max_concurrent_exports" is supported right now.')
+
+  config = _get_config_path()
+  return _execute_cloud_call(
+      _get_cloud_projects().updateConfig(
+          name=config, body=project_config, updateMask=update_mask
+      )
+  )
+
+
 def authorizeHttp(http: Any) -> Any:
   if _credentials:
     return google_auth_httplib2.AuthorizedHttp(_credentials)
@@ -2167,16 +2303,17 @@ def setDefaultWorkloadTag(tag: Optional[Union[int, str]]) -> None:
   _workloadTag.set(tag)
 
 
-def resetWorkloadTag(opt_resetDefault: bool = False) -> None:
+@_utils.accept_opt_prefix('opt_resetDefault')
+def resetWorkloadTag(resetDefault: bool = False) -> None:
   """Sets the default tag for which to reset back to.
 
-  If opt_resetDefault parameter is set to true, the default will be set to empty
+  If resetDefault parameter is set to true, the default will be set to empty
   before resetting. Defaults to False.
 
   Args:
-    opt_resetDefault: Whether to reset the default back to empty.
+    resetDefault: Whether to reset the default back to empty.
   """
-  if opt_resetDefault:
+  if resetDefault:
     _workloadTag.setDefault('')
   _workloadTag.reset()
 
@@ -2222,7 +2359,7 @@ class _WorkloadTag:
     if not re.fullmatch(r'([a-z0-9]|[a-z0-9][-_a-z0-9]{0,61}[a-z0-9])', tag):
       validationMessage = (
           'Tags must be 1-63 characters, '
-          'beginning and ending with an lowercase alphanumeric character '
+          'beginning and ending with a lowercase alphanumeric character '
           '([a-z0-9]) with dashes (-), underscores (_), '
           'and lowercase alphanumerics between.')
       raise ValueError(f'Invalid tag, "{tag}". {validationMessage}')

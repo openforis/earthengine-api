@@ -41,10 +41,14 @@ _cloud_api_user_project: Optional[str] = None
 
 class _Http:
   """A httplib2.Http-like object based on requests."""
-  timeout: Optional[float]
+  _session: requests.Session
+  _timeout: Optional[float]
 
-  def __init__(self, timeout: Optional[float] = None):
+  def __init__(
+      self, session: requests.Session, timeout: Optional[float] = None
+  ):
     self._timeout = timeout
+    self._session = session
 
   def request(  # pylint: disable=invalid-name
       self,
@@ -56,15 +60,15 @@ class _Http:
       connection_type: Optional[Type[Any]] = None,
   ) -> Tuple[httplib2.Response, Any]:
     """Makes an HTTP request using httplib2 semantics."""
-    del connection_type  # Unused
+    del connection_type  # Ignored
+    del redirections  # Ignored
 
-    with requests.Session() as session:
-      session.max_redirects = redirections
-      response = session.request(
-          method, uri, data=body, headers=headers, timeout=self._timeout)
-      headers = dict(response.headers)
-      headers['status'] = response.status_code
-      content = response.content
+    response = self._session.request(
+        method, uri, data=body, headers=headers, timeout=self._timeout
+    )
+    headers = dict(response.headers)
+    headers['status'] = response.status_code
+    content = response.content
     return httplib2.Response(headers), content
 
 
@@ -127,6 +131,7 @@ def set_cloud_api_user_project(cloud_api_user_project: str) -> None:
 
 def build_cloud_resource(
     api_base_url: str,
+    session: requests.Session,
     api_key: Optional[str] = None,
     credentials: Optional[Any] = None,
     timeout: Optional[float] = None,
@@ -139,6 +144,8 @@ def build_cloud_resource(
 
   Args:
     api_base_url: The base URL of the cloud endpoints.
+    session: The Requests session to issue all requests in. This manages
+      shared resources, such as connection pools.
     api_key: An API key that's enabled for use with the Earth Engine Cloud API.
     credentials: OAuth2 credentials to use when authenticating to the API.
     timeout: How long a timeout to set on requests, in seconds.
@@ -156,7 +163,7 @@ def build_cloud_resource(
       '{}/$discovery/rest?version={}&prettyPrint=false'
       .format(api_base_url, VERSION))
   if http_transport is None:
-    http_transport = _Http(timeout)
+    http_transport = _Http(session, timeout)
   if credentials is not None:
     http_transport = google_auth_httplib2.AuthorizedHttp(
         credentials, http=http_transport
@@ -220,7 +227,7 @@ def build_cloud_resource_from_document(
   """
   request_builder = _wrap_request(headers_supplier, response_inspector)
   if http_transport is None:
-    http_transport = _Http()
+    http_transport = _Http(requests.Session())
   alt_model = model.RawModel() if raw else None
   return discovery.build_from_document(
       discovery_document,

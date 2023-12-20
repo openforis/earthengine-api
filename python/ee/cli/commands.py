@@ -380,17 +380,21 @@ class AuthenticateCommand:
     parser.add_argument(
         '--quiet',
         action='store_true',
-        help='Do not prompt for input, and run gcloud in no-browser mode.')
+        help='Do not prompt for input, run gcloud-legacy in no-browser mode.')
     parser.add_argument(
         '--code-verifier',
         help='PKCE verifier to prevent auth code stealing.')
     parser.add_argument(
         '--auth_mode',
-        help='One of: notebook - use notebook authenticator; gcloud - use'
-        ' gcloud; appdefault - read GOOGLE_APPLICATION_CREDENTIALS;'
-        ' localhost[:PORT] - use local browser')
+        help='One of: notebook - use notebook authenticator; colab - use Colab'
+        ' authenticator; gcloud / gcloud-legacy - use gcloud;'
+        ' localhost[:PORT|:0] - use local browser')
     parser.add_argument(
         '--scopes', help='Optional comma-separated list of scopes.')
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Run authentication even if credentials already exist.')
 
   def run(
       self, args: argparse.Namespace, config: utils.CommandLineConfig
@@ -400,10 +404,11 @@ class AuthenticateCommand:
 
     # Filter for arguments relevant for ee.Authenticate()
     args_auth = {x: vars(args)[x] for x in (
-        'authorization_code', 'quiet', 'code_verifier', 'auth_mode')}
+        'authorization_code', 'quiet', 'code_verifier', 'auth_mode', 'force')}
     if args.scopes:
       args_auth['scopes'] = args.scopes.split(',')
-    ee.Authenticate(**args_auth)
+    if ee.Authenticate(**args_auth):
+      print('Authenticate: Credentials already exist.  Use --force to refresh.')
 
 
 class SetProjectCommand:
@@ -420,11 +425,17 @@ class SetProjectCommand:
     """Saves the project to the config file."""
 
     config_path = config.config_file
-    with open(config_path) as config_file_json:
-      config = json.load(config_file_json)
+    try:
+      with open(config_path) as json_config_file:
+        config = json.load(json_config_file)
+    except FileNotFoundError:
+      # File may not exist if we initialized from default credentials.
+      config = {}
 
     config['project'] = args.project
-    json.dump(config, open(config_path, 'w'))
+    # Existing file permissions will be left unchanged if file already exists.
+    with open(config_path, 'w') as json_config_file:
+      json.dump(config, json_config_file)
     print('Successfully saved project id')
 
 
@@ -443,12 +454,18 @@ class UnSetProjectCommand:
     del args  # Unused.
 
     config_path = config.config_file
-    with open(config_path) as config_file_json:
-      config = json.load(config_file_json)
+    try:
+      with open(config_path) as json_config_file:
+        config = json.load(json_config_file)
+    except FileNotFoundError:
+      # File may not exist if we initialized from default credentials.
+      config = {}
 
     if 'project' in config:
       del config['project']
-    json.dump(config, open(config_path, 'w'))
+    # Existing file permissions will be left unchanged if file already exists.
+    with open(config_path, 'w') as json_config_file:
+      json.dump(config, json_config_file)
     print('Successfully unset project id')
 
 
@@ -1909,6 +1926,89 @@ class ModelCommand(Dispatcher):
   COMMANDS = [PrepareModelCommand]
 
 
+def _using_v1alpha(func):
+  """Decorator that temporarily switches over to the v1alpha API."""
+
+  def inner(
+      self, args: argparse.Namespace, config: utils.CommandLineConfig
+  ) -> None:
+    # pylint: disable=protected-access
+    original = ee._cloud_api_utils.VERSION
+    ee._cloud_api_utils.VERSION = 'v1alpha'
+    func(self, args, config)
+    ee._cloud_api_utils.VERSION = original
+    # pylint: enable=protected-access
+
+  return inner
+
+
+class ProjectConfigGetCommand:
+  """Prints the current project's ProjectConfig."""
+
+  name = 'get'
+
+  def __init__(self, parser: argparse.ArgumentParser):
+    del parser  # Unused.
+    pass
+
+  @_using_v1alpha
+  def run(
+      self, args: argparse.Namespace, config: utils.CommandLineConfig
+  ) -> None:
+    del args  # Unused.
+    config.ee_init()
+    print(ee.data.getProjectConfig())
+
+
+class ProjectConfigSetCommand:
+  """Updates the current project's ProjectConfig."""
+
+  name = 'set'
+
+  def __init__(self, parser: argparse.ArgumentParser):
+    parser.add_argument(
+        '--max_concurrent_exports',
+        type=int,
+        help='Max concurrent exports that can run in the project.',
+    )
+
+  @_using_v1alpha
+  def run(
+      self, args: argparse.Namespace, config: utils.CommandLineConfig
+  ) -> None:
+    if args.max_concurrent_exports < 0:
+      raise ValueError('"max_concurrent_exports" must be >= 0.')
+
+    config.ee_init()
+    print(
+        ee.data.updateProjectConfig(
+            {'maxConcurrentExports': args.max_concurrent_exports},
+            ['max_concurrent_exports'],
+        )
+    )
+
+
+class ProjectConfigCommand(Dispatcher):
+  """Prints or updates the current project's ProjectConfig."""
+
+  name = 'project_config'
+
+  COMMANDS = [
+      ProjectConfigGetCommand,
+      ProjectConfigSetCommand,
+  ]
+
+
+class AlphaCommand(Dispatcher):
+  """Commands that are part of the v1alpha API."""
+
+  name = 'alpha'
+
+  COMMANDS = [
+      ProjectConfigCommand,
+  ]
+
+
 EXTERNAL_COMMANDS = [
     AuthenticateCommand,
     AclCommand,
@@ -1916,6 +2016,7 @@ EXTERNAL_COMMANDS = [
     CopyCommand,
     CreateCommand,
     ListCommand,
+    AlphaCommand,
     SizeCommand,
     MoveCommand,
     ModelCommand,

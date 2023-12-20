@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The EE Python library."""
 
-__version__ = '0.1.374'
+__version__ = '0.1.384'
 
 # Using lowercase function naming to match the JavaScript names.
 # pylint: disable=g-bad-name
@@ -9,10 +9,10 @@ __version__ = '0.1.374'
 import collections
 import datetime
 import inspect
-import numbers
 import os
-from typing import Any, Hashable, List as ListType, Optional, Sequence, Type, Union
+from typing import Any, Hashable, List as ListType, Optional, Sequence, Tuple, Type, Union
 
+from ee import _utils
 from ee import batch
 from ee import data
 from ee import deserializer
@@ -25,6 +25,7 @@ from ._helpers import call
 from ._helpers import profilePrinting
 from ._helpers import ServiceAccountCredentials
 from .apifunction import ApiFunction
+from .blob import Blob
 from .collection import Collection
 from .computedobject import ComputedObject
 from .customfunction import CustomFunction
@@ -76,39 +77,43 @@ Algorithms = _AlgorithmsContainer()
 
 def Authenticate(
     authorization_code: Optional[str] = None,
-    quiet: bool = False,
+    quiet: Optional[bool] = None,
     code_verifier: Optional[str] = None,
     auth_mode: Optional[str] = None,
     scopes: Optional[Sequence[str]] = None,
-) -> None:
+    force: bool = False,
+) -> Optional[bool]:
   """Prompts the user to authorize access to Earth Engine via OAuth2.
 
   Args:
     authorization_code: An optional authorization code.
     quiet: If true, do not require interactive prompts and force --no-browser
-      mode for gcloud.
+      mode for gcloud-legacy. If false, never supply --no-browser. Default is
+      None, which autodetects the --no-browser setting.
     code_verifier: PKCE verifier to prevent auth code stealing.
     auth_mode: The authentication mode. One of:
+      "colab" - use the Colab authentication flow;
       "notebook" - send user to notebook authenticator page;
-      "gcloud" - use gcloud to obtain credentials (will set appdefault);
-      "appdefault" - read from existing $GOOGLE_APPLICATION_CREDENTIALS file;
+      "gcloud" - use gcloud to obtain credentials;
+      "gcloud-legacy" - use legacy gcloud flow to obtain credentials;
       "localhost" - runs auth flow in local browser only;
       None - a default mode is chosen based on your environment.
-     scopes: List of scopes to use for authentication. Defaults to [
-       'https://www.googleapis.com/auth/earthengine',
-       'https://www.googleapis.com/auth/devstorage.full_control' ].
+    scopes: List of scopes to use for authentication. Defaults to [
+        'https://www.googleapis.com/auth/earthengine',
+        'https://www.googleapis.com/auth/devstorage.full_control' ].
+    force: Will force authentication even if valid credentials already exist.
 
   Returns:
-     (auth_url, code_verifier) when called with quiet='init_only'
+    True if we found valid credentials and didn't run the auth flow.
   """
-  oauth.authenticate(
-      authorization_code, quiet, code_verifier, auth_mode, scopes
-  )
+  return oauth.authenticate(authorization_code, quiet, code_verifier, auth_mode,
+                            scopes, force)
 
 
+@_utils.accept_opt_prefix('opt_url')
 def Initialize(
     credentials: Optional[Any] = 'persistent',
-    opt_url: Optional[str] = None,
+    url: Optional[str] = None,
     cloud_api_key: Optional[str] = None,
     http_transport: Optional[Any] = None,
     project: Optional[Union[str, int]] = None,
@@ -122,9 +127,9 @@ def Initialize(
 
   Args:
     credentials: OAuth2 credentials.  'persistent' (default) means use
-        credentials already stored in the filesystem, or raise an explanatory
-        exception guiding the user to create those credentials.
-    opt_url: The base url for the EarthEngine REST API to connect to.
+      credentials already stored in the filesystem, or raise an explanatory
+      exception guiding the user to create those credentials.
+    url: The base url for the EarthEngine REST API to connect to.
     cloud_api_key: An optional API key to use the Cloud API.
     http_transport: The http transport method to use when making requests.
     project: The client project ID or number to use when making API calls.
@@ -134,15 +139,17 @@ def Initialize(
 
   data.initialize(
       credentials=credentials,
-      api_base_url=(opt_url + '/api' if opt_url else None),
-      tile_base_url=opt_url,
-      cloud_api_base_url=opt_url,
+      api_base_url=(url + '/api' if url else None),
+      tile_base_url=url,
+      cloud_api_base_url=url,
       cloud_api_key=cloud_api_key,
       project=project,
-      http_transport=http_transport)
+      http_transport=http_transport,
+  )
 
   # Initialize the dynamically loaded functions on the objects that want them.
   ApiFunction.initialize()
+  Blob.initialize()
   Collection.initialize()
   Date.initialize()
   Dictionary.initialize()
@@ -171,6 +178,7 @@ def Reset() -> None:
   ApiFunction.reset()
   Element.reset()  # Must be before Collection.
   Collection.reset()  # Must be before FeatureCollection and ImageCollection.
+  Blob.reset()
   Date.reset()
   Dictionary.reset()
   Feature.reset()
@@ -223,8 +231,7 @@ def _Promote(arg: Optional[Any], a_class: str) -> Optional[Any]:
     return Image(arg)
   elif a_class == 'Feature':
     if isinstance(arg, Collection):
-      # TODO(user): Decide whether we want to leave this in. It can be
-      #              quite dangerous on large collections.
+      #  This can be quite dangerous on large collections.
       return ApiFunction.call_(
           'Feature', ApiFunction.call_('Collection.geometry', arg))
     else:

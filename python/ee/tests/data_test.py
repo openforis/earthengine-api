@@ -16,6 +16,11 @@ import unittest
 
 class DataTest(unittest.TestCase):
 
+  def testIsInitialized(self):
+    self.assertFalse(ee.data.is_initialized())
+    with apitestcase.UsingCloudApi():
+      self.assertTrue(ee.data.is_initialized())
+
   def testListOperations(self):
     mock_http = mock.MagicMock(httplib2.Http)
     # Return in three groups.
@@ -119,10 +124,6 @@ class DataTest(unittest.TestCase):
       self.assertEqual(
           asset['cloud_storage_location'],
           {'uris': ['gs://my-bucket/path']},
-      )
-      self.assertEqual(
-          asset['tilestore_location'],
-          {'sources': []},
       )
 
   def testSetAssetProperties(self):
@@ -517,6 +518,30 @@ class DataTest(unittest.TestCase):
       self.assertEqual(
           f'base_url/{_cloud_api_utils.VERSION}/{mock_name}/tiles/7/5/6',
           actual_result['formatTileUrl'](5, 6, 7))
+
+  def testGetProjectConfig(self) -> None:
+    cloud_api_resource = mock.MagicMock()
+    with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+      mock_result = {'fake-project-config-value': 1}
+      cloud_api_resource.projects().getConfig().execute.return_value = (
+          mock_result
+      )
+      actual_result = ee.data.getProjectConfig()
+      cloud_api_resource.projects().getConfig().execute.assert_called_once()
+      self.assertEqual(mock_result, actual_result)
+
+  def testUpdateProjectConfig(self) -> None:
+    cloud_api_resource = mock.MagicMock()
+    with apitestcase.UsingCloudApi(cloud_api_resource=cloud_api_resource):
+      mock_result = {'fake-project-config-value': 1}
+      cloud_api_resource.projects().updateConfig().execute.return_value = (
+          mock_result
+      )
+      actual_result = ee.data.updateProjectConfig(
+          {'maxConcurrentExports': 2}, ['max_concurrent_exports']
+      )
+      cloud_api_resource.projects().updateConfig().execute.assert_called_once()
+      self.assertEqual(mock_result, actual_result)
 
   def testWorkloadTag(self):
     self.assertEqual('', ee.data.getWorkloadTag())
