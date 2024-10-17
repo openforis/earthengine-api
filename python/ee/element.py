@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Base class for Image, Feature and Collection.
 
 This class is never intended to be instantiated by the user.
@@ -6,12 +5,19 @@ This class is never intended to be instantiated by the user.
 
 from __future__ import annotations
 
+import datetime
 from typing import Any, Dict, Optional, Union
 
+from ee import _arg_types
 from ee import _utils
 from ee import apifunction
 from ee import computedobject
+from ee import dictionary
+from ee import ee_array
 from ee import ee_exception
+from ee import ee_list
+from ee import ee_number
+from ee import ee_string
 
 
 class Element(computedobject.ComputedObject):
@@ -47,15 +53,87 @@ class Element(computedobject.ComputedObject):
   def name() -> str:
     return 'Element'
 
+  # NOTE: Image.copyProperties overrides this method.
+  # NOTE: source is marked as optional in the API, but is required for users.
+  def copyProperties(
+      self,
+      source: _arg_types.Element,
+      properties: Optional[_arg_types.List] = None,
+      exclude: Optional[_arg_types.List] = None,
+  ) -> Element:
+    """Copies metadata properties from one element to another.
+
+    Args:
+      source: The object from which to copy the properties.
+      properties: The properties to copy. If omitted, all ordinary (i.e.
+        non-system) properties are copied.
+      exclude: The list of properties to exclude when copying all properties.
+        Must not be specified if properties is.
+
+    Returns:
+      An element with the specified properties copied from the source element.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Element.copyProperties', self, source, properties, exclude
+    )
+
+  # pylint: disable-next=redefined-builtin
+  def get(self, property: _arg_types.String) -> computedobject.ComputedObject:
+    """Returns a property from a feature."""
+
+    return apifunction.ApiFunction.call_('Element.get', self, property)
+
+  # pylint: disable-next=redefined-builtin
+  def getArray(self, property: _arg_types.String) -> ee_array.Array:
+    """Returns a property from a feature as an array.
+
+    Args:
+      property: The property to extract.
+    """
+
+    return apifunction.ApiFunction.call_('Element.getArray', self, property)
+
+  # pylint: disable-next=redefined-builtin
+  def getNumber(self, property: _arg_types.String) -> ee_number.Number:
+    """Returns a property from a feature as a number.
+
+    Args:
+      property: The property to extract.
+    """
+
+    return apifunction.ApiFunction.call_('Element.getNumber', self, property)
+
+  # pylint: disable-next=redefined-builtin
+  def getString(self, property: _arg_types.String) -> ee_string.String:
+    """Returns a property from a feature as a string.
+
+    Args:
+      property: The property to extract.
+    """
+
+    return apifunction.ApiFunction.call_('Element.getString', self, property)
+
+  def propertyNames(self) -> ee_list.List:
+    """Returns the names of properties on this element."""
+
+    return apifunction.ApiFunction.call_('Element.propertyNames', self)
+
   def set(
       self,
-      *args: Union[Dict[str, Any], float, str, computedobject.ComputedObject],
+      *args: Union[
+          Dict[str, Any],
+          float,
+          str,
+          datetime.datetime,
+          computedobject.ComputedObject,
+      ],
   ) -> Element:
     """Overrides one or more metadata properties of an Element.
 
     Args:
       *args: Either a dictionary of properties, or a vararg sequence of
-          properties, e.g. key1, value1, key2, value2, ...
+          properties, e.g., key1, value1, key2, value2, ...
 
     Returns:
       The element with the specified properties overridden.
@@ -102,3 +180,17 @@ class Element(computedobject.ComputedObject):
 
     # Manually cast the result to an image.
     return self._cast(result)
+
+  def toDictionary(
+      self, properties: Optional[_arg_types.List] = None
+  ) -> dictionary.Dictionary:
+    """Returns properties from a feature as a dictionary.
+
+    Args:
+      properties: The list of properties to extract.  Defaults to all non-system
+        properties
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Element.toDictionary', self, properties
+    )

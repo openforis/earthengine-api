@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Representation of an Earth Engine FeatureCollection."""
 
 # Using lowercase function naming to match the JavaScript names.
@@ -8,6 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Type, Union
 
+from ee import _arg_types
 from ee import _utils
 from ee import apifunction
 from ee import collection
@@ -19,6 +19,7 @@ from ee import ee_list
 from ee import ee_types
 from ee import feature
 from ee import geometry
+from ee import image
 
 
 class FeatureCollection(collection.Collection):
@@ -30,6 +31,7 @@ class FeatureCollection(collection.Collection):
   _HAS_DYNAMIC_ATTRIBUTES = True
 
   @_utils.accept_opt_prefix('opt_column')
+  @deprecation.WarnForDeprecatedAsset('args')
   def __init__(
       self,
       args: Optional[
@@ -218,3 +220,167 @@ class FeatureCollection(collection.Collection):
   @staticmethod
   def elementType() -> Type[feature.Feature]:
     return feature.Feature
+
+  def classify(
+      self,
+      classifier: _arg_types.Classifier,
+      # pylint: disable-next=invalid-name
+      outputName: Optional[_arg_types.String] = None,
+  ) -> FeatureCollection:
+    """Returns the result of classifying each feature in a collection.
+
+    Args:
+      classifier: The classifier to use.
+      outputName: The name of the output property to be added. This argument is
+        ignored if the classifier has more than one output.
+
+    Returns:
+      An ee.FeatureCollection.
+    """
+
+    return apifunction.ApiFunction.call_(
+        self.name() + '.classify', self, classifier, outputName
+    )
+
+  def cluster(
+      self,
+      clusterer: _arg_types.Clusterer,
+      # pylint: disable-next=invalid-name
+      outputName: Optional[_arg_types.String] = None,
+  ) -> FeatureCollection:
+    """Returns the results of clustering each feature in a collection.
+
+    Clusters each feature in a collection, adding a new column to each feature
+    containing the cluster number to which it has been assigned.
+
+    Args:
+      clusterer: The clusterer to use.
+      outputName: The name of the output property to be added.
+    """
+
+    return apifunction.ApiFunction.call_(
+        self.name() + '.cluster', self, clusterer, outputName
+    )
+
+  def inverseDistance(
+      self,
+      range: _arg_types.Number,  # pylint: disable=redefined-builtin
+      propertyName: _arg_types.String,  # pylint: disable=invalid-name
+      mean: _arg_types.Number,
+      stdDev: _arg_types.Number,  # pylint: disable=invalid-name
+      gamma: Optional[_arg_types.Number] = None,
+      reducer: Optional[_arg_types.Reducer] = None,
+  ) -> image.Image:
+    """Returns an inverse-distance weighted estimate of the value at each pixel.
+
+    Args:
+      range: Size of the interpolation window (in meters).
+      propertyName: Name of the numeric property to be estimated.
+      mean: Global expected mean.
+      stdDev: Global standard deviation.
+      gamma: Determines how quickly the estimates tend towards the global mean.
+      reducer: Reducer used to collapse the 'propertyName' value of overlapping
+        points into a single value.
+    """
+
+    return apifunction.ApiFunction.call_(
+        self.name() + '.inverseDistance',
+        self,
+        range,
+        propertyName,
+        mean,
+        stdDev,
+        gamma,
+        reducer,
+    )
+
+  def kriging(
+      self,
+      propertyName: _arg_types.String,  # pylint: disable=invalid-name
+      shape: _arg_types.String,
+      range: _arg_types.Number,  # pylint: disable=redefined-builtin
+      sill: _arg_types.Number,
+      nugget: _arg_types.Number,
+      # pylint: disable-next=invalid-name
+      maxDistance: Optional[_arg_types.Number] = None,
+      reducer: Optional[_arg_types.Reducer] = None,
+  ) -> image.Image:
+    """Returns the results of sampling a Kriging estimator at each pixel.
+
+    Args:
+      propertyName: Property to be estimated (must be numeric).
+      shape: Semivariogram shape (one of {exponential, gaussian, spherical}).
+      range: Semivariogram range, in meters.
+      sill: Semivariogram sill.
+      nugget: Semivariogram nugget.
+      maxDistance: Radius which determines which features are included in each
+        pixel's computation, in meters. Defaults to the semivariogram's range.
+      reducer: Reducer used to collapse the 'propertyName' value of overlapping
+        points into a single value.
+    """
+
+    return apifunction.ApiFunction.call_(
+        self.name() + '.kriging',
+        self,
+        propertyName,
+        shape,
+        range,
+        sill,
+        nugget,
+        maxDistance,
+        reducer,
+    )
+
+  def makeArray(
+      self,
+      properties: _arg_types.List,
+      name: Optional[_arg_types.String] = None,
+  ) -> FeatureCollection:
+    """Returns a collection with a 1-D Array property for each feature.
+
+    Add a 1-D Array to each feature in a collection by combining a list of
+    properties for each feature into a 1-D Array.
+
+    All of the properties must be numeric values. If a feature doesn't contain
+    all of the named properties, or any of them aren't numeric, the feature will
+    be dropped from the resulting collection.
+
+    Args:
+      properties: The properties to select.
+      name: The name of the new array property.
+    """
+
+    return apifunction.ApiFunction.call_(
+        self.name() + '.makeArray', self, properties, name
+    )
+
+  @staticmethod
+  def randomPoints(
+      region: geometry.Geometry,
+      points: Optional[_arg_types.Integer] = None,
+      seed: Optional[_arg_types.Integer] = None,
+      # pylint: disable-next=invalid-name
+      maxError: Optional[_arg_types.ErrorMargin] = None,
+  ) -> FeatureCollection:
+    """Returns a collection of random points.
+
+    Generates points that are uniformly random in the given geometry. If the
+    geometry is two-dimensional (polygon or multi-polygon) then the returned
+    points are uniformly distributed on the given region of the sphere. If the
+    geometry is one-dimensional (linestrings), the returned points are
+    interpolated uniformly along the geometry's edges. If the geometry has
+    dimension zero (points), the returned points are sampled uniformly from the
+    input points. If a multi-geometry of mixed dimension is given, points are
+    sampled from the component geometries with the highest dimension.
+
+    Args:
+      region: The region to generate points for.
+      points: The number of points to generate.
+      seed: A seed for the random number generator.
+      maxError: The maximum amount of error tolerated when performing any
+        necessary reprojection.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'FeatureCollection.randomPoints', region, points, seed, maxError
+    )

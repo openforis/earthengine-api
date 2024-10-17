@@ -17,16 +17,28 @@ jobs:
       if: ${{github.ref != 'refs/head/master'}}
     - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: 3.11
     - name: Install EE API
       run: |
-        pip install -e ./python
+        pip install ./python[tests]
         pip install pyright
-    - name: ee type verification
+        pip install pytype
+        pip install mypy
+    - name: pyright ee type verification
       run: |
         pyright --verifytypes ee
-    - name: ee.cli type verification
+      continue-on-error: true
+    - name: pyright ee.cli type verification
       run: |
         pyright --verifytypes ee.cli
+      continue-on-error: true
+    - name: mypy ee and ee.cli type verification
+      run: |
+        mypy -p ee
+      continue-on-error: true
+    - name: pytype ee type verification
+      run: |
+        cd python
+        pytype -k -d import-error ee

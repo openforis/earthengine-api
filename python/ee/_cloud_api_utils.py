@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Earth Engine helper functions for working with the Cloud API.
 
 Many of the functions defined here are for mapping legacy calls in ee.data into
@@ -63,9 +62,21 @@ class _Http:
     del connection_type  # Ignored
     del redirections  # Ignored
 
-    response = self._session.request(
-        method, uri, data=body, headers=headers, timeout=self._timeout
-    )
+    try:
+      # googleapiclient is expecting an httplib2 object, and doesn't include
+      # requests error in the list of transient errors. Therefore, transient
+      # requests errors should be converted to kinds that googleapiclient
+      # consider transient.
+      response = self._session.request(
+          method, uri, data=body, headers=headers, timeout=self._timeout
+      )
+    except requests.exceptions.ConnectionError as connection_error:
+      raise ConnectionError(connection_error) from connection_error
+    except requests.exceptions.ChunkedEncodingError as encoding_error:
+      # This is not a one-to-one match, but it's close enough.
+      raise ConnectionError(encoding_error) from encoding_error
+    except requests.exceptions.Timeout as timeout_error:
+      raise TimeoutError(timeout_error) from timeout_error
     headers = dict(response.headers)
     headers['status'] = response.status_code
     content = response.content
@@ -165,6 +176,9 @@ def build_cloud_resource(
   if http_transport is None:
     http_transport = _Http(session, timeout)
   if credentials is not None:
+    # Suppress the quota project, to avoid serviceUsage error from discovery.
+    if credentials.quota_project_id:
+      credentials = credentials.with_quota_project(None)
     http_transport = google_auth_httplib2.AuthorizedHttp(
         credentials, http=http_transport
     )
@@ -827,6 +841,7 @@ def convert_operation_to_task(operation: Dict[str, Any]) -> Dict[str, Any]:
           'type': 'task_type',
           'destinationUris': 'destination_uris',
           'batchEecuUsageSeconds': 'batch_eecu_usage_seconds',
+          'priority': 'priority',
           })
   if operation.get('done'):
     if 'error' in operation:

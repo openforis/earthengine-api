@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Earth Engine OAuth2 helper functions for generating client tokens.
 
 Typical use-case consists of:
@@ -46,6 +45,7 @@ CLIENT_ID = ('517222506229-vsmmajv00ul0bs7p89v5m89qs8eb9359.'
 CLIENT_SECRET = 'RUP0RZ6e0pPhDzsqIJ7KlNd1'
 SCOPES = [
     'https://www.googleapis.com/auth/earthengine',
+    'https://www.googleapis.com/auth/cloud-platform',
     'https://www.googleapis.com/auth/devstorage.full_control'
 ]
 REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'  # Prompts user to copy-paste code
@@ -70,6 +70,15 @@ PASTE_CODA = ('The authorization workflow will generate a code, which you'
 TEXT_BROWSERS = ['elinks', 'links', 'lynx', 'w3m', 'www-browser']
 # Environment variables indicating valid compositors on Linux.
 DISPLAY_VARIABLES = ['DISPLAY', 'WAYLAND_DISPLAY', 'MIR_SOCKET']
+# Projects owned by Google SDKs, which do not have the EE API enabled.
+SDK_PROJECTS = [
+    '764086051850',
+    '618104708054',
+    '32555940559',
+    '522309567947',
+    '1014160490159',
+    '1057398310658',
+]
 
 
 def get_credentials_path() -> str:
@@ -84,20 +93,49 @@ def get_credentials_arguments() -> Dict[str, Any]:
     stored = json.load(creds)
     args = {}
     args['token_uri'] = TOKEN_URI  # Not overridable in file
-    args['refresh_token'] = stored['refresh_token']  # Must be present
+    args['refresh_token'] = stored.get('refresh_token')
     args['client_id'] = stored.get('client_id', CLIENT_ID)
     args['client_secret'] = stored.get('client_secret', CLIENT_SECRET)
     args['scopes'] = stored.get('scopes', SCOPES)
+    args['quota_project_id'] = stored.get('project')
     return args
+
+
+def is_sdk_credentials(credentials: Optional[Any]) -> bool:
+  client_id = credentials and getattr(credentials, 'client_id', None)
+  return is_sdk_project(_project_number_from_client_id(client_id))
+
+
+def is_sdk_project(project: str) -> bool:
+  return project in SDK_PROJECTS
+
+
+def get_appdefault_project() -> Optional[str]:
+  try:
+    adc_path = _cloud_sdk.get_application_default_credentials_path()
+    with open(adc_path) as adc_json:
+      adc = json.load(adc_json)
+      return adc.get('quota_project_id')
+  except FileNotFoundError:
+    return None
 
 
 def _valid_credentials_exist() -> bool:
   try:
     creds = ee_data.get_persistent_credentials()
-    creds.refresh(google.auth.transport.requests.Request())
-    return True
-  except (ee_exception.EEException, google.auth.exceptions.RefreshError):
+    return is_valid_credentials(creds)
+  except ee_exception.EEException:
     return False
+
+
+def is_valid_credentials(credentials: Optional[Any]) -> bool:
+  if credentials is None:
+    return False
+  try:
+    credentials.refresh(google.auth.transport.requests.Request())
+  except google.auth.exceptions.RefreshError:
+    return False
+  return True
 
 
 def get_authorization_url(
@@ -169,7 +207,7 @@ def write_private_json(json_path: str, info_dict: Dict[str, Any]) -> None:
     f.write(file_content)
 
 
-def _in_colab_shell() -> bool:
+def in_colab_shell() -> bool:
   """Tests if the code is being executed within Google Colab."""
   try:
     import google.colab  # pylint: disable=unused-import,redefined-outer-name
@@ -188,6 +226,14 @@ def _in_jupyter_shell() -> bool:
     return False
   except NameError:
     return False
+
+
+def _project_number_from_client_id(client_id: Optional[str]) -> Optional[str]:
+  """Returns the project number associated with the given OAuth client ID."""
+  # Client IDs are of the form:
+  # PROJECTNUMBER-BASE32STUFF.apps.googleusercontent.com.
+  substrings = (client_id or '').split('-')
+  return substrings[0] if substrings else None
 
 
 def _obtain_and_write_token(
@@ -223,6 +269,9 @@ def _obtain_and_write_token(
   token = request_token(auth_code.strip(), code_verifier, **client_info)
   client_info['refresh_token'] = token
   client_info['scopes'] = scopes
+  project = _project_number_from_client_id(client_info.get('client_id'))
+  if project:
+    client_info['project'] = project
   write_private_json(get_credentials_path(), client_info)
   print('\nSuccessfully saved authorization token.')
 
@@ -415,7 +464,7 @@ def authenticate(
     auth_mode: Optional[str] = None,
     scopes: Optional[Sequence[str]] = None,
     force: bool = False,
-) -> bool:
+) -> Optional[bool]:
   """Prompts the user to authorize access to Earth Engine via OAuth2.
 
   Args:
@@ -445,7 +494,8 @@ def authenticate(
    force: Will force authentication even if valid credentials already exist.
 
   Returns:
-    True if we found valid credentials and didn't run the auth flow.
+    True if we found valid credentials and didn't run the auth flow, or
+    otherwise None.
 
   Raises:
      Exception: on invalid arguments.
@@ -459,7 +509,7 @@ def authenticate(
     return True
 
   if not auth_mode:
-    if _in_colab_shell():
+    if in_colab_shell():
       auth_mode = 'colab'
     elif _in_jupyter_shell():
       auth_mode = 'notebook'
@@ -548,7 +598,7 @@ class Flow:
       return True
 
     coda = WAITING_CODA if self.server else None
-    if _in_colab_shell():
+    if in_colab_shell():
       _display_auth_instructions_with_print(self.auth_url, coda)
     elif _in_jupyter_shell():
       _display_auth_instructions_with_html(self.auth_url, coda)

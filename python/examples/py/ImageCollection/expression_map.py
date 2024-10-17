@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Map an expression.
 
 Computes the mean NDVI and SAVI by mapping an expression over a collection
@@ -13,9 +12,9 @@ import ee.mapclient
 ee.Initialize()
 
 # Filter the L7 collection to a single month.
-collection = (ee.ImageCollection('LANDSAT/LE07/C01/T1_TOA')
-              .filterDate(datetime.datetime(2002, 11, 1),
-                          datetime.datetime(2002, 12, 1)))
+collection = ee.ImageCollection('LANDSAT/LE07/C02/T1_TOA').filterDate(
+    datetime.datetime(2002, 11, 1), datetime.datetime(2002, 12, 1)
+)
 
 
 def NDVI(image):

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """General decorators and helper methods which should not import ee."""
 
 import functools
@@ -10,7 +9,7 @@ def accept_opt_prefix(*opt_args) -> Callable[..., Any]:
 
   Args:
     *opt_args: Arguments prefixed with "opt_" to be replaced by the stripped
-      version. Use a nested tuple to map an old "opt_" arg to a new one, e.g.
+      version. Use a nested tuple to map an old "opt_" arg to a new one, e.g.,
       `opt_my_arg, (opt_my_arg2, opt_new_name)`.
 
   Returns:

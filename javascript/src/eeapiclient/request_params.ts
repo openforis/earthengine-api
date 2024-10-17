@@ -1,10 +1,9 @@
-// g3-format-clang
 import * as httpCors from 'goog:goog.net.rpc.HttpCors';
 
 import {GeneratedQueryParams} from './generated_types';
 
 /** Available HTTP methods supported by Google APIs */
-export type HttpMethod = 'GET'|'POST'|'PUT'|'PATCH'|'DELETE';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /**
  * {@link HttpMethod} come directly from the discovery file as strings. The code
@@ -44,7 +43,7 @@ export enum StreamingType {
   NONE = 'NONE',
   CLIENT_SIDE = 'CLIENT_SIDE',
   SERVER_SIDE = 'SERVER_SIDE',
-  BIDIRECTONAL = 'BIDIRECTONAL'
+  BIDIRECTONAL = 'BIDIRECTONAL',
 }
 
 /**
@@ -58,7 +57,7 @@ export interface MakeRequestParams {
    * custom HTTP methods. You can use {@link HttpMethodEnum#isHttpMethod}
    * to check if the httpMethod is of type {@link HttpMethod}.
    */
-  httpMethod: HttpMethod|string;
+  httpMethod: HttpMethod | string;
   /** The id of the called method, from discovery. */
   methodId?: string;
   // tslint:disable-next-line:no-any
@@ -97,8 +96,10 @@ export function processParams(params: MakeRequestParams) {
  * therefore this function can be loose about type-checking the fields.
  */
 export function buildQueryParams(
-    params: {}, mapping: Record<string, string>,
-    passthroughParams: Record<string, string> = {}): GeneratedQueryParams {
+  params: {},
+  mapping: Record<string, string>,
+  passthroughParams: Record<string, string> = {},
+): GeneratedQueryParams {
   const paramsMap = params as unknown as GeneratedQueryParams;
 
   const urlQueryParams: GeneratedQueryParams = passthroughParams;
@@ -110,10 +111,19 @@ export function buildQueryParams(
   return urlQueryParams;
 }
 
-const simpleCorsAllowedHeaders: string[] =
-    ['accept', 'accept-language', 'content-language'];
+const simpleCorsAllowedHeaders: string[] = [
+  'accept',
+  'accept-language',
+  'content-language',
+];
 
 const simpleCorsAllowedMethods: string[] = ['GET', 'HEAD', 'POST'];
+
+const simpleCorsAllowedContentTypes: readonly string[] = [
+  'application/x-www-form-urlencoded',
+  'multipart/form-data',
+  'text/plain',
+];
 
 /**
  * Note: This function only works for One Platform APIs.
@@ -145,12 +155,19 @@ export function bypassCorsPreflight(params: MakeRequestParams) {
   const unsafeHeaders: {[key: string]: string} = {};
   let hasUnsafeHeaders = false;
   let hasContentType = false;
+  let hasSafeContentType = false;
 
   if (params.headers) {
     hasContentType = params.headers['Content-Type'] != null;
     for (const [key, value] of Object.entries(params.headers)) {
       if (simpleCorsAllowedHeaders.includes(key)) {
         safeHeaders[key] = value;
+      } else if (
+        key === 'Content-Type' &&
+        simpleCorsAllowedContentTypes.includes(value)
+      ) {
+        safeHeaders[key] = value;
+        hasSafeContentType = true;
       } else {
         unsafeHeaders[key] = value;
         hasUnsafeHeaders = true;
@@ -158,8 +175,11 @@ export function bypassCorsPreflight(params: MakeRequestParams) {
     }
   }
 
-  if (params.body != null || params.httpMethod === 'PUT' ||
-      params.httpMethod === 'POST') {
+  if (
+    params.body != null ||
+    params.httpMethod === 'PUT' ||
+    params.httpMethod === 'POST'
+  ) {
     // Normally, HttpClient detects the application/json Content-Type based on
     // the body of the request. We need to explicitly set it in the
     // pre-generateEncodedHttpHeadersOverwriteParam so that the header
@@ -170,25 +190,33 @@ export function bypassCorsPreflight(params: MakeRequestParams) {
       unsafeHeaders['Content-Type'] = 'application/json';
       hasUnsafeHeaders = true;
     }
-    safeHeaders['Content-Type'] = 'text/plain';
+    if (!hasSafeContentType) {
+      safeHeaders['Content-Type'] = 'text/plain';
+    }
   }
 
   if (hasUnsafeHeaders) {
     const finalParam =
-        httpCors.generateEncodedHttpHeadersOverwriteParam(unsafeHeaders);
+      httpCors.generateEncodedHttpHeadersOverwriteParam(unsafeHeaders);
     addQueryParameter(params, httpCors.HTTP_HEADERS_PARAM_NAME, finalParam);
   }
   params.headers = safeHeaders;
 
   if (!simpleCorsAllowedMethods.includes(params.httpMethod)) {
     addQueryParameter(
-        params, httpCors.HTTP_METHOD_PARAM_NAME, params.httpMethod);
+      params,
+      httpCors.HTTP_METHOD_PARAM_NAME,
+      params.httpMethod,
+    );
     params.httpMethod = 'POST';
   }
 }
 
 function addQueryParameter(
-    params: MakeRequestParams, key: string, value: string) {
+  params: MakeRequestParams,
+  key: string,
+  value: string,
+) {
   if (params.queryParams) {
     params.queryParams[key] = value;
   } else {

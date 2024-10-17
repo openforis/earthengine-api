@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Collection filters.
 
 Example usage:
@@ -11,11 +10,15 @@ Example usage:
 # Using lowercase function naming to match the JavaScript names.
 # pylint: disable=g-bad-name
 
+from __future__ import annotations
+
+from typing import Optional
+
+from ee import _arg_types
 from ee import _utils
 from ee import apifunction
 from ee import computedobject
 from ee import ee_exception
-
 
 # A map from the deprecated old-style comparison operator names to API
 # function names, implicitly prefixed with "Filter.". Negative operators
@@ -92,7 +95,7 @@ class Filter(computedobject.ComputedObject):
     apifunction.ApiFunction.clearApi(cls)
     cls._initialized = False
 
-  def predicateCount(self):
+  def predicateCount(self) -> int:
     """Return the number of predicates that have been added to this filter.
 
     Returns:
@@ -101,7 +104,7 @@ class Filter(computedobject.ComputedObject):
     """
     return len(self._filter)
 
-  def _append(self, new_filter):
+  def _append(self, new_filter: _arg_types.Filter) -> Filter:
     """Append a predicate to this filter.
 
     These are implicitly ANDed.
@@ -115,26 +118,19 @@ class Filter(computedobject.ComputedObject):
     Returns:
       A new filter that is the combination of both.
     """
-    if new_filter is not None:
-      prev = list(self._filter)
-      if isinstance(new_filter, Filter):
-        prev.extend(new_filter._filter)  # pylint: disable=protected-access
-      elif isinstance(new_filter, list):
-        prev.extend(new_filter)
-      else:
-        prev.append(new_filter)
+    if new_filter is None:
+      raise ValueError('new_filter should never be None')
+    prev = list(self._filter)
+    if isinstance(new_filter, Filter):
+      prev.extend(new_filter._filter)  # pylint: disable=protected-access
+    elif isinstance(new_filter, list):
+      prev.extend(new_filter)
+    else:
+      prev.append(new_filter)
     return Filter(prev)
 
-  def Not(self):
-    """Returns the opposite of this filter.
-
-    Returns:
-      The negated filter, which will match iff this filter doesn't.
-    """
-    return apifunction.ApiFunction.call_('Filter.not', self)
-
   @staticmethod
-  def metadata_(name, operator, value):
+  def metadata_(name: str, operator: str, value: _arg_types.Any) -> Filter:
     """Filter on metadata. This is deprecated.
 
     Args:
@@ -167,52 +163,166 @@ class Filter(computedobject.ComputedObject):
     return new_filter.Not() if negated else new_filter
 
   @staticmethod
-  def eq(name, value):
-    """Filter to metadata equal to the given value."""
-    return apifunction.ApiFunction.call_('Filter.equals', name, value)
+  def name() -> str:
+    return 'Filter'
 
   @staticmethod
-  def neq(name, value):
-    """Filter to metadata not equal to the given value."""
-    return Filter.eq(name, value).Not()
-
-  @staticmethod
-  def lt(name, value):
-    """Filter to metadata less than the given value."""
-    return apifunction.ApiFunction.call_('Filter.lessThan', name, value)
-
-  @staticmethod
-  def gte(name, value):
-    """Filter on metadata greater than or equal to the given value."""
-    return Filter.lt(name, value).Not()
-
-  @staticmethod
-  def gt(name, value):
-    """Filter on metadata greater than the given value."""
-    return apifunction.ApiFunction.call_('Filter.greaterThan', name, value)
-
-  @staticmethod
-  def lte(name, value):
-    """Filter on metadata less than or equal to the given value."""
-    return Filter.gt(name, value).Not()
-
-  @staticmethod
-  def And(*args):
+  def And(*args) -> Filter:
     """Combine two or more filters using boolean AND."""
     if len(args) == 1 and isinstance(args[0], (list, tuple)):
       args = args[0]
     return apifunction.ApiFunction.call_('Filter.and', args)
 
   @staticmethod
-  def Or(*args):
-    """Combine two or more filters using boolean OR."""
-    if len(args) == 1 and isinstance(args[0], (list, tuple)):
-      args = args[0]
-    return apifunction.ApiFunction.call_('Filter.or', args)
+  def area(
+      min: _arg_types.Number,  # pylint: disable=redefined-builtin
+      max: _arg_types.Number,  # pylint: disable=redefined-builtin
+      # pylint: disable=invalid-name
+      maxError: Optional[_arg_types.ErrorMargin] = None,
+      geometrySelector: Optional[_arg_types.String] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns an area filter of the geometry.
+
+    Returns a filter that passes if the specified geometry has an area within
+    the given range (inclusive).
+
+    Args:
+      min: Minimum area in square meters (inclusive).
+      max: Maximum area in square meters (inclusive).
+      maxError: The maximum allowed error for computing the geometry's area.
+      geometrySelector: The name of the geometry property to use for filtering.
+        Leave blank or use '.geo' to operate on the object's geometry.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.area', min, max, maxError, geometrySelector
+    )
+
+  @staticmethod
+  def dateRangeContains(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if a date range contains a date.
+
+    Creates a unary or binary filter that passes if the left operand, a date
+    range, contains the right operand, a date.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.dateRangeContains', leftField, rightValue, rightField, leftValue
+    )
+
+  @staticmethod
+  @_utils.accept_opt_prefix('opt_errorMargin')
+  def bounds(
+      geometry: _arg_types.Geometry,
+      # pylint: disable-next=invalid-name
+      errorMargin: Optional[_arg_types.ErrorMargin] = None,
+  ) -> Filter:
+    """Returns a filter on intersection with geometry.
+
+    Items in the collection with a footprint that fails to intersect
+    the given geometry will be excluded. This is an alias for geometry().
+
+    Caution: providing a large or complex collection as the `geometry` argument
+    can result in poor performance. Collating the geometry of collections does
+    not scale well; use the smallest collection (or geometry) that is required
+    to achieve the desired outcome.
+
+    Args:
+      geometry: The geometry to filter to either as a GeoJSON geometry, or a
+        FeatureCollection, from which a geometry will be extracted.
+      errorMargin: An optional error margin. If a number, interpreted as sphere
+        surface meters.
+    """
+    return Filter.geometry(geometry, errorMargin)
+
+  @staticmethod
+  def calendarRange(
+      start: _arg_types.Integer,
+      end: Optional[_arg_types.Integer] = None,
+      field: Optional[_arg_types.String] = None,
+  ) -> Filter:
+    """Returns a filter that passes if a timestamp is in a range.
+
+    Returns a filter that passes if the object's timestamp falls within the
+    given range of a calendar field.
+
+    The `month`, `day_of_year`, `day_of_month`, and `day_of_week` are 1-based.
+    Times are assumed to be in UTC. Weeks are assumed to begin on Monday as day
+    1. If `end` < `start` then this tests for `value` >= `start` OR `value` <=
+    `end`, to allow for wrapping.
+
+    Args:
+      start: The start of the desired calendar field, inclusive.
+      end: The end of the desired calendar field, inclusive. Defaults to the
+        same value as start.
+      field: The calendar field to filter over. Options are: `year`, `month`,
+        `hour`, `minute`, `day_of_year`, `day_of_month`, and `day_of_week`.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.calendarRange', start, end, field
+    )
+
+  @staticmethod
+  def contains(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      maxError: Optional[_arg_types.ErrorMargin] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if the left contains the right geometry.
+
+    Creates a unary or binary filter that passes if the left geometry contains
+    the right geometry (empty geometries are not contained in anything).
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+      maxError: The maximum reprojection error allowed during filter
+        application.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.contains',
+        leftField,
+        rightValue,
+        rightField,
+        leftValue,
+        maxError,
+    )
 
   @staticmethod
   @_utils.accept_opt_prefix('opt_end')
-  def date(start, end=None):
+  def date(
+      start: _arg_types.Date, end: Optional[_arg_types.Date] = None
+  ) -> Filter:
     """Filter images by date.
 
     The start and end may be a Date, numbers (interpreted as milliseconds since
@@ -234,10 +344,309 @@ class Filter(computedobject.ComputedObject):
     })
 
   @staticmethod
+  def dayOfYear(start: _arg_types.Integer, end: _arg_types.Integer) -> Filter:
+    """Returns a day-of-year filter.
+
+    Returns a filter that passes if the object's timestamp falls within the
+    given day-of-year range.
+
+    Args:
+      start: The start of the desired day range, inclusive.
+      end: The end of the desired day range, inclusive.
+    """
+
+    return apifunction.ApiFunction.call_('Filter.dayOfYear', start, end)
+
+  @staticmethod
+  def disjoint(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      maxError: Optional[_arg_types.ErrorMargin] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter.
+
+    Creates a unary or binary filter that passes unless the left geometry
+    intersects the right geometry.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+      maxError: The maximum reprojection error allowed during filter
+        application.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.disjoint',
+        leftField,
+        rightValue,
+        rightField,
+        leftValue,
+        maxError,
+    )
+
+  @staticmethod
+  def eq(name: _arg_types.String, value: _arg_types.Any) -> Filter:
+    """Filter to metadata equal to the given value."""
+    return apifunction.ApiFunction.call_('Filter.equals', name, value)
+
+  @staticmethod
+  def equals(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if the two operands are equals.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.equals', leftField, rightValue, rightField, leftValue
+    )
+
+  @staticmethod
+  def expression(expression) -> Filter:
+    """Returns a filter tree from a string.
+
+    Args:
+      expression: A string to be parsed into a Filter object (e.g., "property >
+        value"). Supported operators include: >, >=, <, <=, ==, !=, (), !, &&
+        and ||.
+    """
+
+    return apifunction.ApiFunction.call_('Filter.expression', expression)
+
+  @staticmethod
+  @_utils.accept_opt_prefix('opt_errorMargin')
+  def geometry(
+      geometry: _arg_types.Geometry,
+      # pylint: disable-next=invalid-name
+      errorMargin: Optional[_arg_types.ErrorMargin] = None,
+  ):
+    """Filter on intersection with geometry.
+
+    Items in the collection with a footprint that fails to intersect
+    the given geometry will be excluded.
+
+    Args:
+      geometry: The geometry to filter to either as a GeoJSON geometry, or a
+        FeatureCollection, from which a geometry will be extracted.
+      errorMargin: An optional error margin. If a number, interpreted as sphere
+        surface meters.
+
+    Returns:
+      The constructed filter.
+    """
+    # Invoke geometry promotion then manually promote to a Feature.
+    args = {
+        'leftField': '.all',
+        'rightValue': apifunction.ApiFunction.call_('Feature', geometry)
+    }
+    if errorMargin is not None:
+      args['maxError'] = errorMargin
+    return apifunction.ApiFunction.apply_('Filter.intersects', args)
+
+  @staticmethod
+  def greaterThan(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if value is greater than the right operand.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.greaterThan', leftField, rightValue, rightField, leftValue
+    )
+
+  @staticmethod
+  def greaterThanOrEquals(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns filter that passes if value is greater than the right operand.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.greaterThanOrEquals',
+        leftField,
+        rightValue,
+        rightField,
+        leftValue,
+    )
+
+  @staticmethod
+  def gt(name: _arg_types.String, value: _arg_types.Any) -> Filter:
+    """Filter on metadata greater than the given value."""
+    return apifunction.ApiFunction.call_('Filter.greaterThan', name, value)
+
+  @staticmethod
+  def gte(name: _arg_types.String, value: _arg_types.Any) -> Filter:
+    """Filter on metadata greater than or equal to the given value."""
+    return Filter.lt(name, value).Not()
+
+  @staticmethod
+  def hasType(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if the left has the type.
+
+    Creates a unary or binary filter that passes if the left operand has the
+    type, or is a subtype of the type named in the right operand.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+
+    Returns:
+      An ee.Filter.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.hasType', leftField, rightValue, rightField, leftValue
+    )
+
+  @staticmethod
+  def intersects(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      maxError: Optional[_arg_types.ErrorMargin] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if left intersects the right geometry.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+      maxError: The maximum reprojection error allowed during filter
+        application.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.intersects',
+        leftField,
+        rightValue,
+        rightField,
+        leftValue,
+        maxError,
+    )
+
+  @staticmethod
+  def isContained(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      maxError: Optional[_arg_types.ErrorMargin] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns filter that passes if the right geometry contains the geometry.
+
+    Empty geometries are not contained in anything.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+      maxError: The maximum reprojection error allowed during filter
+        application.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.isContained',
+        leftField,
+        rightValue,
+        rightField,
+        leftValue,
+        maxError,
+    )
+
+  @staticmethod
   @_utils.accept_opt_prefix(
       'opt_leftField', 'opt_rightValue', 'opt_rightField', 'opt_leftValue'
   )
-  def inList(leftField=None, rightValue=None, rightField=None, leftValue=None):
+  def inList(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
     """Filter on metadata contained in a list.
 
     Args:
@@ -267,55 +676,332 @@ class Filter(computedobject.ComputedObject):
     )
 
   @staticmethod
-  @_utils.accept_opt_prefix('opt_errorMargin')
-  def geometry(geometry, errorMargin=None):
-    """Filter on intersection with geometry.
-
-    Items in the collection with a footprint that fails to intersect
-    the given geometry will be excluded.
-
-    Args:
-      geometry: The geometry to filter to either as a GeoJSON geometry, or a
-        FeatureCollection, from which a geometry will be extracted.
-      errorMargin: An optional error margin. If a number, interpreted as sphere
-        surface meters.
-
-    Returns:
-      The constructed filter.
-    """
-    # Invoke geometry promotion then manually promote to a Feature.
-    args = {
-        'leftField': '.all',
-        'rightValue': apifunction.ApiFunction.call_('Feature', geometry)
-    }
-    if errorMargin is not None:
-      args['maxError'] = errorMargin
-    return apifunction.ApiFunction.apply_('Filter.intersects', args)
-
-  @staticmethod
-  @_utils.accept_opt_prefix('opt_errorMargin')
-  def bounds(geometry, errorMargin=None):
-    """Filter on intersection with geometry.
-
-    Items in the collection with a footprint that fails to intersect
-    the given geometry will be excluded. This is an alias for geometry().
-
-    Caution: providing a large or complex collection as the `geometry` argument
-    can result in poor performance. Collating the geometry of collections does
-    not scale well; use the smallest collection (or geometry) that is required
-    to achieve the desired outcome.
+  def lessThan(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns filter that passes if the value is less than the right operand.
 
     Args:
-      geometry: The geometry to filter to either as a GeoJSON geometry, or a
-        FeatureCollection, from which a geometry will be extracted.
-      errorMargin: An optional error margin. If a number, interpreted as sphere
-        surface meters.
-
-    Returns:
-      The constructed filter.
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
     """
-    return Filter.geometry(geometry, errorMargin)
+
+    return apifunction.ApiFunction.call_(
+        'Filter.lessThan', leftField, rightValue, rightField, leftValue
+    )
 
   @staticmethod
-  def name() -> str:
-    return 'Filter'
+  def lessThanOrEquals(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns filter that passes if the value is less than the right operand.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.lessThanOrEquals', leftField, rightValue, rightField, leftValue
+    )
+
+  @staticmethod
+  def listContains(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns filter that passes if the left, contains the right.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+
+    Returns:
+      An ee.Filter.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.listContains', leftField, rightValue, rightField, leftValue
+    )
+
+  @staticmethod
+  def lt(name: _arg_types.String, value: _arg_types.Any) -> Filter:
+    """Filter to metadata less than the given value."""
+    return apifunction.ApiFunction.call_('Filter.lessThan', name, value)
+
+  @staticmethod
+  def lte(name: _arg_types.String, value: _arg_types.Any) -> Filter:
+    """Filter on metadata less than or equal to the given value."""
+    return Filter.gt(name, value).Not()
+
+  @staticmethod
+  def maxDifference(
+      difference: _arg_types.Number,
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if the fields are within a given difference.
+
+    Creates a unary or binary filter that passes if the left and right operands,
+    both numbers, are within a given maximum difference.
+
+    If used as a join condition, this numeric difference is used as a join
+    measure.
+
+    Args:
+      difference: The maximum difference for which the filter will return true.
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.maxDifference',
+        difference,
+        leftField,
+        rightValue,
+        rightField,
+        leftValue,
+    )
+
+  @staticmethod
+  def neq(name: _arg_types.String, value: _arg_types.Any) -> Filter:
+    """Filter to metadata not equal to the given value."""
+    return Filter.eq(name, value).Not()
+
+  @staticmethod
+  def notEquals(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes unless the two operands are equal.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.notEquals', leftField, rightValue, rightField, leftValue
+    )
+
+  def Not(self) -> Filter:
+    """Returns the opposite of this filter.
+
+    Returns:
+      The negated filter, which will match if and only if this filter does not.
+    """
+    return apifunction.ApiFunction.call_('Filter.not', self)
+
+  @staticmethod
+  def notNull(properties: _arg_types.List) -> Filter:
+    """Returns a filter that passes if all the named properties are not null."""
+
+    return apifunction.ApiFunction.call_('Filter.notNull', properties)
+
+  @staticmethod
+  def Or(*args) -> Filter:
+    """Combine two or more filters using boolean OR."""
+    if len(args) == 1 and isinstance(args[0], (list, tuple)):
+      args = args[0]
+    return apifunction.ApiFunction.call_('Filter.or', args)
+
+  @staticmethod
+  def rangeContains(
+      field: _arg_types.String,
+      minValue: _arg_types.Number,  # pylint: disable=invalid-name
+      maxValue: _arg_types.Number,  # pylint: disable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if the value is in the range.
+
+    Returns a filter that passes if the value of the selected field is in the
+    specified range (inclusive).
+
+    Args:
+      field: A selector for the property being tested.
+      minValue: The lower bound of the range.
+      maxValue: The upper bound of the range.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.rangeContains', field, minValue, maxValue
+    )
+
+  @staticmethod
+  def stringContains(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if it contains the right string.
+
+    Creates a unary or binary filter that passes if the left operand, a string,
+    contains the right operand, also a string.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.stringContains', leftField, rightValue, rightField, leftValue
+    )
+
+  @staticmethod
+  def stringEndsWith(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if the string ends with the right string.
+
+    Creates a unary or binary filter that passes if the left operand, a string,
+    ends with the right operand, also a string.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.stringEndsWith', leftField, rightValue, rightField, leftValue
+    )
+
+  @staticmethod
+  def stringStartsWith(
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if the string starts with the right string.
+
+    Creates a unary or binary filter that passes if the left operand, a string,
+    starts with the right operand, also a string.
+
+    Args:
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.stringStartsWith', leftField, rightValue, rightField, leftValue
+    )
+
+  @staticmethod
+  def withinDistance(
+      distance: _arg_types.Number,
+      # pylint: disable=invalid-name
+      leftField: Optional[_arg_types.String] = None,
+      rightValue: Optional[_arg_types.Any] = None,
+      rightField: Optional[_arg_types.String] = None,
+      leftValue: Optional[_arg_types.Any] = None,
+      maxError: Optional[_arg_types.ErrorMargin] = None,
+      # pylint: enable=invalid-name
+  ) -> Filter:
+    """Returns a filter that passes if the geometry is within a distance.
+
+    Creates a unary or binary filter that passes if the left geometry is within
+    a specified distance of the right geometry. If used as a join condition,
+    this distance is used as a join measure.
+
+    Args:
+      distance: The maximum distance for which the filter will return true.
+      leftField: A selector for the left operand. Should not be specified if
+        leftValue is specified.
+      rightValue: The value of the right operand. Should not be specified if
+        rightField is specified.
+      rightField: A selector for the right operand. Should not be specified if
+        rightValue is specified.
+      leftValue: The value of the left operand. Should not be specified if
+        leftField is specified.
+      maxError: The maximum reprojection error allowed during filter
+        application.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'Filter.withinDistance',
+        distance,
+        leftField,
+        rightValue,
+        rightField,
+        leftValue,
+        maxError,
+    )
