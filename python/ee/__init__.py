@@ -187,6 +187,9 @@ def Initialize(
   """
   if credentials == 'persistent':
     credentials = data.get_persistent_credentials()
+  if not project: # Start by loading project from sepal-generated credentials file
+    project = json.load(open(oauth.get_credentials_path())).get('project_id')
+    
   if not project and credentials and hasattr(credentials, 'quota_project_id'):
     project = credentials.quota_project_id
   if not project:
@@ -201,8 +204,6 @@ def Initialize(
   if not is_valid_project and not empty_project_ok:
     raise EEException(NO_PROJECT_EXCEPTION)
 
-  if not project:
-    project = json.load(open(oauth.get_credentials_path())).get('project_id')
 
   data.initialize(
       credentials=credentials,
