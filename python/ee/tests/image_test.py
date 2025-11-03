@@ -2,7 +2,7 @@
 """Test for the ee.image module."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 import unittest
@@ -37,8 +37,8 @@ IMAGE_C = {
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any],
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any],
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
@@ -306,7 +306,7 @@ class CloudThumbnailAndExportImageTest(apitestcase.ApiTestCase):
               )
           ),
       )
-      self.assertEqual(kwargs['parent'], 'projects/earthengine-legacy')
+      self.assertEqual('projects/my-project', kwargs['parent'])
 
   def test_thumb_with_dimensions_region_json(self):
     # Try it with the region as a GeoJSON string.
@@ -330,7 +330,7 @@ class CloudThumbnailAndExportImageTest(apitestcase.ApiTestCase):
               )
           ),
       )
-      self.assertEqual(kwargs['parent'], 'projects/earthengine-legacy')
+      self.assertEqual('projects/my-project', kwargs['parent'])
 
   def test_thumb_with_dimensions_list_coords(self):
     # Try it with the region as a list of coordinates.
@@ -356,7 +356,7 @@ class CloudThumbnailAndExportImageTest(apitestcase.ApiTestCase):
               )
           ),
       )
-      self.assertEqual(kwargs['parent'], 'projects/earthengine-legacy')
+      self.assertEqual('projects/my-project', kwargs['parent'])
 
   def test_thumb_with_dimensions_list_min_max(self):
     # Try it with the region as a list of coordinates.
@@ -382,7 +382,7 @@ class CloudThumbnailAndExportImageTest(apitestcase.ApiTestCase):
               )
           ),
       )
-      self.assertEqual(kwargs['parent'], 'projects/earthengine-legacy')
+      self.assertEqual('projects/my-project', kwargs['parent'])
 
   def test_thumb_with_visualization_params(self):
     cloud_api_resource = mock.MagicMock()
@@ -603,7 +603,7 @@ class CloudThumbnailAndExportImageTest(apitestcase.ApiTestCase):
           kwargs['body']['expression'],
       )
       self.assertEqual('ZIPPED_GEO_TIFF_PER_BAND', kwargs['body']['fileFormat'])
-      self.assertEqual('projects/earthengine-legacy', kwargs['parent'])
+      self.assertEqual('projects/my-project', kwargs['parent'])
       self.assertEqual(
           '/%s/thumbName:getPixels' % _cloud_api_utils.VERSION, url
       )
@@ -3505,6 +3505,7 @@ class SerializeTest(apitestcase.ApiTestCase):
     crs = EPSG_4326
     crs_transform = [3, 4, 5, 6, 7, 8]
     tile_scale = 10
+    maxPixelsPerRegion = 11
     expect = make_expression_graph({
         'arguments': {
             'image': IMAGE,
@@ -3540,11 +3541,18 @@ class SerializeTest(apitestcase.ApiTestCase):
             },
             'crsTransform': {'constantValue': crs_transform},
             'tileScale': {'constantValue': tile_scale},
+            'maxPixelsPerRegion': {'constantValue': maxPixelsPerRegion},
         },
         'functionName': 'Image.reduceRegions',
     })
     expression = ee.Image('a').reduceRegions(
-        featurecollection, reducer, scale, crs, crs_transform, tile_scale
+        featurecollection,
+        reducer,
+        scale,
+        crs,
+        crs_transform,
+        tile_scale,
+        maxPixelsPerRegion,
     )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
@@ -3556,6 +3564,7 @@ class SerializeTest(apitestcase.ApiTestCase):
         crs=crs,
         crsTransform=crs_transform,
         tileScale=tile_scale,
+        maxPixelsPerRegion=maxPixelsPerRegion,
     )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)

@@ -6,6 +6,7 @@ the classes for configuration and runtime context management.
 """
 
 import collections
+from collections.abc import Iterable
 import datetime
 import json
 import os
@@ -13,7 +14,7 @@ import re
 import tempfile
 import threading
 import time
-from typing import AnyStr, Dict, Iterable, List, Tuple, Union
+from typing import Any, AnyStr
 import urllib.parse
 
 from google.cloud import storage
@@ -31,19 +32,13 @@ DEFAULT_EE_CONFIG_FILE_RELATIVE = os.path.join(
 DEFAULT_EE_CONFIG_FILE = os.path.join(
     HOMEDIR, DEFAULT_EE_CONFIG_FILE_RELATIVE)
 
-CONFIG_PARAMS: Dict[str, Union[str, List[str], None]] = {
+CONFIG_PARAMS: dict[str, str | list[str] | None] = {
     'account': None,
     'cloud_api_key': None,
     'private_key': None,
     'project': None,
     'url': 'https://earthengine.googleapis.com',
 }
-
-TASK_FINISHED_STATES: Tuple[str, str, str] = (
-    ee.batch.Task.State.COMPLETED,
-    ee.batch.Task.State.FAILED,
-    ee.batch.Task.State.CANCELLED,
-)
 
 
 class CommandLineConfig:
@@ -71,8 +66,11 @@ class CommandLineConfig:
   url: str
 
   def __init__(
-      self, config_file=None, service_account_file=None,
-      project_override=None):
+      self,
+      config_file=None,
+      service_account_file=None,
+      project_override=None,
+  ):
     if not config_file:
       config_file = os.environ.get(EE_CONFIG_FILE, DEFAULT_EE_CONFIG_FILE)
     self.config_file = config_file
@@ -147,9 +145,12 @@ class CommandLineConfig:
 
 
 def _split_gcs_path(path):
-  m = re.search('gs://([a-z0-9-_.]*)/(.*)', path, re.IGNORECASE)
+  # This only catches some troubles. For complete details on naming, see:
+  #   https://cloud.google.com/storage/docs/buckets
+  #   https://cloud.google.com/storage/docs/objects#naming
+  m = re.search('gs://([a-z0-9][a-z0-9-_.]*)/(.*)', path, re.IGNORECASE)
   if not m:
-    raise ValueError('\'{}\' is not a valid GCS path'.format(path))
+    raise ValueError(f"'{path}' is not a valid GCS path")
 
   return m.groups()
 
@@ -179,7 +180,7 @@ class GcsHelper:
         raise ValueError('Size of files in \'{}\' exceeds allowed size: '
                          '{} > {}.'.format(path, total_bytes, max_bytes))
     if total_bytes == 0:
-      raise ValueError('No files found at \'{}\'.'.format(path))
+      raise ValueError(f"No files found at '{path}'.")
 
   def download_dir_to_temp(self, path: str) -> str:
     """Downloads recursively the contents at a GCS path to a temp directory."""
@@ -199,7 +200,7 @@ class GcsHelper:
       if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
-      if output_path[-1:] != '/':
+      if not output_path.endswith('/'):
         blob.download_to_filename(output_path)
 
     return temp_dir
@@ -208,7 +209,7 @@ class GcsHelper:
     """Uploads a directory to cloud storage."""
     canonical_path = _canonicalize_dir_path(source_path)
 
-    files = list()
+    files = []
     for dirpath, _, filenames in os.walk(canonical_path):
       files += [os.path.join(dirpath, f) for f in filenames]
 
@@ -226,7 +227,7 @@ def is_gcs_path(path: str) -> bool:
 
 
 def query_yes_no(msg: str) -> bool:
-  print('%s (y/n)' % msg)
+  print(f'{msg} (y/n)')
   while True:
     confirm = input().lower()
     if confirm == 'y':
@@ -244,23 +245,31 @@ def truncate(string: str, length: int) -> str:
     return string
 
 
+def _task_id_to_operation_name(task_id: str) -> str:
+  """Converts a task ID to an operation name."""
+  # pylint: disable=protected-access
+  return ee._cloud_api_utils.convert_task_id_to_operation_name(
+      ee.data._get_state().cloud_api_user_project, task_id
+  )
+  # pylint: enable=protected-access
+
+
 def wait_for_task(
     task_id: str, timeout: float, log_progress: bool = True
 ) -> None:
   """Waits for the specified task to finish, or a timeout to occur."""
   start = time.time()
-  elapsed = 0
+  elapsed: float
   last_check = 0
   while True:
     elapsed = time.time() - start
-    status = ee.data.getTaskStatus(task_id)[0]
-    state = status['state']
-    if state in TASK_FINISHED_STATES:
-      error_message = status.get('error_message', None)
-      print('Task %s ended at state: %s after %.2f seconds'
-            % (task_id, state, elapsed))
+    status = ee.data.getOperation(_task_id_to_operation_name(task_id))
+    state = status['metadata']['state']
+    if status.get('done', False):
+      error_message = status.get('error', {}).get('message')
+      print(f'Task {task_id} ended at state: {state} after {elapsed:.2f} seconds')
       if error_message:
-        raise ee.ee_exception.EEException('Error: %s' % error_message)
+        raise ee.ee_exception.EEException(f'Error: {error_message}')
       return
     if log_progress and elapsed - last_check >= 30:
       print('[{:%H:%M:%S}] Current state for task {}: {}'
@@ -271,11 +280,13 @@ def wait_for_task(
       time.sleep(min(10, remaining))
     else:
       break
-  print('Wait for task %s timed out after %.2f seconds' % (task_id, elapsed))
+  print(
+      f'Wait for task {task_id} timed out after {elapsed:.2f} seconds'
+  )
 
 
 def wait_for_tasks(
-    task_id_list: List[str], timeout: float, log_progress: bool = False
+    task_id_list: list[str], timeout: float, log_progress: bool = False
 ) -> None:
   """For each task specified in task_id_list, wait for that task or timeout."""
 
@@ -293,20 +304,30 @@ def wait_for_tasks(
   for thread in threads:
     thread.join()
 
-  status_list = ee.data.getTaskStatus(task_id_list)
+  get_state = lambda task_id: ee.data.getOperation(
+      _task_id_to_operation_name(task_id)
+  )['metadata']['state']
+  status_list = [get_state(task_id) for task_id in task_id_list]
   status_counts = collections.defaultdict(int)
   for status in status_list:
-    status_counts[status['state']] += 1
-  num_incomplete = (len(status_list) - status_counts['COMPLETED']
-                    - status_counts['FAILED'] - status_counts['CANCELLED'])
+    status_counts[status] += 1
+  succeeded = status_counts['SUCCEEDED']
+  failed = status_counts['FAILED']
+  cancelled = status_counts['CANCELLED']
+  num_incomplete = (
+      len(status_list)
+      - succeeded
+      - failed
+      - cancelled
+  )
   print('Finished waiting for tasks.\n  Status summary:')
-  print('  %d tasks completed successfully.' % status_counts['COMPLETED'])
-  print('  %d tasks failed.' % status_counts['FAILED'])
-  print('  %d tasks cancelled.' % status_counts['CANCELLED'])
-  print('  %d tasks are still incomplete (timed-out)' % num_incomplete)
+  print(f'  {succeeded} tasks completed successfully.')
+  print(f'  {failed} tasks failed.')
+  print(f'  {cancelled} tasks cancelled.')
+  print(f'  {num_incomplete} tasks are still incomplete (timed-out)')
 
 
-def expand_gcs_wildcards(source_files: List[str]) -> Iterable[str]:
+def expand_gcs_wildcards(source_files: list[str]) -> Iterable[str]:
   """Implements glob-like '*' wildcard completion for cloud storage objects.
 
   Args:
@@ -335,7 +356,7 @@ def expand_gcs_wildcards(source_files: List[str]) -> Iterable[str]:
       bucket, rest = bucket_match.group(1, 2)
     else:
       raise ee.ee_exception.EEException(
-          'Badly formatted source file or bucket: %s' % source)
+          f'Badly formatted source file or bucket: {source}')
     prefix = rest[:rest.find('*')]  # Everything before the first wildcard
 
     bucket_files = _gcs_ls(bucket, prefix)
@@ -379,27 +400,28 @@ def _gcs_ls(bucket: str, prefix: str = '') -> Iterable[str]:
     try:
       response, content = http.request(url, method=method)
     except httplib2.HttpLib2Error as e:
-      raise ee.ee_exception.EEException('Unexpected HTTP error: %s' % str(e))
+      raise ee.ee_exception.EEException(f'Unexpected HTTP error: {e}') from e
 
     if response.status < 100 or response.status >= 300:
-      raise ee.ee_exception.EEException(('Error retrieving bucket %s;'
-                                         ' Server returned HTTP code: %d' %
-                                         (bucket, response.status)))
+      raise ee.ee_exception.EEException(
+          f'Error retrieving bucket {bucket}; '
+          f'Server returned HTTP code: {response.status}'
+      )
 
     json_content = json.loads(content)
     if 'error' in json_content:
       json_error = json_content['error']['message']
-      raise ee.ee_exception.EEException('Error retrieving bucket %s: %s' %
-                                        (bucket, json_error))
+      raise ee.ee_exception.EEException(
+          f'Error retrieving bucket {bucket}: {json_error}')
 
     if 'items' not in json_content:
       raise ee.ee_exception.EEException(
-          'Cannot find items list in the response from GCS: %s' % json_content)
+          f'Cannot find items list in the response from GCS: {json_content}')
     objects = json_content['items']
     object_names = [str(gc_object['name']) for gc_object in objects]
 
     for name in object_names:
-      yield 'gs://%s/%s' % (bucket, name)
+      yield f'gs://{bucket}/{name}'
 
     # GCS indicates no more results
     if 'nextPageToken' not in json_content:

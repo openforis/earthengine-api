@@ -1,7 +1,7 @@
 """A wrapper for numbers."""
 from __future__ import annotations
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from ee import _arg_types
 from ee import _cloud_api_utils
@@ -15,7 +15,7 @@ from ee import ee_string
 class Number(computedobject.ComputedObject):
   """An object to represent numbers."""
 
-  _number: Optional[float]
+  _number: float | None
 
   _initialized = False
 
@@ -299,7 +299,7 @@ class Number(computedobject.ComputedObject):
   def expression(
       expression: _arg_types.String,
       # pylint: disable-next=redefined-builtin
-      vars: Optional[_arg_types.Dictionary] = None,
+      vars: _arg_types.Dictionary | None = None,
   ) -> Number:
     """Returns a number from computing a numeric expression.
 
@@ -351,7 +351,7 @@ class Number(computedobject.ComputedObject):
     return apifunction.ApiFunction.call_(self.name() + '.floor', self)
 
   def format(
-      self, pattern: Optional[_arg_types.String] = None
+      self, pattern: _arg_types.String | None = None
   ) -> ee_string.String:
     r"""Convert a number to a string using printf-style formatting.
 
@@ -586,10 +586,10 @@ class Number(computedobject.ComputedObject):
 
     return apifunction.ApiFunction.call_(self.name() + '.or', self, right)
 
+  @staticmethod
   def parse(
-      # pylint: disable=redefined-builtin
-      input: _arg_types.String,
-      radix: Optional[_arg_types.Integer] = None,
+      input: _arg_types.String,  # pylint: disable=redefined-builtin
+      radix: _arg_types.Integer | None = None,
   ) -> Number:
     """Returns a number from a string.
 
@@ -772,27 +772,17 @@ class Number(computedobject.ComputedObject):
 
     return apifunction.ApiFunction.call_(self.name() + '.uint8', self)
 
-  # pylint: disable=redefined-builtin
-  # pytype: disable=invalid-annotation
-  def unitScale(
-      self,
-      min: Union[int, float, computedobject.ComputedObject],
-      max: Union[int, float, computedobject.ComputedObject],
-  ) -> Number:
-    """Scales the input so that [min, max] becomes [0, 1].
+  # pylint: disable-next=redefined-builtin
+  def unitScale(self, min: _arg_types.Number, max: _arg_types.Number) -> Number:
+    """Returns the input scaled so that [min, max] becomes [0, 1].
 
-    Values outside the range are NOT clamped.  If min == max, 0 is returned.
+    Values outside the range are NOT clamped. If min == max, 0 is returned.
 
     Args:
       min: Minimum value of the input to be scaled to 0.
       max: Maximum value of the input to be scaled to 1.
-
-    Returns:
-      An ee.Number.
     """
 
     return apifunction.ApiFunction.call_(
         self.name() + '.unitScale', self, min, max
     )
-  # pytype: enable=invalid-annotation
-  # pylint: enable=redefined-builtin

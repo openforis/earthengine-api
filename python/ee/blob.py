@@ -1,7 +1,7 @@
 """A wrapper for Blobs."""
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ee import _arg_types
 from ee import apifunction
@@ -35,29 +35,33 @@ class Blob(computedobject.ComputedObject):
     """Creates a Blob wrapper.
 
     Args:
-      url: Where to fetch the blob on GCS. Must start with "gs://". This must
-        be a python str or a ComputedObject that returns an ee.String.
+      url: Where to fetch the blob on GCS. Must start with "gs://". This must be
+        a python str or a ComputedObject that returns an ee.String. The bucket
+        metadata must be accessible  (requires the `storage.buckets.get`
+        permission which is provided by the role "Storage Legacy Bucket Reader",
+        among others, see
+        https://cloud.google.com/storage/docs/access-control/iam-roles) and
+        the bucket must be located in the US multi-region, a dual-region
+        including US-CENTRAL1, or the US-CENTRAL1 region.
     """
     self.initialize()
 
-    args: Dict[str, Any] = {'url': url}
-    func = apifunction.ApiFunction(self.name())
-
-    if isinstance(url, str):
-      if not url.startswith('gs://'):
-        raise ValueError(f'{self.name()} url must start with "gs://": "{url}"')
-
-    elif isinstance(url, computedobject.ComputedObject):
+    if isinstance(url, computedobject.ComputedObject):
       if self.is_func_returning_same(url):
         # If it is a call that is already returning a Blob, just cast.
         super().__init__(url.func, url.args, url.varName)
         return
-
+    elif isinstance(url, str):
+      if not url.startswith('gs://'):
+        raise ValueError(f'{self.name()} url must start with "gs://": "{url}"')
     else:
       raise ValueError(
-          f'{self.name()} url must be a string: {type(url)} -> "{url}"'
+          f'{self.name()} url must be a string or ComputedObject: '
+          f'{type(url)} -> "{url}"'
       )
 
+    func = apifunction.ApiFunction(self.name())
+    args: dict[str, Any] = {'url': url}
     super().__init__(func, func.promoteArgs(args))
 
   @classmethod
@@ -78,7 +82,7 @@ class Blob(computedobject.ComputedObject):
     return 'Blob'
 
   def string(
-      self, encoding: Optional[_arg_types.String] = None
+      self, encoding: _arg_types.String | None = None
   ) -> ee_string.String:
     """Returns the contents of the blob as a String.
 

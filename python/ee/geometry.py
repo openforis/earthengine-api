@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import collections.abc
+from collections.abc import Iterable, Sequence
 import json
 import math
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any
 
 from ee import _arg_types
 from ee import _utils
@@ -17,7 +17,7 @@ from ee import ee_number
 from ee import ee_string
 from ee import ee_types
 from ee import featurecollection
-from ee import projection
+from ee import projection as ee_projection
 from ee import serializer
 
 
@@ -36,12 +36,15 @@ class Geometry(computedobject.ComputedObject):
   @_utils.accept_opt_prefix('opt_proj', 'opt_geodesic', 'opt_evenOdd')
   def __init__(
       self,
-      geo_json: Union[Dict[str, Any], computedobject.ComputedObject, Geometry],
-      proj: Optional[Any] = None,
-      geodesic: Optional[bool] = None,
-      evenOdd: Optional[bool] = None,  # pylint: disable=g-bad-name
+      geo_json: dict[str, Any] | computedobject.ComputedObject | Geometry,
+      proj: Any | None = None,
+      geodesic: bool | None = None,
+      evenOdd: bool | None = None,  # pylint: disable=g-bad-name
   ):
     """Creates a geometry.
+
+    Note that a creating a Geometry from a ComputedObject cannot have have any
+    overrides from the arguments proj, geodesic, or evenOdd.
 
     Args:
       geo_json: The GeoJSON object describing the geometry or a computed object
@@ -56,8 +59,8 @@ class Geometry(computedobject.ComputedObject):
       geodesic: Whether line segments should be interpreted as spherical
         geodesics. If false, indicates that line segments should be interpreted
         as planar lines in the specified CRS. If absent, defaults to true if the
-        CRS is geographic (including the default
-          EPSG:4326), or to false if the CRS is projected.
+        CRS is geographic (including the default EPSG:4326), or to false if the
+        CRS is projected.
       evenOdd: If true, polygon interiors will be determined by the even/odd
         rule, where a point is inside if it crosses an odd number of edges to
         reach a point at infinity. Otherwise polygons use the left-inside rule,
@@ -70,15 +73,16 @@ class Geometry(computedobject.ComputedObject):
     self.initialize()
 
     # pylint: disable-next=protected-access
+    has_resolved_geometry_type = getattr(geo_json, '_type', None) is not None
     computed = isinstance(geo_json, computedobject.ComputedObject) and not (
-        isinstance(geo_json, Geometry) and geo_json._type is not None
+        isinstance(geo_json, Geometry) and has_resolved_geometry_type
     )
-    options = proj or geodesic or evenOdd
+    options = proj is not None or geodesic is not None or evenOdd is not None
     if computed:
       if options:
         raise ee_exception.EEException(
             'Setting the CRS or geodesic on a computed Geometry is not '
-            'supported.  Use Geometry.transform().')
+            'supported. Use Geometry.transform().')
       else:
         super().__init__(geo_json.func, geo_json.args, geo_json.varName)
         return
@@ -147,7 +151,7 @@ class Geometry(computedobject.ComputedObject):
     self._computed_equivalent = apifunction.ApiFunction.lookup(
         'GeometryConstructors.' + ctor_name).apply(ctor_args)
 
-  def _get_name_from_crs(self, crs: Dict[str, Any]) -> str:
+  def _get_name_from_crs(self, crs: dict[str, Any]) -> str:
     """Returns projection name from a CRS."""
     if isinstance(crs, dict) and crs.get('type') == 'name':
       properties = crs.get('properties')
@@ -156,7 +160,7 @@ class Geometry(computedobject.ComputedObject):
         if isinstance(name, str):
           return name
     raise ee_exception.EEException(
-        'Invalid CRS declaration in GeoJSON: ' + json.dumps(crs)
+        f'Invalid CRS declaration in GeoJSON: {json.dumps(crs)}'
     )
 
   @classmethod
@@ -187,18 +191,19 @@ class Geometry(computedobject.ComputedObject):
       coords: A list of two [x,y] coordinates in the given projection.
       proj: The projection of this geometry, or EPSG:4326 if unspecified.
       *args: For convenience, varargs may be used when all arguments are
-          numbers. This allows creating EPSG:4326 points, e.g.,
-          ee.Geometry.Point(lng, lat).
+        numbers. This allows creating EPSG:4326 points, e.g.,
+        ee.Geometry.Point(lng, lat).
       **kwargs: Keyword args that accept "lon" and "lat" for backward-
-          compatibility.
+        compatibility.
 
     Returns:
       An ee.Geometry describing a point.
     """
     init = Geometry._parseArgs(
-        'Point', 1,
-        Geometry._GetSpecifiedArgs((coords, proj) + args, ('lon', 'lat'),
-                                   **kwargs))
+        'Point',
+        1,
+        Geometry._GetArgs((coords, proj) + args, ('lon', 'lat'), **kwargs),
+    )
     if not isinstance(init, computedobject.ComputedObject):
       xy = init['coordinates']
       if not isinstance(xy, (list, tuple)) or len(xy) != 2:
@@ -226,7 +231,7 @@ class Geometry(computedobject.ComputedObject):
     Returns:
       An ee.Geometry describing a MultiPoint.
     """
-    all_args = Geometry._GetSpecifiedArgs((coords, proj) + args)
+    all_args = Geometry._GetArgs((coords, proj) + args)
     return Geometry(Geometry._parseArgs('MultiPoint', 2, all_args))
 
   # pylint: disable=keyword-arg-before-vararg
@@ -270,10 +275,14 @@ class Geometry(computedobject.ComputedObject):
       An ee.Geometry describing a rectangular polygon.
     """
     init = Geometry._parseArgs(
-        'Rectangle', 2,
-        Geometry._GetSpecifiedArgs(
+        'Rectangle',
+        2,
+        Geometry._GetArgs(
             (coords, proj, geodesic, evenOdd) + args,
-            ('xlo', 'ylo', 'xhi', 'yhi'), **kwargs))
+            ('xlo', 'ylo', 'xhi', 'yhi'),
+            **kwargs,
+        ),
+    )
     if not isinstance(init, computedobject.ComputedObject):
       # GeoJSON does not have a Rectangle type, so expand to a Polygon.
       xy = init['coordinates']
@@ -291,10 +300,10 @@ class Geometry(computedobject.ComputedObject):
 
   @staticmethod
   def BBox(
-      west: Union[float, computedobject.ComputedObject],
-      south: Union[float, computedobject.ComputedObject],
-      east: Union[float, computedobject.ComputedObject],
-      north: Union[float, computedobject.ComputedObject],
+      west: float | computedobject.ComputedObject,
+      south: float | computedobject.ComputedObject,
+      east: float | computedobject.ComputedObject,
+      north: float | computedobject.ComputedObject,
   ) -> Geometry:
     """Constructs a rectangle ee.Geometry from lines of latitude and longitude.
 
@@ -328,22 +337,20 @@ class Geometry(computedobject.ComputedObject):
     # support the general idea of an around-the-globe latitude band. By writing
     # them negated, we also reject NaN.
     if not west < math.inf:
-      raise ee_exception.EEException(
-          'Geometry.BBox: west must not be {}'.format(west))
+      raise ee_exception.EEException(f'Geometry.BBox: west must not be {west}')
     if not east > -math.inf:
-      raise ee_exception.EEException(
-          'Geometry.BBox: east must not be {}'.format(east))
+      raise ee_exception.EEException(f'Geometry.BBox: east must not be {east}')
     # Reject cases which, if we clamped them instead, would move a box whose
     # bounds lie entirely "past" a pole to being at the pole. By writing them
     # negated, we also reject NaN.
     if not south <= 90:
       raise ee_exception.EEException(
-          'Geometry.BBox: south must be at most +90°, but was {}°'.format(
-              south))
+          f'Geometry.BBox: south must be at most +90°, but was {south}°'
+      )
     if not north >= -90:
       raise ee_exception.EEException(
-          'Geometry.BBox: north must be at least -90°, but was {}°'.format(
-              north))
+          f'Geometry.BBox: north must be at least -90°, but was {north}°'
+      )
     # On the other hand, allow a box whose extent lies past the pole, but
     # canonicalize it to being exactly the pole.
     south = max(south, -90)
@@ -398,7 +405,7 @@ class Geometry(computedobject.ComputedObject):
     """Constructs an ee.Geometry describing a LineString.
 
     Args:
-      coords: A list of at least two points.  May be a list of coordinates in
+      coords: A list of at least two points. May be a list of coordinates in
           the GeoJSON 'LineString' format, a list of at least two ee.Geometry
           objects describing a point, or a list of at least four numbers
           defining the [x,y] coordinates of at least two points.
@@ -419,8 +426,7 @@ class Geometry(computedobject.ComputedObject):
     Returns:
       An ee.Geometry describing a LineString.
     """
-    all_args = Geometry._GetSpecifiedArgs((coords, proj, geodesic, maxError) +
-                                          args)
+    all_args = Geometry._GetArgs((coords, proj, geodesic, maxError) + args)
     return Geometry(Geometry._parseArgs('LineString', 2, all_args))
 
   # pylint: disable=keyword-arg-before-vararg
@@ -459,8 +465,7 @@ class Geometry(computedobject.ComputedObject):
     Returns:
       A dictionary representing a GeoJSON LinearRing.
     """
-    all_args = Geometry._GetSpecifiedArgs((coords, proj, geodesic, maxError) +
-                                          args)
+    all_args = Geometry._GetArgs((coords, proj, geodesic, maxError) + args)
     return Geometry(Geometry._parseArgs('LinearRing', 2, all_args))
 
   # pylint: disable=keyword-arg-before-vararg
@@ -475,7 +480,7 @@ class Geometry(computedobject.ComputedObject):
     """Constructs an ee.Geometry describing a MultiLineString.
 
     Create a GeoJSON MultiLineString from either a list of points, or an array
-    of lines (each an array of Points).  If a list of points is specified,
+    of lines (each an array of Points). If a list of points is specified,
     only a single line is created.
 
     Args:
@@ -500,8 +505,7 @@ class Geometry(computedobject.ComputedObject):
     Returns:
       An ee.Geometry describing a MultiLineString.
     """
-    all_args = Geometry._GetSpecifiedArgs((coords, proj, geodesic, maxError) +
-                                          args)
+    all_args = Geometry._GetArgs((coords, proj, geodesic, maxError) + args)
     return Geometry(Geometry._parseArgs('MultiLineString', 3, all_args))
 
   # pylint: disable=keyword-arg-before-vararg
@@ -544,8 +548,9 @@ class Geometry(computedobject.ComputedObject):
     Returns:
       An ee.Geometry describing a polygon.
     """
-    all_args = Geometry._GetSpecifiedArgs((coords, proj, geodesic, maxError,
-                                           evenOdd) + args)
+    all_args = Geometry._GetArgs(
+        (coords, proj, geodesic, maxError, evenOdd) + args
+    )
     return Geometry(Geometry._parseArgs('Polygon', 3, all_args))
 
   # pylint: disable=keyword-arg-before-vararg
@@ -590,12 +595,14 @@ class Geometry(computedobject.ComputedObject):
     Returns:
       An ee.Geometry describing a MultiPolygon.
     """
-    all_args = Geometry._GetSpecifiedArgs((coords, proj, geodesic, maxError,
-                                           evenOdd) + args)
+
+    all_args = Geometry._GetArgs(
+        (coords, proj, geodesic, maxError, evenOdd) + args
+    )
     return Geometry(Geometry._parseArgs('MultiPolygon', 4, all_args))
 
   @_utils.accept_opt_prefix('opt_encoder')
-  def encode(self, encoder: Optional[Any] = None) -> Dict[str, Any]:
+  def encode(self, encoder: Any | None = None) -> dict[str, Any]:
     """Returns a GeoJSON-compatible representation of the geometry."""
     if not getattr(self, '_type', None):
       return super().encode(encoder)
@@ -624,7 +631,7 @@ class Geometry(computedobject.ComputedObject):
 
     return self._computed_equivalent.encode_cloud_value(encoder)
 
-  def toGeoJSON(self) -> Dict[str, Any]:
+  def toGeoJSON(self) -> dict[str, Any]:
     """Returns a GeoJSON representation of the geometry."""
     if self.func:
       raise ee_exception.EEException(
@@ -643,18 +650,18 @@ class Geometry(computedobject.ComputedObject):
       )
     return json.dumps(self.toGeoJSON())
 
-  def serialize(self, for_cloud_api=True):
+  def serialize(self, for_cloud_api: bool = True) -> str:
     """Returns the serialized representation of this object."""
     return serializer.toJSON(self, for_cloud_api=for_cloud_api)
 
   def __str__(self) -> str:
-    return 'ee.Geometry(%s)' % serializer.toReadableJSON(self)
+    return f'ee.Geometry({serializer.toReadableJSON(self)})'
 
   def __repr__(self) -> str:
     return self.__str__()
 
   @staticmethod
-  def _isValidGeometry(geometry: Dict[str, Any]) -> bool:
+  def _isValidGeometry(geometry: dict[str, Any]) -> bool:
     """Check if a geometry looks valid.
 
     Args:
@@ -689,7 +696,7 @@ class Geometry(computedobject.ComputedObject):
                (nesting == 4 or not coords)))
 
   @staticmethod
-  def _isValidCoordinates(shape: Union[Sequence[float], Geometry]) -> int:
+  def _isValidCoordinates(shape: Sequence[float] | Geometry) -> int:
     """Validate the coordinates of a geometry.
 
     Args:
@@ -698,10 +705,10 @@ class Geometry(computedobject.ComputedObject):
     Returns:
       The number of nested arrays or -1 on error.
     """
-    if not isinstance(shape, collections.abc.Iterable):
+    if not isinstance(shape, Iterable):
       return -1
 
-    if (shape and isinstance(shape[0], collections.abc.Iterable) and
+    if (shape and isinstance(shape[0], Iterable) and
         not isinstance(shape[0], str)):
       count = Geometry._isValidCoordinates(shape[0])
       # If more than 1 ring or polygon, they should have the same nesting.
@@ -726,7 +733,7 @@ class Geometry(computedobject.ComputedObject):
     """Create a line from a list of points.
 
     Args:
-      coordinates: The points to convert.  Must be list of numbers of
+      coordinates: The points to convert. Must be list of numbers of
           even length, in the format [x1, y1, x2, y2, ...]
 
     Returns:
@@ -738,16 +745,16 @@ class Geometry(computedobject.ComputedObject):
       return coordinates
     if len(coordinates) % 2 != 0:
       raise ee_exception.EEException(
-          'Invalid number of coordinates: %s' % len(coordinates))
+          f'Invalid number of coordinates: {len(coordinates)}'
+      )
 
-    line = []
-    for i in range(0, len(coordinates), 2):
-      pt = [coordinates[i], coordinates[i + 1]]
-      line.append(pt)
-    return line
+    return [
+        [coordinates[i], coordinates[i + 1]]
+        for i in range(0, len(coordinates), 2)
+    ]
 
   @staticmethod
-  def _parseArgs(ctor_name: str, depth: int, args: Any) -> Dict[str, Any]:
+  def _parseArgs(ctor_name: str, depth: int, args: Any) -> dict[str, Any]:
     """Parses arguments into a GeoJSON dictionary or a ComputedObject.
 
     Args:
@@ -766,16 +773,16 @@ class Geometry(computedobject.ComputedObject):
       keys.append('maxError')
     keys.append('evenOdd')
 
-    if all(ee_types.isNumber(i) for i in args):
+    if all(ee_types.isNumber(i) or i == _UNSPECIFIED for i in args):
       # All numbers, so convert them to a true array.
-      result['coordinates'] = args
+      result['coordinates'] = [i for i in args if i != _UNSPECIFIED]
     else:
       # Parse parameters by position.
       if len(args) > len(keys):
         raise ee_exception.EEException(
             'Geometry constructor given extra arguments.')
       for key, arg in zip(keys, args):
-        if arg is not None:
+        if arg is not None and arg != _UNSPECIFIED:
           result[key] = arg
 
     # Standardize the coordinates and test if they are simple enough for
@@ -865,17 +872,14 @@ class Geometry(computedobject.ComputedObject):
     return coords
 
   @staticmethod
-  def _GetSpecifiedArgs(
-      args, keywords: Tuple[str, ...] = (), **kwargs
-  ) -> List[Any]:
-    """Returns args, filtering out _UNSPECIFIED and checking for keywords."""
+  def _GetArgs(args, keywords: tuple[str, ...] = (), **kwargs) -> list[Any]:
+    """Returns all args, specified or not, checking for keywords."""
+    args = list(args)
     if keywords:
-      args = list(args)
       for i, keyword in enumerate(keywords):
         if keyword in kwargs:
-          assert args[i] is _UNSPECIFIED
           args[i] = kwargs[keyword]
-    return [i for i in args if i != _UNSPECIFIED]
+    return args
 
   @staticmethod
   def name() -> str:
@@ -884,8 +888,8 @@ class Geometry(computedobject.ComputedObject):
   def area(
       self,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> ee_number.Number:
     """Returns the area of the geometry.
 
@@ -907,8 +911,8 @@ class Geometry(computedobject.ComputedObject):
   def bounds(
       self,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns the bounding rectangle of the geometry.
 
@@ -927,8 +931,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       distance: _arg_types.Number,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns the input buffered by a given distance.
 
@@ -955,8 +959,8 @@ class Geometry(computedobject.ComputedObject):
   def centroid(
       self,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns a point at the center of the highest-dimension components.
 
@@ -979,8 +983,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> computedobject.ComputedObject:
     """Returns the point on the right input that is nearest to the left input.
 
@@ -1008,8 +1012,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> computedobject.ComputedObject:
     """Returns the points on the right input that are nearest to the left input.
 
@@ -1040,8 +1044,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> computedobject.ComputedObject:
     """Returns true if and only if one geometry is contained in the other.
 
@@ -1065,8 +1069,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> computedobject.ComputedObject:
     """Returns true if and only if one geometry contains the other.
 
@@ -1089,8 +1093,8 @@ class Geometry(computedobject.ComputedObject):
   def convexHull(
       self,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns the convex hull of the given geometry.
 
@@ -1119,7 +1123,7 @@ class Geometry(computedobject.ComputedObject):
   def coveringGrid(
       self,
       proj: _arg_types.Projection,
-      scale: Optional[_arg_types.Number] = None,
+      scale: _arg_types.Number | None = None,
   ) -> featurecollection.FeatureCollection:
     """Returns a collection of features that cover this geometry.
 
@@ -1143,8 +1147,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       distances: _arg_types.List,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns geometries cut into pieces along the given distances.
 
@@ -1171,8 +1175,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns the result of subtracting the 'right' geometry from the geometry.
 
@@ -1193,8 +1197,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> computedobject.ComputedObject:
     """Returns true if and only if the geometries are disjoint.
 
@@ -1217,8 +1221,8 @@ class Geometry(computedobject.ComputedObject):
   def dissolve(
       self,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns the union of the geometry.
 
@@ -1239,8 +1243,9 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
+      spherical: _arg_types.Bool | None = None,
   ) -> ee_number.Number:
     """Returns the minimum distance between two geometries.
 
@@ -1251,13 +1256,17 @@ class Geometry(computedobject.ComputedObject):
       proj: The projection in which to perform the operation. If not specified,
         the operation will be performed in a spherical coordinate system, and
         linear distances will be in meters on the sphere.
+      spherical: If true, the calculation will be done on the unit sphere. If
+        false, the calculation will be elliptical, taking earth flattening into
+        account. Ignored if proj is specified. Default is false.
+
 
     Returns:
       An ee.Float.
     """
 
     return apifunction.ApiFunction.call_(
-        self.name() + '.distance', self, right, maxError, proj
+        self.name() + '.distance', self, right, maxError, proj, spherical
     )
 
   def edgesAreGeodesics(self) -> computedobject.ComputedObject:
@@ -1318,8 +1327,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns the intersection of the two geometries.
 
@@ -1340,8 +1349,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> computedobject.ComputedObject:
     """Returns true if and only if the geometries intersect.
 
@@ -1369,8 +1378,8 @@ class Geometry(computedobject.ComputedObject):
   def length(
       self,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> ee_number.Number:
     """Returns the length of the linear parts of the geometry.
 
@@ -1391,8 +1400,8 @@ class Geometry(computedobject.ComputedObject):
   def perimeter(
       self,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> ee_number.Number:
     """Returns the perimeter length of the polygonal parts of the geometry.
 
@@ -1410,7 +1419,7 @@ class Geometry(computedobject.ComputedObject):
         self.name() + '.perimeter', self, maxError, proj
     )
 
-  def projection(self) -> projection.Projection:
+  def projection(self) -> ee_projection.Projection:
     """Returns the projection of the geometry."""
 
     return apifunction.ApiFunction.call_(self.name() + '.projection', self)
@@ -1429,7 +1438,7 @@ class Geometry(computedobject.ComputedObject):
   def simplify(
       self,
       maxError: _arg_types.ErrorMargin,  # pylint: disable=invalid-name
-      proj: Optional[_arg_types.Projection] = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns a simplified geometry to within a given error margin.
 
@@ -1460,8 +1469,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns the symmetric difference between two geometries.
 
@@ -1480,9 +1489,9 @@ class Geometry(computedobject.ComputedObject):
 
   def transform(
       self,
-      proj: Optional[_arg_types.Projection] = None,
+      proj: _arg_types.Projection | None = None,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
   ) -> Geometry:
     """Returns the geometry Transformed to a specific projection.
 
@@ -1507,8 +1516,8 @@ class Geometry(computedobject.ComputedObject):
       self,
       right: _arg_types.Geometry,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> Geometry:
     """Returns the union of the two geometries.
 
@@ -1530,8 +1539,8 @@ class Geometry(computedobject.ComputedObject):
       right: _arg_types.Geometry,
       distance: _arg_types.Number,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
-      proj: Optional[_arg_types.Projection] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
+      proj: _arg_types.Projection | None = None,
   ) -> computedobject.ComputedObject:
     """Returns true if the geometries are within a specified distance.
 

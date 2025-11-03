@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import dataclasses
 import datetime
 import functools
 import inspect
 import json
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 import urllib
 import warnings
 
@@ -15,7 +16,7 @@ _DEPRECATED_OBJECT = 'earthengine-stac/catalog/catalog_deprecated.json'
 _DEPRECATED_ASSETS_URL = f'https://storage.googleapis.com/{_DEPRECATED_OBJECT}'
 
 # Deprecation warnings are per-asset, per-initialization.
-deprecated_assets: Dict[str, DeprecatedAsset] = None
+deprecated_assets: dict[str, DeprecatedAsset] = dict()
 
 
 def Deprecated(message: str):
@@ -36,7 +37,7 @@ def Deprecated(message: str):
     @functools.wraps(func)
     def Wrapper(*args, **kwargs):
       warnings.warn_explicit(
-          '%s() is deprecated: %s' % (func.__name__, message),
+          f'{func.__name__}() is deprecated: {message}',
           category=DeprecationWarning,
           filename=func.__code__.co_filename,
           lineno=func.__code__.co_firstlineno + 1,
@@ -67,14 +68,14 @@ class DeprecatedAsset:
   """Class for keeping track of a single deprecated asset."""
 
   id: str
-  replacement_id: Optional[str]
-  removal_date: Optional[datetime.datetime]
-  learn_more_url: Optional[str]
+  replacement_id: str | None
+  removal_date: datetime.datetime | None
+  learn_more_url: str | None
 
   has_warning_been_issued: bool = False
 
   @classmethod
-  def _ParseDateString(cls, date_str: str) -> Optional[datetime.datetime]:
+  def _ParseDateString(cls, date_str: str) -> datetime.datetime | None:
     try:
       # We can't use `datetime.datetime.fromisoformat` because it's behavior
       # changes by Python version.
@@ -83,12 +84,14 @@ class DeprecatedAsset:
       return None
 
   @classmethod
-  def FromStacLink(cls, stac_link: Dict[str, Any]) -> DeprecatedAsset:
+  def FromStacLink(cls, stac_link: dict[str, Any]) -> DeprecatedAsset:
     removal_date = stac_link.get('gee:removal_date')
     if removal_date is not None:
       removal_date = cls._ParseDateString(removal_date)
+    title = stac_link.get('title')
+    assert isinstance(title, str)
     return DeprecatedAsset(
-        id=stac_link.get('title'),
+        id=title,
         replacement_id=stac_link.get('gee:replacement_id'),
         removal_date=removal_date,
         learn_more_url=stac_link.get('gee:learn_more_url'),
@@ -139,7 +142,7 @@ def InitializeDeprecatedAssets() -> None:
 
 def _InitializeDeprecatedAssetsInternal() -> None:
   global deprecated_assets
-  if deprecated_assets is not None:
+  if deprecated_assets:
     return
   _UnfilterDeprecationWarnings()
 
@@ -153,10 +156,10 @@ def _InitializeDeprecatedAssetsInternal() -> None:
 
 def Reset() -> None:
   global deprecated_assets
-  deprecated_assets = None
+  deprecated_assets = dict()
 
 
-def _FetchDataCatalogStac() -> Dict[str, Any]:
+def _FetchDataCatalogStac() -> dict[str, Any]:
   try:
     response = urllib.request.urlopen(_DEPRECATED_ASSETS_URL).read()
   except (urllib.error.HTTPError, urllib.error.URLError):
@@ -164,7 +167,7 @@ def _FetchDataCatalogStac() -> Dict[str, Any]:
   return json.loads(response)
 
 
-def _GetStringFromObject(obj: Any) -> Optional[str]:
+def _GetStringFromObject(obj: Any) -> str | None:
   if isinstance(obj, str):
     return obj
   return None
@@ -189,7 +192,7 @@ def _IssueAssetDeprecationWarning(asset: DeprecatedAsset) -> None:
 
   warning = (
       f'\n\nAttention required for {asset.id}! You are using a deprecated'
-      ' asset.\nTo ensure continued functionality, please update it'
+      ' asset.\nTo make sure your code keeps working, please update it'
   )
   removal_date = asset.removal_date
   today = datetime.datetime.now()
@@ -202,6 +205,11 @@ def _IssueAssetDeprecationWarning(asset: DeprecatedAsset) -> None:
       formatted_date = removal_date.strftime('%B %d, %Y').replace(' 0', ' ')
       warning += f' by {formatted_date}'
   warning += '.'
+  if asset.replacement_id:
+    warning = (
+        warning
+        + f'\nThis dataset has been superseded by {asset.replacement_id}\n'
+    )
   if asset.learn_more_url:
     warning = warning + f'\nLearn more: {asset.learn_more_url}\n'
   warnings.warn(warning, category=DeprecationWarning)

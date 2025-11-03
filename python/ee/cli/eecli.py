@@ -35,11 +35,15 @@ def _run_command(*argv):
       'Defaults to "~/%s".' % utils.DEFAULT_EE_CONFIG_FILE_RELATIVE)
   parser.add_argument(
       '--service_account_file', help='Path to a service account credentials'
-      'file.  Overrides any ee_config if specified.')
+      'file. Overrides any ee_config if specified.')
   parser.add_argument(
       '--project',
       help='Specifies a Google Cloud Platform Project id to override the call.',
       dest='project_override')
+  version = ee.__version__
+  parser.add_argument(
+      '--version', action='version', version=f'%(prog)s {version}'
+  )
 
   dispatcher = CommandDispatcher(parser)
 
@@ -50,7 +54,9 @@ def _run_command(*argv):
 
   args = parser.parse_args()
   config = utils.CommandLineConfig(
-      args.ee_config, args.service_account_file, args.project_override
+      config_file=args.ee_config,
+      service_account_file=args.service_account_file,
+      project_override=args.project_override,
   )
 
   # Catch EEException errors, which wrap server-side Earth Engine

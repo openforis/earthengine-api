@@ -1,9 +1,8 @@
 goog.module('ee.layers.FeatureViewTileSource');
-goog.module.declareLegacyNamespace();
 
 const AbstractTile = goog.require('ee.layers.AbstractTile');
 const AbstractTileSource = goog.require('ee.layers.AbstractTileSource');
-const ee = goog.require('ee');
+const {FeatureViewTilesKey} = goog.requireType('ee.data');
 
 /**
  * A tile source for FeatureView tiles.
@@ -13,7 +12,7 @@ const ee = goog.require('ee');
  */
 const FeatureViewTileSource = class extends AbstractTileSource {
   /**
-   * @param {!ee.data.FeatureViewTilesKey} tilesKey FeatureView tiles key for
+   * @param {!FeatureViewTilesKey} tilesKey FeatureView tiles key for
    *     fetching this layer's tiles.
    */
   constructor(tilesKey) {

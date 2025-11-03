@@ -3,7 +3,7 @@
 
 import enum
 import json
-from typing import Any, Dict
+from typing import Any
 
 import unittest
 import ee
@@ -25,15 +25,15 @@ PIXELTYPE = 'PixelType'
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any]
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any]
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
   }
 
 
-def pixeltype_function_expr(value: Type) -> Dict[str, Any]:
+def pixeltype_function_expr(value: Type) -> dict[str, Any]:
   return {
       'functionInvocationValue': {
           'functionName': 'PixelType',
@@ -42,7 +42,7 @@ def pixeltype_function_expr(value: Type) -> Dict[str, Any]:
   }
 
 
-def pixeltype_noargs_expr(type_name: str) -> Dict[str, Any]:
+def pixeltype_noargs_expr(type_name: str) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {
@@ -78,7 +78,7 @@ class PixelTypeTest(apitestcase.ApiTestCase):
 
     self.assertFalse(pixeltype.isVariable())
     self.assertEqual(
-        set([DIMENSIONS_KEY, MAX_VALUE_KEY, MIN_VALUE_KEY, PRECISION_KEY]),
+        {DIMENSIONS_KEY, MAX_VALUE_KEY, MIN_VALUE_KEY, PRECISION_KEY},
         set(pixeltype.args),
     )
     expected_dimensions = {'result': '0', 'values': {'0': {'constantValue': 2}}}
@@ -294,7 +294,6 @@ class PixelTypeTest(apitestcase.ApiTestCase):
     expect = pixeltype_noargs_expr('int16')
     expression = ee.PixelType.int16()
     result = json.loads(expression.serialize())
-    print(json.dumps(result, indent=2))
     self.assertEqual(expect, result)
 
   def test_int32(self):

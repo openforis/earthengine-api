@@ -8,6 +8,7 @@ the actions to be taken when the command is executed.
 import argparse
 import calendar
 import collections
+from collections.abc import Sequence
 import datetime
 import json
 import logging
@@ -16,7 +17,7 @@ import re
 import shutil
 import sys
 import tempfile
-from typing import Any, Dict, List, Sequence, Tuple, Type, Union
+from typing import Any, Union
 import urllib.parse
 
 # Prevent TensorFlow from logging anything at the native level.
@@ -51,25 +52,6 @@ except TypeError:
 finally:
   logging.getLogger().setLevel(old_level)
 
-TENSORFLOW_ADDONS_INSTALLED = False
-# pylint: disable=g-import-not-at-top
-if TENSORFLOW_INSTALLED:
-  try:
-    # This import is enough to register TFA ops though isn't directly used
-    # (for now).
-    # pylint: disable=unused-import
-    import tensorflow_addons as tfa
-    tfa.register_all(custom_kernels=False)  # pytype: disable=module-attr
-    TENSORFLOW_ADDONS_INSTALLED = True
-  except ImportError:
-    pass
-  except AttributeError:
-    # This can be thrown by "tfa.register_all()" which means the
-    # tensorflow_addons version is registering ops the old way, i.e.
-    # automatically at import time. If this is the case, we've actually
-    # successfully registered TFA.
-    TENSORFLOW_ADDONS_INSTALLED = True
-
 # pylint: disable=g-import-not-at-top, g-bad-import-order
 import ee
 from ee.cli import utils
@@ -87,7 +69,7 @@ TYPE_STRING = 'string'
 SYSTEM_TIME_START = 'system:time_start'
 SYSTEM_TIME_END = 'system:time_end'
 
-# A regex that parses properties of the form "[(type)]name=value".  The
+# A regex that parses properties of the form "[(type)]name=value". The
 # second, third, and fourth group are type, name, and number, respectively.
 PROPERTY_RE = re.compile(r'(\(([^\)]*)\))?([^=]+)=(.*)')
 
@@ -129,7 +111,7 @@ def _add_overwrite_arg(parser: argparse.ArgumentParser) -> None:
 
 
 def _upload(
-    args: argparse.Namespace, request: Dict[str, Any], ingestion_function: Any
+    args: argparse.Namespace, request: dict[str, Any], ingestion_function: Any
 ) -> None:
   if 0 <= args.wait < 10:
     raise ee.EEException('Wait time should be at least 10 seconds.')
@@ -142,20 +124,20 @@ def _upload(
 
 
 # Argument types
-def _comma_separated_strings(string: str) -> List[str]:
+def _comma_separated_strings(string: str) -> list[str]:
   """Parses an input consisting of comma-separated strings."""
   error_msg = 'Argument should be a comma-separated list of strings: {}'
   values = string.split(',')
-  if not values:
+  if not all(values):
     raise argparse.ArgumentTypeError(error_msg.format(string))
   return values
 
 
-def _comma_separated_numbers(string: str) -> List[float]:
+def _comma_separated_numbers(string: str) -> list[float]:
   """Parses an input consisting of comma-separated numbers."""
   error_msg = 'Argument should be a comma-separated list of numbers: {}'
   values = string.split(',')
-  if not values:
+  if not all(values):
     raise argparse.ArgumentTypeError(error_msg.format(string))
   numbervalues = []
   for value in values:
@@ -170,12 +152,12 @@ def _comma_separated_numbers(string: str) -> List[float]:
   return numbervalues
 
 
-def _comma_separated_pyramiding_policies(string: str) -> List[str]:
+def _comma_separated_pyramiding_policies(string: str) -> list[str]:
   """Parses an input consisting of comma-separated pyramiding policies."""
   error_msg = ('Argument should be a comma-separated list of: '
-               '{{"mean", "sample", "min", "max", "mode"}}: {}')
+               '{{"mean", "median", "sample", "min", "max", "mode"}}: {}')
   values = string.split(',')
-  if not values:
+  if not all(values):
     raise argparse.ArgumentTypeError(error_msg.format(string))
   redvalues = []
   for value in values:
@@ -205,15 +187,46 @@ def _timestamp_ms_for_datetime(datetime_obj: datetime.datetime) -> int:
 def _cloud_timestamp_for_timestamp_ms(timestamp_ms: float) -> str:
   """Returns a Cloud-formatted date for the given millisecond timestamp."""
   # Desired format is like '2003-09-07T19:30:12.345Z'
-  return datetime.datetime.utcfromtimestamp(
-      timestamp_ms / 1000.0).isoformat() + 'Z'
+  timestamp = datetime.datetime.fromtimestamp(
+      timestamp_ms / 1000.0, datetime.timezone.utc
+  )
+  return timestamp.replace(tzinfo=None).isoformat() + 'Z'
 
 
-def _parse_millis(millis: float) -> datetime.datetime:
-  return datetime.datetime.fromtimestamp(millis / 1000)
+def _datetime_from_cloud_timestamp(
+    cloud_timestamp: str | None,
+) -> datetime.datetime:
+  """Returns a datetime object for the given Cloud-formatted timestamp.
+
+  Args:
+    cloud_timestamp: A timestamp string in the format 'YYYY-MM-DDTHH:MM:SS.mmmZ'
+      or 'YYYY-MM-DDTHH:MM:SSZ'. If None, returns the epoch.
+
+  Returns:
+    A datetime object for the given Cloud-formatted timestamp. If the timestamp
+    is None, returns the epoch.
+  """
+  if not cloud_timestamp:
+    return datetime.datetime.fromtimestamp(0)
+  # Replace 'Z' with the UTC offset +00:00 for fromisoformat compatibility.
+  return datetime.datetime.fromisoformat(cloud_timestamp.replace('Z', '+00:00'))
 
 
-def _decode_date(string: str) -> Union[float, str]:
+def _format_cloud_timestamp(timestamp: str | None) -> str:
+  """Returns a formatted datetime for the given Cloud-formatted timestamp.
+
+  Args:
+    timestamp: A timestamp string in the format 'YYYY-MM-DDTHH:MM:SS.mmmZ'
+      or 'YYYY-MM-DDTHH:MM:SSZ'.
+
+  Returns:
+    A formatted datetime string in the format 'YYYY-MM-DD HH:MM:SS'. If the
+    timestamp is None, returns the formatted epoch.
+  """
+  return _datetime_from_cloud_timestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def _decode_date(string: str) -> float | str:
   """Decodes a date from a command line argument, returning msec since epoch".
 
   Args:
@@ -246,13 +259,34 @@ def _decode_date(string: str) -> Union[float, str]:
       'Invalid value for property of type "date": "%s".' % string)
 
 
-def _decode_property(string: str) -> Tuple[str, Any]:
+def _task_id_to_operation_name(task_id: str) -> str:
+  """Converts a task ID to an operation name."""
+  # pylint: disable=protected-access
+  return ee._cloud_api_utils.convert_task_id_to_operation_name(
+      ee.data._get_state().cloud_api_user_project, task_id
+  )
+  # pylint: enable=protected-access
+
+
+def _operation_name_to_task_id(operation_name: str) -> str:
+  """Converts an operation name to a task ID."""
+  # pylint: disable-next=protected-access
+  return ee._cloud_api_utils.convert_operation_name_to_task_id(operation_name)
+
+
+def _convert_to_operation_state(state: str) -> str:
+  """Converts a task or operation state to an operation state."""
+  # pylint: disable-next=protected-access
+  return ee._cloud_api_utils.convert_to_operation_state(state)
+
+
+def _decode_property(string: str) -> tuple[str, Any]:
   """Decodes a general key-value property from a command-line argument.
 
   Args:
     string: The string must have the form name=value or (type)name=value, where
       type is one of 'number', 'string', or 'date'. The value format for dates
-      is YYYY-MM-DD[THH:MM:SS[.MS]].  The value 'null' is special: it evaluates
+      is YYYY-MM-DD[THH:MM:SS[.MS]]. The value 'null' is special: it evaluates
       to None unless it is cast to a string of 'null'.
 
   Returns:
@@ -309,7 +343,7 @@ def _add_property_flags(parser: argparse.ArgumentParser) -> None:
       type=_decode_date)
 
 
-def _decode_property_flags(args: argparse.Namespace) -> Dict[str, Any]:
+def _decode_property_flags(args: argparse.Namespace) -> dict[str, Any]:
   """Decodes metadata properties from args as a name->value dict."""
   property_list = list(args.property or [])
   names = [name for name, _ in property_list]
@@ -334,8 +368,8 @@ def _pretty_print_json(json_obj: Any) -> None:
 
 class Dispatcher:
   """Dispatches to a set of commands implemented as command classes."""
-  COMMANDS: List[Any]
-  command_dict: Dict[str, Any]
+  COMMANDS: list[Any]
+  command_dict: dict[str, Any]
   dest: str
   name: str
 
@@ -379,14 +413,14 @@ class AuthenticateCommand:
     parser.add_argument(
         '--quiet',
         action='store_true',
-        help='Do not prompt for input, run gcloud-legacy in no-browser mode.')
+        help='Do not prompt for input.')
     parser.add_argument(
         '--code-verifier',
         help='PKCE verifier to prevent auth code stealing.')
     parser.add_argument(
         '--auth_mode',
         help='One of: notebook - use notebook authenticator; colab - use Colab'
-        ' authenticator; gcloud / gcloud-legacy - use gcloud;'
+        ' authenticator; gcloud - use gcloud;'
         ' localhost[:PORT|:0] - use local browser')
     parser.add_argument(
         '--scopes', help='Optional comma-separated list of scopes.')
@@ -416,7 +450,7 @@ class AuthenticateCommand:
         args_auth['auth_mode'] = 'notebook'
 
     if ee.Authenticate(**args_auth):
-      print('Authenticate: Credentials already exist.  Use --force to refresh.')
+      print('Authenticate: Credentials already exist. Use --force to refresh.')
 
 
 class SetProjectCommand:
@@ -507,7 +541,7 @@ class AclChCommand:
     ee.data.setAssetAcl(args.asset_id, json.dumps(acl))
 
   def _set_permission(
-      self, permissions: Dict[str, str], grant: str, prefix: str
+      self, permissions: dict[str, str], grant: str, prefix: str
   ) -> None:
     """Sets the permission for a given user/group."""
     parts = grant.rsplit(':', 1)
@@ -524,7 +558,7 @@ class AclChCommand:
     permissions[prefixed_user] = role
 
   def _remove_permission(
-      self, permissions: Dict[str, str], user: str, prefix: str
+      self, permissions: dict[str, str], user: str, prefix: str
   ) -> None:
     """Removes permissions for a given user/group."""
     prefixed_user = user
@@ -544,7 +578,7 @@ class AclChCommand:
     else:
       return 'user:'
 
-  def _parse_permissions(self, args: argparse.Namespace) -> Dict[str, str]:
+  def _parse_permissions(self, args: argparse.Namespace) -> dict[str, str]:
     """Decodes and sanity-checks the permissions in the arguments."""
     # A dictionary mapping from user ids to one of 'R', 'W', or 'D'.
     permissions = {}
@@ -564,32 +598,34 @@ class AclChCommand:
     return permissions
 
   def _apply_permissions(
-      self, acl: Dict[str, Union[bool, List[str]]], permissions: Dict[str, str]
+      self, acl: dict[str, bool | list[str]], permissions: dict[str, str]
   ) -> None:
     """Applies the given permission edits to the given acl."""
     for user, role in permissions.items():
       if self._is_all_users(user):
-        acl[ALL_USERS_CAN_READ] = (role == 'R')
+        acl[ALL_USERS_CAN_READ] = role == 'R'
       else:
+        readers = acl[READERS]
+        writers = acl[WRITERS]
         # Make pytype understand the types.
-        assert isinstance(acl[READERS], list)
-        assert isinstance(acl[WRITERS], list)
+        assert isinstance(readers, list)
+        assert isinstance(writers, list)
 
         if role == 'R':
-          if user not in acl[READERS]:
-            acl[READERS].append(user)
-          if user in acl[WRITERS]:
-            acl[WRITERS].remove(user)
+          if user not in readers:
+            readers.append(user)
+          if user in writers:
+            writers.remove(user)
         elif role == 'W':
-          if user in acl[READERS]:
-            acl[READERS].remove(user)
-          if user not in acl[WRITERS]:
-            acl[WRITERS].append(user)
+          if user in readers:
+            readers.remove(user)
+          if user not in writers:
+            writers.append(user)
         elif role == 'D':
-          if user in acl[READERS]:
-            acl[READERS].remove(user)
-          if user in acl[WRITERS]:
-            acl[WRITERS].remove(user)
+          if user in readers:
+            readers.remove(user)
+          if user in writers:
+            writers.remove(user)
 
   def _is_all_users(self, user: str) -> bool:
     """Determines if a user name represents the special "all users" entity."""
@@ -1047,6 +1083,12 @@ class RmCommand:
   """Deletes the specified assets."""
 
   name = 'rm'
+  recursive_types = {
+      ee.data.ASSET_TYPE_FOLDER,
+      ee.data.ASSET_TYPE_IMAGE_COLL,
+      ee.data.ASSET_TYPE_FOLDER_CLOUD,
+      ee.data.ASSET_TYPE_IMAGE_COLL_CLOUD,
+  }
 
   def __init__(self, parser: argparse.ArgumentParser):
     parser.add_argument(
@@ -1067,22 +1109,29 @@ class RmCommand:
   ) -> None:
     config.ee_init()
     for asset in args.asset_id:
-      self._delete_asset(asset, args.recursive, args.verbose, args.dry_run)
+      recursive = args.recursive
+      if recursive:
+        info = self._safe_get_info(asset, args.verbose)
+        recursive = info and info['type'] in self.recursive_types
+      self._delete_asset(asset, recursive, args.verbose, args.dry_run)
+
+  def _safe_get_info(self, asset_id, verbose):
+    try:
+      return ee.data.getInfo(asset_id)
+    except ee.EEException as e:
+      if verbose:
+        print(f'Failed to get info for {asset_id}. {e}')
+      return None
 
   def _delete_asset(self, asset_id, recursive, verbose, dry_run):
     """Attempts to delete the specified asset or asset collection."""
     if recursive:
-      info = ee.data.getInfo(asset_id)
-      if info is None:
-        print('Asset does not exist or is not accessible: %s' % asset_id)
-        return
-      if info['type'] in (ee.data.ASSET_TYPE_FOLDER,
-                          ee.data.ASSET_TYPE_IMAGE_COLL,
-                          ee.data.ASSET_TYPE_FOLDER_CLOUD,
-                          ee.data.ASSET_TYPE_IMAGE_COLL_CLOUD):
-        children = ee.data.getList({'id': asset_id})
-        for child in children:
-          self._delete_asset(child['id'], True, verbose, dry_run)
+      if verbose:
+        print('Listing children of asset: %s' % asset_id)
+      children = ee.data.getList({'id': asset_id})
+      for child in children:
+        recursive = child['type'] in self.recursive_types
+        self._delete_asset(child['id'], recursive, verbose, dry_run)
     if dry_run:
       print('[dry-run] Deleting asset: %s' % asset_id)
     else:
@@ -1091,7 +1140,7 @@ class RmCommand:
       try:
         ee.data.deleteAsset(asset_id)
       except ee.EEException as e:
-        print('Failed to delete %s. %s' % (asset_id, e))
+        print(f'Failed to delete {asset_id}. {e}')
 
 
 class TaskCancelCommand:
@@ -1112,19 +1161,21 @@ class TaskCancelCommand:
     config.ee_init()
     cancel_all = args.task_ids == ['all']
     if cancel_all:
-      statuses = ee.data.getTaskList()
+      operations = ee.data.listOperations()
     else:
-      statuses = ee.data.getTaskStatus(args.task_ids)
-    for status in statuses:
-      state = status['state']
-      task_id = status['id']
+      operation_names = map(_task_id_to_operation_name, args.task_ids)
+      operations = map(ee.data.getOperation, operation_names)
+    for operation in operations:
+      name = operation['name']
+      state = operation['metadata']['state']
+      task_id = _operation_name_to_task_id(name)
       if state == 'UNKNOWN':
-        raise ee.EEException('Unknown task id "%s"' % task_id)
-      elif state == 'READY' or state == 'RUNNING':
-        print('Canceling task "%s"' % task_id)
-        ee.data.cancelTask(task_id)
+        raise ee.EEException(f'Unknown task id "{task_id}"')
+      elif state == 'PENDING' or state == 'RUNNING':
+        print(f'Canceling task "{task_id}"')
+        ee.data.cancelOperation(name)
       elif not cancel_all:
-        print('Task "%s" already in state "%s".' % (status['id'], state))
+        print(f'Task "{task_id}" already in state "{state}".')
 
 
 class TaskInfoCommand:
@@ -1140,26 +1191,30 @@ class TaskInfoCommand:
   ) -> None:
     """Runs the TaskInfo command."""
     config.ee_init()
-    for i, status in enumerate(ee.data.getTaskStatus(args.task_id)):
+    for i, task_id in enumerate(args.task_id):
+      operation = ee.data.getOperation(_task_id_to_operation_name(task_id))
       if i:
         print()
-      print('%s:' % status['id'])
-      print('  State: %s' % status['state'])
-      if status['state'] == 'UNKNOWN':
+      print(f'{task_id}:')
+      metadata = operation['metadata']
+      state = metadata['state']
+      print(f'  State: {state}')
+      if state == 'UNKNOWN':
         continue
-      print('  Type: %s' % TASK_TYPES.get(status.get('task_type'), 'Unknown'))
-      print('  Description: %s' % status.get('description'))
-      print('  Created: %s' % _parse_millis(status['creation_timestamp_ms']))
-      if 'start_timestamp_ms' in status:
-        print('  Started: %s' % _parse_millis(status['start_timestamp_ms']))
-      if 'update_timestamp_ms' in status:
-        print('  Updated: %s' % _parse_millis(status['update_timestamp_ms']))
-      if 'error_message' in status:
-        print('  Error: %s' % status['error_message'])
-      if 'destination_uris' in status:
-        print('  Destination URIs: %s' % ', '.join(status['destination_uris']))
-      if 'priority' in status:
-        print('  Priority: %s' % status['priority'])
+      print(f'  Type: {TASK_TYPES.get(metadata.get("type"), "Unknown")}')
+      print(f'  Description: {metadata.get("description")}')
+      print(f'  Created: {_format_cloud_timestamp(metadata["createTime"])}')
+      if start_time := metadata.get('startTime'):
+        print(f'  Started: {_format_cloud_timestamp(start_time)}')
+      if update_time := metadata.get('updateTime'):
+        print(f'  Updated: {_format_cloud_timestamp(update_time)}')
+      if error := operation.get('error'):
+        if error_message := error.get('message'):
+          print(f'  Error: {error_message}')
+      if destination_uris := metadata.get('destinationUris'):
+        print(f'  Destination URIs: {destination_uris}')
+      if priority := metadata.get('priority'):
+        print(f'  Priority: {priority}')
 
 
 class TaskListCommand:
@@ -1169,10 +1224,27 @@ class TaskListCommand:
 
   def __init__(self, parser: argparse.ArgumentParser):
     parser.add_argument(
-        '--status', '-s', required=False, nargs='*',
-        choices=['READY', 'RUNNING', 'COMPLETED', 'FAILED',
-                 'CANCELLED', 'UNKNOWN'],
-        help=('List tasks only with a given status'))
+        '--status',
+        '-s',
+        required=False,
+        nargs='*',
+        choices=[
+            'CANCELLED',
+            'CANCELLING',
+            'COMPLETED',  # Kept for backward compatibility.
+            'FAILED',
+            'PENDING',
+            'READY',  # Kept for backward compatibility.
+            'RUNNING',
+            'SUCCEEDED',
+            'UNKNOWN',
+        ],
+        help=(
+            'List tasks only with a given status. Note: for backward'
+            ' compatibility, "READY" is an alias for "PENDING" and "COMPLETED"'
+            ' is an alias for "SUCCEEDED".'
+        ),
+    )
     parser.add_argument(
         '--long_format',
         '-l',
@@ -1186,34 +1258,47 @@ class TaskListCommand:
   ) -> None:
     """Lists tasks present for a user, maybe filtering by state."""
     config.ee_init()
-    status = args.status
-    tasks = ee.data.getTaskList()
-    descs = [utils.truncate(task.get('description', ''), 40) for task in tasks]
+    status = list(
+        map(_convert_to_operation_state, args.status) if args.status else []
+    )
+    operations = ee.data.listOperations()
+    descs = [
+        utils.truncate(op.get('metadata', {}).get('description', ''), 40)
+        for op in operations
+    ]
     desc_length = max((len(word) for word in descs), default=0)
-    format_str = '{:25s} {:13s} {:%ds} {:10s} {:s}' % (desc_length + 1)
-    for task in tasks:
-      if status and task['state'] not in status:
+    format_str = f'{{:25s}} {{:13s}} {{:{desc_length + 1}s}} {{:10s}} {{:s}}'
+    for operation in operations:
+      metadata = operation['metadata']
+      if status and metadata['state'] not in status:
         continue
-      truncated_desc = utils.truncate(task.get('description', ''), 40)
-      task_type = TASK_TYPES.get(task['task_type'], 'Unknown')
+      truncated_desc = utils.truncate(metadata.get('description', ''), 40)
+      task_type = TASK_TYPES.get(metadata['type'], 'Unknown')
       extra = ''
       if args.long_format:
-        show_date = lambda ms: _parse_millis(ms).strftime('%Y-%m-%d %H:%M:%S')
-        eecu = '{:.4f}'.format(
-            task['batch_eecu_usage_seconds']
-        ) if 'batch_eecu_usage_seconds' in task else '-'
-        trailing_extras = task.get('destination_uris', [])
-        trailing_extras.append(task.get('priority', '-'))
+        if eecu := metadata.get('batchEecuUsageSeconds'):
+          eecu = f'{eecu:.4f}'
+        else:
+          eecu = '-'
+        trailing_extras = metadata.get('destination_uris', [])
+        trailing_extras.append(metadata.get('priority', '-'))
         extra = ' {:20s} {:20s} {:20s} {:11s} {}'.format(
-            show_date(task['creation_timestamp_ms']),
-            show_date(task['start_timestamp_ms']),
-            show_date(task['update_timestamp_ms']),
+            _format_cloud_timestamp(operation.get('createTime')),
+            _format_cloud_timestamp(operation.get('startTime')),
+            _format_cloud_timestamp(operation.get('updateTime')),
             eecu,
             ' '.join(map(str, trailing_extras)),
         )
-      print(format_str.format(
-          task['id'], task_type, truncated_desc,
-          task['state'], task.get('error_message', '---')) + extra)
+      print(
+          format_str.format(
+              _operation_name_to_task_id(operation['name']),
+              task_type,
+              truncated_desc,
+              metadata['state'],
+              operation.get('error', {}).get('message', '---'),
+          )
+          + extra
+      )
 
 
 class TaskWaitCommand:
@@ -1242,21 +1327,37 @@ class TaskWaitCommand:
     config.ee_init()
     task_ids = []
     if args.task_ids == ['all']:
-      tasks = ee.data.getTaskList()
-      for task in tasks:
-        if task['state'] not in utils.TASK_FINISHED_STATES:
-          task_ids.append(task['id'])
+      operations = ee.data.listOperations()
+      for operation in operations:
+        if not operation.get('done', False):
+          task_ids.append(_operation_name_to_task_id(operation['name']))
     else:
-      statuses = ee.data.getTaskStatus(args.task_ids)
-      for status in statuses:
-        state = status['state']
-        task_id = status['id']
+      for task_id in args.task_ids:
+        operation = ee.data.getOperation(_task_id_to_operation_name(task_id))
+        state = operation['metadata']['state']
+        task_id = _operation_name_to_task_id(operation['name'])
         if state == 'UNKNOWN':
-          raise ee.EEException('Unknown task id "%s"' % task_id)
+          raise ee.EEException(f'Unknown task id "{task_id}"')
         else:
           task_ids.append(task_id)
 
     utils.wait_for_tasks(task_ids, args.timeout, log_progress=args.verbose)
+
+
+def _using_v1alpha(func):
+  """Decorator that temporarily switches over to the v1alpha API."""
+
+  def inner(
+      self, args: argparse.Namespace, config: utils.CommandLineConfig
+  ) -> None:
+    # pylint: disable=protected-access
+    original = ee._cloud_api_utils.VERSION
+    ee._cloud_api_utils.VERSION = 'v1alpha'
+    func(self, args, config)
+    ee._cloud_api_utils.VERSION = original
+    # pylint: enable=protected-access
+
+  return inner
 
 
 class TaskCommand(Dispatcher):
@@ -1342,7 +1443,7 @@ class UploadImageCommand:
     manifest = self.manifest_from_args(args)
     _upload(args, manifest, ee.data.startIngestion)
 
-  def manifest_from_args(self, args: argparse.Namespace) -> Dict[str, Any]:
+  def manifest_from_args(self, args: argparse.Namespace) -> dict[str, Any]:
     """Constructs an upload manifest from the command-line flags."""
 
     def is_tf_record(path: str) -> bool:
@@ -1428,6 +1529,43 @@ class UploadImageCommand:
       manifest['maskBands'] = {'tilesetId': tileset['id']}
 
     return manifest
+
+
+class UploadExternalImageCommand:
+  """Creates an asset backed by an external image.
+
+  See
+  https://developers.google.com/earth-engine/Earth_Engine_asset_from_cloud_geotiff
+  for more details on constructing the manifest.
+  """
+
+  name = 'external_image'
+
+  def __init__(self, parser: argparse.ArgumentParser):
+    _add_wait_arg(parser)
+    _add_overwrite_arg(parser)
+    parser.add_argument(
+        '--manifest',
+        help='Local path to a JSON asset manifest file.')
+
+  @_using_v1alpha
+  def run(
+      self, args: argparse.Namespace, config: utils.CommandLineConfig
+  ) -> None:
+    """Creates an external image synchronously."""
+    config.ee_init()
+    manifest = self.manifest_from_args(args)
+    name = ee.data.startExternalImageIngestion(manifest, args.force)['name']
+    print('Created asset %s' % name)
+
+  def manifest_from_args(self, args: argparse.Namespace) -> dict[str, Any]:
+    """Constructs an upload manifest from the command-line flags."""
+
+    if args.manifest:
+      with open(args.manifest) as fh:
+        return json.loads(fh.read())
+
+    raise ValueError('Flag --manifest must be set.')
 
 
 # TODO(user): update src_files help string when secondary files
@@ -1623,6 +1761,16 @@ class UploadCommand(Dispatcher):
   ]
 
 
+class AlphaUploadCommand(Dispatcher):
+  """Uploads assets to Earth Engine."""
+
+  name = 'upload'
+
+  COMMANDS = [
+      UploadExternalImageCommand,
+  ]
+
+
 class _UploadManifestBase:
   """Uploads an asset to Earth Engine using the given manifest file."""
 
@@ -1782,8 +1930,7 @@ def _make_rpc_friendly(model_dir, tag, in_map, out_map, vars_path):
 
   # Create new input placeholders to receive RPC TensorProto payloads
   in_op_map = {
-      k: tf.placeholder(
-          tf.string, shape=[None], name='earthengine_in_{}'.format(i))
+      k: tf.placeholder(tf.string, shape=[None], name=f'earthengine_in_{i}')
       for (i, k) in enumerate(input_new_keys)
   }
 
@@ -1808,7 +1955,9 @@ def _make_rpc_friendly(model_dir, tag, in_map, out_map, vars_path):
     out_tensor = saved_model_utils.build_tensor_info(
         _encode_op(
             tf.get_default_graph().get_tensor_by_name(k),
-            name='earthengine_out_{}'.format(index)))
+            name=f'earthengine_out_{index}',
+        )
+    )
 
     sig_out[_strip_index(v)] = out_tensor
 
@@ -1920,11 +2069,6 @@ def check_tensorflow_installed():
         '1.14 is installed; you can do this by executing \'pip install '
         'tensorflow\' in your shell.'
     )
-  else:
-    if not TENSORFLOW_ADDONS_INSTALLED:
-      print(
-          'Warning: TensorFlow Addons not found. Models that use '
-          'non-standard ops may not work.')
 
 
 class ModelCommand(Dispatcher):
@@ -1933,22 +2077,6 @@ class ModelCommand(Dispatcher):
   name = 'model'
 
   COMMANDS = [PrepareModelCommand]
-
-
-def _using_v1alpha(func):
-  """Decorator that temporarily switches over to the v1alpha API."""
-
-  def inner(
-      self, args: argparse.Namespace, config: utils.CommandLineConfig
-  ) -> None:
-    # pylint: disable=protected-access
-    original = ee._cloud_api_utils.VERSION
-    ee._cloud_api_utils.VERSION = 'v1alpha'
-    func(self, args, config)
-    ee._cloud_api_utils.VERSION = original
-    # pylint: enable=protected-access
-
-  return inner
 
 
 class ProjectConfigGetCommand:
@@ -1985,6 +2113,9 @@ class ProjectConfigSetCommand:
   def run(
       self, args: argparse.Namespace, config: utils.CommandLineConfig
   ) -> None:
+    if not args.max_concurrent_exports:
+      raise ValueError('Flag --max_concurrent_exports must be set.')
+
     if args.max_concurrent_exports < 0:
       raise ValueError('"max_concurrent_exports" must be >= 0.')
 
@@ -2015,6 +2146,7 @@ class AlphaCommand(Dispatcher):
 
   COMMANDS = [
       ProjectConfigCommand,
+      AlphaUploadCommand,
   ]
 
 

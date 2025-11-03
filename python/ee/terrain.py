@@ -1,8 +1,6 @@
 """A namespace for Terrain."""
 from __future__ import annotations
 
-from typing import Optional
-
 from ee import _arg_types
 from ee import apifunction
 from ee import image as ee_image
@@ -15,7 +13,7 @@ class Terrain:
 
   def __init__(self):
     raise RuntimeError(
-        self.__name__
+        self.__class__.__name__
         + ' should not be used as an object. Only direct usage of Terrain'
         ' static methods is allowed. For example, use this: '
         ' `ee.Terrain.aspect(...)`'
@@ -54,8 +52,8 @@ class Terrain:
   @staticmethod
   def fillMinima(
       image: _arg_types.Image,
-      borderValue: Optional[_arg_types.Integer] = None,
-      neighborhood: Optional[_arg_types.Integer] = None,
+      borderValue: _arg_types.Integer | None = None,
+      neighborhood: _arg_types.Integer | None = None,
   ) -> ee_image.Image:
     """Returns an ee.Image with local minima filled.
 
@@ -76,8 +74,8 @@ class Terrain:
       image: _arg_types.Image,
       azimuth: _arg_types.Number,
       zenith: _arg_types.Number,
-      neighborhoodSize: Optional[_arg_types.Integer] = None,
-      hysteresis: Optional[_arg_types.Bool] = None,
+      neighborhoodSize: _arg_types.Integer | None = None,
+      hysteresis: _arg_types.Bool | None = None,
   ) -> ee_image.Image:
     """Returns an ee.Image with the hill shadow.
 
@@ -109,8 +107,8 @@ class Terrain:
   @staticmethod
   def hillshade(
       input: _arg_types.Image,
-      azimuth: Optional[_arg_types.Number] = None,
-      elevation: Optional[_arg_types.Number] = None,
+      azimuth: _arg_types.Number | None = None,
+      elevation: _arg_types.Number | None = None,
   ) -> ee_image.Image:
     """Returns an ee.Image with a simple hillshade from a DEM.
 

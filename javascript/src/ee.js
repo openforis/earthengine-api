@@ -3,8 +3,6 @@
  */
 
 goog.provide('ee');
-goog.provide('ee.Algorithms');
-goog.provide('ee.InitState');
 
 goog.require('ee.ApiFunction');
 goog.require('ee.Collection');
@@ -369,6 +367,10 @@ ee.promote_ = function(arg, klass) {
     return null;
   } else if (arg === undefined) {
     return undefined;
+  }
+
+  if (typeof klass != 'string') {  // b/451628586
+    throw Error('Unexpected type: ' + Object.prototype.toString.call(klass));
   }
 
   const exportedEE = goog.global['ee'];

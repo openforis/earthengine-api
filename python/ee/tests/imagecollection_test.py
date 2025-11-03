@@ -2,7 +2,7 @@
 """Test for the ee.imagecollection module."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 import unittest
@@ -11,8 +11,8 @@ from ee import apitestcase
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any],
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any],
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
@@ -412,6 +412,38 @@ class ImageCollectionTest(apitestcase.ApiTestCase):
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
+  def test_bounds(self):
+    # Inherited from Collection.bounds.
+    collection = ee.ImageCollection('a')
+    max_error = 1.1
+    proj = 'EPSG:4326'
+    expect = make_expression_graph({
+        'arguments': {
+            'collection': IMAGES_A,
+            'maxError': {
+                'functionInvocationValue': {
+                    'functionName': 'ErrorMargin',
+                    'arguments': {'value': {'constantValue': max_error}},
+                }
+            },
+            'proj': {
+                'functionInvocationValue': {
+                    'arguments': {'crs': {'constantValue': proj}},
+                    'functionName': 'Projection',
+                }
+            },
+        },
+        # Not an ImageCollection.
+        'functionName': 'Collection.bounds',
+    })
+    expression = collection.bounds(max_error, proj)
+    result = json.loads(expression.serialize())
+    self.assertEqual(expect, result)
+
+    expression = collection.bounds(maxError=max_error, proj=proj)
+    result = json.loads(expression.serialize())
+    self.assertEqual(expect, result)
+
   def test_cast(self):
     band_types = {'a': 'int8'}
     band_order = ['a']
@@ -480,6 +512,16 @@ class ImageCollectionTest(apitestcase.ApiTestCase):
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
+  def test_count(self):
+    expect = make_expression_graph({
+        'arguments': {'collection': IMAGES_A},
+        # Note that this is not ImageCollection.count or collection.count.
+        'functionName': 'reduce.count',
+    })
+    expression = ee.ImageCollection('a').count()
+    result = json.loads(expression.serialize())
+    self.assertEqual(expect, result)
+
   def test_distance(self):
     # Inherited from Collection.distance.
     features = ee.ImageCollection('a')
@@ -491,7 +533,7 @@ class ImageCollectionTest(apitestcase.ApiTestCase):
             'searchRadius': {'constantValue': search_radius},
             'maxError': {'constantValue': max_error},
         },
-        # Not FeatureCollection.
+        # Not an ImageCollection.
         'functionName': 'Collection.distance',
     })
     expression = features.distance(search_radius, max_error)
@@ -622,7 +664,7 @@ class ImageCollectionTest(apitestcase.ApiTestCase):
             'maxError': {
                 'functionInvocationValue': {
                     'functionName': 'ErrorMargin',
-                    'arguments': {'value': {'constantValue': 1.1}},
+                    'arguments': {'value': {'constantValue': max_error}},
                 }
             },
         },
@@ -737,21 +779,28 @@ class ImageCollectionTest(apitestcase.ApiTestCase):
     column_name = 'column a'
     seed = 1
     distribution = 'uniform'
+    row_keys = ['system:index']
     expect = make_expression_graph({
         'arguments': {
             'collection': IMAGES_A,
             'columnName': {'constantValue': column_name},
             'seed': {'constantValue': seed},
             'distribution': {'constantValue': distribution},
+            'rowKeys': {'constantValue': row_keys},
         },
         'functionName': 'Collection.randomColumn',
     })
-    expression = collection.randomColumn(column_name, seed, distribution)
+    expression = collection.randomColumn(
+        column_name, seed, distribution, row_keys
+    )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
     expression = collection.randomColumn(
-        columnName=column_name, seed=seed, distribution=distribution
+        columnName=column_name,
+        seed=seed,
+        distribution=distribution,
+        rowKeys=row_keys,
     )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)

@@ -3,14 +3,6 @@
  */
 
 goog.provide('ee.Geometry');
-goog.provide('ee.Geometry.LineString');
-goog.provide('ee.Geometry.LinearRing');
-goog.provide('ee.Geometry.MultiLineString');
-goog.provide('ee.Geometry.MultiPoint');
-goog.provide('ee.Geometry.MultiPolygon');
-goog.provide('ee.Geometry.Point');
-goog.provide('ee.Geometry.Polygon');
-goog.provide('ee.Geometry.Rectangle');
 
 goog.require('ee.ApiFunction');
 goog.require('ee.ComputedObject');
@@ -18,7 +10,7 @@ goog.require('ee.Serializer');
 goog.require('ee.Types');
 goog.require('ee.arguments');
 goog.require('goog.array');
-goog.require('goog.json.Serializer');
+goog.require('goog.json');
 goog.require('goog.object');
 goog.requireType('ee.Encodable');
 goog.requireType('ee.api');

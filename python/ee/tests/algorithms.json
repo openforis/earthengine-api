@@ -614,6 +614,51 @@
       "defaultValue": 25000.0
     }]
   }, {
+    "name": "algorithms/TemporalSegmentation.C2c",
+    "description": "An implementation of the Composite 2 Change (C2C) algorithm. This algorithm segments a time series using a piecewise linear fit with the minimum of segments required to fit the data within the given maximum root mean squared error (RMSE).  For every band given the algorithm will return the following bands:\n    changeDate:A 1D array of doubles representing pairs of start and end dates for each fitted segment. The date format is determined by the dateFormat argument.\n    value: A 1D array of doubles of the value of the band at the changeDate.\n    magnitude: A 1D array of doubles providing the absolute difference between the values before and after a change date.  The first magnitude is always NaN.\n    duration: A 1D array of doubles of the duration of the segment preceding the change date.  The first duration is always NaN.\n    rate: A 1D array of doubles of the rate of change of the data preceding the. change date. The first rate is always NaN.\n    postMagnitude: A 1D array of doubles of the absolute difference between the values after the change date and the value at the change date.  The last postMagnitude is always NaN.\n    postDuration: The duration of the segment following the change date. The last postDuration is always NaN.\n    postRate: The rate of change of the data following the change date. The last postRate is always NaN.\n See Hermosilla et al. (2015) dx.doi.org/10.1016/j.rse.2014.11.005 for further details on the original algorithm.\n This algorithm is in preview and is subject to change.",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "collection",
+      "type": "ImageCollection",
+      "description": "Collection of images on which to run C2C."
+    }, {
+      "argumentName": "dateFormat",
+      "type": "Integer",
+      "description": "The time representation to use during fitting: 0 \u003d jDays, 1 \u003d fractional years, 2 \u003d unix time in milliseconds. The start, end and break times for each temporal segment will be encoded this way.",
+      "optional": true,
+      "defaultValue": 0.0
+    }, {
+      "argumentName": "maxError",
+      "type": "Float",
+      "optional": true,
+      "defaultValue": 75.0
+    }, {
+      "argumentName": "maxSegments",
+      "type": "Integer",
+      "optional": true,
+      "defaultValue": 6.0
+    }, {
+      "argumentName": "startYear",
+      "type": "Integer",
+      "optional": true,
+      "defaultValue": 1984.0
+    }, {
+      "argumentName": "endYear",
+      "type": "Integer",
+      "optional": true,
+      "defaultValue": 2019.0
+    }, {
+      "argumentName": "infill",
+      "type": "Boolean",
+      "optional": true,
+      "defaultValue": true
+    }, {
+      "argumentName": "spikesTolerance",
+      "type": "Float",
+      "optional": true,
+      "defaultValue": 0.85
+    }]
+  }, {
     "name": "algorithms/TemporalSegmentation.StructuralChangeBreakpoints",
     "description": "Runs breakpoint detection, similar to R\u0027s strucchange::breakpoints function.\nEach pixel is fit by a piecewise linear/harmonic model, of the form\nY \u003d A + B * t + C * cos(2 * pi * season(t)) + D * sin(2 * pi * season(t)) + E * cos(4 * pi * season(t)) + F * sin(4 * pi * season(t)) + ...\nIn this equation, \u0027t\u0027 is the start time of the image in the format specified by \u0027dateFormat\u0027, and \u0027season(t)\u0027 is the fractional year of that start time (see the description of dateFormat for details). The maximum order of the harmonic terms is determined by \u0027seasonalModelOrder\u0027.\nThe result is an image containing two bands, plus two bands per band in the input:\n`tStart`, `tEnd`: each of these holds a 1D array, with one entry per segment in the piecewise linear fit; each entry contains the start time of the first or last images in that segment. By default the values here are in fractional years, for easy use with the coefficients.\n`coefs_BANDNAME`: there will be one such output band per input band. Each of these holds a 2D array, with one row per segment. The values in that row are the coefficients of the linear fit for that segment - that is, the values of A, B, C, ... for that segment. As described above, the values here are affected by \u0027dateFormat\u0027\n.`rmse_BANDNAME`: there will be one such output band per input band. This holds a 1D array, with one entry per segment. The value for each segment is the RMSE for the linear fit residuals for that segment.",
     "returnType": "Image\u003cunknown bands\u003e",
@@ -779,6 +824,11 @@
     }, {
       "argumentName": "tileScale",
       "type": "Float"
+    }, {
+      "argumentName": "maxPixelsPerRegion",
+      "type": "Long",
+      "optional": true,
+      "defaultValue": null
     }],
     "hidden": true
   }, {
@@ -1130,7 +1180,7 @@
     }, {
       "argumentName": "unit",
       "type": "String",
-      "description": "One of \u0027year\u0027, \u0027month\u0027 \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
+      "description": "One of \u0027year\u0027, \u0027month\u0027, \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
     }, {
       "argumentName": "timeZone",
       "type": "String",
@@ -1151,7 +1201,7 @@
     }, {
       "argumentName": "unit",
       "type": "String",
-      "description": "One of \u0027year\u0027, \u0027month\u0027 \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
+      "description": "One of \u0027year\u0027, \u0027month\u0027, \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
     }]
   }, {
     "name": "algorithms/Date.format",
@@ -1224,7 +1274,7 @@
     }, {
       "argumentName": "unit",
       "type": "String",
-      "description": "One of \u0027year\u0027, \u0027month\u0027 \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
+      "description": "One of \u0027year\u0027, \u0027month\u0027, \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
     }, {
       "argumentName": "timeZone",
       "type": "String",
@@ -1242,7 +1292,7 @@
     }, {
       "argumentName": "unit",
       "type": "String",
-      "description": "One of \u0027year\u0027, \u0027month\u0027 \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
+      "description": "One of \u0027year\u0027, \u0027month\u0027, \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
     }, {
       "argumentName": "timeZone",
       "type": "String",
@@ -1260,11 +1310,11 @@
     }, {
       "argumentName": "unit",
       "type": "String",
-      "description": "One of \u0027month\u0027 \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
+      "description": "One of \u0027month\u0027, \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027."
     }, {
       "argumentName": "inUnit",
       "type": "String",
-      "description": "One of \u0027year\u0027, \u0027month\u0027 \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, or \u0027minute\u0027."
+      "description": "One of \u0027year\u0027, \u0027month\u0027, \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, or \u0027minute\u0027."
     }, {
       "argumentName": "timeZone",
       "type": "String",
@@ -1301,7 +1351,7 @@
     }]
   }, {
     "name": "algorithms/Date.unitRatio",
-    "description": "Returns the ratio of the length of one unit to the length of another, e.g., unitRatio(\u0027day\u0027, \u0027minute\u0027) returns 1440. Valid units are \u0027year\u0027, \u0027month\u0027 \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, and \u0027second\u0027.",
+    "description": "Returns the ratio of the length of one unit to the length of another, e.g., unitRatio(\u0027day\u0027, \u0027minute\u0027) returns 1440. Valid units are \u0027year\u0027, \u0027month\u0027, \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, and \u0027second\u0027.",
     "returnType": "Float",
     "arguments": [{
       "argumentName": "numerator",
@@ -1547,7 +1597,7 @@
     }, {
       "argumentName": "unit",
       "type": "String",
-      "description": "The units in which \u0027delta\u0027 is specified:One of \u0027year\u0027, \u0027month\u0027 \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027.",
+      "description": "The units in which \u0027delta\u0027 is specified:One of \u0027year\u0027, \u0027month\u0027, \u0027week\u0027, \u0027day\u0027, \u0027hour\u0027, \u0027minute\u0027, or \u0027second\u0027.",
       "optional": true,
       "defaultValue": "day"
     }, {
@@ -2203,6 +2253,42 @@
       "argumentName": "kernel",
       "type": "Kernel",
       "description": "The kernel to have its entries inverted."
+    }]
+  }, {
+    "name": "algorithms/FeatureCollection.loadBigQueryTable",
+    "description": "Reads data from a BigQuery table and presents the results as a FeatureCollection.",
+    "returnType": "FeatureCollection",
+    "arguments": [{
+      "argumentName": "table",
+      "type": "String",
+      "description": "Path to BigQuery table in a `project.dataset.table` format."
+    }, {
+      "argumentName": "geometryColumn",
+      "type": "String",
+      "description": "The name of the column to use as the main feature geometry. If not specified, the first column with GEOGRAPHY type will be used.",
+      "optional": true,
+      "defaultValue": null
+    }]
+  }, {
+    "name": "algorithms/FeatureCollection.runBigQuery",
+    "description": "Runs a BigQuery query, fetches the results and presents the them as a FeatureCollection.",
+    "returnType": "FeatureCollection",
+    "arguments": [{
+      "argumentName": "query",
+      "type": "String",
+      "description": "GoogleSQL query to perform on the BigQuery resources."
+    }, {
+      "argumentName": "geometryColumn",
+      "type": "String",
+      "description": "The name of the column to use as the main feature geometry. If not specified, the first geometry column will be used.",
+      "optional": true,
+      "defaultValue": null
+    }, {
+      "argumentName": "maxBytesBilled",
+      "type": "Long",
+      "description": "Maximum number of bytes billed while processing the query. Any BigQuery job that exceeds this limit will fail and won\u0027t be billed.",
+      "optional": true,
+      "defaultValue": 1.0E11
     }]
   }, {
     "name": "algorithms/Classifier.naiveBayes",
@@ -3199,7 +3285,7 @@
     }]
   }, {
     "name": "algorithms/Classifier.setOutputMode",
-    "description": "Sets the output mode.",
+    "description": "Sets a classifier\u0027s output format.\nRefer to https://developers.google.com/earth-engine/guides/classification for a list of supported modes for each classifier.",
     "returnType": "Classifier",
     "arguments": [{
       "argumentName": "classifier",
@@ -3208,7 +3294,7 @@
     }, {
       "argumentName": "mode",
       "type": "String",
-      "description": "The output mode. One of:\n\u003cul\u003e  \u003cli\u003eCLASSIFICATION (default): The output is the class number.\u003c/li\u003e  \u003cli\u003eREGRESSION: The output is the result of standard regression.\u003c/li\u003e  \u003cli\u003ePROBABILITY: The output is the probability that the classification     is correct.\u003c/li\u003e  \u003cli\u003eMULTIPROBABILITY: The output is an array of probabilities that each    class is correct ordered by classes seen.\u003c/li\u003e  \u003cli\u003eRAW: The output is an array of the internal representation of the    classification process. For example, the raw votes in multi-decision tree    models.\u003c/li\u003e  \u003cli\u003eRAW_REGRESSION: The output is an array of the internal representation of the    regression process. For example, the raw predictions of multiple regression    trees.\u003c/li\u003e\u003c/ul\u003eNot all classifiers support modes other than CLASSIFICATION."
+      "description": "The output mode. One of:\n\u003cul\u003e  \u003cli\u003eCLASSIFICATION (default): The output is the class number.\u003c/li\u003e  \u003cli\u003eREGRESSION: The output is the result of standard regression.\u003c/li\u003e  \u003cli\u003ePROBABILITY: The output is the probability that the classification     is correct.\u003c/li\u003e  \u003cli\u003eMULTIPROBABILITY: The output is an array of probabilities that each    class is correct ordered by classes seen.\u003c/li\u003e  \u003cli\u003eRAW: The output is an array of the internal representation of the    classification process. For example, the raw votes in multi-decision tree    models.\u003c/li\u003e  \u003cli\u003eRAW_REGRESSION: The output is an array of the internal representation of the    regression process. For example, the raw predictions of multiple regression    trees.\u003c/li\u003e\u003c/ul\u003e"
     }]
   }, {
     "name": "algorithms/Classifier.train",
@@ -3845,6 +3931,12 @@
       "description": "The projection in which to perform the operation. If not specified, the operation will be performed in a spherical coordinate system, and linear distances will be in meters on the sphere.",
       "optional": true,
       "defaultValue": null
+    }, {
+      "argumentName": "spherical",
+      "type": "Boolean",
+      "description": "If true, the calculation will be done on the unit sphere. If false, the calculation will be elliptical, taking earth flattening into account. Ignored if proj is specified. Default is false.",
+      "optional": true,
+      "defaultValue": false
     }]
   }, {
     "name": "algorithms/Geometry.closestPoint",
@@ -4288,6 +4380,12 @@
       "description": "If false, edges are straight in the projection. If true, edges are curved to follow the shortest path on the surface of the Earth. The default is the geodesic state of the inputs, or true if the inputs are numbers.",
       "optional": true,
       "defaultValue": null
+    }, {
+      "argumentName": "maxError",
+      "type": "ErrorMargin",
+      "description": "Max error when input geometry must be reprojected to an explicitly requested result projection or geodesic state.",
+      "optional": true,
+      "defaultValue": null
     }]
   }, {
     "name": "algorithms/GeometryConstructors.LinearRing",
@@ -4307,6 +4405,12 @@
       "argumentName": "geodesic",
       "type": "Boolean",
       "description": "If false, edges are straight in the projection. If true, edges are curved to follow the shortest path on the surface of the Earth. The default is the geodesic state of the inputs, or true if the inputs are numbers.",
+      "optional": true,
+      "defaultValue": null
+    }, {
+      "argumentName": "maxError",
+      "type": "ErrorMargin",
+      "description": "Max error when input geometry must be reprojected to an explicitly requested result projection or geodesic state.",
       "optional": true,
       "defaultValue": null
     }]
@@ -4784,6 +4888,12 @@
       "description": "The projection in which to perform the operation. If not specified, the operation will be performed in a spherical coordinate system, and linear distances will be in meters on the sphere.",
       "optional": true,
       "defaultValue": null
+    }, {
+      "argumentName": "spherical",
+      "type": "Boolean",
+      "description": "If true, the calculation will be done on the unit sphere. If false, the calculation will be elliptical, taking earth flattening into account. Ignored if proj is specified. Default is false.",
+      "optional": true,
+      "defaultValue": false
     }]
   }, {
     "name": "algorithms/Feature.closestPoint",
@@ -5658,8 +5768,37 @@
     }],
     "hidden": true
   }, {
+    "name": "algorithms/Collection.bounds",
+    "description": "Constructs a bounding box around the geometries in a collection.",
+    "returnType": "Geometry",
+    "arguments": [{
+      "argumentName": "collection",
+      "type": "FeatureCollection",
+      "description": "The collection whose bounds will be constructed."
+    }, {
+      "argumentName": "maxError",
+      "type": "ErrorMargin",
+      "description": "The maximum amount of error tolerated when performing any necessary reprojection.",
+      "optional": true,
+      "defaultValue": {
+        "type": "ErrorMargin",
+        "unit": "meters",
+        "value": 0.0
+      }
+    }, {
+      "argumentName": "proj",
+      "type": "Projection",
+      "description": "If specified, the result will be in this projection. Otherwise it will be in EPSG:4326.",
+      "optional": true,
+      "defaultValue": {
+        "type": "Projection",
+        "crs": "EPSG:4326",
+        "transform": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+      }
+    }]
+  }, {
     "name": "algorithms/Collection.geometry",
-    "description": "Extracts and merges the geometries of a collection. Requires that all the geometries in the collection share the projection and edge interpretation.\nCaution: providing a large or complex collection as input can result in poor performance. Collating the geometry of collections does not scale well; use the smallest collection that is required to achieve the desired outcome.",
+    "description": "Extracts and merges the geometries of a collection. Requires that all the geometries in the collection share the projection and edge interpretation.\nCaution: providing a large or complex collection as input can result in poor performance. Collating the geometry of collections does not scale well; use the smallest collection that is required to achieve the desired outcome.\nNote: If only a bounding box around the collection is needed, consider using Collection.bounds instead.",
     "returnType": "Geometry",
     "arguments": [{
       "argumentName": "collection",
@@ -5977,6 +6116,12 @@
       "description": "The distribution type of random numbers to produce; one of \u0027uniform\u0027 or \u0027normal\u0027.",
       "optional": true,
       "defaultValue": "uniform"
+    }, {
+      "argumentName": "rowKeys",
+      "type": "List\u003cString\u003e",
+      "description": "A list of properties that should uniquely and repeatably identify an element of the collection, used to generate the random number. Defaults to [system:index].",
+      "optional": true,
+      "defaultValue": ["system:index"]
     }]
   }, {
     "name": "algorithms/Collection.reduceToImage",
@@ -9349,7 +9494,32 @@
     "arguments": [{
       "argumentName": "uri",
       "type": "String",
-      "description": "The Cloud Storage URI of the GeoTIFF to load."
+      "description": "The Cloud Storage URI of the GeoTIFF to load. The bucket metadata must be accessible (requires the `storage.buckets.get` permission which is provided by the role \"Storage Legacy Bucket Reader\" among others, see https://cloud.google.com/storage/docs/access-control/iam-roles) and the bucket must be located in the US multi-region, a dual-region including US-CENTRAL1, or the US-CENTRAL1 region."
+    }]
+  }, {
+    "name": "algorithms/Image.loadZarrV2Array",
+    "description": "Loads a Zarr v2 array as an Image. The array attributes (.zattrs) must contain the field \u0027_ARRAY_DIMENSIONS\u0027, which is a list of the names of each dimension (e.g., [\u0027time\u0027, \u0027y\u0027, \u0027x\u0027]). There must be at least two dimensions, with the final two representing Y and X respectively (e.g., [\u0027lat\u0027, \u0027lon\u0027]). The supported compression codecs are \u0027blosc\u0027, \u0027gzip\u0027, \u0027lz4\u0027, \u0027zlib\u0027, and \u0027zstd\u0027. The supported blosc meta-compression codecs are \u0027lz4\u0027, lz4hc\u0027, \u0027zlib\u0027, and \u0027zstd\u0027 (\u0027blosclz\u0027 is not supported).",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "uri",
+      "type": "String",
+      "description": "The Cloud Storage URI of the .zarray file to load. A .zmetadata file must be present in the parent directory of the array\u0027s directory (e.g., for \u0027gs://b/o/.zarray\u0027, \u0027gs://b/.zmetadata\u0027 must be present). The bucket metadata must be accessible (requires the `storage.buckets.get` permission which is provided by the role \"Storage Legacy Bucket Reader\" among others, see https://cloud.google.com/storage/docs/access-control/iam-roles) and the bucket must be located in the US multi-region, a dual-region including US-CENTRAL1, or the US-CENTRAL1 region."
+    }, {
+      "argumentName": "proj",
+      "type": "Projection",
+      "description": "The projection of the array."
+    }, {
+      "argumentName": "starts",
+      "type": "List\u003cObject\u003e",
+      "description": "The indices (inclusive) at which to start taking slices along each non-spatial dimension. If null, slices will start at index 0 for all non-spatial dimensions. If specified, this list must have a length equal to the number of non-spatial dimensions (total dimensions - 2). An individual element within the list may be null, which defaults to 0 for that dimension. Negative indices are counted from the end of the dimension (e.g., -1 is the last element).",
+      "optional": true,
+      "defaultValue": null
+    }, {
+      "argumentName": "ends",
+      "type": "List\u003cObject\u003e",
+      "description": "The indices (exclusive) at which to stop taking slices along each non-spatial dimension. If null, slices will extend to the end of each corresponding non-spatial dimension (i.e., defaults to the length of the dimension). If specified, this list must have a length equal to the number of non-spatial dimensions (total dimensions - 2). An individual element within the list may be null, which also defaults to the length of that dimension. Negative indices are counted from the end of the dimension (e.g., -1 is the last element).",
+      "optional": true,
+      "defaultValue": null
     }]
   }, {
     "name": "algorithms/Image.mask",
@@ -9494,6 +9664,12 @@
       "argumentName": "vars",
       "type": "List\u003cString\u003e",
       "description": "The parameters the resulting algorithm should have, which must be a superset of the free variables in the expression, including the default image argument if it is used."
+    }, {
+      "argumentName": "mapFreeVarsToDefaultImageBands",
+      "type": "Boolean",
+      "description": "If true, the resulting algorithm will map free variables to the default image\u0027s bands instead of throwing an error.",
+      "optional": true,
+      "defaultValue": false
     }],
     "hidden": true
   }, {
@@ -9704,6 +9880,12 @@
       "description": "A scaling factor used to reduce aggregation tile size; using a larger tileScale (e.g., 2 or 4) may enable computations that run out of memory with the default.",
       "optional": true,
       "defaultValue": 1.0
+    }, {
+      "argumentName": "maxPixelsPerRegion",
+      "type": "Long",
+      "description": "The maximum number of pixels to reduce per region.",
+      "optional": true,
+      "defaultValue": null
     }]
   }, {
     "name": "algorithms/Image.reduceResolution",
@@ -10954,6 +11136,64 @@
       "optional": true,
       "defaultValue": null
     }]
+  }, {
+    "name": "algorithms/ImageCollection.loadZarrV2Array",
+    "description": "Loads a Zarr v2 array with 3 or more dimensions (i.e., 1 or more non-spatial dimensions) as an ImageCollection by slicing along a specified non-spatial axis. The array attributes (.zattrs) must contain the field \u0027_ARRAY_DIMENSIONS\u0027, which is a list of the names of each dimension (e.g., [\u0027time\u0027, \u0027y\u0027, \u0027x\u0027]). There must be at least two dimensions, with the final two representing Y and X respectively (e.g., [\u0027lat\u0027, \u0027lon\u0027]). The supported compression codecs are \u0027blosc\u0027, \u0027gzip\u0027, \u0027lz4\u0027, \u0027zlib\u0027, and \u0027zstd\u0027. The supported blosc meta-compression codecs are \u0027lz4\u0027, lz4hc\u0027, \u0027zlib\u0027, and \u0027zstd\u0027 (\u0027blosclz\u0027 is not supported).",
+    "returnType": "ImageCollection",
+    "arguments": [{
+      "argumentName": "uri",
+      "type": "String",
+      "description": "The Cloud Storage URI of the .zarray file to load. A .zmetadata file must be present in the parent directory of the array\u0027s directory (e.g., for \u0027gs://b/o/.zarray\u0027, \u0027gs://b/.zmetadata\u0027 must be present). The bucket metadata must be accessible (requires the `storage.buckets.get` permission which is provided by the role \"Storage Legacy Bucket Reader\" among others, see https://cloud.google.com/storage/docs/access-control/iam-roles) and the bucket must be located in the US multi-region, a dual-region including US-CENTRAL1, or the US-CENTRAL1 region."
+    }, {
+      "argumentName": "proj",
+      "type": "Projection",
+      "description": "The projection of the array."
+    }, {
+      "argumentName": "axis",
+      "type": "Integer",
+      "description": "The non-spatial axis (0-indexed) along which to slice the array to create an ImageCollection. Each image in the collection represents a single slice (length 1) along this axis. If null, defaults to 0. The value must be in the range [0, N-1], where N is the number of non-spatial dimensions (i.e., total dimensions - 2). The array must have at least one non-spatial dimension (i.e., be at least 3 dimensional).",
+      "optional": true,
+      "defaultValue": null
+    }, {
+      "argumentName": "starts",
+      "type": "List\u003cObject\u003e",
+      "description": "The indices (inclusive) at which to start taking slices along each non-spatial dimension. If null, slices will start at index 0 for all non-spatial dimensions. If specified, this list must have a length equal to the number of non-spatial dimensions (total dimensions - 2). An individual element within the list may be null, which defaults to 0 for that dimension. Negative indices are counted from the end of the dimension (e.g., -1 is the last element).",
+      "optional": true,
+      "defaultValue": null
+    }, {
+      "argumentName": "ends",
+      "type": "List\u003cObject\u003e",
+      "description": "The indices (exclusive) at which to stop taking slices along each non-spatial dimension. If null, slices will extend to the end of each corresponding non-spatial dimension (i.e., defaults to the length of the dimension). If specified, this list must have a length equal to the number of non-spatial dimensions (total dimensions - 2). An individual element within the list may be null, which also defaults to the length of that dimension. Negative indices are counted from the end of the dimension (e.g., -1 is the last element).",
+      "optional": true,
+      "defaultValue": null
+    }]
+  }, {
+    "name": "algorithms/SerializableZarrV2ArrayImage",
+    "description": "INTERNAL",
+    "returnType": "Image\u003cunknown bands\u003e",
+    "arguments": [{
+      "argumentName": "uri",
+      "type": "String"
+    }, {
+      "argumentName": "proj",
+      "type": "Projection"
+    }, {
+      "argumentName": "starts",
+      "type": "List\u003cInteger\u003e"
+    }, {
+      "argumentName": "ends",
+      "type": "List\u003cInteger\u003e"
+    }, {
+      "argumentName": "arrayName",
+      "type": "String"
+    }, {
+      "argumentName": "arrayAsSerializableDictionary",
+      "type": "Dictionary\u003cObject\u003e"
+    }, {
+      "argumentName": "dimensionNames",
+      "type": "List\u003cString\u003e"
+    }],
+    "hidden": true
   }, {
     "name": "algorithms/ImageCollection.cast",
     "description": "Casts some or all bands of each image in an ImageCollection to the specified types.",
@@ -13301,7 +13541,7 @@
     "arguments": [{
       "argumentName": "url",
       "type": "String",
-      "description": "The Blob\u0027s Google Cloud Storage URL."
+      "description": "The Blob\u0027s Google Cloud Storage URL. The bucket metadata must be accessible (requires the `storage.buckets.get` permission which is provided by the role \"Storage Legacy Bucket Reader\" among others, see https://cloud.google.com/storage/docs/access-control/iam-roles) and the bucket must be located in the US multi-region, a dual-region including US-CENTRAL1, or theUS-CENTRAL1 region."
     }]
   }, {
     "name": "algorithms/Blob.string",
@@ -13319,7 +13559,7 @@
     }]
   }, {
     "name": "algorithms/Blob.url",
-    "description": "Returns the Blob\u0027s Google Cloud Storage URL.",
+    "description": "Returns the Blob\u0027s Google Cloud Storage URL. The bucket metadata must be accessible (requires the `storage.buckets.get` permission which is provided by the role \"Storage Legacy Bucket Reader\" among others, see https://cloud.google.com/storage/docs/access-control/iam-roles) and the bucket must be located in the US multi-region, a dual-region including US-CENTRAL1, or theUS-CENTRAL1 region.",
     "returnType": "String",
     "arguments": [{
       "argumentName": "blob",
@@ -15351,7 +15591,9 @@
       "description": "An approximation to the increase in data volume for the model outputs over the model inputs. If specified this must be \u003e\u003d 1. This is only needed if the model produces more data than it consumes, e.g., a model that takes 5 bands and produces 10 outputs per pixel.",
       "optional": true,
       "defaultValue": null
-    }]
+    }],
+    "deprecated": true,
+    "deprecationReason": "Cloud AI Platform is deprecated migrate to Vertex AI: https://developers.google.com/earth-engine/guides/ee-vertex-migrate"
   }, {
     "name": "algorithms/Model.fromVertexAi",
     "description": "Returns an ee.Model from a description of a Vertex AI model endpoint. (See https://cloud.google.com/vertex-ai).\nWarning: This method is in public preview and may undergo breaking changes.",

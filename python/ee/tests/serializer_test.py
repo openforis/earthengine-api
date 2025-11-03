@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Test for the ee.serializer module."""
 
+from collections.abc import Callable
 import datetime
 import json
-from typing import Any, Callable, Dict, List, Union
+from typing import Any
 
 import unittest
 import ee
@@ -11,7 +12,7 @@ from ee import apitestcase
 from ee import serializer
 
 
-def _max_depth(x: Union[Dict[str, Any], List[Any], str]) -> int:
+def _max_depth(x: dict[str, Any] | list[Any] | str) -> int:
   """Computes the maximum nesting level of some dict, list, or str."""
   if isinstance(x, dict):
     return 1 + max(_max_depth(v) for v in x.values())
@@ -23,7 +24,7 @@ def _max_depth(x: Union[Dict[str, Any], List[Any], str]) -> int:
 
 class DatetimeToMicrosecondsTest(unittest.TestCase):
 
-  def testDatetimeToMicrosecondsNaive(self):
+  def test_datetime_to_microseconds_naive(self):
     self.assertEqual(
         0,
         serializer.DatetimeToMicroseconds(
@@ -51,7 +52,7 @@ class DatetimeToMicrosecondsTest(unittest.TestCase):
         serializer.DatetimeToMicroseconds(datetime.datetime(1906, 4, 18)),
     )
 
-  def testDatetimeToMicroseconds(self):
+  def test_datetime_to_microseconds(self):
     self.assertEqual(
         0,
         serializer.DatetimeToMicroseconds(
@@ -88,7 +89,7 @@ class DatetimeToMicrosecondsTest(unittest.TestCase):
 
 class SerializerTest(apitestcase.ApiTestCase):
 
-  def testSerialization(self):
+  def test_serialization(self):
     """Verifies a complex serialization case."""
 
     class ByteString(ee.Encodable):
@@ -103,13 +104,13 @@ class SerializerTest(apitestcase.ApiTestCase):
         self._value = value
 
       # pylint: disable-next=g-bad-name
-      def encode(self, encoder: Callable[[Any], Any]) -> Dict[str, Any]:
+      def encode(self, encoder: Callable[[Any], Any]) -> dict[str, Any]:
         del encoder  # Unused.
         return {'type': 'Bytes', 'value': self._value}
 
       def encode_cloud_value(
           self, encoder: Callable[[Any], Any]
-      ) -> Dict[str, str]:
+      ) -> dict[str, str]:
         del encoder  # Unused.
         # Proto3 JSON embedding of "bytes" values uses base64 encoding, which
         # this already is.
@@ -160,7 +161,7 @@ class SerializerTest(apitestcase.ApiTestCase):
     decoded_encoded_json = json.loads(encoded_json)
     self.assertEqual(encoded, decoded_encoded_json)
 
-  def testRepeats(self):
+  def test_repeats(self):
     """Verifies serialization finds and removes repeated values."""
     # pylint: disable-next=no-member
     test1 = ee.Image(5).mask(ee.Image(5))
@@ -257,7 +258,7 @@ class SerializerTest(apitestcase.ApiTestCase):
         expected_cloud_pretty,
         serializer.encode(test1, is_compound=False, for_cloud_api=True))
 
-  def testDepthLimit_withAlgorithms(self):
+  def test_depth_limit_with_algorithms(self):
     x = ee.Number(0)
     for i in range(100):
       x = x.add(ee.Number(i))
@@ -266,23 +267,49 @@ class SerializerTest(apitestcase.ApiTestCase):
     # on the test.
     self.assertLess(_max_depth(encoded), 60)
 
-  def testDepthLimit_withLists(self):
+  def test_depth_limit_with_lists(self):
     x = ee.List([0])
     for i in range(100):
       x = ee.List([i, x])
     encoded = serializer.encode(x, for_cloud_api=True)
     self.assertLess(_max_depth(encoded), 60)
 
-  def testDepthLimit_withDictionaries(self):
+  def test_depth_limit_with_dictionaries(self):
     x = ee.Dictionary({0: 0})
     for i in range(100):
       x = ee.Dictionary({i: x})
     encoded = serializer.encode(x, for_cloud_api=True)
     self.assertLess(_max_depth(encoded), 60)
 
-  def testToJsonOptParams(self):
+  def test_to_json_opt_params(self):
     self.assertIn('\n', serializer.toJSON(ee.Image(0), opt_pretty=True))
     self.assertNotIn('\n', serializer.toJSON(ee.Image(0), opt_pretty=False))
+
+  def test_datetime_serialization_legacy(self):
+    a_date = datetime.datetime(2014, 8, 10, tzinfo=datetime.timezone.utc)
+    # 1407628800000000 microseconds.
+    expected = {
+        'type': 'CompoundValue',
+        'scope': [],
+        'value': {
+            'type': 'Invocation',
+            'functionName': 'Date',
+            'arguments': {'value': 1407628800000.0},
+        },
+    }
+    self.assertEqual(expected, serializer.encode(a_date, for_cloud_api=False))
+
+  def test_single_value_no_compound(self):
+    """Verifies serialization of a single non-primitive value."""
+    self.assertEqual([1], serializer.encode([1], for_cloud_api=False))
+
+  def test_unencodable_object(self):
+    class Unencodable:
+      pass
+    with self.assertRaisesRegex(ee.EEException, 'Cannot encode object: .*'):
+      serializer.encode(Unencodable(), for_cloud_api=False)
+    with self.assertRaisesRegex(ee.EEException, 'Cannot encode object: .*'):
+      serializer.encode(Unencodable(), for_cloud_api=True)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@
 
 import json
 import sys
-from typing import Any, Dict
+from typing import Any
 import unittest
 
 import unittest
@@ -30,8 +30,8 @@ _KERNEL_JSON = {
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any],
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any],
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
@@ -286,6 +286,10 @@ class KernelTest(apitestcase.ApiTestCase):
     )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
+
+  def test_fixed_no_weights(self):
+    with self.assertRaisesRegex(ValueError, 'weights is required.'):
+      ee.Kernel.fixed()
 
   def test_gaussian(self):
     radius = 1.1

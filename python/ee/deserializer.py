@@ -1,6 +1,7 @@
 """A deserializer that decodes EE object trees from JSON DAGs."""
 
 import json
+from typing import Any
 
 from ee import apifunction
 from ee import computedobject
@@ -12,7 +13,7 @@ from ee import function
 from ee import geometry
 
 
-def fromJSON(json_obj):  # pylint: disable=g-bad-name
+def fromJSON(json_obj: bytes | str) -> Any:  # pylint: disable=g-bad-name
   """Deserialize an object from a JSON string appropriate for API calls.
 
   Args:
@@ -24,7 +25,7 @@ def fromJSON(json_obj):  # pylint: disable=g-bad-name
   return decode(json.loads(json_obj))
 
 
-def decode(json_obj):
+def decode(json_obj: Any) -> Any:
   """Decodes an object previously encoded using the EE API v2 (DAG) format.
 
   Args:
@@ -50,7 +51,8 @@ def decode(json_obj):
   return _decodeValue(json_obj, named_values)
 
 
-def _decodeValue(json_obj, named_values):  # pylint: disable=g-bad-name
+# pylint: disable-next=g-bad-name
+def _decodeValue(json_obj: Any, named_values: dict[str, Any]) -> Any:
   """Decodes an object previously encoded using the EE API v2 (DAG) format.
 
   This uses a provided scope for ValueRef lookup and does not allow the
@@ -74,7 +76,7 @@ def _decodeValue(json_obj, named_values):  # pylint: disable=g-bad-name
 
   # Ensure that we've got a proper object at this point.
   if not isinstance(json_obj, dict):
-    raise ee_exception.EEException('Cannot decode object: ' + json_obj)
+    raise ee_exception.EEException(f'Cannot decode object: {json_obj}')
 
   # Check for explicitly typed values.
   type_name = json_obj['type']
@@ -82,16 +84,16 @@ def _decodeValue(json_obj, named_values):  # pylint: disable=g-bad-name
     if json_obj['value'] in named_values:
       return named_values[json_obj['value']]
     else:
-      raise ee_exception.EEException('Unknown ValueRef: ' + json_obj)
+      raise ee_exception.EEException(f'Unknown ValueRef: {json_obj}')
   elif type_name == 'ArgumentRef':
     var_name = json_obj['value']
     if not isinstance(var_name, str):
-      raise ee_exception.EEException('Invalid variable name: ' + var_name)
-    return customfunction.CustomFunction.variable(None, var_name)  # pylint: disable=protected-access
+      raise ee_exception.EEException(f'Invalid variable name: {var_name}')
+    return customfunction.CustomFunction.variable(None, var_name)
   elif type_name == 'Date':
     microseconds = json_obj['value']
     if not isinstance(microseconds, (float, int)):
-      raise ee_exception.EEException('Invalid date value: ' + microseconds)
+      raise ee_exception.EEException(f'Invalid date value: {microseconds}')
     return ee_date.Date(microseconds / 1e3)
   elif type_name == 'Bytes':
     result = encodable.Encodable()
@@ -105,14 +107,14 @@ def _decodeValue(json_obj, named_values):  # pylint: disable=g-bad-name
     else:
       func = _decodeValue(json_obj['function'], named_values)
     if 'arguments' in json_obj:
-      args = dict((key, _decodeValue(value, named_values))
-                  for (key, value) in json_obj['arguments'].items())
+      args = {key: _decodeValue(value, named_values)
+                  for (key, value) in json_obj['arguments'].items()}
     else:
       args = {}
     return _invocation(func, args)
   elif type_name == 'Dictionary':
-    return dict((key, _decodeValue(value, named_values))
-                for (key, value) in json_obj['value'].items())
+    return {key: _decodeValue(value, named_values)
+                for (key, value) in json_obj['value'].items()}
   elif type_name == 'Function':
     body = _decodeValue(json_obj['body'], named_values)
     signature = {
@@ -129,10 +131,10 @@ def _decodeValue(json_obj, named_values):  # pylint: disable=g-bad-name
   elif type_name == 'CompoundValue':
     raise ee_exception.EEException('Nested CompoundValues are disallowed.')
   else:
-    raise ee_exception.EEException('Unknown encoded object type: ' + type_name)
+    raise ee_exception.EEException(f'Unknown encoded object type: {type_name}')
 
 
-def _invocation(func, args):
+def _invocation(func: Any, args: dict[str, Any]) -> Any:
   """Creates an EE object representing the application of `func` to `args`."""
   if isinstance(func, function.Function):
     return func.apply(args)
@@ -148,10 +150,10 @@ def _invocation(func, args):
         'returns': 'ComputedObject'
     }
     return function.SecondOrderFunction(func, signature).apply(args)
-  raise ee_exception.EEException('Invalid function value: %s' % func)
+  raise ee_exception.EEException(f'Invalid function value: {func}')
 
 
-def fromCloudApiJSON(json_obj):  # pylint: disable=g-bad-name
+def fromCloudApiJSON(json_obj: str | bytes) -> Any:  # pylint: disable=g-bad-name
   """Deserializes an object from the JSON string used in Cloud API calls.
 
   Args:
@@ -163,7 +165,8 @@ def fromCloudApiJSON(json_obj):  # pylint: disable=g-bad-name
   return decodeCloudApi(json.loads(json_obj))
 
 
-def decodeCloudApi(json_obj):  # pylint: disable=g-bad-name
+# pylint: disable-next=g-bad-name
+def decodeCloudApi(json_obj: dict[str, Any]) -> Any:
   """Decodes an object previously encoded using the EE Cloud API format.
 
   Args:
@@ -177,7 +180,7 @@ def decodeCloudApi(json_obj):  # pylint: disable=g-bad-name
   def lookup(reference, kind):
     if reference not in decoded:
       if reference not in json_obj['values']:
-        raise ee_exception.EEException('Cannot find %s %s' % (reference, kind))
+        raise ee_exception.EEException(f'Cannot find {reference} {kind}')
       decoded[reference] = decode_node(json_obj['values'][reference])
     return decoded[reference]
 
@@ -206,14 +209,16 @@ def decodeCloudApi(json_obj):  # pylint: disable=g-bad-name
       return lookup(node['valueReference'], 'reference')
     return None
 
-  def decode_function_definition(defined):
+  def decode_function_definition(
+      defined: dict[str, Any],
+  ) -> customfunction.CustomFunction:
     body = lookup(defined['body'], 'function body')
     signature_args = [{'name': name, 'type': 'Object', 'optional': False}
                       for name in defined['argumentNames']]
     signature = {'args': signature_args, 'name': '', 'returns': 'Object'}
     return customfunction.CustomFunction(signature, lambda *args: body)
 
-  def decode_function_invocation(invoked):
+  def decode_function_invocation(invoked: dict[str, Any]) -> Any:
     if 'functionReference' in invoked:
       func = lookup(invoked['functionReference'], 'function')
     else:

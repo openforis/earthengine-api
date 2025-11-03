@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any
 
 from ee import _arg_types
 from ee import _utils
@@ -22,7 +22,7 @@ from ee import geometry
 from ee import image
 
 
-class FeatureCollection(collection.Collection):
+class FeatureCollection(collection.Collection[feature.Feature]):
   """A representation of a FeatureCollection."""
 
   _initialized = False
@@ -34,25 +34,26 @@ class FeatureCollection(collection.Collection):
   @deprecation.WarnForDeprecatedAsset('args')
   def __init__(
       self,
-      args: Optional[
-          Union[
-              Dict[str, Any],
-              List[Any],
-              str,
-              feature.Feature,
-              geometry.Geometry,
-              computedobject.ComputedObject,
-          ]
-      ],
-      column: Optional[Any] = None,
+      args: None | (
+              dict[str, Any] |
+              list[Any] |
+              str |
+              feature.Feature |
+              geometry.Geometry |
+              computedobject.ComputedObject
+      ),
+      column: Any | None = None,
   ):
     """Constructs a collection features.
 
     Args:
-      args: constructor argument.  One of: 1) A string - assumed to be the name
-        of a collection. 2) A geometry. 3) A feature. 4) An array of features.
-        5) A GeoJSON FeatureCollection. 6) A computed object - reinterpreted as
-        a collection.
+      args: constructor argument. One of:
+        1) A string - assumed to be the name of a collection.
+        2) A geometry.
+        3) A feature.
+        4) An array of features.
+        5) A GeoJSON FeatureCollection.
+        6) A computed object - reinterpreted as a collection.
       column: The name of the geometry column to use. Only useful with the
         string constructor.
 
@@ -116,8 +117,8 @@ class FeatureCollection(collection.Collection):
     cls._initialized = False
 
   def getMapId(
-      self, vis_params: Optional[Dict[str, Any]] = None
-  ) -> Dict[str, Any]:
+      self, vis_params: dict[str, Any] | None = None
+  ) -> dict[str, Any]:
     """Fetch and return a map id and token, suitable for use in a Map overlay.
 
     Args:
@@ -137,9 +138,9 @@ class FeatureCollection(collection.Collection):
 
   def getDownloadURL(
       self,
-      filetype: Optional[str] = None,
-      selectors: Optional[Any] = None,
-      filename: Optional[str] = None,
+      filetype: str | None = None,
+      selectors: Any | None = None,
+      filename: str | None = None,
   ) -> str:
     """Gets a download URL.
 
@@ -179,8 +180,8 @@ class FeatureCollection(collection.Collection):
   def select(
       self,
       propertySelectors: Any,
-      newProperties: Optional[Any] = None,
-      retainGeometry: Union[bool, str] = True,
+      newProperties: Any | None = None,
+      retainGeometry: bool | str = True,
       *args,
   ) -> FeatureCollection:
     """Select properties from each feature in a collection.
@@ -189,9 +190,9 @@ class FeatureCollection(collection.Collection):
       propertySelectors: An array of names or regexes specifying the properties
           to select.
       newProperties: An array of strings specifying the new names for the
-          selected properties.  If supplied, the length must match the number
+          selected properties. If supplied, the length must match the number
           of properties selected.
-      retainGeometry: A boolean.  When false, the result will have no geometry.
+      retainGeometry: A boolean. When false, the result will have no geometry.
       *args: Selector elements as varargs.
 
     Returns:
@@ -218,14 +219,14 @@ class FeatureCollection(collection.Collection):
     return 'FeatureCollection'
 
   @staticmethod
-  def elementType() -> Type[feature.Feature]:
+  def elementType() -> type[feature.Feature]:
     return feature.Feature
 
   def classify(
       self,
       classifier: _arg_types.Classifier,
       # pylint: disable-next=invalid-name
-      outputName: Optional[_arg_types.String] = None,
+      outputName: _arg_types.String | None = None,
   ) -> FeatureCollection:
     """Returns the result of classifying each feature in a collection.
 
@@ -246,7 +247,7 @@ class FeatureCollection(collection.Collection):
       self,
       clusterer: _arg_types.Clusterer,
       # pylint: disable-next=invalid-name
-      outputName: Optional[_arg_types.String] = None,
+      outputName: _arg_types.String | None = None,
   ) -> FeatureCollection:
     """Returns the results of clustering each feature in a collection.
 
@@ -268,8 +269,8 @@ class FeatureCollection(collection.Collection):
       propertyName: _arg_types.String,  # pylint: disable=invalid-name
       mean: _arg_types.Number,
       stdDev: _arg_types.Number,  # pylint: disable=invalid-name
-      gamma: Optional[_arg_types.Number] = None,
-      reducer: Optional[_arg_types.Reducer] = None,
+      gamma: _arg_types.Number | None = None,
+      reducer: _arg_types.Reducer | None = None,
   ) -> image.Image:
     """Returns an inverse-distance weighted estimate of the value at each pixel.
 
@@ -302,8 +303,8 @@ class FeatureCollection(collection.Collection):
       sill: _arg_types.Number,
       nugget: _arg_types.Number,
       # pylint: disable-next=invalid-name
-      maxDistance: Optional[_arg_types.Number] = None,
-      reducer: Optional[_arg_types.Reducer] = None,
+      maxDistance: _arg_types.Number | None = None,
+      reducer: _arg_types.Reducer | None = None,
   ) -> image.Image:
     """Returns the results of sampling a Kriging estimator at each pixel.
 
@@ -331,10 +332,29 @@ class FeatureCollection(collection.Collection):
         reducer,
     )
 
+  @staticmethod
+  def loadBigQueryTable(
+      table: _arg_types.String,
+      geometryColumn: _arg_types.String | None = None,
+  ) -> FeatureCollection:
+    """Returns a FeatureCollection containing data read from a BigQuery table.
+
+    Args:
+      table: Path to BigQuery table in a project.dataset.table format.
+      geometryColumn: The name of the column to use as the main feature
+        geometry. If not specified, all features will have null geometry.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'FeatureCollection.loadBigQueryTable',
+        table,
+        geometryColumn,
+    )
+
   def makeArray(
       self,
       properties: _arg_types.List,
-      name: Optional[_arg_types.String] = None,
+      name: _arg_types.String | None = None,
   ) -> FeatureCollection:
     """Returns a collection with a 1-D Array property for each feature.
 
@@ -357,10 +377,10 @@ class FeatureCollection(collection.Collection):
   @staticmethod
   def randomPoints(
       region: geometry.Geometry,
-      points: Optional[_arg_types.Integer] = None,
-      seed: Optional[_arg_types.Integer] = None,
+      points: _arg_types.Integer | None = None,
+      seed: _arg_types.Integer | None = None,
       # pylint: disable-next=invalid-name
-      maxError: Optional[_arg_types.ErrorMargin] = None,
+      maxError: _arg_types.ErrorMargin | None = None,
   ) -> FeatureCollection:
     """Returns a collection of random points.
 
@@ -383,4 +403,28 @@ class FeatureCollection(collection.Collection):
 
     return apifunction.ApiFunction.call_(
         'FeatureCollection.randomPoints', region, points, seed, maxError
+    )
+
+  @staticmethod
+  def runBigQuery(
+      query: _arg_types.String,
+      geometryColumn: _arg_types.String | None = None,
+      maxBytesBilled: _arg_types.Integer | None = int(1e11),
+  ) -> FeatureCollection:
+    """Returns a FeatureCollection containing result of a BigQuery query.
+
+    Args:
+      query: GoogleSQL query to perform on the BigQuery resources.
+      geometryColumn: The name of the column to use as the main feature
+        geometry. If not specified, all features will have null geometry.
+      maxBytesBilled: Maximum number of bytes billed while processing the query.
+        Any BigQuery job that exceeds this limit will fail and won't be billed.
+        Defaults to 100GB.
+    """
+
+    return apifunction.ApiFunction.call_(
+        'FeatureCollection.runBigQuery',
+        query,
+        geometryColumn,
+        maxBytesBilled
     )

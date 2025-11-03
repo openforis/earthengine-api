@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-"""Test for the ee.oauth module."""
+"""Test for the oauth module."""
 
-from collections.abc import Iterator
-import contextlib
 import json
 import sys
 import tempfile
@@ -10,7 +8,8 @@ from unittest import mock
 import urllib.parse
 
 import unittest
-import ee
+from ee import ee_exception
+from ee import oauth
 
 
 class OAuthTest(unittest.TestCase):
@@ -19,7 +18,7 @@ class OAuthTest(unittest.TestCase):
     super().setUp()
     self.test_tmpdir = tempfile.mkdtemp()
 
-  def testRequestToken(self):
+  def test_request_token(self):
 
     class MockResponse:
 
@@ -38,10 +37,10 @@ class OAuthTest(unittest.TestCase):
     with mock.patch('urllib.request.urlopen', new=mock_urlopen):
       auth_code = '123'
       verifier = 'xyz'
-      refresh_token = ee.oauth.request_token(auth_code, verifier)
+      refresh_token = oauth.request_token(auth_code, verifier)
       self.assertEqual('123456', refresh_token)
 
-  def testWriteToken(self):
+  def test_write_token(self):
 
     def mock_credentials_path():
       return self.test_tmpdir + '/tempfile'
@@ -50,30 +49,52 @@ class OAuthTest(unittest.TestCase):
     with mock.patch(
         oauth_pkg + '.get_credentials_path', new=mock_credentials_path):
       client_info = dict(refresh_token='123')
-      ee.oauth.write_private_json(ee.oauth.get_credentials_path(), client_info)
+      oauth.write_private_json(oauth.get_credentials_path(), client_info)
 
     with open(mock_credentials_path()) as f:
       token = json.load(f)
       self.assertEqual({'refresh_token': '123'}, token)
 
   def test_in_colab_shell(self):
-    self.assertFalse(ee.oauth.in_colab_shell())
+    with mock.patch.dict(sys.modules, {'google.colab': None}):
+      self.assertFalse(oauth.in_colab_shell())
+
+    with mock.patch.dict(sys.modules, {'google.colab': mock.MagicMock()}):
+      self.assertTrue(oauth.in_colab_shell())
 
   def test_is_sdk_credentials(self):
-    sdk_project = ee.oauth.SDK_PROJECTS[0]
-    self.assertFalse(ee.oauth.is_sdk_credentials(None))
-    self.assertFalse(ee.oauth.is_sdk_credentials(mock.MagicMock()))
+    sdk_project = oauth.SDK_PROJECTS[0]
+    self.assertFalse(oauth.is_sdk_credentials(None))
+    self.assertFalse(oauth.is_sdk_credentials(mock.MagicMock()))
     self.assertFalse(
-        ee.oauth.is_sdk_credentials(mock.MagicMock(client_id='123'))
+        oauth.is_sdk_credentials(mock.MagicMock(client_id='123'))
     )
     self.assertTrue(
-        ee.oauth.is_sdk_credentials(mock.MagicMock(client_id=sdk_project))
+        oauth.is_sdk_credentials(mock.MagicMock(client_id=sdk_project))
     )
     self.assertTrue(
-        ee.oauth.is_sdk_credentials(
+        oauth.is_sdk_credentials(
             mock.MagicMock(client_id=f'{sdk_project}-somethingelse')
         )
     )
+
+  def testAuthenticate_colabAuthModeWithNonstandardScopes_raisesException(self):
+    with self.assertRaisesRegex(
+        ee_exception.EEException,
+        'Scopes cannot be customized when auth_mode is "colab".'
+    ):
+      oauth.authenticate(
+          auth_mode='colab',
+          scopes=['https://www.googleapis.com/auth/earthengine.readonly']
+      )
+
+  def testAuthenticate_colabAuthModeWithStandardScopes_succeeds(self):
+    # Should not raise an exception if the scopes are not narrowed.
+    with mock.patch.dict(sys.modules, {'google.colab': mock.MagicMock()}):
+      try:
+        oauth.authenticate(auth_mode='colab', scopes=oauth.SCOPES)
+      except ee_exception.EEException:
+        self.fail('authenticate raised an exception unexpectedly.')
 
 if __name__ == '__main__':
   unittest.main()

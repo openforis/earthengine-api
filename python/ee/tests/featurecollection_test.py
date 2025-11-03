@@ -2,7 +2,7 @@
 """Test for the ee.featurecollection module."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 import unittest
@@ -12,8 +12,8 @@ from ee import apitestcase
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any],
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any],
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
@@ -476,6 +476,38 @@ class FeatureCollectionTest(apitestcase.ApiTestCase):
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
+  def test_bounds(self):
+    # Inherited from Collection.bounds.
+    collection = ee.FeatureCollection('a')
+    max_error = 1.1
+    proj = 'EPSG:4326'
+    expect = make_expression_graph({
+        'arguments': {
+            'collection': FEATURES_A,
+            'maxError': {
+                'functionInvocationValue': {
+                    'functionName': 'ErrorMargin',
+                    'arguments': {'value': {'constantValue': max_error}},
+                }
+            },
+            'proj': {
+                'functionInvocationValue': {
+                    'arguments': {'crs': {'constantValue': proj}},
+                    'functionName': 'Projection',
+                }
+            },
+        },
+        # Not a FeatureCollection.
+        'functionName': 'Collection.bounds',
+    })
+    expression = collection.bounds(max_error, proj)
+    result = json.loads(expression.serialize())
+    self.assertEqual(expect, result)
+
+    expression = collection.bounds(maxError=max_error, proj=proj)
+    result = json.loads(expression.serialize())
+    self.assertEqual(expect, result)
+
   def test_classify(self):
     output_name = 'output name'
     expect = make_expression_graph({
@@ -770,6 +802,26 @@ class FeatureCollectionTest(apitestcase.ApiTestCase):
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
+  def test_load_big_query_table(self):
+    table = 'bigquery-public-data.new_york_subway.stations'
+    geometry_column = 'geometry'
+    expect = make_expression_graph({
+        'arguments': {
+            'table': {'constantValue': table},
+            'geometryColumn': {'constantValue': geometry_column},
+        },
+        'functionName': 'FeatureCollection.loadBigQueryTable',
+    })
+    expression = ee.FeatureCollection.loadBigQueryTable(table, geometry_column)
+    result = json.loads(expression.serialize())
+    self.assertEqual(expect, result)
+
+    expression = ee.FeatureCollection.loadBigQueryTable(
+        table=table, geometryColumn=geometry_column
+    )
+    result = json.loads(expression.serialize())
+    self.assertEqual(expect, result)
+
   def test_make_array(self):
     properties = ['a', 'b']
     name = 'name string'
@@ -813,21 +865,28 @@ class FeatureCollectionTest(apitestcase.ApiTestCase):
     column_name = 'column a'
     seed = 1
     distribution = 'uniform'
+    row_keys = ['system:index']
     expect = make_expression_graph({
         'arguments': {
             'collection': FEATURES_A,
             'columnName': {'constantValue': column_name},
             'seed': {'constantValue': seed},
             'distribution': {'constantValue': distribution},
+            'rowKeys': {'constantValue': row_keys},
         },
         'functionName': 'Collection.randomColumn',
     })
-    expression = collection.randomColumn(column_name, seed, distribution)
+    expression = collection.randomColumn(
+        column_name, seed, distribution, row_keys
+    )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
     expression = collection.randomColumn(
-        columnName=column_name, seed=seed, distribution=distribution
+        columnName=column_name,
+        seed=seed,
+        distribution=distribution,
+        rowKeys=row_keys,
     )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
@@ -951,7 +1010,32 @@ class FeatureCollectionTest(apitestcase.ApiTestCase):
     self.assertEqual(expect, result)
 
     expression = collection.remap(
-        lookupIn=lookup_in, lookupOut=lookup_out, columnName=column_name
+        lookupIn=lookup_in, lookupOut=lookup_out, columnName=column_name)
+    result = json.loads(expression.serialize())
+    self.assertEqual(expect, result)
+
+  def test_run_big_query(self):
+    query = 'SELECT * FROM `bigquery-public-data.new_york_subway.stations`'
+    geometry_column = 'geometry'
+    max_bytes_billed = 1000
+    expect = make_expression_graph({
+        'arguments': {
+            'query': {'constantValue': query},
+            'geometryColumn': {'constantValue': geometry_column},
+            'maxBytesBilled': {'constantValue': max_bytes_billed},
+        },
+        'functionName': 'FeatureCollection.runBigQuery',
+    })
+    expression = ee.FeatureCollection.runBigQuery(
+        query, geometry_column, max_bytes_billed
+    )
+    result = json.loads(expression.serialize())
+    self.assertEqual(expect, result)
+
+    expression = ee.FeatureCollection.runBigQuery(
+        query=query,
+        geometryColumn=geometry_column,
+        maxBytesBilled=max_bytes_billed,
     )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)

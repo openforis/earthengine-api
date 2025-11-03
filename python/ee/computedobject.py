@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 from ee import _utils
 from ee import data
@@ -38,18 +39,18 @@ class ComputedObject(encodable.Encodable, metaclass=ComputedObjectMetaclass):
   necessary to interact well with the rest of the API.
 
   ComputedObjects come in two flavors:
-  1. If func != null and args != null, the ComputedObject is encoded as an
-     invocation of func with args.
-  2. If func == null and args == null, the ComputedObject is a variable
+  1. If func is not None and args is not None, the ComputedObject is encoded as
+     an invocation of func with args.
+  2. If func is None and args is None, the ComputedObject is a variable
      reference. The variable name is stored in its varName member. Note that
-     in this case, varName may still be null; this allows the name to be
+     in this case, varName may still be None; this allows the name to be
      deterministically generated at a later time. This is used to generate
      deterministic variable names for mapped functions, ensuring that nested
      mapping calls do not use the same variable name.
   """
-  func: Optional[Any]
-  args: Optional[Dict[str, Any]]
-  varName: Optional[str]  # pylint: disable=g-bad-name
+  func: Any | None
+  args: dict[str, Any] | None
+  varName: str | None  # pylint: disable=g-bad-name
 
   # Tell pytype not to worry about dynamic attributes.
   _HAS_DYNAMIC_ATTRIBUTES: bool = True
@@ -60,9 +61,9 @@ class ComputedObject(encodable.Encodable, metaclass=ComputedObjectMetaclass):
   @_utils.accept_opt_prefix('opt_varName')
   def __init__(
       self,
-      func: Optional[Any],
-      args: Optional[Dict[str, Any]],
-      varName: Optional[str] = None,  # pylint: disable=g-bad-name
+      func: Any | None,
+      args: dict[str, Any] | None,
+      varName: str | None = None,  # pylint: disable=g-bad-name
   ):
     """Creates a computed object.
 
@@ -98,7 +99,7 @@ class ComputedObject(encodable.Encodable, metaclass=ComputedObjectMetaclass):
     return hash(ComputedObject.freeze(self.__dict__))
 
   # pylint: disable-next=useless-parent-delegation
-  def getInfo(self) -> Optional[Any]:
+  def getInfo(self) -> Any | None:
     """Fetch and return information about this object.
 
     Returns:
@@ -106,7 +107,7 @@ class ComputedObject(encodable.Encodable, metaclass=ComputedObjectMetaclass):
     """
     return data.computeValue(self)
 
-  def encode(self, encoder: Optional[Callable[..., Any]]) -> Dict[str, Any]:
+  def encode(self, encoder: Callable[..., Any] | None) -> dict[str, Any]:
     """Encodes the object in a format compatible with Serializer."""
     if self.isVariable():
       return {
@@ -135,7 +136,7 @@ class ComputedObject(encodable.Encodable, metaclass=ComputedObjectMetaclass):
           key: func
       }
 
-  def encode_cloud_value(self, encoder: Any) -> Dict[str, Any]:
+  def encode_cloud_value(self, encoder: Any) -> dict[str, Any]:
     if self.isVariable():
       ref = self.varName
       if ref is None and isinstance(
@@ -160,7 +161,7 @@ class ComputedObject(encodable.Encodable, metaclass=ComputedObjectMetaclass):
         invocation = self.func.encode_cloud_invocation(encoder)
 
       # Encode all arguments recursively.
-      encoded_args: Dict[str, Any] = {}
+      encoded_args: dict[str, Any] = {}
       for name in sorted(self.args):
         value = self.args[name]
         if value is not None:
@@ -184,7 +185,7 @@ class ComputedObject(encodable.Encodable, metaclass=ComputedObjectMetaclass):
 
   def __str__(self) -> str:
     """Writes out the object in a human-readable form."""
-    return 'ee.%s(%s)' % (self.name(), serializer.toReadableJSON(self))
+    return f'ee.{self.name()}({serializer.toReadableJSON(self)})'
 
   def isVariable(self) -> bool:
     """Returns whether this computed object is a variable reference."""
@@ -233,9 +234,11 @@ class ComputedObject(encodable.Encodable, metaclass=ComputedObjectMetaclass):
       return obj
     else:
       result = cls.__new__(cls)  # pylint: disable=no-value-for-parameter
+      # pylint: disable=attribute-error
       result.func = obj.func
       result.args = obj.args
       result.varName = obj.varName
+      # pylint: enable=attribute-error
       return result
 
   @staticmethod

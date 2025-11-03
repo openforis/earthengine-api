@@ -1,7 +1,7 @@
 """A wrapper for Arrays."""
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ee import _arg_types
 from ee import apifunction
@@ -37,7 +37,7 @@ class Array(computedobject.ComputedObject):
       self,
       values: _arg_types.Array,
       # pylint: disable-next=invalid-name
-      pixelType: Optional[_arg_types.String] = None,
+      pixelType: _arg_types.String | None = None,
   ):
     """Creates an Array wrapper.
 
@@ -60,7 +60,7 @@ class Array(computedobject.ComputedObject):
         super().__init__(values.func, values.args, values.varName)
         return
 
-    args: Dict[str, Any] = {'values': values}
+    args: dict[str, Any] = {'values': values}
     if pixelType is not None:
       args['pixelType'] = pixelType
 
@@ -92,7 +92,7 @@ class Array(computedobject.ComputedObject):
   def accum(
       self,
       axis: _arg_types.Integer,
-      reducer: Optional[_arg_types.Reducer] = None,
+      reducer: _arg_types.Reducer | None = None,
   ) -> Array:
     """Accumulates elements of an array along the given axis.
 
@@ -189,6 +189,8 @@ class Array(computedobject.ComputedObject):
 
     return apifunction.ApiFunction.call_(self.name() + '.bitCount', self)
 
+  @staticmethod
+  # pylint: disable-next=redefined-builtin
   def bitsToArray(input: _arg_types.Integer) -> Array:
     """Returns an Array from the bits of an integer.
 
@@ -261,7 +263,7 @@ class Array(computedobject.ComputedObject):
 
   @staticmethod
   def cat(
-      arrays: _arg_types.List, axis: Optional[_arg_types.Integer] = None
+      arrays: _arg_types.List, axis: _arg_types.Integer | None = None
   ) -> Array:
     """Returns an Array that is the concatenation of the given arrays.
 
@@ -748,8 +750,8 @@ class Array(computedobject.ComputedObject):
 
   def matrixTranspose(
       self,
-      axis1: Optional[_arg_types.Integer] = None,
-      axis2: Optional[_arg_types.Integer] = None,
+      axis1: _arg_types.Integer | None = None,
+      axis2: _arg_types.Integer | None = None,
   ) -> Array:
     """Transposes two dimensions of an array.
 
@@ -843,7 +845,7 @@ class Array(computedobject.ComputedObject):
     return apifunction.ApiFunction.call_(self.name() + '.or', self, right)
 
   def pad(
-      self, lengths: _arg_types.Any, pad: Optional[_arg_types.Number] = None
+      self, lengths: _arg_types.Any, pad: _arg_types.Number | None = None
   ) -> Array:
     """Pad an array to a given length.
 
@@ -896,7 +898,7 @@ class Array(computedobject.ComputedObject):
       reducer: _arg_types.Reducer,
       axes: _arg_types.Any,
       # pylint: disable-next=invalid-name
-      fieldAxis: Optional[_arg_types.Integer] = None,
+      fieldAxis: _arg_types.Integer | None = None,
   ) -> Array:
     """Returns the result of applying the reducer on the array.
 
@@ -934,8 +936,8 @@ class Array(computedobject.ComputedObject):
 
   def repeat(
       self,
-      axis: Optional[_arg_types.Integer] = None,
-      copies: Optional[_arg_types.Integer] = None,
+      axis: _arg_types.Integer | None = None,
+      copies: _arg_types.Integer | None = None,
   ) -> Array:
     """Repeats the array along the given axis.
 
@@ -1019,10 +1021,10 @@ class Array(computedobject.ComputedObject):
 
   def slice(
       self,
-      axis: Optional[_arg_types.Integer] = None,
-      start: Optional[_arg_types.Integer] = None,
-      end: Optional[_arg_types.Integer] = None,
-      step: Optional[_arg_types.Integer] = None,
+      axis: _arg_types.Integer | None = None,
+      start: _arg_types.Integer | None = None,
+      end: _arg_types.Integer | None = None,
+      step: _arg_types.Integer | None = None,
   ) -> Array:
     """Returns the result of slicing the array along the given axis.
 
@@ -1041,7 +1043,7 @@ class Array(computedobject.ComputedObject):
       start: The coordinate of the first slice (inclusive) along 'axis'.
         Negative numbers are used to position the start of slicing relative to
         the end of the array, where -1 starts at the last position on the axis,
-        -2 starts at the next to last position, etc.  Defaults to 0.
+        -2 starts at the next to last position, etc. Defaults to 0.
       end: The coordinate (exclusive) at which to stop taking slices. By default
         this will be the length of the given axis. Negative numbers are used to
         position the end of slicing relative to the end of the array, where -1
@@ -1049,7 +1051,7 @@ class Array(computedobject.ComputedObject):
         etc.
       step: The separation between slices along 'axis'; a slice will be taken at
         each whole multiple of 'step' from 'start' (inclusive) to 'end'
-        (exclusive). Must be positive.  Defaults to 1.
+        (exclusive). Must be positive. Defaults to 1.
 
     Returns:
       An ee.Array.
@@ -1059,7 +1061,7 @@ class Array(computedobject.ComputedObject):
         self.name() + '.slice', self, axis, start, end, step
     )
 
-  def sort(self, keys: Optional[_arg_types.Any] = None) -> Array:
+  def sort(self, keys: _arg_types.Any | None = None) -> Array:
     """Sorts elements of the array along one axis.
 
     Args:
@@ -1172,8 +1174,8 @@ class Array(computedobject.ComputedObject):
 
   def transpose(
       self,
-      axis1: Optional[_arg_types.Integer] = None,
-      axis2: Optional[_arg_types.Integer] = None,
+      axis1: _arg_types.Integer | None = None,
+      axis2: _arg_types.Integer | None = None,
   ) -> Array:
     """Transposes two dimensions of an array.
 

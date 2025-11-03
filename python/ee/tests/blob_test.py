@@ -2,7 +2,7 @@
 """Test for the blob module."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 import unittest
 import ee
@@ -12,8 +12,8 @@ URL = 'gs://ee-docs-demos/something'
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any],
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any],
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
@@ -75,9 +75,9 @@ class BlobTest(apitestcase.ApiTestCase):
     self.assertEqual({'value': 'fakeValue'}, result.getInfo())
 
   def test_wrong_arg_type(self):
-    message = 'Blob url must be a string: <class \'int\'> -> "123"'
+    message = r'url must be a string or ComputedObject: <class \'int\'> -> "13"'
     with self.assertRaisesRegex(ValueError, message):
-      ee.Blob(123)  # pytype: disable=wrong-arg-types
+      ee.Blob(13)  # pytype: disable=wrong-arg-types
 
   def test_does_not_start_with_gs(self):
     url = 'http://example.com/something'

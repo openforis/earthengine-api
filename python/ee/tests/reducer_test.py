@@ -2,7 +2,7 @@
 """Tests for ee.Reducer module."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 import unittest
 import ee
@@ -12,8 +12,8 @@ TO_LIST = 'Reducer.toList'
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any],
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any],
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
@@ -808,6 +808,19 @@ class ReducerTest(apitestcase.ApiTestCase):
     expression = ee.Reducer.ridgeRegression(**args)
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
+
+  def test_ridge_regression_kwargs_with_lambda(self):
+    with self.assertRaisesRegex(
+        ValueError, 'lambda_ cannot be set when providing kwargs.'
+    ):
+      ee.Reducer.ridgeRegression(1, lambda_=3, **{'lambda': 4})
+
+  def test_ridge_regression_unexpected_kwargs(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        r"Unexpected arguments: \['unexpected'\]\. Expected: lambda.",
+    ):
+      ee.Reducer.ridgeRegression(1, unexpected=4)
 
   def test_robust_linear_regression(self):
     num_x = 1

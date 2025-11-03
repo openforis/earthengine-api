@@ -2,7 +2,7 @@
 """Test for the ee.feature module."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
 import unittest
@@ -40,7 +40,7 @@ FEATURE_A_GRAPH = {
 }
 
 
-def right_maxerror_proj(function_name: str) -> Dict[str, Any]:
+def right_maxerror_proj(function_name: str) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {
@@ -61,8 +61,8 @@ def right_maxerror_proj(function_name: str) -> Dict[str, Any]:
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any],
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any],
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
@@ -71,7 +71,7 @@ def make_expression_graph(
 
 class FeatureTest(apitestcase.ApiTestCase):
 
-  def testConstructors(self):
+  def test_constructors(self):
     """Verifies that constructors understand valid parameters."""
     point = ee.Geometry.Point(1, 2)
     from_geometry = ee.Feature(point)
@@ -121,7 +121,7 @@ class FeatureTest(apitestcase.ApiTestCase):
         'system:index': 'bar'
     }, from_geo_json_feature.args['metadata'])
 
-  def testGetMap(self):
+  def test_get_map(self):
     """Verifies that getMap() uses Collection.draw to rasterize Features."""
     feature = ee.Feature(None)
     mapid = feature.getMapId({'color': 'ABCDEF'})
@@ -132,7 +132,7 @@ class FeatureTest(apitestcase.ApiTestCase):
     self.assertEqual('fakeMapId', mapid['mapid'])
     self.assertEqual(manual.serialize(), mapid['image'].serialize())
 
-  def testInitOptParams(self):
+  def test_init_opt_params(self):
     result = ee.Feature(
         geom=ee.Geometry.Point(1, 2), opt_properties=dict(prop='a')
     ).serialize()
@@ -328,7 +328,7 @@ class FeatureTest(apitestcase.ApiTestCase):
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
-  def test_cutLines(self):
+  def test_cut_lines(self):
     expect = make_expression_graph({
         'arguments': {
             'feature': FEATURE_NONE_GRAPH,
@@ -392,13 +392,23 @@ class FeatureTest(apitestcase.ApiTestCase):
     self.assertEqual(expect, result)
 
   def test_distance(self):
+    max_error = 10
+    spherical = True
     expect = right_maxerror_proj('distance')
-    expression = ee.Feature(None).distance(ee.Feature(None), 10, EPSG_4326)
+    argugments = expect['values']['0']['functionInvocationValue']['arguments']
+    argugments['spherical'] = {'constantValue': spherical}
+
+    expression = ee.Feature(None).distance(
+        ee.Feature(None), max_error, EPSG_4326, spherical
+    )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
     expression = ee.Feature(None).distance(
-        right=ee.Feature(None), maxError=10, proj=EPSG_4326
+        right=ee.Feature(None),
+        maxError=max_error,
+        proj=EPSG_4326,
+        spherical=spherical,
     )
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
@@ -536,7 +546,7 @@ class FeatureTest(apitestcase.ApiTestCase):
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
-  def test_setGeometry(self):
+  def test_set_geometry(self):
     expect = make_expression_graph({
         'arguments': {
             'feature': FEATURE_NONE_GRAPH,
@@ -636,7 +646,7 @@ class FeatureTest(apitestcase.ApiTestCase):
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
 
-  def test_withinDistance(self):
+  def test_within_distance(self):
     expect = {
         'result': '0',
         'values': {

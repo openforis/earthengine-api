@@ -1,7 +1,7 @@
 """A class for representing built-in EE API Function.
 
 Earth Engine can dynamically produce a JSON array listing the
-algorithms available to the user.  Each item in the dictionary identifies
+algorithms available to the user. Each item in the dictionary identifies
 the name and return type of the algorithm, the name and type of its
 arguments, whether they're required or optional, default values and docs
 for each argument and the algorithms as a whole.
@@ -18,7 +18,7 @@ from __future__ import annotations
 import copy
 import keyword
 import re
-from typing import Any, Dict, Optional, Set, Type
+from typing import Any
 
 from ee import _utils
 from ee import computedobject
@@ -31,17 +31,17 @@ from ee import function
 
 class ApiFunction(function.Function):
   """An object representing an EE API Function."""
-  _signature: Dict[str, Any]
+  _signature: dict[str, Any]
 
   # A dictionary of functions defined by the API server.
-  _api: Dict[str, ApiFunction] = {}
+  _api: dict[str, ApiFunction] = {}
 
   # A set of algorithm names containing all algorithms that have been bound to
   # a function so far using importApi().
-  _bound_signatures: Set[str] = set()
+  _bound_signatures: set[str] = set()
 
   @_utils.accept_opt_prefix('opt_signature')
-  def __init__(self, name: str, signature: Optional[Dict[str, Any]] = None):
+  def __init__(self, name: str, signature: dict[str, Any] | None = None):
     """Creates a function defined by the EE API.
 
     Args:
@@ -60,7 +60,7 @@ class ApiFunction(function.Function):
     return (isinstance(other, ApiFunction) and
             self.getSignature() == other.getSignature())
 
-  # For Python 3, __hash__ is needed because __eq__ is defined.
+  # __hash__ is needed because __eq__ is defined.
   # See https://docs.python.org/3/reference/datamodel.html#object.__hash__
   def __hash__(self) -> int:
     return hash(computedobject.ComputedObject.freeze(self.getSignature()))
@@ -84,7 +84,7 @@ class ApiFunction(function.Function):
     return cls.lookup(name).call(*args, **kwargs)
 
   @classmethod
-  def apply_(cls, name: str, named_args: Dict[str, Any]) -> Any:
+  def apply_(cls, name: str, named_args: dict[str, Any]) -> Any:
     """Call a named API function with a dictionary of named arguments.
 
     Args:
@@ -101,27 +101,29 @@ class ApiFunction(function.Function):
     del encoder  # Unused.
     return self._signature['name']
 
-  def encode_cloud_invocation(self, encoder: Any) -> Dict[str, Any]:
+  def encode_cloud_invocation(self, encoder: Any) -> dict[str, Any]:
     del encoder  # Unused.
     return {'functionName': self._signature['name']}
 
-  def getSignature(self) -> Dict[str, Any]:
+  def getSignature(self) -> dict[str, Any]:
     """Returns a description of the interface provided by this function."""
     return self._signature
 
   @classmethod
-  def allSignatures(cls) -> Dict[str, Dict[str, Any]]:
+  def allSignatures(cls) -> dict[str, dict[str, Any]]:
     """Returns a map from the name to signature for all API functions."""
     cls.initialize()
-    return dict([(name, func.getSignature())
-                 for name, func in cls._api.items()])
+    return {name: func.getSignature() for name, func in cls._api.items()}
 
   @classmethod
-  def unboundFunctions(cls) -> Dict[str, Any]:
+  def unboundFunctions(cls) -> dict[str, Any]:
     """Returns the functions that have not been bound using importApi() yet."""
     cls.initialize()
-    return dict([(name, func) for name, func in cls._api.items()
-                 if name not in cls._bound_signatures])
+    return {
+        name: func
+        for name, func in cls._api.items()
+        if name not in cls._bound_signatures
+    }
 
   # TODO(user): Any -> ApiFunction for the return type.
   @classmethod
@@ -142,7 +144,7 @@ class ApiFunction(function.Function):
     return result
 
   @classmethod
-  def lookupInternal(cls, name: str) -> Optional[ApiFunction]:
+  def lookupInternal(cls, name: str) -> ApiFunction | None:
     """Looks up an API function by name.
 
     Args:
@@ -181,7 +183,7 @@ class ApiFunction(function.Function):
       target: Any,
       prefix: str,
       type_name: str,
-      prepend: Optional[str] = None,
+      prepend: str | None = None,
   ) -> None:
     """Adds all API functions that begin with a given prefix to a target class.
 
@@ -248,7 +250,7 @@ class ApiFunction(function.Function):
         setattr(target, fname, bound_function)
 
   @staticmethod
-  def clearApi(target: Type[Any]) -> None:
+  def clearApi(target: type[Any]) -> None:
     """Removes all methods added by importApi() from a target class.
 
     Args:

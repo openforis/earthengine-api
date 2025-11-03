@@ -2,7 +2,7 @@
 """Tests for the ee.Terrain module."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 import unittest
 import ee
@@ -19,8 +19,8 @@ IMAGE_EXPRESSION_1 = {
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any],
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any],
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
@@ -140,6 +140,14 @@ class TerrainTest(apitestcase.ApiTestCase):
     expression = ee.Terrain.slope(input=IMAGE_1)
     result = json.loads(expression.serialize())
     self.assertEqual(expect, result)
+
+  def test_init(self):
+    message = r'Terrain should not be used as an object.*'
+    with self.assertRaisesRegex(RuntimeError, message):
+      ee.Terrain()
+
+  def test_name(self):
+    self.assertEqual('Terrain', ee.Terrain.name())
 
 
 if __name__ == '__main__':

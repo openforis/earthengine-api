@@ -2,7 +2,7 @@
 """Tests for the ee.Projection module."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 import unittest
 import ee
@@ -24,8 +24,8 @@ PROJECTION_EPSG_4326 = {
 
 
 def make_expression_graph(
-    function_invocation_value: Dict[str, Any],
-) -> Dict[str, Any]:
+    function_invocation_value: dict[str, Any],
+) -> dict[str, Any]:
   return {
       'result': '0',
       'values': {'0': {'functionInvocationValue': function_invocation_value}},
@@ -44,7 +44,7 @@ class ProjectionTest(apitestcase.ApiTestCase):
     projection_func = ee.ApiFunction.lookup('Projection')
     self.assertEqual(projection_func, projection.func)
     self.assertFalse(projection.isVariable())
-    self.assertEqual(set(['crs', 'transform']), set(projection.args))
+    self.assertEqual({'crs', 'transform'}, set(projection.args))
     self.assertEqual(EPSG_4326, projection.args['crs'])
     expected_transform = {
         'result': '0',
@@ -71,7 +71,7 @@ class ProjectionTest(apitestcase.ApiTestCase):
 
     projection_func = ee.ApiFunction.lookup('Projection')
     self.assertEqual(projection_func, projection.func)
-    self.assertEqual(set(['crs', 'transformWkt']), set(projection.args))
+    self.assertEqual({'crs', 'transformWkt'}, set(projection.args))
     self.assertEqual(EPSG_4326, projection.args['crs'])
     expected_transform_wkt = {
         'result': '0',
@@ -169,7 +169,6 @@ class ProjectionTest(apitestcase.ApiTestCase):
     })
     expression = ee.Projection(EPSG_4326).nominalScale()
     result = json.loads(expression.serialize())
-    print(result)
     self.assertEqual(expect, result)
 
   def test_scale(self):

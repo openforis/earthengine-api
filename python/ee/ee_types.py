@@ -4,12 +4,12 @@
 # pylint: disable=g-bad-name
 
 import datetime
-from typing import Any, Type
+from typing import Any
 
 from ee import computedobject
 
 
-# A dictionary of the classes in the ee module.  Set by registerClasses.
+# A dictionary of the classes in the ee module. Set by registerClasses.
 _registered_classes = {}
 
 
@@ -23,7 +23,7 @@ def _registerClasses(classes) -> None:
   _registered_classes = classes
 
 
-def classToName(a_class: Type[Any]) -> str:
+def classToName(a_class: type[Any]) -> str:
   """Converts a class to the API-friendly type name.
 
   Args:
@@ -48,7 +48,7 @@ def classToName(a_class: Type[Any]) -> str:
 
 # TODO(user): Any -> Optional[type[Any]].
 def nameToClass(name: str) -> Any:
-  """Converts a class name to a class.  Returns None if not an ee class.
+  """Converts a class name to a class. Returns None if not an ee class.
 
   Args:
     name: The class name.

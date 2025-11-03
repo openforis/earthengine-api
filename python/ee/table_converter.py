@@ -1,6 +1,7 @@
 """Converters used in the table data fetching methods."""
 
-from typing import Any, Dict, Iterator, List, Optional, Type, Union
+from collections.abc import Iterator
+from typing import Any
 
 
 class TableConverter:
@@ -24,7 +25,7 @@ class PandasConverter(TableConverter):
 
   def _convert_to_records(
       self, features: Iterator[Any]
-  ) -> Iterator[Dict[str, Any]]:
+  ) -> Iterator[dict[str, Any]]:
     for feature in features:
       yield {
           'geo': feature.get('geometry'),
@@ -46,20 +47,20 @@ class GeoPandasConverter(TableConverter):
         self._materialize_features(features)
     )
 
-  def _materialize_features(self, features: Iterator[Any]) -> List[Any]:
+  def _materialize_features(self, features: Iterator[Any]) -> list[Any]:
     """Materializes the features, making several requests if necessary."""
     return list(features)
 
 
-_TABLE_DATA_CONVERTERS: Dict[str, Type[TableConverter]] = {
+_TABLE_DATA_CONVERTERS: dict[str, type[TableConverter]] = {
     'PANDAS_DATAFRAME': PandasConverter,
     'GEOPANDAS_GEODATAFRAME': GeoPandasConverter,
 }
 
 
 def from_file_format(
-    file_format: Union[str, TableConverter]
-) -> Optional[TableConverter]:
+    file_format: str | TableConverter
+) -> TableConverter | None:
   if isinstance(file_format, TableConverter):
     return file_format
   if file_format in _TABLE_DATA_CONVERTERS:

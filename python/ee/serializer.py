@@ -4,7 +4,7 @@ import collections
 import datetime
 import hashlib
 import json
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from ee import _cloud_api_utils
 from ee import _utils
@@ -32,23 +32,23 @@ def DatetimeToMicroseconds(date: datetime.datetime) -> int:
 
 class Serializer:
   """A serializer for EE object trees."""
-  unbound_name: Optional[str]
+  unbound_name: str | None
 
   # Whether the encoding should factor out shared subtrees.
   _is_compound: bool
   _for_cloud_api: bool
   # A list of shared subtrees as [name, value] pairs.
-  _scope: List[str]
+  _scope: list[str]
   # A lookup table from object hash to subtree names as stored in self._scope
-  _encoded: Dict[Any, Any]
+  _encoded: dict[Any, Any]
   # A lookup table from object ID as retrieved by id() to md5 hash values.
-  _hashcache: Dict[Any, Any]
+  _hashcache: dict[Any, Any]
 
   def __init__(
       self,
       is_compound: bool = True,
       for_cloud_api: bool = False,
-      unbound_name: Optional[str] = None,
+      unbound_name: str | None = None,
   ):
     """Constructs a serializer.
 
@@ -160,8 +160,8 @@ class Serializer:
           'type':
               'Dictionary',
           'value':
-              dict([(key, self._encode_value(value))
-                    for key, value in obj.items()])
+              {key: self._encode_value(value)
+                    for key, value in obj.items()}
       }
     else:
       raise ee_exception.EEException('Cannot encode object: %s' % obj)
@@ -280,7 +280,7 @@ def encode(
     obj: Any,
     is_compound: bool = True,
     for_cloud_api: bool = True,
-    unbound_name: Optional[str] = None,
+    unbound_name: str | None = None,
 ) -> Any:
   """Serialize an object to a JSON-compatible structure for API calls.
 
@@ -358,7 +358,7 @@ class _ExpressionOptimizer:
   - Collapse dicts and arrays of constants to constant dicts/arrays.
   """
 
-  def __init__(self, result: Any, values: Optional[Any] = None):
+  def __init__(self, result: Any, values: Any | None = None):
     """Builds an ExpressionOptimizer.
 
     Args:
@@ -380,12 +380,12 @@ class _ExpressionOptimizer:
   def _is_compound(self) -> bool:
     return self._values is not None
 
-  def _find_single_uses(self) -> Set[Any]:
+  def _find_single_uses(self) -> set[Any]:
     """Finds the names of all named values that are referred to only once."""
     reference_counts = collections.defaultdict(int)
     reference_counts[self._result] += 1
 
-    def _contained_reference(value: Any) -> Optional[Any]:
+    def _contained_reference(value: Any) -> Any | None:
       """Gets a contained reference from a ValueNode, if there is one."""
       if 'functionDefinitionValue' in value:
         return value['functionDefinitionValue']['body']
@@ -403,8 +403,8 @@ class _ExpressionOptimizer:
         reference_counts[reference] += 1
 
     self._visit_all_values_in_expression(increment_reference_count)
-    return set(reference for reference, count in reference_counts.items()
-               if count == 1)
+    return {reference for reference, count in reference_counts.items()
+               if count == 1}
 
   def optimize(self) -> Any:
     """Optimises the expression, returning the optimised form."""

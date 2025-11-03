@@ -7,10 +7,11 @@ referenced from there (e.g., "ee.profilePrinting").
 # Using lowercase function naming to match the JavaScript names.
 # pylint: disable=g-bad-name
 
+from collections.abc import Iterator
 import contextlib
 import json
 import sys
-from typing import Any, Dict, Iterator, Optional, TextIO, Union
+from typing import Any, TextIO
 
 from google.auth import crypt
 from google.oauth2 import service_account
@@ -21,13 +22,14 @@ from ee import data
 from ee import ee_exception
 from ee import oauth
 
-
 # Number of times to retry fetching profile data.
 _PROFILE_RETRIES = 5
 
 
 def ServiceAccountCredentials(
-    email: str, key_file: Optional[str] = None, key_data: Optional[str] = None
+    email: str | None = None,
+    key_file: str | None = None,
+    key_data: str | None = None,
 ) -> service_account.Credentials:
   """Configure OAuth2 credentials for a Google Service Account.
 
@@ -41,6 +43,10 @@ def ServiceAccountCredentials(
   Returns:
     An OAuth2 credentials object.
   """
+  if not email and not key_file and not key_data:
+    raise ValueError(
+        'At least one of email, key_file, or key_data must be specified.'
+    )
 
   # Assume anything that doesn't end in '.pem' is a JSON key.
   if key_file and not key_file.endswith('.pem'):
@@ -59,7 +65,7 @@ def ServiceAccountCredentials(
 
   # Probably a PEM key - just read the file into 'key_data'.
   if key_file:
-    with open(key_file, 'r') as file_:
+    with open(key_file) as file_:
       key_data = file_.read()
 
   # Raw PEM key.
@@ -69,7 +75,7 @@ def ServiceAccountCredentials(
 
 
 def call(
-    func: Union[str, apifunction.ApiFunction], *args, **kwargs
+    func: str | apifunction.ApiFunction, *args, **kwargs
 ) -> computedobject.ComputedObject:
   """Invoke the given algorithm with the specified args.
 
@@ -91,7 +97,7 @@ def call(
 
 # pylint: disable-next=redefined-builtin
 def apply(
-    func: Union[str, apifunction.ApiFunction], named_args: Dict[str, Any]
+    func: str | apifunction.ApiFunction, named_args: dict[str, Any]
 ) -> computedobject.ComputedObject:
   """Call a function with a dictionary of named arguments.
 
@@ -118,14 +124,13 @@ def profilePrinting(destination: TextIO = sys.stderr) -> Iterator[None]:
   The profile will be printed when the context ends, whether or not any error
   occurred within the context.
 
-  # Simple example:
-  with ee.profilePrinting():
-     print ee.Number(1).add(1).getInfo()
+  Example:
+    with ee.profilePrinting():
+      print(ee.Number(1).add(1).getInfo())
 
   Args:
     destination: A file-like object to which the profile text is written.
         Defaults to sys.stderr.
-
   """
   # Profile.getProfiles is `hidden`, so call it explicitly.
   get_profiles = apifunction.ApiFunction.lookup('Profile.getProfiles').call
@@ -135,12 +140,11 @@ def profilePrinting(destination: TextIO = sys.stderr) -> Iterator[None]:
       yield
   finally:
     # Make several attempts in case of transient errors.
-    attempts = _PROFILE_RETRIES
-    for i in range(_PROFILE_RETRIES):
+    for attempt in range(_PROFILE_RETRIES):
       try:
         profile_text = get_profiles(ids=profile_ids).getInfo()
         destination.write(profile_text)
         break
       except ee_exception.EEException as exception:
-        if i == attempts - 1:
+        if attempt == _PROFILE_RETRIES - 1:
           raise exception

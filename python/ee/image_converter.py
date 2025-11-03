@@ -1,7 +1,7 @@
 """Converters used in the image data fetching methods."""
 
 import io
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any
 
 
 class ImageConverter:
@@ -43,14 +43,14 @@ class NumPyConverter(ImageConverter):
     return numpy.load(io.BytesIO(data))
 
 
-_PIXEL_DATA_CONVERTERS: Dict[str, Type[ImageConverter]] = {
+_PIXEL_DATA_CONVERTERS: dict[str, type[ImageConverter]] = {
     'NUMPY_NDARRAY': NumPyConverter
 }
 
 
 def from_file_format(
-    file_format: Union[str, ImageConverter]
-) -> Optional[ImageConverter]:
+    file_format: str | ImageConverter,
+) -> ImageConverter | None:
   if isinstance(file_format, ImageConverter):
     return file_format
   if file_format in _PIXEL_DATA_CONVERTERS:
